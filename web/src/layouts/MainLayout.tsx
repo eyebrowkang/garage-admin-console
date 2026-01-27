@@ -1,63 +1,83 @@
-import { Outlet, Link, useLocation } from 'react-router-dom'; // Keep if used, but error said it's unused. Wait, cn is used in NavItem but passing variant string? No, cn is imported but used?
-// Error: 'cn' is declared but its value is never read.
-// checking code: NavItem uses Button. Button uses cn internally. MainLayout doesn't use cn directly?
-// line 2: import { cn } ...
-// NavItem logic:
-// className="w-full justify-start"
-// But cn is NOT used in MainLayout file. Button imported from ui/button handles it.
-// So remove cn.
-// Also remove Settings.
-
+import { Outlet, Link, useLocation } from 'react-router-dom';
+import { LayoutDashboard, Server, LogOut, HardDrive } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { LayoutDashboard, Server, LogOut } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
+import { useNavigate } from 'react-router-dom';
 
 export function MainLayout() {
     const location = useLocation();
+    const navigate = useNavigate();
+
     const handleLogout = () => {
         localStorage.removeItem('token');
-        window.location.href = '/login';
+        navigate('/login');
     };
 
-    const NavItem = ({ to, icon: Icon, label }: { to: string, icon: any, label: string }) => {
+    const NavItem = ({ to, icon: Icon, label, exact = false }: { to: string; icon: any; label: string; exact?: boolean }) => {
+        const isActive = exact ? location.pathname === to : location.pathname.startsWith(to);
         return (
-            <Button
-                variant={location.pathname === to ? "secondary" : "ghost"}
-                className="w-full justify-start"
-                asChild
-            >
-                <Link to={to}>
-                    <Icon className="mr-2 h-4 w-4" />
+            <Link to={to} className="w-full">
+                <Button
+                    variant={isActive ? "secondary" : "ghost"}
+                    className={cn("w-full justify-start gap-3 px-3", isActive && "bg-secondary font-medium text-primary")}
+                >
+                    <Icon className="h-4 w-4" />
                     {label}
-                </Link>
-            </Button>
-        )
-    }
+                </Button>
+            </Link>
+        );
+    };
 
     return (
-        <div className="flex h-screen overflow-hidden bg-background">
+        <div className="flex h-screen w-full bg-background/50 backdrop-blur-sm">
             {/* Sidebar */}
-            <div className="w-64 border-r flex flex-col bg-card">
-                <div className="p-6">
-                    <h1 className="text-xl font-bold tracking-tight">Garage Admin</h1>
+            <aside className="w-64 flex-none border-r bg-card/80 backdrop-blur-xl h-full flex flex-col">
+                <div className="p-6 flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold shadow-lg shadow-primary/20">
+                        G
+                    </div>
+                    <span className="font-bold text-lg tracking-tight">Garage Console</span>
                 </div>
-                <Separator />
-                <nav className="flex-1 p-4 space-y-2">
-                    <NavItem to="/" icon={LayoutDashboard} label="Dashboard" />
+
+                <div className="flex-1 px-4 space-y-2 py-4">
+                    <div className="text-xs font-semibold text-muted-foreground px-3 mb-2 uppercase tracking-wider">Platform</div>
+                    <NavItem to="/" icon={LayoutDashboard} label="Dashboard" exact={true} />
                     <NavItem to="/clusters" icon={Server} label="Clusters" />
-                    {/* Add more links later */}
-                </nav>
-                <div className="p-4">
-                    <Button variant="ghost" className="w-full justify-start text-red-500 hover:text-red-600 hover:bg-red-50" onClick={handleLogout}>
-                        <LogOut className="mr-2 h-4 w-4" />
-                        Logout
+
+                    <div className="mt-8 text-xs font-semibold text-muted-foreground px-3 mb-2 uppercase tracking-wider">Settings</div>
+                    <Button variant="ghost" className="w-full justify-start gap-3 px-3 text-muted-foreground hover:text-foreground">
+                        <HardDrive className="h-4 w-4" />
+                        Global Config
                     </Button>
                 </div>
-            </div>
+
+                <div className="p-4 mt-auto border-t bg-muted/20">
+                    <div className="flex items-center justify-between mb-4 px-2">
+                        <div className="text-sm font-medium">Administrator</div>
+                        <div className="text-xs text-green-500 bg-green-500/10 px-2 py-0.5 rounded-full">Online</div>
+                    </div>
+                    <Button variant="outline" className="w-full justify-start gap-2 border-destructive/20 text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={handleLogout}>
+                        <LogOut className="h-4 w-4" />
+                        Sign Out
+                    </Button>
+                </div>
+            </aside>
 
             {/* Main Content */}
-            <main className="flex-1 overflow-y-auto p-8">
-                <Outlet />
+            <main className="flex-1 overflow-auto">
+                <header className="h-16 border-b bg-card/50 backdrop-blur-md sticky top-0 z-10 px-8 flex items-center justify-between">
+                    <div className="text-sm text-muted-foreground">
+                        Welcome back
+                    </div>
+                    <div className="flex items-center gap-4">
+                        {/* Header Actions if needed */}
+                    </div>
+                </header>
+
+                <div className="p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500 slide-in-from-bottom-4">
+                    <Outlet />
+                </div>
             </main>
         </div>
     );
