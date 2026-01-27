@@ -15,7 +15,7 @@ export function ClusterNodeList({ clusterId }: NodeListProps) {
     const { data: layout, isLoading, error } = useQuery({
         queryKey: ['layout', clusterId],
         queryFn: async () => {
-            const res = await axios.get(`${API_URL}/proxy/${clusterId}/v2/GetClusterStatus`, {
+            const res = await axios.get(`${API_URL}/proxy/${clusterId}/v2/status`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             return res.data;

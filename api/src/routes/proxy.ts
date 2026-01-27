@@ -8,15 +8,13 @@ const router = Router();
 // Proxy middleware to forward to Garage
 // Path format: /proxy/:clusterId/path/to/resource
 // Example: /proxy/123-uuid/v2/GetClusterStatus
-router.all('/:clusterId/*', async (req: Request, res: Response) => {
-    const { clusterId } = req.params;
-    // Capture the path after clusterId. 
-    // req.originalUrl might be /proxy/UUID/v2/GetClusterStatus
-    // We want /v2/GetClusterStatus
-    // But we mounted at /proxy.
+// Express 5 wildcard syntax
+router.all('/:clusterId/*splat', async (req: Request, res: Response) => {
+    const { clusterId, splat } = req.params;
 
-    // A safer way:
-    const pathPart = req.params[0]; // Captured by *
+    // Capture the path after clusterId. 
+    // splat might be an array in Express 5
+    const pathPart = Array.isArray(splat) ? splat.join('/') : splat;
 
     try {
         const cluster = await prisma.cluster.findUnique({
