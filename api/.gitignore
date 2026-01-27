@@ -1,5 +1,9 @@
 node_modules
-# Keep environment variables out of version control
+dist
 .env
-
-/generated/prisma
+*.db
+*.db-journal
+*.log
+coverage
+.DS_Store
+verify_e2e.ts
