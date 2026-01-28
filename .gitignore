@@ -1,0 +1,8 @@
+.DS_Store
+*.log
+*.local
+*.db
+*.db-journal
+coverage
+node_modules
+dist

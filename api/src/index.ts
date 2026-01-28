@@ -18,15 +18,13 @@ app.use(express.json());
 // Public routes
 app.use('/auth', authRouter);
 app.get('/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date() });
+  res.json({ status: 'ok', timestamp: new Date() });
 });
 
 // Protected routes
 app.use('/clusters', authenticateToken, clusterRouter);
 app.use('/proxy', authenticateToken, proxyRouter);
 
-
-
 app.listen(PORT, () => {
-    console.log(`BFF API running on http://localhost:${PORT}`);
+  console.log(`BFF API running on http://localhost:${PORT}`);
 });
