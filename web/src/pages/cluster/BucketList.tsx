@@ -162,7 +162,7 @@ export function BucketList({ clusterId }: BucketListProps) {
                                     </Button>
                                 </TableCell>
                             </TableRow>
-                        ))
+                        ))}
                         {buckets.length === 0 && (
                             <TableRow>
                                 <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">

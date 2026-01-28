@@ -166,7 +166,7 @@ export function KeyList({ clusterId }: KeyListProps) {
                                     </Button>
                                 </TableCell>
                             </TableRow>
-                        ))
+                        ))}
                         {keys.length === 0 && (
                             <TableRow>
                                 <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
