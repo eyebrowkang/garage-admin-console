@@ -1,0 +1,13 @@
+{
+  "name": "garage-admin-console",
+  "private": true,
+  "packageManager": "pnpm@10.28.0",
+  "scripts": {
+    "build": "pnpm -C api build && pnpm -C web build",
+    "dev": "pnpm -C api dev & pnpm -C web dev",
+    "lint": "pnpm -C api lint && pnpm -C web lint",
+    "lint:fix": "pnpm -C api lint:fix && pnpm -C web lint:fix",
+    "format": "pnpm -C api format && pnpm -C web format",
+    "format:check": "pnpm -C api format:check && pnpm -C web format:check"
+  }
+}

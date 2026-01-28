@@ -13,18 +13,19 @@ Garage administration console (frontend + BFF).
 1. Install dependencies
 
 ```bash
-cd api && npm install
-cd ../web && npm install
+pnpm install
+```
+
+If pnpm blocks native build scripts (e.g. Prisma, bcrypt, sqlite3), run:
+
+```bash
+pnpm approve-builds
 ```
 
 2. Start services
 
 ```bash
-cd api && npm run dev
-```
-
-```bash
-cd web && npm run dev
+pnpm dev
 ```
 
 The frontend defaults to `/api` for the BFF. In development this is proxied via `web/vite.config.ts`.
@@ -44,24 +45,35 @@ PORT=3001
 
 ## Scripts
 
-API:
+Workspace:
 
 ```bash
-npm run dev
-npm run build
-npm run lint
-npm run lint:fix
-npm run format
-npm run format:check
+pnpm dev
+pnpm build
+pnpm lint
+pnpm lint:fix
+pnpm format
+pnpm format:check
 ```
 
-Web:
+API only:
 
 ```bash
-npm run dev
-npm run build
-npm run lint
-npm run lint:fix
-npm run format
-npm run format:check
+pnpm -C api dev
+pnpm -C api build
+pnpm -C api lint
+pnpm -C api lint:fix
+pnpm -C api format
+pnpm -C api format:check
+```
+
+Web only:
+
+```bash
+pnpm -C web dev
+pnpm -C web build
+pnpm -C web lint
+pnpm -C web lint:fix
+pnpm -C web format
+pnpm -C web format:check
 ```
