@@ -1,9 +1,9 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Server, LogOut, HardDrive } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
+import type { ComponentType } from 'react';
 
 export function MainLayout() {
     const location = useLocation();
@@ -14,7 +14,7 @@ export function MainLayout() {
         navigate('/login');
     };
 
-    const NavItem = ({ to, icon: Icon, label, exact = false }: { to: string; icon: any; label: string; exact?: boolean }) => {
+    const NavItem = ({ to, icon: Icon, label, exact = false }: { to: string; icon: ComponentType<{ className?: string }>; label: string; exact?: boolean }) => {
         const isActive = exact ? location.pathname === to : location.pathname.startsWith(to);
         return (
             <Link to={to} className="w-full">

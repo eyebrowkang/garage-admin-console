@@ -1,70 +1,93 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
+import { useState } from 'react';
+import { Trash2, Loader2, Plus, Copy } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Trash2, Loader2, Plus } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useState } from 'react';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { api, proxyPath } from '@/lib/api';
+import { formatDateTime, formatShortId } from '@/lib/format';
+import { getApiErrorMessage } from '@/lib/errors';
+import type { GetKeyInfoResponse, ListKeysResponseItem } from '@/types/garage';
 
 interface KeyListProps {
     clusterId: string;
 }
 
-const API_URL = 'http://localhost:3001';
-
 export function KeyList({ clusterId }: KeyListProps) {
-    const token = localStorage.getItem('token');
     const queryClient = useQueryClient();
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [newKeyName, setNewKeyName] = useState('');
+    const [actionError, setActionError] = useState('');
+    const [createdKey, setCreatedKey] = useState<GetKeyInfoResponse | null>(null);
+    const [copiedValue, setCopiedValue] = useState<string | null>(null);
 
-    const { data: keys, isLoading, error } = useQuery({
+    const { data: keys = [], isLoading, error } = useQuery<ListKeysResponseItem[]>({
         queryKey: ['keys', clusterId],
         queryFn: async () => {
-            const res = await axios.get(`${API_URL}/proxy/${clusterId}/v2/ListKeys`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const res = await api.get<ListKeysResponseItem[]>(proxyPath(clusterId, '/v2/ListKeys'));
             return res.data;
         }
     });
 
     const createMutation = useMutation({
         mutationFn: async (name: string) => {
-            await axios.post(`${API_URL}/proxy/${clusterId}/v2/CreateKey`, {
+            const res = await api.post<GetKeyInfoResponse>(proxyPath(clusterId, '/v2/CreateKey'), {
                 name
-            }, {
-                headers: { Authorization: `Bearer ${token}` }
             });
+            return res.data;
         },
-        onSuccess: () => {
+        onSuccess: (data) => {
             queryClient.invalidateQueries({ queryKey: ['keys', clusterId] });
             setIsDialogOpen(false);
             setNewKeyName('');
+            setActionError('');
+            setCreatedKey(data);
+        },
+        onError: (err) => {
+            setActionError(getApiErrorMessage(err, 'Failed to create key.'));
         }
     });
 
     const deleteMutation = useMutation({
         mutationFn: async (id: string) => {
-            await axios.post(`${API_URL}/proxy/${clusterId}/v2/DeleteKey?id=${id}`, {}, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            await api.post(proxyPath(clusterId, `/v2/DeleteKey?id=${encodeURIComponent(id)}`), {});
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['keys', clusterId] });
+            setActionError('');
+        },
+        onError: (err) => {
+            setActionError(getApiErrorMessage(err, 'Failed to delete key.'));
         }
     });
 
-    if (isLoading) return <div className="flex justify-center p-4"><Loader2 className="animate-spin" /></div>;
-    if (error) return <div className="text-red-500">Error loading keys</div>;
+    const handleCopy = async (value: string) => {
+        try {
+            await navigator.clipboard.writeText(value);
+            setCopiedValue(value);
+            setTimeout(() => setCopiedValue(null), 1500);
+        } catch {
+            // ignore clipboard errors
+        }
+    };
 
-    const keyList = Array.isArray(keys) ? keys : (keys as any)?.keys || []; // Adjust based on actual response
+    if (isLoading) return <div className="flex justify-center p-4"><Loader2 className="animate-spin" /></div>;
 
     return (
         <div className="space-y-4">
-            <div className="flex justify-end">
-                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <div>
+                    <h3 className="text-lg font-semibold text-slate-900">Access Keys</h3>
+                    <p className="text-sm text-muted-foreground">Create and manage API keys for bucket access.</p>
+                </div>
+                <Dialog open={isDialogOpen} onOpenChange={(open) => {
+                    setIsDialogOpen(open);
+                    if (!open) setActionError('');
+                }}>
                     <DialogTrigger asChild>
                         <Button size="sm"><Plus className="mr-2 h-4 w-4" /> Create Key</Button>
                     </DialogTrigger>
@@ -76,37 +99,77 @@ export function KeyList({ clusterId }: KeyListProps) {
                             <Label>Key Name</Label>
                             <Input value={newKeyName} onChange={e => setNewKeyName(e.target.value)} placeholder="my-app-key" />
                         </div>
+                        {actionError && (
+                            <Alert variant="destructive">
+                                <AlertTitle>Key creation failed</AlertTitle>
+                                <AlertDescription>{actionError}</AlertDescription>
+                            </Alert>
+                        )}
                         <DialogFooter>
-                            <Button onClick={() => createMutation.mutate(newKeyName)} disabled={createMutation.isPending}>Create</Button>
+                            <Button onClick={() => createMutation.mutate(newKeyName.trim())} disabled={!newKeyName.trim() || createMutation.isPending}>
+                                {createMutation.isPending ? 'Creating...' : 'Create'}
+                            </Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
             </div>
 
-            <div className="border rounded-md">
+            {error && (
+                <Alert variant="destructive">
+                    <AlertTitle>Unable to load keys</AlertTitle>
+                    <AlertDescription>{getApiErrorMessage(error, 'Keys could not be loaded.')}</AlertDescription>
+                </Alert>
+            )}
+            {actionError && !isDialogOpen && (
+                <Alert variant="destructive">
+                    <AlertTitle>Key action failed</AlertTitle>
+                    <AlertDescription>{actionError}</AlertDescription>
+                </Alert>
+            )}
+
+            <div className="border rounded-md overflow-hidden">
                 <Table>
                     <TableHeader>
                         <TableRow>
                             <TableHead>Access Key ID</TableHead>
                             <TableHead>Name</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Created</TableHead>
+                            <TableHead>Expires</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {keyList.map((k: any) => (
-                            <TableRow key={k.accessKeyId || k.id}>
-                                <TableCell className="font-mono text-xs">{k.accessKeyId || k.id}</TableCell>
-                                <TableCell>{k.name}</TableCell>
+                        {keys.map((k) => (
+                            <TableRow key={k.id}>
+                                <TableCell className="font-mono text-xs">{formatShortId(k.id, 12)}</TableCell>
+                                <TableCell>{k.name || '-'}</TableCell>
+                                <TableCell>
+                                    {k.expired ? (
+                                        <Badge variant="destructive">Expired</Badge>
+                                    ) : (
+                                        <Badge variant="success">Active</Badge>
+                                    )}
+                                </TableCell>
+                                <TableCell className="text-xs text-muted-foreground">{formatDateTime(k.created)}</TableCell>
+                                <TableCell className="text-xs text-muted-foreground">{formatDateTime(k.expiration)}</TableCell>
                                 <TableCell className="text-right">
-                                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteMutation.mutate(k.accessKeyId || k.id)}>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="text-destructive"
+                                        onClick={() => {
+                                            if (confirm('Delete this key?')) deleteMutation.mutate(k.id);
+                                        }}
+                                    >
                                         <Trash2 className="h-4 w-4" />
                                     </Button>
                                 </TableCell>
                             </TableRow>
-                        ))}
-                        {keyList.length === 0 && (
+                        ))
+                        {keys.length === 0 && (
                             <TableRow>
-                                <TableCell colSpan={3} className="text-center h-24 text-muted-foreground">
+                                <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
                                     No keys found
                                 </TableCell>
                             </TableRow>
@@ -114,6 +177,52 @@ export function KeyList({ clusterId }: KeyListProps) {
                     </TableBody>
                 </Table>
             </div>
+
+            <Dialog open={Boolean(createdKey)} onOpenChange={(open) => {
+                if (!open) setCreatedKey(null);
+            }}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Access Key Created</DialogTitle>
+                    </DialogHeader>
+                    {createdKey && (
+                        <div className="space-y-4">
+                            <div className="rounded-lg border bg-slate-50/70 p-3">
+                                <div className="text-xs text-muted-foreground">Access Key ID</div>
+                                <div className="flex items-center justify-between gap-2">
+                                    <span className="font-mono text-sm text-slate-900 break-all">{createdKey.accessKeyId}</span>
+                                    <Button variant="ghost" size="icon" onClick={() => handleCopy(createdKey.accessKeyId)}>
+                                        <Copy className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                                {copiedValue === createdKey.accessKeyId && (
+                                    <div className="text-xs text-emerald-600 mt-1">Copied!</div>
+                                )}
+                            </div>
+                            <div className="rounded-lg border bg-slate-50/70 p-3">
+                                <div className="text-xs text-muted-foreground">Secret Access Key</div>
+                                <div className="flex items-center justify-between gap-2">
+                                    <span className="font-mono text-sm text-slate-900 break-all">{createdKey.secretAccessKey || '-'}</span>
+                                    {createdKey.secretAccessKey && (
+                                        <Button variant="ghost" size="icon" onClick={() => handleCopy(createdKey.secretAccessKey || '')}>
+                                            <Copy className="h-4 w-4" />
+                                        </Button>
+                                    )}
+                                </div>
+                                {createdKey.secretAccessKey && copiedValue === createdKey.secretAccessKey && (
+                                    <div className="text-xs text-emerald-600 mt-1">Copied!</div>
+                                )}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                                Secret access keys are only shown once. Store it securely.
+                            </div>
+                        </div>
+                    )}
+                    <DialogFooter>
+                        <Button onClick={() => setCreatedKey(null)}>Close</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

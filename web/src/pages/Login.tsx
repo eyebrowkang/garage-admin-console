@@ -1,13 +1,12 @@
 import { useState } from 'react';
-import axios from 'axios';
+import { api } from '@/lib/api';
+import { getApiErrorMessage } from '@/lib/errors';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Loader2, ArrowRight, ShieldCheck } from 'lucide-react';
-
-const API_URL = 'http://localhost:3001';
 
 export default function Login() {
     const [password, setPassword] = useState('');
@@ -21,15 +20,18 @@ export default function Login() {
         setError('');
 
         try {
-            const res = await axios.post(`${API_URL}/auth/login`, { password });
+            const res = await api.post('/auth/login', { password });
             localStorage.setItem('token', res.data.token);
             navigate('/');
-        } catch (err: any) {
-            setError('Invalid password. Please try again.');
+        } catch (err: unknown) {
+            const message = getApiErrorMessage(err, 'Login failed. Please try again.');
+            setError(message);
         } finally {
             setIsLoading(false);
         }
     };
+
+    const isDisabled = isLoading || !password.trim();
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 p-4">
@@ -74,7 +76,7 @@ export default function Login() {
                         <Button
                             type="submit"
                             className="w-full h-11 text-base shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all active:scale-[0.98]"
-                            disabled={isLoading}
+                            disabled={isDisabled}
                         >
                             {isLoading ? (
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

@@ -26,23 +26,33 @@ router.all('/:clusterId/*splat', async (req: Request, res: Response) => {
         }
 
         const token = decrypt(cluster.adminToken);
-        const targetUrl = `${cluster.endpoint}/${pathPart}`;
+        const baseUrl = cluster.endpoint.replace(/\/+$/, '');
+        const pathSuffix = pathPart ? `/${pathPart}` : '';
+        const targetUrl = `${baseUrl}${pathSuffix}`;
         const contentType = req.header('Content-Type');
+        const accept = req.header('Accept');
 
         // Forward request
+        console.log(`[Proxy] ${req.method} ${targetUrl}`);
         const response = await axios({
             method: req.method,
             url: targetUrl,
             headers: {
                 'Authorization': `Bearer ${token}`,
                 ...(contentType ? { 'Content-Type': contentType } : {}),
+                ...(accept ? { 'Accept': accept } : {}),
             },
-            data: req.body,
+            data: Object.keys(req.body || {}).length > 0 ? req.body : undefined, // Only send body if present
             params: req.query,
             validateStatus: () => true, // Pass all statuses back
         });
 
-        res.status(response.status).json(response.data);
+        console.log(`[Proxy] Response: ${response.status}`);
+        const responseContentType = response.headers['content-type'];
+        if (responseContentType) {
+            res.setHeader('Content-Type', responseContentType);
+        }
+        res.status(response.status).send(response.data);
     } catch (error: any) {
         console.error("Proxy error:", error.message);
         res.status(502).json({ error: 'Bad Gateway', details: error.message });
