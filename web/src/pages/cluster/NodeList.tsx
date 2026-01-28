@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { Loader2, Server } from 'lucide-react';
 import {
   Table,
@@ -20,6 +21,7 @@ interface NodeListProps {
 }
 
 export function ClusterNodeList({ clusterId }: NodeListProps) {
+  const navigate = useNavigate();
   const { data, isLoading, error } = useQuery<GetClusterStatusResponse>({
     queryKey: ['clusterStatus', clusterId],
     queryFn: async () => {
@@ -85,7 +87,11 @@ export function ClusterNodeList({ clusterId }: NodeListProps) {
           </TableHeader>
           <TableBody>
             {nodes.map((node) => (
-              <TableRow key={node.id}>
+              <TableRow
+                key={node.id}
+                className="cursor-pointer hover:bg-muted/50"
+                onClick={() => navigate(`/clusters/${clusterId}/nodes/${node.id}`)}
+              >
                 <TableCell className="font-mono text-xs">{formatShortId(node.id, 10)}</TableCell>
                 <TableCell>{node.hostname || '-'}</TableCell>
                 <TableCell className="text-xs text-muted-foreground">{node.addr || '-'}</TableCell>

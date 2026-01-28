@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Trash2, Loader2, Plus, Copy } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Trash2, Loader2, Plus, Copy, ChevronRight } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -25,6 +26,8 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { api, proxyPath } from '@/lib/api';
 import { formatDateTime, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
+import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
+import { toast } from '@/hooks/use-toast';
 import type { GetKeyInfoResponse, ListKeysResponseItem } from '@/types/garage';
 
 interface KeyListProps {
@@ -33,11 +36,13 @@ interface KeyListProps {
 
 export function KeyList({ clusterId }: KeyListProps) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newKeyName, setNewKeyName] = useState('');
   const [actionError, setActionError] = useState('');
   const [createdKey, setCreatedKey] = useState<GetKeyInfoResponse | null>(null);
   const [copiedValue, setCopiedValue] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
 
   const {
     data: keys = [],
@@ -76,10 +81,15 @@ export function KeyList({ clusterId }: KeyListProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['keys', clusterId] });
-      setActionError('');
+      setDeleteConfirm(null);
+      toast({ title: 'Key deleted' });
     },
     onError: (err) => {
-      setActionError(getApiErrorMessage(err, 'Failed to delete key.'));
+      toast({
+        title: 'Failed to delete key',
+        description: getApiErrorMessage(err),
+        variant: 'destructive',
+      });
     },
   });
 
@@ -180,7 +190,11 @@ export function KeyList({ clusterId }: KeyListProps) {
           </TableHeader>
           <TableBody>
             {keys.map((k) => (
-              <TableRow key={k.id}>
+              <TableRow
+                key={k.id}
+                className="cursor-pointer hover:bg-muted/50"
+                onClick={() => navigate(`/clusters/${clusterId}/keys/${k.id}`)}
+              >
                 <TableCell className="font-mono text-xs">{formatShortId(k.id, 12)}</TableCell>
                 <TableCell>{k.name || '-'}</TableCell>
                 <TableCell>
@@ -197,16 +211,19 @@ export function KeyList({ clusterId }: KeyListProps) {
                   {formatDateTime(k.expiration)}
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-destructive"
-                    onClick={() => {
-                      if (confirm('Delete this key?')) deleteMutation.mutate(k.id);
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive"
+                      onClick={() => setDeleteConfirm({ id: k.id, name: k.name || k.id })}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon">
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
@@ -281,6 +298,18 @@ export function KeyList({ clusterId }: KeyListProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        open={!!deleteConfirm}
+        onOpenChange={(open) => !open && setDeleteConfirm(null)}
+        title="Delete Access Key"
+        description={`Are you sure you want to delete the key "${deleteConfirm?.name}"? This will revoke access to all buckets using this key.`}
+        tier="danger"
+        confirmText="Delete Key"
+        onConfirm={() => deleteConfirm && deleteMutation.mutate(deleteConfirm.id)}
+        isLoading={deleteMutation.isPending}
+      />
     </div>
   );
 }

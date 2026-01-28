@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Trash2, Loader2, Plus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Trash2, Loader2, Plus, ChevronRight } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -25,6 +26,8 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { api, proxyPath } from '@/lib/api';
 import { formatDateTime, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
+import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
+import { toast } from '@/hooks/use-toast';
 import type { ListBucketsResponseItem } from '@/types/garage';
 
 interface BucketListProps {
@@ -33,9 +36,11 @@ interface BucketListProps {
 
 export function BucketList({ clusterId }: BucketListProps) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newBucketName, setNewBucketName] = useState('');
   const [actionError, setActionError] = useState('');
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
 
   const {
     data: buckets = [],
@@ -72,10 +77,15 @@ export function BucketList({ clusterId }: BucketListProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['buckets', clusterId] });
-      setActionError('');
+      setDeleteConfirm(null);
+      toast({ title: 'Bucket deleted' });
     },
     onError: (err) => {
-      setActionError(getApiErrorMessage(err, 'Failed to delete bucket.'));
+      toast({
+        title: 'Failed to delete bucket',
+        description: getApiErrorMessage(err),
+        variant: 'destructive',
+      });
     },
   });
 
@@ -163,7 +173,11 @@ export function BucketList({ clusterId }: BucketListProps) {
           </TableHeader>
           <TableBody>
             {buckets.map((bucket) => (
-              <TableRow key={bucket.id}>
+              <TableRow
+                key={bucket.id}
+                className="cursor-pointer hover:bg-muted/50"
+                onClick={() => navigate(`/clusters/${clusterId}/buckets/${bucket.id}`)}
+              >
                 <TableCell className="font-mono text-xs">{formatShortId(bucket.id, 10)}</TableCell>
                 <TableCell>
                   <div className="flex flex-wrap gap-1">
@@ -195,16 +209,24 @@ export function BucketList({ clusterId }: BucketListProps) {
                   {formatDateTime(bucket.created)}
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-destructive"
-                    onClick={() => {
-                      if (confirm('Delete this bucket?')) deleteMutation.mutate(bucket.id);
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive"
+                      onClick={() =>
+                        setDeleteConfirm({
+                          id: bucket.id,
+                          name: bucket.globalAliases[0] || bucket.id,
+                        })
+                      }
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon">
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
@@ -218,6 +240,18 @@ export function BucketList({ clusterId }: BucketListProps) {
           </TableBody>
         </Table>
       </div>
+
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        open={!!deleteConfirm}
+        onOpenChange={(open) => !open && setDeleteConfirm(null)}
+        title="Delete Bucket"
+        description={`Are you sure you want to delete the bucket "${deleteConfirm?.name}"? The bucket must be empty before it can be deleted.`}
+        tier="danger"
+        confirmText="Delete Bucket"
+        onConfirm={() => deleteConfirm && deleteMutation.mutate(deleteConfirm.id)}
+        isLoading={deleteMutation.isPending}
+      />
     </div>
   );
 }

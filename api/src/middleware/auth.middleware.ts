@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 const JWT_SECRET = process.env.JWT_SECRET || 'secret';
 
-type AuthenticatedRequest = Request & { user?: string | jwt.JwtPayload };
+type AuthenticatedRequest = Request & { user?: string | jwt.JwtPayload | undefined };
 
 export function authenticateToken(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers['authorization'];
@@ -14,7 +14,7 @@ export function authenticateToken(req: Request, res: Response, next: NextFunctio
   if (!token) return res.sendStatus(401);
 
   jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) return res.sendStatus(403);
+    if (err || !user) return res.sendStatus(403);
     (req as AuthenticatedRequest).user = user;
     next();
   });

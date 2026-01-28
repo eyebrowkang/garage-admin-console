@@ -27,6 +27,8 @@ import { AlertCircle, CheckCircle2, Plus, RotateCcw, Save, Trash2 } from 'lucide
 import { api, proxyPath } from '@/lib/api';
 import { formatBytes, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
+import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
+import { toast } from '@/hooks/use-toast';
 import type {
   GetClusterLayoutResponse,
   GetClusterStatusResponse,
@@ -51,6 +53,7 @@ export function LayoutManager({ clusterId }: LayoutManagerProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedNode, setSelectedNode] = useState<EditableNode | null>(null);
   const [actionError, setActionError] = useState('');
+  const [removeConfirm, setRemoveConfirm] = useState<{ id: string; hostname: string } | null>(null);
 
   const layoutQuery = useQuery<GetClusterLayoutResponse>({
     queryKey: ['clusterLayout', clusterId],
@@ -132,10 +135,15 @@ export function LayoutManager({ clusterId }: LayoutManagerProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clusterLayout', clusterId] });
       queryClient.invalidateQueries({ queryKey: ['clusterStatus', clusterId] });
-      setActionError('');
+      setRemoveConfirm(null);
+      toast({ title: 'Node removal staged', description: 'Apply layout to complete the removal' });
     },
     onError: (err) => {
-      setActionError(getApiErrorMessage(err, 'Failed to remove node from layout.'));
+      toast({
+        title: 'Failed to remove node',
+        description: getApiErrorMessage(err),
+        variant: 'destructive',
+      });
     },
   });
 
@@ -364,10 +372,12 @@ export function LayoutManager({ clusterId }: LayoutManagerProps) {
                               variant="ghost"
                               size="sm"
                               className="text-destructive"
-                              onClick={() => {
-                                if (confirm('Remove this node from the layout?'))
-                                  removeNodeMutation.mutate(node.id);
-                              }}
+                              onClick={() =>
+                                setRemoveConfirm({
+                                  id: node.id,
+                                  hostname: node.hostname || node.id,
+                                })
+                              }
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -394,6 +404,18 @@ export function LayoutManager({ clusterId }: LayoutManagerProps) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Remove Node Confirmation */}
+      <ConfirmDialog
+        open={!!removeConfirm}
+        onOpenChange={(open) => !open && setRemoveConfirm(null)}
+        title="Remove Node from Layout"
+        description={`Are you sure you want to remove "${removeConfirm?.hostname}" from the cluster layout? This will stage the removal - you must apply the layout for it to take effect.`}
+        tier="danger"
+        confirmText="Remove Node"
+        onConfirm={() => removeConfirm && removeNodeMutation.mutate(removeConfirm.id)}
+        isLoading={removeNodeMutation.isPending}
+      />
     </div>
   );
 }

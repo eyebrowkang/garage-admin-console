@@ -10,7 +10,7 @@ const dbUrl = `file:${dbPath}`;
 // Force env var for Prisma Schema validation if needed
 process.env.DATABASE_URL = dbUrl;
 
-type LibSqlClientWithUrl = ReturnType<typeof createClient> & { url?: string };
+type LibSqlClientWithUrl = ReturnType<typeof createClient> & { url: string };
 
 const libsql = createClient({
   url: dbUrl,
@@ -19,7 +19,8 @@ const libsql = createClient({
 // Hack: PrismaLibSql might read .url from client
 libsql.url = dbUrl;
 
-const adapter = new PrismaLibSql(libsql);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const adapter = new PrismaLibSql(libsql as any);
 const prisma = new PrismaClient({ adapter });
 
 export default prisma;
