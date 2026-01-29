@@ -1,6 +1,6 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { getApiErrorMessage } from './errors';
-import axios, { AxiosError } from 'axios';
+import { AxiosError } from 'axios';
 
 describe('getApiErrorMessage', () => {
   it('returns default message for null error', () => {

@@ -1,79 +1,127 @@
 # Garage Admin Console
 
-Garage administration console (frontend + BFF).
+A modern web-based administration interface for managing [Garage](https://garagehq.deuxfleurs.fr/) distributed object storage clusters.
 
-## Structure
+## Features
 
-- `api/` BFF service (Express + Prisma)
-- `web/` Frontend (Vite + React)
-- `garage-admin-v2.json` Garage admin API OpenAPI spec
+- **Multi-cluster Management** - Connect and manage multiple Garage clusters from a single interface
+- **Dashboard Overview** - Real-time cluster health, node status, and capacity visualizations
+- **Bucket Management** - Create, configure, and delete buckets with quota and website hosting options
+- **Access Key Management** - Generate, import, and manage S3-compatible access keys
+- **Permission Control** - Fine-grained bucket-key permission matrix with read/write/owner toggles
+- **Node Monitoring** - View node status, statistics, and trigger maintenance operations
+- **Layout Management** - Configure cluster topology with staged changes and preview before apply
+- **Block Operations** - Monitor block errors, retry failed syncs, and manage data integrity
+- **Worker Management** - Monitor background workers and configure performance parameters
+- **Admin Token Management** - Manage API tokens with scoped permissions
+- **Secure Credential Storage** - AES-256-GCM encrypted storage for Garage admin tokens
 
-## Local Development
+## Quick Start
 
-1. Install dependencies
+### Prerequisites
+
+- Node.js 20+
+- pnpm 10+
+
+### Installation
 
 ```bash
+# Clone the repository
+git clone https://github.com/your-org/garage-admin-console.git
+cd garage-admin-console
+
+# Install dependencies
 pnpm install
-```
 
-If pnpm blocks native build scripts (e.g. Prisma, bcrypt, sqlite3), run:
-
-```bash
+# If pnpm blocks native builds (Prisma, bcrypt, sqlite3)
 pnpm approve-builds
 ```
 
-2. Start services
+### Configuration
+
+Create the API environment file:
 
 ```bash
-pnpm dev
+cp api/.env.example api/.env
 ```
 
-The frontend defaults to `/api` for the BFF. In development this is proxied via `web/vite.config.ts`.
-In production, use Nginx to reverse-proxy `/api` to the BFF.
-If needed, set `VITE_API_BASE_URL` in `web/.env`.
-
-## Environment (api)
-
-Example `api/.env`:
+Edit `api/.env` with your settings:
 
 ```bash
 DATABASE_URL="file:./dev.db"
-JWT_SECRET="change-me"
-ENCRYPTION_KEY="01234567890123456789012345678901"
+JWT_SECRET="your-secure-jwt-secret"      # Change this!
+ENCRYPTION_KEY="your-32-byte-key-here"   # Must be exactly 32 bytes
 PORT=3001
+ADMIN_PASSWORD="your-admin-password"     # Console login password
 ```
+
+### Development
+
+```bash
+# Start both API and frontend
+pnpm dev
+```
+
+- Frontend: http://localhost:5173
+- API: http://localhost:3001
+
+### Production Build
+
+```bash
+# Build both packages
+pnpm build
+
+# Start the API server
+pnpm -C api start
+```
+
+Serve the `web/dist/` directory with your preferred web server (Nginx, Caddy, etc.) and configure reverse proxy for `/api/*` routes to the API server.
+
+## Project Structure
+
+```
+garage-admin-console/
+├── api/                 # Backend-For-Frontend (Express + Prisma)
+├── web/                 # Frontend SPA (React + Vite)
+├── e2e/                 # End-to-end tests (Playwright)
+└── garage-admin-v2.json # Garage Admin API OpenAPI specification
+```
+
+## Architecture
+
+The console uses a Backend-For-Frontend (BFF) proxy pattern:
+
+```
+Browser → Frontend → BFF API → Garage Cluster
+```
+
+- **Authentication**: Single admin password → JWT token (24h expiry)
+- **Credential Security**: Garage admin tokens are AES-256-GCM encrypted at rest
+- **Proxy Pattern**: Frontend never communicates directly with Garage clusters
+
+## Documentation
+
+- **[DEVELOPMENT.md](./DEVELOPMENT.md)** - Developer guide with architecture details, testing, and contribution guidelines
+- **[CLAUDE.md](./CLAUDE.md)** - AI assistant context for Claude Code
 
 ## Scripts
 
-Workspace:
+| Command | Description |
+|---------|-------------|
+| `pnpm dev` | Start development servers |
+| `pnpm build` | Build for production |
+| `pnpm lint` | Run ESLint |
+| `pnpm format` | Format code with Prettier |
+| `pnpm -C web test` | Run unit tests |
+| `npx playwright test` | Run E2E tests |
 
-```bash
-pnpm dev
-pnpm build
-pnpm lint
-pnpm lint:fix
-pnpm format
-pnpm format:check
-```
+## Security Notes
 
-API only:
+- Deploy behind a reverse proxy with HTTPS in production
+- Use strong, unique values for `JWT_SECRET` and `ENCRYPTION_KEY`
+- The console is designed for internal network deployment
+- Consider additional authentication layers (VPN, SSO) for production use
 
-```bash
-pnpm -C api dev
-pnpm -C api build
-pnpm -C api lint
-pnpm -C api lint:fix
-pnpm -C api format
-pnpm -C api format:check
-```
+## License
 
-Web only:
-
-```bash
-pnpm -C web dev
-pnpm -C web build
-pnpm -C web lint
-pnpm -C web lint:fix
-pnpm -C web format
-pnpm -C web format:check
-```
+MIT

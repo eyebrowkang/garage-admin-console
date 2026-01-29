@@ -24,9 +24,12 @@ pnpm -C web <script>      # e.g. pnpm -C web dev, pnpm -C web build
 
 # Type checking (api only):
 pnpm -C api typecheck     # tsc --noEmit
-```
 
-No test framework is configured. The API test script is a placeholder.
+# Testing:
+pnpm -C web test          # Run unit tests in watch mode (Vitest)
+pnpm -C web test:run      # Run unit tests once
+npx playwright test       # Run E2E tests (Playwright)
+```
 
 ## Architecture
 
