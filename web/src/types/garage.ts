@@ -3,7 +3,6 @@ export interface ClusterSummary {
   id: string;
   name: string;
   endpoint: string;
-  region?: string | null;
   createdAt: string;
   updatedAt?: string;
 }

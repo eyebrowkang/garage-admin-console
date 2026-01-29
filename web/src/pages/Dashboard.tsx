@@ -7,11 +7,12 @@ import {
   Trash2,
   ArrowRight,
   Activity,
-  MapPin,
   AlertTriangle,
   Database,
   HardDrive,
   Edit2,
+  LayoutGrid,
+  List,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -44,7 +45,6 @@ import type {
 type ClusterFormState = {
   name: string;
   endpoint: string;
-  region: string;
   adminToken: string;
   metricToken: string;
 };
@@ -52,7 +52,6 @@ type ClusterFormState = {
 const emptyForm: ClusterFormState = {
   name: '',
   endpoint: '',
-  region: '',
   adminToken: '',
   metricToken: '',
 };
@@ -65,6 +64,7 @@ export default function Dashboard() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<ClusterSummary | null>(null);
   const [formError, setFormError] = useState('');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   const {
     data: clusters = [],
@@ -78,7 +78,7 @@ export default function Dashboard() {
     },
   });
 
-  // Fetch health for all clusters
+  // Fetch health for all clusters with auto-refresh
   const healthQueries = useQueries({
     queries: clusters.map((cluster) => ({
       queryKey: ['clusterHealth', cluster.id],
@@ -90,10 +90,11 @@ export default function Dashboard() {
       },
       enabled: clusters.length > 0,
       staleTime: 30000,
+      refetchInterval: 30000,
     })),
   });
 
-  // Fetch status (for node info) for all clusters
+  // Fetch status (for node info) for all clusters with auto-refresh
   const statusQueries = useQueries({
     queries: clusters.map((cluster) => ({
       queryKey: ['clusterStatus', cluster.id],
@@ -105,6 +106,7 @@ export default function Dashboard() {
       },
       enabled: clusters.length > 0,
       staleTime: 30000,
+      refetchInterval: 30000,
     })),
   });
 
@@ -164,7 +166,6 @@ export default function Dashboard() {
       const payload = {
         name: data.name.trim(),
         endpoint: data.endpoint.trim(),
-        region: data.region.trim() || undefined,
         adminToken: data.adminToken.trim(),
         metricToken: data.metricToken.trim() || undefined,
       };
@@ -187,7 +188,6 @@ export default function Dashboard() {
       const payload = {
         name: data.name.trim(),
         endpoint: data.endpoint.trim(),
-        region: data.region.trim() || undefined,
         adminToken: data.adminToken.trim() || undefined,
         metricToken: data.metricToken.trim() || undefined,
       };
@@ -229,7 +229,6 @@ export default function Dashboard() {
     setClusterForm({
       name: cluster.name,
       endpoint: cluster.endpoint,
-      region: cluster.region || '',
       adminToken: '',
       metricToken: '',
     });
@@ -264,7 +263,29 @@ export default function Dashboard() {
           </p>
         </div>
 
-        <Dialog
+        <div className="flex items-center gap-2">
+          {clusters.length > 0 && (
+            <div className="flex items-center border rounded-lg p-1 bg-muted/30">
+              <Button
+                variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-8 w-8 p-0"
+                onClick={() => setViewMode('grid')}
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-8 w-8 p-0"
+                onClick={() => setViewMode('list')}
+              >
+                <List className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+
+          <Dialog
           open={isCreateDialogOpen}
           onOpenChange={(open) => {
             setIsCreateDialogOpen(open);
@@ -303,6 +324,7 @@ export default function Dashboard() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {error && (
@@ -439,7 +461,13 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div
+          className={
+            viewMode === 'grid'
+              ? 'grid gap-6 md:grid-cols-2 lg:grid-cols-3'
+              : 'flex flex-col gap-4'
+          }
+        >
           {clusters.map((cluster, index) => {
             const health = healthById.get(cluster.id);
             const status = statusById.get(cluster.id);
@@ -467,6 +495,83 @@ export default function Dashboard() {
 
             const nodesUp = status?.nodes?.filter((n) => n.isUp).length ?? 0;
             const nodesTotal = status?.nodes?.length ?? 0;
+
+            if (viewMode === 'list') {
+              return (
+                <Card
+                  key={cluster.id}
+                  className="group hover:shadow-md transition-all duration-200 border-slate-200 bg-white/50 backdrop-blur-sm"
+                >
+                  <div className="flex items-center justify-between p-4">
+                    <div className="flex items-center gap-4 min-w-0 flex-1">
+                      <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                        <Server className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-lg truncate">{cluster.name}</span>
+                          {healthQuery?.isLoading ? (
+                            <Badge variant="outline" className="text-xs shrink-0">
+                              Checking...
+                            </Badge>
+                          ) : (
+                            <Badge variant={statusVariant} className="text-xs shrink-0">
+                              {statusLabel}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="text-sm text-muted-foreground truncate">
+                          {cluster.endpoint}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-6">
+                      {health && (
+                        <div className="hidden sm:flex items-center gap-4 text-sm text-muted-foreground">
+                          <span>
+                            <Database className="h-4 w-4 inline mr-1" />
+                            {nodesUp}/{nodesTotal} nodes
+                          </span>
+                          <span>
+                            {health.partitionsAllOk}/{health.partitions} partitions
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handleOpenEdit(cluster);
+                          }}
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setDeleteConfirm(cluster);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                        <Link to={`/clusters/${cluster.id}`}>
+                          <Button variant="outline" size="sm">
+                            Manage
+                            <ArrowRight className="h-4 w-4 ml-1" />
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              );
+            }
 
             return (
               <Card
@@ -500,7 +605,7 @@ export default function Dashboard() {
 
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
-                    <div className="h-10 w-10 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
+                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
                       <Server className="h-5 w-5" />
                     </div>
                     <div>
@@ -524,8 +629,8 @@ export default function Dashboard() {
                       <span className="truncate">{cluster.endpoint}</span>
                     </div>
                     <div className="flex items-center text-slate-500">
-                      <MapPin className="h-4 w-4 mr-2 text-slate-400" />
-                      <span>{cluster.region || 'Default Region'}</span>
+                      <Database className="h-4 w-4 mr-2 text-slate-400" />
+                      <span>{nodesUp}/{nodesTotal} nodes online</span>
                     </div>
                     <div className="text-xs text-muted-foreground">
                       Added {formatDateTime(cluster.createdAt)}
@@ -535,15 +640,15 @@ export default function Dashboard() {
                   {health && (
                     <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3 text-xs text-slate-600">
                       <div className="flex items-center justify-between">
-                        <span>Nodes up</span>
-                        <span className="font-medium text-slate-900">
-                          {nodesUp}/{nodesTotal}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between mt-1">
                         <span>Partitions OK</span>
                         <span className="font-medium text-slate-900">
                           {health.partitionsAllOk}/{health.partitions}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between mt-1">
+                        <span>Quorum OK</span>
+                        <span className="font-medium text-slate-900">
+                          {health.partitionsQuorum}/{health.partitions}
                         </span>
                       </div>
                     </div>
@@ -673,15 +778,6 @@ function ClusterForm({
           value={form.endpoint}
           onChange={(e) => setForm({ ...form, endpoint: e.target.value })}
           placeholder="http://10.0.0.1:3903"
-        />
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor="region">Region</Label>
-        <Input
-          id="region"
-          value={form.region}
-          onChange={(e) => setForm({ ...form, region: e.target.value })}
-          placeholder="us-east-1"
         />
       </div>
       {showTokenFields && (

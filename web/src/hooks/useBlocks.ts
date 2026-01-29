@@ -7,13 +7,12 @@ import type {
   PurgeBlocksRequest,
 } from '@/types/garage';
 
-export function useBlockErrors(clusterId: string, nodeId?: string) {
+export function useBlockErrors(clusterId: string, nodeId: string = '*') {
   return useQuery<MultiNodeResponse<BlockErrorsResponse>>({
     queryKey: ['blockErrors', clusterId, nodeId],
     queryFn: async () => {
-      const params = nodeId ? `?node=${encodeURIComponent(nodeId)}` : '';
       const res = await api.get<MultiNodeResponse<BlockErrorsResponse>>(
-        proxyPath(clusterId, `/v2/ListBlockErrors${params}`),
+        proxyPath(clusterId, `/v2/ListBlockErrors?node=${encodeURIComponent(nodeId)}`),
       );
       return res.data;
     },

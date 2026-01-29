@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Play, BookOpen } from 'lucide-react';
+import { Play, ExternalLink } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -132,10 +132,15 @@ export function ApiExplorer({ clusterId }: ApiExplorerProps) {
               <Play className="h-4 w-4" />
               {isLoading ? 'Sending...' : 'Send Request'}
             </Button>
-            <div className="text-xs text-muted-foreground flex items-center gap-1">
-              <BookOpen className="h-3 w-3" />
-              Refer to garage-admin-v2.json for available endpoints.
-            </div>
+            <a
+              href="https://garagehq.deuxfleurs.fr/api/garage-admin-v2.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1"
+            >
+              <ExternalLink className="h-3 w-3" />
+              API Documentation
+            </a>
           </div>
         </CardContent>
       </Card>
@@ -154,7 +159,7 @@ export function ApiExplorer({ clusterId }: ApiExplorerProps) {
             {response.contentType && (
               <div className="text-xs text-muted-foreground">{response.contentType}</div>
             )}
-            <pre className="text-xs bg-slate-50/80 border rounded-lg p-4 whitespace-pre-wrap break-words text-slate-700">
+            <pre className="font-mono text-xs leading-relaxed bg-slate-50 border border-slate-200 rounded-lg p-4 whitespace-pre-wrap break-words text-slate-800 max-h-[500px] overflow-auto">
               {prettyResponse || 'No response body'}
             </pre>
           </CardContent>

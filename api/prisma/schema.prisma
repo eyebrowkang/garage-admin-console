@@ -10,7 +10,6 @@ model Cluster {
   id          String   @id @default(uuid())
   name        String
   endpoint    String
-  region      String?
   adminToken  String   // Encrypted token
   metricToken String?  // Encrypted, optional; falls back to adminToken
   createdAt   DateTime @default(now())

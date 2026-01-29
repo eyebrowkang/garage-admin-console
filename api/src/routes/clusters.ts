@@ -9,7 +9,6 @@ const router = Router();
 const CreateClusterSchema = z.object({
   name: z.string().min(1),
   endpoint: z.string().url(),
-  region: z.string().optional(),
   adminToken: z.string().min(1),
   metricToken: z.string().optional(),
 });
@@ -18,7 +17,6 @@ const UpdateClusterSchema = z
   .object({
     name: z.string().min(1).optional(),
     endpoint: z.string().url().optional(),
-    region: z.string().optional(),
     adminToken: z.string().min(1).optional(),
     metricToken: z.string().optional(),
   })
@@ -31,7 +29,6 @@ const safeSelect = {
   id: true,
   name: true,
   endpoint: true,
-  region: true,
   createdAt: true,
   updatedAt: true,
 } as const;
@@ -62,7 +59,6 @@ router.post('/', async (req, res) => {
       data: {
         name: body.name,
         endpoint: body.endpoint,
-        region: body.region ?? null,
         adminToken: encryptedAdminToken,
         metricToken: encryptedMetricToken,
       },
@@ -90,7 +86,6 @@ router.put('/:id', async (req, res) => {
 
     if (body.name !== undefined) data.name = body.name;
     if (body.endpoint !== undefined) data.endpoint = body.endpoint;
-    if (body.region !== undefined) data.region = body.region;
     if (body.adminToken !== undefined) data.adminToken = encrypt(body.adminToken);
     if (body.metricToken !== undefined) data.metricToken = encrypt(body.metricToken);
 

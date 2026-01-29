@@ -43,7 +43,11 @@ export function KeyDetail() {
   const [showSecret, setShowSecret] = useState(false);
 
   const { data: keyInfo, isLoading, error } = useKeyInfo(clusterId, kid || '', false);
-  const { data: keyWithSecret } = useKeyInfo(clusterId, kid || '', showSecret);
+  const { data: keyWithSecret, isLoading: secretLoading } = useKeyInfo(
+    clusterId,
+    kid || '',
+    showSecret,
+  );
   const updateKeyMutation = useUpdateKey(clusterId, kid || '');
   const deleteKeyMutation = useDeleteKey(clusterId);
   const allowKeyMutation = useAllowBucketKey(clusterId);
@@ -207,8 +211,14 @@ export function KeyDetail() {
                 </Button>
               )}
             </div>
-            {showSecret && keyWithSecret?.secretAccessKey ? (
-              <SecretReveal label="Secret Access Key" value={keyWithSecret.secretAccessKey} />
+            {showSecret ? (
+              secretLoading ? (
+                <div className="text-sm text-muted-foreground">Loading secret...</div>
+              ) : keyWithSecret?.secretAccessKey ? (
+                <SecretReveal label="Secret Access Key" value={keyWithSecret.secretAccessKey} />
+              ) : (
+                <p className="text-sm text-destructive">Failed to load secret access key</p>
+              )
             ) : (
               <p className="text-sm text-muted-foreground">
                 Click "Reveal Secret" to show the secret access key. This will make a secure request

@@ -8,48 +8,44 @@ import type {
   SetWorkerVariableRequest,
 } from '@/types/garage';
 
-export function useWorkers(clusterId: string, nodeId?: string) {
+export function useWorkers(clusterId: string, nodeId: string = '*', busyOnly?: boolean) {
   return useQuery<MultiNodeResponse<WorkersResponse>>({
-    queryKey: ['workers', clusterId, nodeId],
+    queryKey: ['workers', clusterId, nodeId, busyOnly],
     queryFn: async () => {
-      const params = nodeId ? `?node=${encodeURIComponent(nodeId)}` : '';
-      const res = await api.get<MultiNodeResponse<WorkersResponse>>(
-        proxyPath(clusterId, `/v2/ListWorkers${params}`),
+      const res = await api.post<MultiNodeResponse<WorkersResponse>>(
+        proxyPath(clusterId, `/v2/ListWorkers?node=${encodeURIComponent(nodeId)}`),
+        { busyOnly },
       );
       return res.data;
     },
   });
 }
 
-export function useWorkerInfo(clusterId: string, nodeId: string, workerName: string) {
+export function useWorkerInfo(clusterId: string, nodeId: string = '*', workerId: number) {
   return useQuery<MultiNodeResponse<WorkerInfo>>({
-    queryKey: ['workerInfo', clusterId, nodeId, workerName],
+    queryKey: ['workerInfo', clusterId, nodeId, workerId],
     queryFn: async () => {
-      const params = new URLSearchParams();
-      params.set('name', workerName);
-      if (nodeId) params.set('node', nodeId);
-      const res = await api.get<MultiNodeResponse<WorkerInfo>>(
-        proxyPath(clusterId, `/v2/GetWorkerInfo?${params.toString()}`),
+      const res = await api.post<MultiNodeResponse<WorkerInfo>>(
+        proxyPath(clusterId, `/v2/GetWorkerInfo?node=${encodeURIComponent(nodeId)}`),
+        { id: workerId },
       );
       return res.data;
     },
-    enabled: !!workerName,
+    enabled: workerId !== undefined && workerId >= 0,
   });
 }
 
 export function useWorkerVariable(
   clusterId: string,
-  nodeId: string | undefined,
+  nodeId: string = '*',
   variableName: string,
 ) {
   return useQuery<MultiNodeResponse<WorkerVariableResponse>>({
     queryKey: ['workerVariable', clusterId, nodeId, variableName],
     queryFn: async () => {
-      const params = new URLSearchParams();
-      params.set('variable', variableName);
-      if (nodeId) params.set('node', nodeId);
-      const res = await api.get<MultiNodeResponse<WorkerVariableResponse>>(
-        proxyPath(clusterId, `/v2/GetWorkerVariable?${params.toString()}`),
+      const res = await api.post<MultiNodeResponse<WorkerVariableResponse>>(
+        proxyPath(clusterId, `/v2/GetWorkerVariable?node=${encodeURIComponent(nodeId)}`),
+        { variable: variableName },
       );
       return res.data;
     },
@@ -62,15 +58,18 @@ export function useSetWorkerVariable(clusterId: string) {
 
   return useMutation({
     mutationFn: async (data: SetWorkerVariableRequest & { nodeId?: string }) => {
-      const params = data.nodeId ? `?node=${encodeURIComponent(data.nodeId)}` : '';
-      await api.post(proxyPath(clusterId, `/v2/SetWorkerVariable${params}`), {
-        variable: data.variable,
-        value: data.value,
-      });
+      const nodeId = data.nodeId || '*';
+      await api.post(
+        proxyPath(clusterId, `/v2/SetWorkerVariable?node=${encodeURIComponent(nodeId)}`),
+        {
+          variable: data.variable,
+          value: data.value,
+        },
+      );
     },
-    onSuccess: (_, vars) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ['workerVariable', clusterId, vars.variable],
+        queryKey: ['workerVariable', clusterId],
       });
     },
   });

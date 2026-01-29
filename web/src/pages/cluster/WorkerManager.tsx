@@ -54,17 +54,19 @@ export function WorkerManager() {
   const { clusterId } = useClusterContext();
 
   const [selectedNode, setSelectedNode] = useState<string>('*');
-  const [selectedWorker, setSelectedWorker] = useState<{ nodeId: string; name: string } | null>(
-    null,
-  );
+  const [selectedWorker, setSelectedWorker] = useState<{
+    nodeId: string;
+    id: number;
+    name: string;
+  } | null>(null);
   const [variableDialogOpen, setVariableDialogOpen] = useState(false);
   const [editVariable, setEditVariable] = useState<{ name: string; value: string } | null>(null);
 
   const { data: workersData, isLoading, error, refetch } = useWorkers(clusterId, selectedNode);
   const { data: workerInfo, isLoading: workerInfoLoading } = useWorkerInfo(
     clusterId,
-    selectedWorker?.nodeId || '',
-    selectedWorker?.name || '',
+    selectedWorker?.nodeId || '*',
+    selectedWorker?.id ?? -1,
   );
   const setVariableMutation = useSetWorkerVariable(clusterId);
 
@@ -236,7 +238,11 @@ export function WorkerManager() {
                         variant="ghost"
                         size="sm"
                         onClick={() =>
-                          setSelectedWorker({ nodeId: worker.nodeId, name: worker.name })
+                          setSelectedWorker({
+                            nodeId: worker.nodeId,
+                            id: worker.id,
+                            name: worker.name,
+                          })
                         }
                       >
                         Details
@@ -377,11 +383,7 @@ function VariableCard({
   variable: { name: string; description: string };
   onEdit: (name: string, value: string) => void;
 }) {
-  const { data, isLoading } = useWorkerVariable(
-    clusterId,
-    nodeId === '*' ? undefined : nodeId,
-    variable.name,
-  );
+  const { data, isLoading } = useWorkerVariable(clusterId, nodeId, variable.name);
 
   // Get value from first successful node response
   let currentValue = '-';
