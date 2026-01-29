@@ -55,6 +55,18 @@ PORT=3001
 ADMIN_PASSWORD="your-admin-password"     # Console login password
 ```
 
+### Database Setup
+
+```bash
+# Initialize the database schema
+pnpm -C api db:push
+
+# Or run migrations (creates migration history)
+pnpm -C api db:migrate
+```
+
+The database will be created automatically at the path specified in `DATABASE_URL`.
+
 ### Development
 
 ```bash
@@ -114,6 +126,10 @@ Browser → Frontend → BFF API → Garage Cluster
 | `pnpm format` | Format code with Prettier |
 | `pnpm -C web test` | Run unit tests |
 | `npx playwright test` | Run E2E tests |
+| `pnpm -C api db:push` | Push schema to database |
+| `pnpm -C api db:migrate` | Run database migrations |
+| `pnpm -C api db:studio` | Open Prisma Studio GUI |
+| `pnpm -C api db:reset` | Reset database (deletes all data) |
 
 ## Security Notes
 

@@ -202,23 +202,7 @@ garage-admin-console/
 
 ### Database Schema
 
-```prisma
-model Cluster {
-  id          String   @id @default(uuid())
-  name        String
-  endpoint    String
-  region      String?
-  adminToken  String   // AES-256-GCM encrypted
-  metricToken String?  // AES-256-GCM encrypted (optional)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
-model AppSettings {
-  key   String @id
-  value String
-}
-```
+See [Database Management](#database-management) section for the current schema.
 
 ### Key Files
 
@@ -246,9 +230,10 @@ model AppSettings {
   /clusters/:id/nodes       → Node list
   /clusters/:id/nodes/:nid  → Node detail
   /clusters/:id/layout      → Layout manager
+  /clusters/:id/tokens      → Admin token list
   /clusters/:id/blocks      → Block manager
   /clusters/:id/workers     → Worker manager
-  /clusters/:id/tokens      → Admin token list
+  /clusters/:id/metrics     → Prometheus metrics
   /clusters/:id/api         → API explorer
 ```
 
@@ -358,6 +343,28 @@ npx playwright show-report
 
 ## Database Management
 
+### Quick Commands
+
+```bash
+pnpm -C api db:migrate   # Run migrations (dev)
+pnpm -C api db:push      # Push schema changes (dev)
+pnpm -C api db:seed      # Seed the database
+pnpm -C api db:studio    # Open Prisma Studio GUI
+pnpm -C api db:reset     # Reset database (WARNING: deletes all data)
+```
+
+### Initial Setup
+
+```bash
+# 1. Initialize database with schema
+pnpm -C api db:push
+
+# 2. (Optional) Run seed script
+pnpm -C api db:seed
+```
+
+The seed script (`api/prisma/seed.ts`) is a placeholder that provides setup instructions. Clusters are added through the web UI, not seeded.
+
 ### Migrations
 
 ```bash
@@ -367,15 +374,15 @@ pnpm -C api npx prisma migrate dev --name <migration_name>
 # Apply migrations (production)
 pnpm -C api npx prisma migrate deploy
 
-# Reset database (development only)
-pnpm -C api npx prisma migrate reset
+# Reset database (development only - deletes all data!)
+pnpm -C api db:reset
 ```
 
 ### Prisma Studio
 
 ```bash
 # Open database GUI
-pnpm -C api npx prisma studio
+pnpm -C api db:studio
 ```
 
 ### Generate Client
@@ -383,6 +390,25 @@ pnpm -C api npx prisma studio
 ```bash
 # Regenerate Prisma client after schema changes
 pnpm -C api npx prisma generate
+```
+
+### Schema
+
+```prisma
+model Cluster {
+  id          String   @id @default(uuid())
+  name        String
+  endpoint    String
+  adminToken  String   // AES-256-GCM encrypted
+  metricToken String?  // AES-256-GCM encrypted (optional)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AppSettings {
+  key   String @id
+  value String
+}
 ```
 
 ---
