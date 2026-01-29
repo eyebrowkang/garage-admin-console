@@ -9,5 +9,9 @@
     "lint:fix": "pnpm -C api lint:fix && pnpm -C web lint:fix",
     "format": "pnpm -C api format && pnpm -C web format",
     "format:check": "pnpm -C api format:check && pnpm -C web format:check"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.0",
+    "playwright": "^1.58.0"
   }
 }

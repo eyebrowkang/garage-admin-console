@@ -77,7 +77,10 @@ export default function Login() {
             </div>
 
             {error && (
-              <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm font-medium flex items-center animate-in fade-in slide-in-from-top-1">
+              <div
+                role="alert"
+                className="p-3 rounded-md bg-destructive/10 text-destructive text-sm font-medium flex items-center animate-in fade-in slide-in-from-top-1"
+              >
                 {error}
               </div>
             )}

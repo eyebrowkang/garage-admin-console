@@ -8,3 +8,5 @@ node_modules
 dist
 pnpm-debug.log*
 .pnpm-store
+test-results/
+playwright-report/
