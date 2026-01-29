@@ -108,7 +108,9 @@ export function AdminTokenDetail() {
               <h1 className="text-2xl font-bold">{token.name}</h1>
               {isCurrent && <Badge variant="secondary">Current Token</Badge>}
             </div>
-            <p className="text-sm text-muted-foreground font-mono">{token.id}</p>
+            {token.id && (
+              <p className="text-sm text-muted-foreground font-mono">{token.id}</p>
+            )}
           </div>
         </div>
         <div className="flex gap-2">
@@ -154,13 +156,15 @@ export function AdminTokenDetail() {
               <div className="text-sm text-muted-foreground">Name</div>
               <div className="font-medium">{token.name}</div>
             </div>
-            <div>
-              <div className="text-sm text-muted-foreground">Token ID</div>
-              <div className="font-mono text-sm">{token.id}</div>
-            </div>
+            {token.id && (
+              <div>
+                <div className="text-sm text-muted-foreground">Token ID</div>
+                <div className="font-mono text-sm">{token.id}</div>
+              </div>
+            )}
             <div>
               <div className="text-sm text-muted-foreground">Created</div>
-              <div>{formatDateTime(token.created)}</div>
+              <div>{formatDateTime(token.created) || '-'}</div>
             </div>
             <div>
               <div className="text-sm text-muted-foreground">Expires</div>

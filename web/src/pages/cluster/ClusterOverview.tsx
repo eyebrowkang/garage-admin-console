@@ -10,7 +10,6 @@ import { formatBytes } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { CapacityGauge } from '@/components/charts/CapacityGauge';
 import { PartitionChart } from '@/components/charts/PartitionChart';
-import { MetricsDisplay } from '@/components/charts/MetricsDisplay';
 import type {
   GetClusterHealthResponse,
   GetClusterLayoutResponse,
@@ -69,9 +68,8 @@ export function ClusterOverview({ clusterId }: ClusterOverviewProps) {
   const blockErrorsQuery = useQuery<MultiNodeResponse<BlockErrorsResponse>>({
     queryKey: ['blockErrors', clusterId, '*'],
     queryFn: async () => {
-      const res = await api.post<MultiNodeResponse<BlockErrorsResponse>>(
-        proxyPath(clusterId, '/v2/ListBlockErrors'),
-        { node: '*' },
+      const res = await api.get<MultiNodeResponse<BlockErrorsResponse>>(
+        proxyPath(clusterId, '/v2/ListBlockErrors?node=*'),
       );
       return res.data;
     },
@@ -331,15 +329,12 @@ export function ClusterOverview({ clusterId }: ClusterOverviewProps) {
           {statsQuery.isLoading ? (
             <div className="text-sm text-muted-foreground">Loading statistics...</div>
           ) : (
-            <pre className="text-xs bg-slate-50/80 border rounded-lg p-4 whitespace-pre-wrap break-words text-slate-700 max-h-[400px] overflow-auto">
+            <pre className="font-mono text-xs leading-relaxed bg-slate-50 border border-slate-200 rounded-lg p-4 whitespace-pre-wrap break-words text-slate-800 max-h-[400px] overflow-auto">
               {stats?.freeform || 'No statistics available.'}
             </pre>
           )}
         </CardContent>
       </Card>
-
-      {/* Metrics */}
-      <MetricsDisplay clusterId={clusterId} />
     </div>
   );
 }

@@ -1,3 +1,6 @@
+import ReactECharts from 'echarts-for-react';
+import type { EChartsOption } from 'echarts';
+
 interface NodeStatusData {
   clusterName: string;
   up: number;
@@ -24,92 +27,100 @@ export function NodeStatusChart({ data }: NodeStatusChartProps) {
   const totalDraining = data.reduce((sum, d) => sum + d.draining, 0);
   const total = totalUp + totalDown + totalDraining;
 
+  const chartData = [
+    { value: totalUp, name: 'Up', itemStyle: { color: '#22c55e' } },
+    { value: totalDraining, name: 'Draining', itemStyle: { color: '#f59e0b' } },
+    { value: totalDown, name: 'Down', itemStyle: { color: '#ef4444' } },
+  ].filter((d) => d.value > 0);
+
+  const option: EChartsOption = {
+    tooltip: {
+      trigger: 'item',
+      formatter: '{b}: {c} ({d}%)',
+    },
+    series: [
+      {
+        type: 'pie',
+        radius: ['50%', '75%'],
+        center: ['50%', '50%'],
+        avoidLabelOverlap: false,
+        itemStyle: {
+          borderRadius: 4,
+          borderColor: '#fff',
+          borderWidth: 2,
+        },
+        label: {
+          show: false,
+        },
+        emphasis: {
+          label: {
+            show: false,
+          },
+        },
+        data: chartData,
+      },
+    ],
+    graphic: {
+      type: 'text',
+      left: 'center',
+      top: 'center',
+      style: {
+        text: `${total}\nNodes`,
+        fill: '#334155',
+        fontSize: 16,
+        fontWeight: 'bold',
+      } as const,
+    },
+  };
+
   return (
     <div className="space-y-4">
-      {/* Summary stats */}
-      <div className="grid grid-cols-3 gap-4 text-center">
-        <div>
-          <div className="text-2xl font-bold text-green-600">{totalUp}</div>
-          <div className="text-xs text-muted-foreground">Up</div>
+      {/* Donut chart */}
+      <ReactECharts option={option} style={{ height: '160px' }} />
+
+      {/* Legend */}
+      <div className="flex justify-center gap-6 text-sm">
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full bg-green-500" />
+          <span className="text-muted-foreground">Up</span>
+          <span className="font-semibold">{totalUp}</span>
         </div>
-        <div>
-          <div className="text-2xl font-bold text-red-500">{totalDown}</div>
-          <div className="text-xs text-muted-foreground">Down</div>
-        </div>
-        <div>
-          <div className="text-2xl font-bold text-amber-500">{totalDraining}</div>
-          <div className="text-xs text-muted-foreground">Draining</div>
-        </div>
+        {totalDraining > 0 && (
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-amber-500" />
+            <span className="text-muted-foreground">Draining</span>
+            <span className="font-semibold">{totalDraining}</span>
+          </div>
+        )}
+        {totalDown > 0 && (
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-red-500" />
+            <span className="text-muted-foreground">Down</span>
+            <span className="font-semibold">{totalDown}</span>
+          </div>
+        )}
       </div>
 
-      {/* Overall progress bar */}
-      {total > 0 && (
-        <div className="space-y-1">
-          <div className="h-3 rounded-full bg-slate-100 overflow-hidden flex">
-            {totalUp > 0 && (
-              <div
-                className="h-full bg-green-500 transition-all"
-                style={{ width: `${(totalUp / total) * 100}%` }}
-              />
-            )}
-            {totalDraining > 0 && (
-              <div
-                className="h-full bg-amber-500 transition-all"
-                style={{ width: `${(totalDraining / total) * 100}%` }}
-              />
-            )}
-            {totalDown > 0 && (
-              <div
-                className="h-full bg-red-500 transition-all"
-                style={{ width: `${(totalDown / total) * 100}%` }}
-              />
-            )}
-          </div>
-          <div className="flex justify-between text-xs text-muted-foreground">
-            <span>{total} total nodes</span>
-            <span>{total > 0 ? Math.round((totalUp / total) * 100) : 0}% healthy</span>
-          </div>
+      {/* Per-cluster breakdown (only if multiple clusters) */}
+      {data.length > 1 && (
+        <div className="space-y-2 pt-2 border-t">
+          {data.map((cluster) => {
+            const clusterTotal = cluster.up + cluster.down + cluster.draining;
+            if (clusterTotal === 0) return null;
+
+            return (
+              <div key={cluster.clusterName} className="flex items-center gap-3">
+                <span className="text-sm font-medium truncate flex-1">{cluster.clusterName}</span>
+                <div className="flex items-center gap-1 text-xs">
+                  <span className="text-green-600 font-medium">{cluster.up}</span>
+                  <span className="text-muted-foreground">/</span>
+                  <span className="text-muted-foreground">{clusterTotal}</span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
-
-      {/* Per-cluster breakdown */}
-      <div className="space-y-3 pt-2">
-        {data.map((cluster) => {
-          const clusterTotal = cluster.up + cluster.down + cluster.draining;
-          if (clusterTotal === 0) return null;
-
-          return (
-            <div key={cluster.clusterName} className="space-y-1">
-              <div className="flex justify-between text-sm">
-                <span className="font-medium truncate">{cluster.clusterName}</span>
-                <span className="text-muted-foreground">
-                  {cluster.up}/{clusterTotal}
-                </span>
-              </div>
-              <div className="h-2 rounded-full bg-slate-100 overflow-hidden flex">
-                {cluster.up > 0 && (
-                  <div
-                    className="h-full bg-green-500"
-                    style={{ width: `${(cluster.up / clusterTotal) * 100}%` }}
-                  />
-                )}
-                {cluster.draining > 0 && (
-                  <div
-                    className="h-full bg-amber-500"
-                    style={{ width: `${(cluster.draining / clusterTotal) * 100}%` }}
-                  />
-                )}
-                {cluster.down > 0 && (
-                  <div
-                    className="h-full bg-red-500"
-                    style={{ width: `${(cluster.down / clusterTotal) * 100}%` }}
-                  />
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }

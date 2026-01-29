@@ -165,16 +165,16 @@ export function AdminTokenList() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {tokens.map((token) => (
+                {tokens.map((token, index) => (
                   <TableRow
-                    key={token.id}
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => navigate(`/clusters/${clusterId}/tokens/${token.id}`)}
+                    key={token.id || index}
+                    className={token.id ? 'cursor-pointer hover:bg-muted/50' : ''}
+                    onClick={() => token.id && navigate(`/clusters/${clusterId}/tokens/${token.id}`)}
                   >
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <span className="font-medium">{token.name}</span>
-                        {currentToken?.id === token.id && (
+                        {currentToken?.id && currentToken.id === token.id && (
                           <Badge variant="secondary" className="text-xs">
                             Current
                           </Badge>
@@ -182,24 +182,30 @@ export function AdminTokenList() {
                       </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {formatDateTime(token.created)}
+                      {formatDateTime(token.created) || '-'}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {formatDateTime(token.expiration) || 'Never'}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-destructive"
-                          onClick={() => setDeleteConfirm({ id: token.id, name: token.name })}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon">
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
+                        {token.id && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive"
+                              onClick={() =>
+                                setDeleteConfirm({ id: token.id!, name: token.name })
+                              }
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon">
+                              <ChevronRight className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

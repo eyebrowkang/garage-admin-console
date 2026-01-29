@@ -43,7 +43,6 @@ export interface BucketKeyPerm {
 export interface BucketInfo {
   id: string;
   globalAliases: string[];
-  localAliases: BucketLocalAlias[];
   websiteAccess: boolean;
   websiteConfig?: BucketWebsiteConfig | null;
   keys: BucketKeyPerm[];
@@ -263,11 +262,12 @@ export interface AdminTokenScope {
 }
 
 export interface AdminTokenInfo {
-  id: string;
+  id?: string | null;
   name: string;
+  expired: boolean;
   expiration?: string | null;
   scope: AdminTokenScope;
-  created: string;
+  created?: string | null;
 }
 
 export interface CreateAdminTokenRequest {

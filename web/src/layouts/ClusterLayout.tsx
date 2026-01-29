@@ -9,6 +9,7 @@ import {
   Shield,
   Blocks,
   Settings,
+  BarChart2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useClusters } from '@/hooks/useClusters';
@@ -24,6 +25,7 @@ const navItems = [
   { to: 'tokens', icon: Shield, label: 'Admin Tokens' },
   { to: 'blocks', icon: Blocks, label: 'Blocks' },
   { to: 'workers', icon: Settings, label: 'Workers' },
+  { to: 'metrics', icon: BarChart2, label: 'Metrics' },
   { to: 'api', icon: Terminal, label: 'API Explorer' },
 ];
 

@@ -42,12 +42,22 @@ export function KeyDetail() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [showSecret, setShowSecret] = useState(false);
 
-  const { data: keyInfo, isLoading, error } = useKeyInfo(clusterId, kid || '', false);
-  const { data: keyWithSecret, isLoading: secretLoading } = useKeyInfo(
-    clusterId,
-    kid || '',
-    showSecret,
-  );
+  const { data: keyInfo, isLoading, error, refetch } = useKeyInfo(clusterId, kid || '', showSecret);
+  const [secretKey, setSecretKey] = useState<string | null>(null);
+  const [secretLoading, setSecretLoading] = useState(false);
+
+  const handleRevealSecret = async () => {
+    setShowSecret(true);
+    setSecretLoading(true);
+    try {
+      const result = await refetch();
+      if (result.data?.secretAccessKey) {
+        setSecretKey(result.data.secretAccessKey);
+      }
+    } finally {
+      setSecretLoading(false);
+    }
+  };
   const updateKeyMutation = useUpdateKey(clusterId, kid || '');
   const deleteKeyMutation = useDeleteKey(clusterId);
   const allowKeyMutation = useAllowBucketKey(clusterId);
@@ -204,21 +214,17 @@ export function KeyDetail() {
           <div className="pt-4 border-t">
             <div className="flex items-center justify-between mb-2">
               <Label>Secret Access Key</Label>
-              {!showSecret && (
-                <Button variant="outline" size="sm" onClick={() => setShowSecret(true)}>
+              {!secretKey && !secretLoading && (
+                <Button variant="outline" size="sm" onClick={handleRevealSecret}>
                   <Eye className="h-4 w-4 mr-2" />
                   Reveal Secret
                 </Button>
               )}
             </div>
-            {showSecret ? (
-              secretLoading ? (
-                <div className="text-sm text-muted-foreground">Loading secret...</div>
-              ) : keyWithSecret?.secretAccessKey ? (
-                <SecretReveal label="Secret Access Key" value={keyWithSecret.secretAccessKey} />
-              ) : (
-                <p className="text-sm text-destructive">Failed to load secret access key</p>
-              )
+            {secretLoading ? (
+              <div className="text-sm text-muted-foreground">Loading secret...</div>
+            ) : secretKey ? (
+              <SecretReveal label="Secret Access Key" value={secretKey} />
             ) : (
               <p className="text-sm text-muted-foreground">
                 Click "Reveal Secret" to show the secret access key. This will make a secure request

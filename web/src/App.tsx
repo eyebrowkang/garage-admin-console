@@ -20,12 +20,21 @@ import { AdminTokenList } from './pages/cluster/AdminTokenList';
 import { AdminTokenDetail } from './pages/cluster/AdminTokenDetail';
 import { BlockManager } from './pages/cluster/BlockManager';
 import { WorkerManager } from './pages/cluster/WorkerManager';
+import { MetricsPage } from './pages/cluster/MetricsPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 30000,
       refetchOnWindowFocus: false,
+      retry: (failureCount, error) => {
+        // Don't retry on auth errors
+        if (error && typeof error === 'object' && 'response' in error) {
+          const status = (error as { response?: { status?: number } }).response?.status;
+          if (status === 401 || status === 403) return false;
+        }
+        return failureCount < 3;
+      },
     },
   },
 });
@@ -96,6 +105,7 @@ function App() {
               <Route path="tokens/:tid" element={<AdminTokenDetail />} />
               <Route path="blocks" element={<BlockManager />} />
               <Route path="workers" element={<WorkerManager />} />
+              <Route path="metrics" element={<MetricsPage />} />
               <Route path="api" element={<ApiExplorerWrapper />} />
             </Route>
           </Route>

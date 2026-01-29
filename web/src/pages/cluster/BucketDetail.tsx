@@ -23,7 +23,6 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Separator } from '@/components/ui/separator';
 import { useClusterContext } from '@/contexts/ClusterContext';
 import {
   useBucketInfo,
@@ -304,33 +303,6 @@ export function BucketDetail() {
                 )}
               </div>
             </div>
-            <Separator />
-            <div>
-              <h4 className="text-sm font-medium mb-2">Local Aliases</h4>
-              <div className="flex flex-wrap gap-2">
-                {bucket.localAliases.length > 0 ? (
-                  bucket.localAliases.map((la) => (
-                    <Badge
-                      key={`${la.accessKeyId}-${la.alias}`}
-                      variant="outline"
-                      className="gap-1"
-                    >
-                      {la.alias} ({la.accessKeyId.slice(0, 8)}...)
-                      <button
-                        onClick={() =>
-                          setRemoveAliasConfirm({ alias: la.alias, accessKeyId: la.accessKeyId })
-                        }
-                        className="ml-1 hover:text-destructive"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    </Badge>
-                  ))
-                ) : (
-                  <span className="text-sm text-muted-foreground">No local aliases</span>
-                )}
-              </div>
-            </div>
           </div>
         </CardContent>
       </Card>
@@ -467,8 +439,7 @@ export function BucketDetail() {
               Cleanup
             </Button>
           </div>
-          <Separator />
-          <div>
+          <div className="border-t pt-4">
             <h4 className="font-medium mb-2">Inspect Object</h4>
             <div className="flex gap-2">
               <Input

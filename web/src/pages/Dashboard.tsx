@@ -163,9 +163,17 @@ export default function Dashboard() {
 
   const createMutation = useMutation({
     mutationFn: async (data: ClusterFormState) => {
+      const endpoint = data.endpoint.trim().replace(/\/+$/, '');
+      // Check for duplicate endpoint
+      const existing = clusters.find(
+        (c) => c.endpoint.replace(/\/+$/, '').toLowerCase() === endpoint.toLowerCase(),
+      );
+      if (existing) {
+        throw new Error(`Cluster with endpoint "${endpoint}" already exists as "${existing.name}"`);
+      }
       const payload = {
         name: data.name.trim(),
-        endpoint: data.endpoint.trim(),
+        endpoint,
         adminToken: data.adminToken.trim(),
         metricToken: data.metricToken.trim() || undefined,
       };
