@@ -1,20 +1,7 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import {
-  Plus,
-  Server,
-  Trash2,
-  ArrowRight,
-  Activity,
-  AlertTriangle,
-  Database,
-  HardDrive,
-  Edit2,
-  LayoutGrid,
-  List,
-} from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Plus } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -27,14 +14,11 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { api, proxyPath } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/errors';
-import { formatDateTime, formatBytes } from '@/lib/format';
-import { ClusterHealthChart } from '@/components/charts/ClusterHealthChart';
-import { NodeStatusChart } from '@/components/charts/NodeStatusChart';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
+import { ClusterStatusMonitor } from '@/components/dashboard/ClusterStatusMonitor';
 import { toast } from '@/hooks/use-toast';
 import type {
   ClusterSummary,
@@ -59,12 +43,9 @@ const emptyForm: ClusterFormState = {
 export default function Dashboard() {
   const queryClient = useQueryClient();
   const [clusterForm, setClusterForm] = useState<ClusterFormState>(emptyForm);
-  const [editingCluster, setEditingCluster] = useState<ClusterSummary | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<ClusterSummary | null>(null);
   const [formError, setFormError] = useState('');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   const {
     data: clusters = [],
@@ -118,46 +99,19 @@ export default function Dashboard() {
     statusById.set(cluster.id, statusQueries[index]?.data);
   });
 
-  // Calculate aggregate statistics
-  const healthyClusters = clusters.filter((c) => healthById.get(c.id)?.status === 'healthy').length;
-  const degradedClusters = clusters.filter(
-    (c) => healthById.get(c.id)?.status === 'degraded',
-  ).length;
-  const unavailableClusters = clusters.filter(
-    (c) =>
-      healthById.get(c.id)?.status === 'unavailable' || healthQueries[clusters.indexOf(c)]?.error,
-  ).length;
+  // Build clusters with status for monitoring
+  const clustersWithStatus = clusters.map((cluster, index) => {
+    const health = healthById.get(cluster.id);
+    const healthQuery = healthQueries[index];
+    const healthError = healthQuery?.error;
+    const healthStatus = health?.status ?? (healthError ? 'unreachable' : 'unknown');
 
-  let totalNodes = 0;
-  let totalNodesUp = 0;
-  let totalCapacity = 0;
-  let totalUsed = 0;
-
-  clusters.forEach((cluster) => {
-    const status = statusById.get(cluster.id);
-    if (status?.nodes) {
-      totalNodes += status.nodes.length;
-      totalNodesUp += status.nodes.filter((n) => n.isUp).length;
-      status.nodes.forEach((node) => {
-        if (node.role?.capacity) {
-          totalCapacity += node.role.capacity;
-        }
-        if (node.dataPartition) {
-          totalUsed += node.dataPartition.total - node.dataPartition.available;
-        }
-      });
-    }
-  });
-
-  // Node status data for chart
-  const nodeStatusData = clusters.map((cluster) => {
-    const status = statusById.get(cluster.id);
-    const nodes = status?.nodes || [];
     return {
-      clusterName: cluster.name,
-      up: nodes.filter((n) => n.isUp && !n.draining).length,
-      down: nodes.filter((n) => !n.isUp).length,
-      draining: nodes.filter((n) => n.draining).length,
+      cluster,
+      health,
+      status: statusById.get(cluster.id),
+      healthStatus: healthStatus as 'healthy' | 'degraded' | 'unavailable' | 'unreachable' | 'unknown',
+      isLoading: healthQuery?.isLoading ?? true,
     };
   });
 
@@ -191,29 +145,6 @@ export default function Dashboard() {
     },
   });
 
-  const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: ClusterFormState }) => {
-      const payload = {
-        name: data.name.trim(),
-        endpoint: data.endpoint.trim(),
-        adminToken: data.adminToken.trim() || undefined,
-        metricToken: data.metricToken.trim() || undefined,
-      };
-      await api.put(`/clusters/${id}`, payload);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['clusters'] });
-      setIsEditDialogOpen(false);
-      setEditingCluster(null);
-      setClusterForm(emptyForm);
-      setFormError('');
-      toast({ title: 'Cluster updated' });
-    },
-    onError: (err) => {
-      setFormError(getApiErrorMessage(err, 'Failed to update cluster.'));
-    },
-  });
-
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       await api.delete(`/clusters/${id}`);
@@ -232,26 +163,11 @@ export default function Dashboard() {
     },
   });
 
-  const handleOpenEdit = (cluster: ClusterSummary) => {
-    setEditingCluster(cluster);
-    setClusterForm({
-      name: cluster.name,
-      endpoint: cluster.endpoint,
-      adminToken: '',
-      metricToken: '',
-    });
-    setFormError('');
-    setIsEditDialogOpen(true);
-  };
-
   const isCreateDisabled =
     !clusterForm.name.trim() ||
     !clusterForm.endpoint.trim() ||
     !clusterForm.adminToken.trim() ||
     createMutation.isPending;
-
-  const isUpdateDisabled =
-    !clusterForm.name.trim() || !clusterForm.endpoint.trim() || updateMutation.isPending;
 
   if (isLoading)
     return (
@@ -271,29 +187,7 @@ export default function Dashboard() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          {clusters.length > 0 && (
-            <div className="flex items-center border rounded-lg p-1 bg-muted/30">
-              <Button
-                variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
-                size="sm"
-                className="h-8 w-8 p-0"
-                onClick={() => setViewMode('grid')}
-              >
-                <LayoutGrid className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={viewMode === 'list' ? 'secondary' : 'ghost'}
-                size="sm"
-                className="h-8 w-8 p-0"
-                onClick={() => setViewMode('list')}
-              >
-                <List className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
-
-          <Dialog
+        <Dialog
           open={isCreateDialogOpen}
           onOpenChange={(open) => {
             setIsCreateDialogOpen(open);
@@ -332,7 +226,6 @@ export default function Dashboard() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-        </div>
       </div>
 
       {error && (
@@ -344,118 +237,15 @@ export default function Dashboard() {
         </Alert>
       )}
 
-      {/* Summary Cards */}
-      {clusters.length > 0 && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <Server className="h-4 w-4" />
-                Total Clusters
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{clusters.length}</div>
-              <div className="text-xs text-muted-foreground mt-1">
-                {healthyClusters} healthy, {degradedClusters} degraded
-              </div>
-            </CardContent>
-          </Card>
+      {/* Cluster Status Monitor */}
+      {clusters.length > 0 && <ClusterStatusMonitor clustersWithStatus={clustersWithStatus} />}
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <Database className="h-4 w-4" />
-                Total Nodes
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalNodes}</div>
-              <div className="text-xs text-muted-foreground mt-1">
-                {totalNodesUp} online, {totalNodes - totalNodesUp} offline
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <HardDrive className="h-4 w-4" />
-                Total Capacity
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatBytes(totalCapacity)}</div>
-              <div className="text-xs text-muted-foreground mt-1">
-                {formatBytes(totalUsed)} used
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <Activity className="h-4 w-4" />
-                Health Status
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                {unavailableClusters > 0 ? (
-                  <>
-                    <AlertTriangle className="h-5 w-5 text-destructive" />
-                    <span className="text-2xl font-bold text-destructive">
-                      {unavailableClusters}
-                    </span>
-                    <span className="text-sm text-muted-foreground">issues</span>
-                  </>
-                ) : (
-                  <>
-                    <div className="h-3 w-3 rounded-full bg-green-500" />
-                    <span className="text-lg font-medium">All OK</span>
-                  </>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Charts Section */}
-      {clusters.length > 0 && (
-        <div className="grid gap-6 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Cluster Health</CardTitle>
-              <CardDescription>Overview of cluster availability status</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ClusterHealthChart
-                healthy={healthyClusters}
-                degraded={degradedClusters}
-                unavailable={unavailableClusters}
-              />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Node Status</CardTitle>
-              <CardDescription>Node availability across clusters</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <NodeStatusChart data={nodeStatusData} />
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Cluster Cards */}
-      {clusters.length === 0 ? (
+      {/* Empty State */}
+      {clusters.length === 0 && (
         <Card className="border-dashed border-2 bg-slate-50/50">
           <CardContent className="h-64 flex flex-col items-center justify-center text-center p-8 space-y-4">
             <div className="h-16 w-16 rounded-full bg-slate-100 flex items-center justify-center">
-              <Server className="h-8 w-8 text-slate-400" />
+              <Plus className="h-8 w-8 text-slate-400" />
             </div>
             <div>
               <h3 className="text-lg font-semibold text-slate-900">No clusters connected</h3>
@@ -468,278 +258,7 @@ export default function Dashboard() {
             </Button>
           </CardContent>
         </Card>
-      ) : (
-        <div
-          className={
-            viewMode === 'grid'
-              ? 'grid gap-6 md:grid-cols-2 lg:grid-cols-3'
-              : 'flex flex-col gap-4'
-          }
-        >
-          {clusters.map((cluster, index) => {
-            const health = healthById.get(cluster.id);
-            const status = statusById.get(cluster.id);
-            const healthQuery = healthQueries[index];
-            const healthError = healthQuery?.error;
-            const healthStatus = health?.status ?? (healthError ? 'unreachable' : 'unknown');
-            const statusVariant =
-              healthStatus === 'healthy'
-                ? 'success'
-                : healthStatus === 'degraded'
-                  ? 'warning'
-                  : healthStatus === 'unavailable' || healthStatus === 'unreachable'
-                    ? 'destructive'
-                    : 'secondary';
-            const statusLabel =
-              healthStatus === 'healthy'
-                ? 'Healthy'
-                : healthStatus === 'degraded'
-                  ? 'Degraded'
-                  : healthStatus === 'unavailable'
-                    ? 'Unavailable'
-                    : healthStatus === 'unreachable'
-                      ? 'Unreachable'
-                      : 'Unknown';
-
-            const nodesUp = status?.nodes?.filter((n) => n.isUp).length ?? 0;
-            const nodesTotal = status?.nodes?.length ?? 0;
-
-            if (viewMode === 'list') {
-              return (
-                <Card
-                  key={cluster.id}
-                  className="group hover:shadow-md transition-all duration-200 border-slate-200 bg-white/50 backdrop-blur-sm"
-                >
-                  <div className="flex items-center justify-between p-4">
-                    <div className="flex items-center gap-4 min-w-0 flex-1">
-                      <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
-                        <Server className="h-5 w-5" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-lg truncate">{cluster.name}</span>
-                          {healthQuery?.isLoading ? (
-                            <Badge variant="outline" className="text-xs shrink-0">
-                              Checking...
-                            </Badge>
-                          ) : (
-                            <Badge variant={statusVariant} className="text-xs shrink-0">
-                              {statusLabel}
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="text-sm text-muted-foreground truncate">
-                          {cluster.endpoint}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-6">
-                      {health && (
-                        <div className="hidden sm:flex items-center gap-4 text-sm text-muted-foreground">
-                          <span>
-                            <Database className="h-4 w-4 inline mr-1" />
-                            {nodesUp}/{nodesTotal} nodes
-                          </span>
-                          <span>
-                            {health.partitionsAllOk}/{health.partitions} partitions
-                          </span>
-                        </div>
-                      )}
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            handleOpenEdit(cluster);
-                          }}
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            setDeleteConfirm(cluster);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                        <Link to={`/clusters/${cluster.id}`}>
-                          <Button variant="outline" size="sm">
-                            Manage
-                            <ArrowRight className="h-4 w-4 ml-1" />
-                          </Button>
-                        </Link>
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              );
-            }
-
-            return (
-              <Card
-                key={cluster.id}
-                className="group hover:shadow-xl transition-all duration-300 border-slate-200 bg-white/50 backdrop-blur-sm overflow-hidden relative"
-              >
-                <div className="absolute top-0 right-0 p-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 rounded-full"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      handleOpenEdit(cluster);
-                    }}
-                  >
-                    <Edit2 className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="icon"
-                    className="h-8 w-8 rounded-full shadow-sm"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setDeleteConfirm(cluster);
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                      <Server className="h-5 w-5" />
-                    </div>
-                    <div>
-                      {healthQuery?.isLoading ? (
-                        <Badge variant="outline" className="text-xs">
-                          Checking...
-                        </Badge>
-                      ) : (
-                        <Badge variant={statusVariant} className="text-xs">
-                          {statusLabel}
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                  <CardTitle className="mt-4 text-xl font-bold">{cluster.name}</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center text-slate-500">
-                      <Activity className="h-4 w-4 mr-2 text-slate-400" />
-                      <span className="truncate">{cluster.endpoint}</span>
-                    </div>
-                    <div className="flex items-center text-slate-500">
-                      <Database className="h-4 w-4 mr-2 text-slate-400" />
-                      <span>{nodesUp}/{nodesTotal} nodes online</span>
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      Added {formatDateTime(cluster.createdAt)}
-                    </div>
-                  </div>
-
-                  {health && (
-                    <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3 text-xs text-slate-600">
-                      <div className="flex items-center justify-between">
-                        <span>Partitions OK</span>
-                        <span className="font-medium text-slate-900">
-                          {health.partitionsAllOk}/{health.partitions}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between mt-1">
-                        <span>Quorum OK</span>
-                        <span className="font-medium text-slate-900">
-                          {health.partitionsQuorum}/{health.partitions}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="pt-2">
-                    <Link to={`/clusters/${cluster.id}`}>
-                      <Button
-                        className="w-full justify-between group-hover:bg-primary group-hover:text-white transition-colors"
-                        variant="outline"
-                      >
-                        Manage Cluster
-                        <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                      </Button>
-                    </Link>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
       )}
-
-      {/* Edit Cluster Dialog */}
-      <Dialog
-        open={isEditDialogOpen}
-        onOpenChange={(open) => {
-          setIsEditDialogOpen(open);
-          if (!open) {
-            setEditingCluster(null);
-            setFormError('');
-            setClusterForm(emptyForm);
-          }
-        }}
-      >
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Edit Cluster</DialogTitle>
-            <DialogDescription>
-              Update cluster settings. Leave token fields empty to keep existing values.
-            </DialogDescription>
-          </DialogHeader>
-          <ClusterForm
-            form={clusterForm}
-            setForm={setClusterForm}
-            showTokenFields={false}
-            error={formError}
-          />
-          <div className="space-y-4">
-            <div className="grid gap-2">
-              <Label htmlFor="edit-token">Admin Token (leave empty to keep current)</Label>
-              <Input
-                id="edit-token"
-                type="password"
-                value={clusterForm.adminToken}
-                onChange={(e) => setClusterForm({ ...clusterForm, adminToken: e.target.value })}
-                placeholder="Enter new token to update"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit-metric-token">Metric Token (optional)</Label>
-              <Input
-                id="edit-metric-token"
-                type="password"
-                value={clusterForm.metricToken}
-                onChange={(e) => setClusterForm({ ...clusterForm, metricToken: e.target.value })}
-                placeholder="Enter new metric token to update"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              onClick={() =>
-                editingCluster &&
-                updateMutation.mutate({ id: editingCluster.id, data: clusterForm })
-              }
-              disabled={isUpdateDisabled}
-            >
-              {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Delete Confirmation */}
       <ConfirmDialog
