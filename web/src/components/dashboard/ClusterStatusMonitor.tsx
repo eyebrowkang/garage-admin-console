@@ -250,16 +250,25 @@ function ClusterStatusCard({ item, isExpanded, onToggleExpand, variant }: Cluste
   // Total capacity: sum of all nodes' configured capacity
   const totalCapacity = nodes.reduce((sum, n) => sum + (n.role?.capacity ?? 0), 0);
   
-  // Total disk usage: sum of actual disk space used across all nodes
-  const totalDiskUsed = nodes.reduce(
+  // Data partition stats
+  const dataPartitionUsed = nodes.reduce(
     (sum, n) =>
       sum + (n.dataPartition ? n.dataPartition.total - n.dataPartition.available : 0),
     0
   );
-  
-  // Total disk available across all nodes
-  const totalDiskSpace = nodes.reduce(
+  const dataPartitionTotal = nodes.reduce(
     (sum, n) => sum + (n.dataPartition?.total ?? 0),
+    0
+  );
+  
+  // Metadata partition stats
+  const metadataPartitionUsed = nodes.reduce(
+    (sum, n) =>
+      sum + (n.metadataPartition ? n.metadataPartition.total - n.metadataPartition.available : 0),
+    0
+  );
+  const metadataPartitionTotal = nodes.reduce(
+    (sum, n) => sum + (n.metadataPartition?.total ?? 0),
     0
   );
 
@@ -283,12 +292,13 @@ function ClusterStatusCard({ item, isExpanded, onToggleExpand, variant }: Cluste
                 <Icon className={`h-4 w-4 ${config.color}`} />
               </div>
               <div className="flex-1 min-w-0">
-                <Link to={`/clusters/${cluster.id}`} className="block">
-                  <div className="flex items-center gap-2 group">
-                    <h4 className="font-semibold text-slate-900 truncate group-hover:text-primary transition-colors cursor-pointer">
+                <div className="flex items-center gap-2">
+                  <Link to={`/clusters/${cluster.id}`} className="inline-block hover:text-primary transition-colors">
+                    <h4 className="font-semibold text-slate-900 truncate">
                       {cluster.name}
                     </h4>
-                    <Badge
+                  </Link>
+                  <Badge
                     variant={
                       healthStatus === 'healthy'
                         ? 'success'
@@ -303,31 +313,30 @@ function ClusterStatusCard({ item, isExpanded, onToggleExpand, variant }: Cluste
                     {config.label}
                   </Badge>
                 </div>
-              </Link>
-              <div className="text-xs text-muted-foreground truncate">{cluster.endpoint}</div>
+                <div className="text-xs text-muted-foreground truncate">{cluster.endpoint}</div>
+              </div>
             </div>
-          </div>
 
-          <div className="flex items-center gap-4 ml-4">
-            {!isLoading && health && (
-              <div className="hidden sm:flex items-center gap-4 text-sm">
-                <div className="flex items-center gap-1.5">
-                  <Database className="h-4 w-4 text-slate-400" />
-                  <span className="font-mono font-medium tabular-nums">
-                    {nodesUp}/{nodes.length}
-                  </span>
-                </div>
-                {health.partitionsAllOk !== health.partitions && (
-                  <div className="flex items-center gap-1.5 text-amber-600">
-                    <AlertTriangle className="h-4 w-4" />
+            <div className="flex items-center gap-4 ml-4 shrink-0">
+              {!isLoading && health && (
+                <div className="hidden sm:flex items-center gap-4 text-sm">
+                  <div className="flex items-center gap-1.5">
+                    <Database className="h-4 w-4 text-slate-400 shrink-0" />
                     <span className="font-mono font-medium tabular-nums">
-                      {health.partitionsAllOk}/{health.partitions}
+                      {nodesUp}/{nodes.length}
                     </span>
                   </div>
-                )}
-              </div>
-            )}
-          </div>
+                  {health.partitionsAllOk !== health.partitions && (
+                    <div className="flex items-center gap-1.5 text-amber-600">
+                      <AlertTriangle className="h-4 w-4 shrink-0" />
+                      <span className="font-mono font-medium tabular-nums">
+                        {health.partitionsAllOk}/{health.partitions}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           {isExpanded && !isLoading && (
@@ -350,45 +359,67 @@ function ClusterStatusCard({ item, isExpanded, onToggleExpand, variant }: Cluste
               )}
 
               {/* Storage Information */}
-              {(totalCapacity > 0 || totalDiskSpace > 0) && (
-                <div className="space-y-3">
-                  {/* Configured Capacity */}
-                  {totalCapacity > 0 && (
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-2 text-slate-600">
-                          <HardDrive className="h-4 w-4" />
-                          Configured Capacity
-                        </div>
-                        <span className="font-mono font-semibold text-slate-900 tabular-nums">
-                          {formatBytes(totalCapacity)}
-                        </span>
+              <div className="space-y-3">
+                {/* Configured Capacity */}
+                {totalCapacity > 0 && (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2 text-slate-600">
+                        <HardDrive className="h-4 w-4" />
+                        Configured Capacity
                       </div>
-                      <div className="text-xs text-muted-foreground pl-6">
-                        Total storage capacity configured for this cluster
-                      </div>
+                      <span className="font-mono font-semibold text-slate-900 tabular-nums">
+                        {formatBytes(totalCapacity)}
+                      </span>
                     </div>
-                  )}
-                  
-                  {/* Actual Disk Usage */}
-                  {totalDiskSpace > 0 && (
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-slate-600 pl-6">Disk Usage</span>
-                        <span className="font-mono font-semibold text-slate-900 tabular-nums">
-                          {formatBytes(totalDiskUsed)} / {formatBytes(totalDiskSpace)}
-                        </span>
-                      </div>
-                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden ml-6">
-                        <div
-                          className="h-full bg-primary transition-all rounded-full"
-                          style={{ width: `${(totalDiskUsed / totalDiskSpace) * 100}%` }}
-                        />
-                      </div>
+                    <div className="text-xs text-muted-foreground pl-6">
+                      Total storage capacity configured for this cluster
                     </div>
-                  )}
-                </div>
-              )}
+                  </div>
+                )}
+                
+                {/* Data Partition */}
+                {dataPartitionTotal > 0 && (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-slate-600 pl-6">Data Partition</span>
+                      <span className="font-mono font-semibold text-slate-900 tabular-nums">
+                        {formatBytes(dataPartitionUsed)} / {formatBytes(dataPartitionTotal)}
+                      </span>
+                    </div>
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden ml-6">
+                      <div
+                        className="h-full bg-blue-500 transition-all rounded-full"
+                        style={{ width: `${(dataPartitionUsed / dataPartitionTotal) * 100}%` }}
+                      />
+                    </div>
+                    <div className="text-xs text-muted-foreground pl-6">
+                      {((dataPartitionUsed / dataPartitionTotal) * 100).toFixed(1)}% used
+                    </div>
+                  </div>
+                )}
+                
+                {/* Metadata Partition */}
+                {metadataPartitionTotal > 0 && (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-slate-600 pl-6">Metadata Partition</span>
+                      <span className="font-mono font-semibold text-slate-900 tabular-nums">
+                        {formatBytes(metadataPartitionUsed)} / {formatBytes(metadataPartitionTotal)}
+                      </span>
+                    </div>
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden ml-6">
+                      <div
+                        className="h-full bg-purple-500 transition-all rounded-full"
+                        style={{ width: `${(metadataPartitionUsed / metadataPartitionTotal) * 100}%` }}
+                      />
+                    </div>
+                    <div className="text-xs text-muted-foreground pl-6">
+                      {((metadataPartitionUsed / metadataPartitionTotal) * 100).toFixed(1)}% used
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {problemNodes.length > 0 && (
                 <div className="space-y-2">
