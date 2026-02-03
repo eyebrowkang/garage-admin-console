@@ -10,11 +10,9 @@ import {
   Database,
   HardDrive,
   Activity,
-  ExternalLink,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { formatBytes } from '@/lib/format';
 import type { ClusterSummary, GetClusterHealthResponse, GetClusterStatusResponse } from '@/types/garage';
 
@@ -87,11 +85,11 @@ export function ClusterStatusMonitor({ clustersWithStatus }: ClusterStatusMonito
               </div>
               <div className="flex gap-6 text-sm">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-green-900">{clustersWithStatus.length}</div>
+                  <div className="text-2xl font-mono font-bold text-green-900 tabular-nums">{clustersWithStatus.length}</div>
                   <div className="text-green-700">Clusters</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-green-900">{totalNodesUp}</div>
+                  <div className="text-2xl font-mono font-bold text-green-900 tabular-nums">{totalNodesUp}</div>
                   <div className="text-green-700">Nodes</div>
                 </div>
               </div>
@@ -116,11 +114,11 @@ export function ClusterStatusMonitor({ clustersWithStatus }: ClusterStatusMonito
               </div>
               <div className="flex gap-6 text-sm">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-red-900">{problemClusters.length}</div>
+                  <div className="text-2xl font-mono font-bold text-red-900 tabular-nums">{problemClusters.length}</div>
                   <div className="text-red-700">Issues</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-slate-900">
+                  <div className="text-2xl font-mono font-bold text-slate-900 tabular-nums">
                     {totalNodesUp}/{totalNodes}
                   </div>
                   <div className="text-slate-700">Nodes Up</div>
@@ -248,10 +246,20 @@ function ClusterStatusCard({ item, isExpanded, onToggleExpand, variant }: Cluste
   const nodesDown = nodes.filter((n) => !n.isUp).length;
   const nodesDraining = nodes.filter((n) => n.draining).length;
   const problemNodes = nodes.filter((n) => !n.isUp || n.draining);
+  
+  // Total capacity: sum of all nodes' configured capacity
   const totalCapacity = nodes.reduce((sum, n) => sum + (n.role?.capacity ?? 0), 0);
-  const totalUsed = nodes.reduce(
+  
+  // Total disk usage: sum of actual disk space used across all nodes
+  const totalDiskUsed = nodes.reduce(
     (sum, n) =>
       sum + (n.dataPartition ? n.dataPartition.total - n.dataPartition.available : 0),
+    0
+  );
+  
+  // Total disk available across all nodes
+  const totalDiskSpace = nodes.reduce(
+    (sum, n) => sum + (n.dataPartition?.total ?? 0),
     0
   );
 
@@ -275,9 +283,12 @@ function ClusterStatusCard({ item, isExpanded, onToggleExpand, variant }: Cluste
                 <Icon className={`h-4 w-4 ${config.color}`} />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <h4 className="font-semibold text-slate-900 truncate">{cluster.name}</h4>
-                  <Badge
+                <Link to={`/clusters/${cluster.id}`} className="block">
+                  <div className="flex items-center gap-2 group">
+                    <h4 className="font-semibold text-slate-900 truncate group-hover:text-primary transition-colors cursor-pointer">
+                      {cluster.name}
+                    </h4>
+                    <Badge
                     variant={
                       healthStatus === 'healthy'
                         ? 'success'
@@ -292,35 +303,31 @@ function ClusterStatusCard({ item, isExpanded, onToggleExpand, variant }: Cluste
                     {config.label}
                   </Badge>
                 </div>
-                <div className="text-xs text-muted-foreground truncate">{cluster.endpoint}</div>
-              </div>
+              </Link>
+              <div className="text-xs text-muted-foreground truncate">{cluster.endpoint}</div>
             </div>
+          </div>
 
-            <div className="flex items-center gap-4 ml-4">
-              {!isLoading && health && (
-                <div className="hidden sm:flex items-center gap-4 text-sm">
-                  <div className="flex items-center gap-1">
-                    <Database className="h-4 w-4 text-slate-400" />
-                    <span className="font-medium">
-                      {nodesUp}/{nodes.length}
+          <div className="flex items-center gap-4 ml-4">
+            {!isLoading && health && (
+              <div className="hidden sm:flex items-center gap-4 text-sm">
+                <div className="flex items-center gap-1.5">
+                  <Database className="h-4 w-4 text-slate-400" />
+                  <span className="font-mono font-medium tabular-nums">
+                    {nodesUp}/{nodes.length}
+                  </span>
+                </div>
+                {health.partitionsAllOk !== health.partitions && (
+                  <div className="flex items-center gap-1.5 text-amber-600">
+                    <AlertTriangle className="h-4 w-4" />
+                    <span className="font-mono font-medium tabular-nums">
+                      {health.partitionsAllOk}/{health.partitions}
                     </span>
                   </div>
-                  {health.partitionsAllOk !== health.partitions && (
-                    <div className="flex items-center gap-1 text-amber-600">
-                      <AlertTriangle className="h-4 w-4" />
-                      <span className="font-medium">
-                        {health.partitionsAllOk}/{health.partitions}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )}
-              <Link to={`/clusters/${cluster.id}`}>
-                <Button variant="ghost" size="sm" className="h-8">
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </Button>
-              </Link>
-            </div>
+                )}
+              </div>
+            )}
+          </div>
           </div>
 
           {isExpanded && !isLoading && (
@@ -329,36 +336,57 @@ function ClusterStatusCard({ item, isExpanded, onToggleExpand, variant }: Cluste
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div className="flex items-center justify-between p-2 rounded bg-slate-50">
                     <span className="text-slate-600">Partitions OK</span>
-                    <span className="font-semibold text-slate-900">
+                    <span className="font-mono font-semibold text-slate-900 tabular-nums">
                       {health.partitionsAllOk}/{health.partitions}
                     </span>
                   </div>
                   <div className="flex items-center justify-between p-2 rounded bg-slate-50">
                     <span className="text-slate-600">Quorum OK</span>
-                    <span className="font-semibold text-slate-900">
+                    <span className="font-mono font-semibold text-slate-900 tabular-nums">
                       {health.partitionsQuorum}/{health.partitions}
                     </span>
                   </div>
                 </div>
               )}
 
-              {totalCapacity > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2 text-slate-600">
-                      <HardDrive className="h-4 w-4" />
-                      Storage Capacity
+              {/* Storage Information */}
+              {(totalCapacity > 0 || totalDiskSpace > 0) && (
+                <div className="space-y-3">
+                  {/* Configured Capacity */}
+                  {totalCapacity > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2 text-slate-600">
+                          <HardDrive className="h-4 w-4" />
+                          Configured Capacity
+                        </div>
+                        <span className="font-mono font-semibold text-slate-900 tabular-nums">
+                          {formatBytes(totalCapacity)}
+                        </span>
+                      </div>
+                      <div className="text-xs text-muted-foreground pl-6">
+                        Total storage capacity configured for this cluster
+                      </div>
                     </div>
-                    <span className="font-semibold text-slate-900">
-                      {formatBytes(totalUsed)} / {formatBytes(totalCapacity)}
-                    </span>
-                  </div>
-                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-primary transition-all rounded-full"
-                      style={{ width: `${(totalUsed / totalCapacity) * 100}%` }}
-                    />
-                  </div>
+                  )}
+                  
+                  {/* Actual Disk Usage */}
+                  {totalDiskSpace > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-600 pl-6">Disk Usage</span>
+                        <span className="font-mono font-semibold text-slate-900 tabular-nums">
+                          {formatBytes(totalDiskUsed)} / {formatBytes(totalDiskSpace)}
+                        </span>
+                      </div>
+                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden ml-6">
+                        <div
+                          className="h-full bg-primary transition-all rounded-full"
+                          style={{ width: `${(totalDiskUsed / totalDiskSpace) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -395,20 +423,20 @@ function ClusterStatusCard({ item, isExpanded, onToggleExpand, variant }: Cluste
                     <div className="flex items-center gap-2 p-2 rounded bg-green-50">
                       <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
                       <span className="text-slate-600">Online:</span>
-                      <span className="font-semibold text-slate-900">{nodesUp}</span>
+                      <span className="font-mono font-semibold text-slate-900 tabular-nums">{nodesUp}</span>
                     </div>
                     {nodesDown > 0 && (
                       <div className="flex items-center gap-2 p-2 rounded bg-red-50">
                         <XCircle className="h-3.5 w-3.5 text-red-600" />
                         <span className="text-slate-600">Offline:</span>
-                        <span className="font-semibold text-slate-900">{nodesDown}</span>
+                        <span className="font-mono font-semibold text-slate-900 tabular-nums">{nodesDown}</span>
                       </div>
                     )}
                     {nodesDraining > 0 && (
                       <div className="flex items-center gap-2 p-2 rounded bg-amber-50">
                         <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
                         <span className="text-slate-600">Draining:</span>
-                        <span className="font-semibold text-slate-900">{nodesDraining}</span>
+                        <span className="font-mono font-semibold text-slate-900 tabular-nums">{nodesDraining}</span>
                       </div>
                     )}
                   </div>
