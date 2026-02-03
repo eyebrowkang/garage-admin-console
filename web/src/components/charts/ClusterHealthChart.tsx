@@ -1,5 +1,4 @@
-import ReactECharts from 'echarts-for-react';
-import type { EChartsOption } from 'echarts';
+import { CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
 
 interface ClusterHealthChartProps {
   healthy: number;
@@ -10,67 +9,6 @@ interface ClusterHealthChartProps {
 export function ClusterHealthChart({ healthy, degraded, unavailable }: ClusterHealthChartProps) {
   const total = healthy + degraded + unavailable;
 
-  const option: EChartsOption = {
-    tooltip: {
-      trigger: 'item',
-      formatter: '{b}: {c} ({d}%)',
-    },
-    legend: {
-      orient: 'horizontal',
-      bottom: 0,
-      data: ['Healthy', 'Degraded', 'Unavailable'],
-    },
-    series: [
-      {
-        name: 'Cluster Health',
-        type: 'pie',
-        radius: ['50%', '70%'],
-        center: ['50%', '45%'],
-        avoidLabelOverlap: false,
-        itemStyle: {
-          borderRadius: 4,
-          borderColor: '#fff',
-          borderWidth: 2,
-        },
-        label: {
-          show: true,
-          position: 'center',
-          formatter: () => `${total}\nClusters`,
-          fontSize: 16,
-          fontWeight: 'bold',
-          lineHeight: 22,
-        },
-        emphasis: {
-          label: {
-            show: true,
-            fontSize: 18,
-            fontWeight: 'bold',
-          },
-        },
-        labelLine: {
-          show: false,
-        },
-        data: [
-          {
-            value: healthy,
-            name: 'Healthy',
-            itemStyle: { color: '#22c55e' },
-          },
-          {
-            value: degraded,
-            name: 'Degraded',
-            itemStyle: { color: '#f59e0b' },
-          },
-          {
-            value: unavailable,
-            name: 'Unavailable',
-            itemStyle: { color: '#ef4444' },
-          },
-        ].filter((d) => d.value > 0),
-      },
-    ],
-  };
-
   if (total === 0) {
     return (
       <div className="flex items-center justify-center h-[200px] text-muted-foreground">
@@ -79,5 +17,81 @@ export function ClusterHealthChart({ healthy, degraded, unavailable }: ClusterHe
     );
   }
 
-  return <ReactECharts option={option} style={{ height: '200px' }} />;
+  const healthyPercentage = (healthy / total) * 100;
+  const degradedPercentage = (degraded / total) * 100;
+  const unavailablePercentage = (unavailable / total) * 100;
+
+  return (
+    <div className="space-y-6">
+      {/* Total count display */}
+      <div className="text-center py-4">
+        <div className="text-5xl font-bold text-slate-900">{total}</div>
+        <div className="text-sm text-muted-foreground mt-1">Total Clusters</div>
+      </div>
+
+      {/* Status bars */}
+      <div className="space-y-3">
+        {/* Healthy */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-green-500" />
+              <span className="font-medium text-slate-700">Healthy</span>
+            </div>
+            <span className="font-semibold text-slate-900">
+              {healthy} ({healthyPercentage.toFixed(0)}%)
+            </span>
+          </div>
+          <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-green-500 transition-all duration-500 rounded-full"
+              style={{ width: `${healthyPercentage}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Degraded */}
+        {degraded > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-500" />
+                <span className="font-medium text-slate-700">Degraded</span>
+              </div>
+              <span className="font-semibold text-slate-900">
+                {degraded} ({degradedPercentage.toFixed(0)}%)
+              </span>
+            </div>
+            <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-amber-500 transition-all duration-500 rounded-full"
+                style={{ width: `${degradedPercentage}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Unavailable */}
+        {unavailable > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2">
+                <XCircle className="h-4 w-4 text-red-500" />
+                <span className="font-medium text-slate-700">Unavailable</span>
+              </div>
+              <span className="font-semibold text-slate-900">
+                {unavailable} ({unavailablePercentage.toFixed(0)}%)
+              </span>
+            </div>
+            <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-red-500 transition-all duration-500 rounded-full"
+                style={{ width: `${unavailablePercentage}%` }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
