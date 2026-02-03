@@ -133,7 +133,7 @@ export function NodeDetail() {
                 <Badge variant="destructive">Down</Badge>
               )}
             </div>
-            <p className="text-sm text-muted-foreground font-mono">{node.id}</p>
+            <p className="text-sm text-muted-foreground">{node.id}</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -177,7 +177,7 @@ export function NodeDetail() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="font-mono text-lg">{node.addr || '-'}</div>
+            <div className="text-lg">{node.addr || '-'}</div>
           </CardContent>
         </Card>
 

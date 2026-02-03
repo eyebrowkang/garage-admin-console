@@ -46,7 +46,7 @@ export function JsonViewer({ data, collapsed = false }: JsonViewerProps) {
         </div>
       </div>
       {!isCollapsed && (
-        <pre className="p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap break-words text-slate-800 bg-slate-50 max-h-96 overflow-auto">
+        <pre className="p-4 text-xs leading-relaxed whitespace-pre-wrap break-words text-slate-800 bg-slate-50 max-h-96 overflow-auto">
           {jsonString}
         </pre>
       )}

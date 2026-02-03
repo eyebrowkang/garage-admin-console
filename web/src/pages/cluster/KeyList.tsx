@@ -195,7 +195,7 @@ export function KeyList({ clusterId }: KeyListProps) {
                 className="cursor-pointer hover:bg-muted/50"
                 onClick={() => navigate(`/clusters/${clusterId}/keys/${k.id}`)}
               >
-                <TableCell className="font-mono text-xs">{formatShortId(k.id, 12)}</TableCell>
+                <TableCell className="text-xs">{formatShortId(k.id, 12)}</TableCell>
                 <TableCell>{k.name || '-'}</TableCell>
                 <TableCell>
                   {k.expired ? (
@@ -253,7 +253,7 @@ export function KeyList({ clusterId }: KeyListProps) {
               <div className="rounded-lg border bg-slate-50/70 p-3">
                 <div className="text-xs text-muted-foreground">Access Key ID</div>
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-mono text-sm text-slate-900 break-all">
+                  <span className="text-sm text-slate-900 break-all">
                     {createdKey.accessKeyId}
                   </span>
                   <Button
@@ -271,7 +271,7 @@ export function KeyList({ clusterId }: KeyListProps) {
               <div className="rounded-lg border bg-slate-50/70 p-3">
                 <div className="text-xs text-muted-foreground">Secret Access Key</div>
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-mono text-sm text-slate-900 break-all">
+                  <span className="text-sm text-slate-900 break-all">
                     {createdKey.secretAccessKey || '-'}
                   </span>
                   {createdKey.secretAccessKey && (

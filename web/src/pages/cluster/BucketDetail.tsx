@@ -217,7 +217,7 @@ export function BucketDetail() {
           <h1 className="text-2xl font-bold">
             {bucket.globalAliases[0] || bucket.id.slice(0, 12) + '...'}
           </h1>
-          <p className="text-sm text-muted-foreground font-mono">{bucket.id}</p>
+          <p className="text-sm text-muted-foreground">{bucket.id}</p>
         </div>
       </div>
 
@@ -331,7 +331,7 @@ export function BucketDetail() {
               <TableBody>
                 {bucket.keys.map((key) => (
                   <TableRow key={key.accessKeyId}>
-                    <TableCell className="font-mono text-xs">
+                    <TableCell className="text-xs">
                       {key.accessKeyId.slice(0, 12)}...
                     </TableCell>
                     <TableCell>{key.name || '-'}</TableCell>

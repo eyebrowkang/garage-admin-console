@@ -178,7 +178,7 @@ export function BucketList({ clusterId }: BucketListProps) {
                 className="cursor-pointer hover:bg-muted/50"
                 onClick={() => navigate(`/clusters/${clusterId}/buckets/${bucket.id}`)}
               >
-                <TableCell className="font-mono text-xs">{formatShortId(bucket.id, 10)}</TableCell>
+                <TableCell className="text-xs">{formatShortId(bucket.id, 10)}</TableCell>
                 <TableCell>
                   <div className="flex flex-wrap gap-1">
                     {bucket.globalAliases.length > 0 ? (

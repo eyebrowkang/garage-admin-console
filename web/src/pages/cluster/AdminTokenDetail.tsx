@@ -109,7 +109,7 @@ export function AdminTokenDetail() {
               {isCurrent && <Badge variant="secondary">Current Token</Badge>}
             </div>
             {token.id && (
-              <p className="text-sm text-muted-foreground font-mono">{token.id}</p>
+              <p className="text-sm text-muted-foreground">{token.id}</p>
             )}
           </div>
         </div>
@@ -159,7 +159,7 @@ export function AdminTokenDetail() {
             {token.id && (
               <div>
                 <div className="text-sm text-muted-foreground">Token ID</div>
-                <div className="font-mono text-sm">{token.id}</div>
+                <div className="text-sm">{token.id}</div>
               </div>
             )}
             <div>

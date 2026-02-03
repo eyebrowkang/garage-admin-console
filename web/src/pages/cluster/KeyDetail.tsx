@@ -161,7 +161,7 @@ export function KeyDetail() {
                 <Badge variant="success">Active</Badge>
               )}
             </div>
-            <p className="text-sm text-muted-foreground font-mono">{keyInfo.accessKeyId}</p>
+            <p className="text-sm text-muted-foreground">{keyInfo.accessKeyId}</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -194,7 +194,7 @@ export function KeyDetail() {
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <div className="text-sm text-muted-foreground">Access Key ID</div>
-              <div className="font-mono">{keyInfo.accessKeyId}</div>
+              <div>{keyInfo.accessKeyId}</div>
             </div>
             <div>
               <div className="text-sm text-muted-foreground">Name</div>
@@ -259,7 +259,7 @@ export function KeyDetail() {
               <TableBody>
                 {keyInfo.buckets.map((bucket) => (
                   <TableRow key={bucket.id}>
-                    <TableCell className="font-mono text-xs">{bucket.id.slice(0, 12)}...</TableCell>
+                    <TableCell className="text-xs">{bucket.id.slice(0, 12)}...</TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
                         {bucket.globalAliases.map((alias) => (

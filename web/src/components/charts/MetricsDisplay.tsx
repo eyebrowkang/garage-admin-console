@@ -162,7 +162,7 @@ export function MetricsDisplay({ clusterId }: MetricsDisplayProps) {
             {parsedMetrics.map((metric) => (
               <div key={metric.name} className="border rounded-lg p-3">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="font-mono text-sm font-medium">{metric.name}</span>
+                  <span className="text-sm font-medium">{metric.name}</span>
                   <span className="text-xs px-1.5 py-0.5 bg-slate-100 rounded text-muted-foreground">
                     {metric.type}
                   </span>
@@ -170,7 +170,7 @@ export function MetricsDisplay({ clusterId }: MetricsDisplayProps) {
                 {metric.help && <p className="text-xs text-muted-foreground mb-2">{metric.help}</p>}
                 <div className="space-y-1">
                   {metric.values.slice(0, 10).map((v, idx) => (
-                    <div key={idx} className="flex justify-between text-xs font-mono">
+                    <div key={idx} className="flex justify-between text-xs">
                       <span className="text-muted-foreground">
                         {Object.keys(v.labels).length > 0
                           ? `{${Object.entries(v.labels)

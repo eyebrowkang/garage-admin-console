@@ -116,7 +116,7 @@ export function ApiExplorer({ clusterId }: ApiExplorerProps) {
               placeholder='{
   "name": "example"
 }'
-              className="min-h-[140px] font-mono text-xs"
+              className="min-h-[140px] text-xs"
             />
           </div>
 
@@ -159,7 +159,7 @@ export function ApiExplorer({ clusterId }: ApiExplorerProps) {
             {response.contentType && (
               <div className="text-xs text-muted-foreground">{response.contentType}</div>
             )}
-            <pre className="font-mono text-xs leading-relaxed bg-slate-50 border border-slate-200 rounded-lg p-4 whitespace-pre-wrap break-words text-slate-800 max-h-[500px] overflow-auto">
+            <pre className="text-xs leading-relaxed bg-slate-50 border border-slate-200 rounded-lg p-4 whitespace-pre-wrap break-words text-slate-800 max-h-[500px] overflow-auto">
               {prettyResponse || 'No response body'}
             </pre>
           </CardContent>

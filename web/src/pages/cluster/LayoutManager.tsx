@@ -269,7 +269,7 @@ export function LayoutManager({ clusterId }: LayoutManagerProps) {
 
                   return (
                     <TableRow key={node.id}>
-                      <TableCell className="font-mono text-xs">
+                      <TableCell className="text-xs">
                         {formatShortId(node.id, 10)}
                       </TableCell>
                       <TableCell>{node.hostname || 'Unknown'}</TableCell>

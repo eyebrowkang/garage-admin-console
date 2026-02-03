@@ -92,7 +92,7 @@ export function ClusterNodeList({ clusterId }: NodeListProps) {
                 className="cursor-pointer hover:bg-muted/50"
                 onClick={() => navigate(`/clusters/${clusterId}/nodes/${node.id}`)}
               >
-                <TableCell className="font-mono text-xs">{formatShortId(node.id, 10)}</TableCell>
+                <TableCell className="text-xs">{formatShortId(node.id, 10)}</TableCell>
                 <TableCell>{node.hostname || '-'}</TableCell>
                 <TableCell className="text-xs text-muted-foreground">{node.addr || '-'}</TableCell>
                 <TableCell>

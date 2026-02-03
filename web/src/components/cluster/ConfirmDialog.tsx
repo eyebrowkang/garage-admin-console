@@ -71,7 +71,7 @@ export function ConfirmDialog({
         {tier === 'type-to-confirm' && typeToConfirmValue && (
           <div className="space-y-2 py-4">
             <Label>
-              Type <span className="font-mono font-bold">{typeToConfirmValue}</span> to confirm
+              Type <span className="font-bold">{typeToConfirmValue}</span> to confirm
             </Label>
             <Input
               value={typedValue}

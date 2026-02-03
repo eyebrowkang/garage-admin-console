@@ -195,13 +195,13 @@ export function BlockManager() {
                   <TableRow key={`${blockError.nodeId}-${blockError.blockHash}`}>
                     <TableCell>
                       <button
-                        className="font-mono text-xs text-primary hover:underline"
+                        className="text-xs text-primary hover:underline"
                         onClick={() => setSelectedBlockHash(blockError.blockHash)}
                       >
                         {formatShortId(blockError.blockHash, 16)}
                       </button>
                     </TableCell>
-                    <TableCell className="font-mono text-xs">
+                    <TableCell className="text-xs">
                       {formatShortId(blockError.nodeId, 8)}
                     </TableCell>
                     <TableCell>
@@ -268,7 +268,7 @@ export function BlockManager() {
           <div className="flex gap-2">
             <Input
               placeholder="Enter block hash..."
-              className="font-mono"
+              className=""
               value={selectedBlockHash || ''}
               onChange={(e) => setSelectedBlockHash(e.target.value || null)}
             />
@@ -292,7 +292,7 @@ export function BlockManager() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Block Information</DialogTitle>
-            <DialogDescription className="font-mono text-xs">{selectedBlockHash}</DialogDescription>
+            <DialogDescription className="text-xs">{selectedBlockHash}</DialogDescription>
           </DialogHeader>
           {blockInfoLoading ? (
             <div className="py-8 text-center text-muted-foreground">Loading block info...</div>
@@ -303,7 +303,7 @@ export function BlockManager() {
                 Object.entries(blockInfo.success).map(([nodeId, info]) => (
                   <Card key={nodeId}>
                     <CardHeader className="py-3">
-                      <CardTitle className="text-sm font-mono">
+                      <CardTitle className="text-sm">
                         {formatShortId(nodeId, 12)}
                       </CardTitle>
                     </CardHeader>
@@ -321,7 +321,7 @@ export function BlockManager() {
                             {info.versions.map((version, idx: number) => (
                               <div key={idx} className="border rounded p-2 text-xs">
                                 <div className="flex justify-between">
-                                  <span className="font-mono">
+                                  <span>
                                     {formatShortId(version.versionId, 16)}
                                   </span>
                                   <Badge variant={version.deleted ? 'destructive' : 'secondary'}>
@@ -393,7 +393,7 @@ export function BlockManager() {
             <div className="space-y-2">
               <Label>Block Hashes (one per line)</Label>
               <textarea
-                className="w-full min-h-[150px] p-3 border rounded-md font-mono text-xs resize-y"
+                className="w-full min-h-[150px] p-3 border rounded-md text-xs resize-y"
                 placeholder="Enter block hashes to purge, one per line..."
                 value={purgeHashes}
                 onChange={(e) => setPurgeHashes(e.target.value)}

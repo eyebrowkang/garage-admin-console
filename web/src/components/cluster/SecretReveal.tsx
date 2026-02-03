@@ -28,7 +28,7 @@ export function SecretReveal({ label, value, hidden = true }: SecretRevealProps)
     <div className="rounded-lg border bg-slate-50/70 p-3">
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className="flex items-center justify-between gap-2 mt-1">
-        <span className="font-mono text-sm text-slate-900 break-all">
+        <span className="text-sm text-slate-900 break-all">
           {isRevealed ? value : maskedValue}
         </span>
         <div className="flex items-center gap-1">

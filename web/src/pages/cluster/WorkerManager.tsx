@@ -217,7 +217,7 @@ export function WorkerManager() {
                 {allWorkers.map((worker) => (
                   <TableRow key={`${worker.nodeId}-${worker.name}`}>
                     <TableCell className="font-medium">{worker.name}</TableCell>
-                    <TableCell className="font-mono text-xs">
+                    <TableCell className="text-xs">
                       {formatShortId(worker.nodeId, 8)}
                     </TableCell>
                     <TableCell>{getStateBadge(worker.state)}</TableCell>
@@ -269,7 +269,7 @@ export function WorkerManager() {
         <SheetContent className="w-[400px] sm:w-[540px] overflow-y-auto">
           <SheetHeader>
             <SheetTitle>{selectedWorker?.name}</SheetTitle>
-            <SheetDescription className="font-mono text-xs">
+            <SheetDescription className="text-xs">
               Node: {selectedWorker?.nodeId ? formatShortId(selectedWorker.nodeId, 12) : '-'}
             </SheetDescription>
           </SheetHeader>
@@ -411,7 +411,7 @@ function VariableCard({
             <Settings className="h-4 w-4" />
           </Button>
         </div>
-        <div className="mt-3 font-mono text-lg">{isLoading ? '...' : currentValue}</div>
+        <div className="mt-3 text-lg tabular-nums">{isLoading ? '...' : currentValue}</div>
       </CardContent>
     </Card>
   );

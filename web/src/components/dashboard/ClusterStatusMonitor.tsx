@@ -85,11 +85,11 @@ export function ClusterStatusMonitor({ clustersWithStatus }: ClusterStatusMonito
               </div>
               <div className="flex gap-6 text-sm">
                 <div className="text-center">
-                  <div className="text-2xl font-mono font-bold text-green-900 tabular-nums">{clustersWithStatus.length}</div>
+                  <div className="text-2xl font-bold text-green-900 tabular-nums">{clustersWithStatus.length}</div>
                   <div className="text-green-700">Clusters</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-mono font-bold text-green-900 tabular-nums">{totalNodesUp}</div>
+                  <div className="text-2xl font-bold text-green-900 tabular-nums">{totalNodesUp}</div>
                   <div className="text-green-700">Nodes</div>
                 </div>
               </div>
@@ -114,11 +114,11 @@ export function ClusterStatusMonitor({ clustersWithStatus }: ClusterStatusMonito
               </div>
               <div className="flex gap-6 text-sm">
                 <div className="text-center">
-                  <div className="text-2xl font-mono font-bold text-red-900 tabular-nums">{problemClusters.length}</div>
+                  <div className="text-2xl font-bold text-red-900 tabular-nums">{problemClusters.length}</div>
                   <div className="text-red-700">Issues</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-mono font-bold text-slate-900 tabular-nums">
+                  <div className="text-2xl font-bold text-slate-900 tabular-nums">
                     {totalNodesUp}/{totalNodes}
                   </div>
                   <div className="text-slate-700">Nodes Up</div>
@@ -322,14 +322,14 @@ function ClusterStatusCard({ item, isExpanded, onToggleExpand, variant }: Cluste
                 <div className="hidden sm:flex items-center gap-4 text-sm">
                   <div className="flex items-center gap-1.5">
                     <Database className="h-4 w-4 text-slate-400 shrink-0" />
-                    <span className="font-mono font-medium tabular-nums">
+                    <span className="font-medium tabular-nums">
                       {nodesUp}/{nodes.length}
                     </span>
                   </div>
                   {health.partitionsAllOk !== health.partitions && (
                     <div className="flex items-center gap-1.5 text-amber-600">
                       <AlertTriangle className="h-4 w-4 shrink-0" />
-                      <span className="font-mono font-medium tabular-nums">
+                      <span className="font-medium tabular-nums">
                         {health.partitionsAllOk}/{health.partitions}
                       </span>
                     </div>
@@ -345,13 +345,13 @@ function ClusterStatusCard({ item, isExpanded, onToggleExpand, variant }: Cluste
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div className="flex items-center justify-between p-2 rounded bg-slate-50">
                     <span className="text-slate-600">Partitions OK</span>
-                    <span className="font-mono font-semibold text-slate-900 tabular-nums">
+                    <span className="font-semibold text-slate-900 tabular-nums">
                       {health.partitionsAllOk}/{health.partitions}
                     </span>
                   </div>
                   <div className="flex items-center justify-between p-2 rounded bg-slate-50">
                     <span className="text-slate-600">Quorum OK</span>
-                    <span className="font-mono font-semibold text-slate-900 tabular-nums">
+                    <span className="font-semibold text-slate-900 tabular-nums">
                       {health.partitionsQuorum}/{health.partitions}
                     </span>
                   </div>
@@ -368,7 +368,7 @@ function ClusterStatusCard({ item, isExpanded, onToggleExpand, variant }: Cluste
                         <HardDrive className="h-4 w-4" />
                         Configured Capacity
                       </div>
-                      <span className="font-mono font-semibold text-slate-900 tabular-nums">
+                      <span className="font-semibold text-slate-900 tabular-nums">
                         {formatBytes(totalCapacity)}
                       </span>
                     </div>
@@ -383,7 +383,7 @@ function ClusterStatusCard({ item, isExpanded, onToggleExpand, variant }: Cluste
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-slate-600 pl-6">Data Partition</span>
-                      <span className="font-mono font-semibold text-slate-900 tabular-nums">
+                      <span className="font-semibold text-slate-900 tabular-nums">
                         {formatBytes(dataPartitionUsed)} / {formatBytes(dataPartitionTotal)}
                       </span>
                     </div>
@@ -404,7 +404,7 @@ function ClusterStatusCard({ item, isExpanded, onToggleExpand, variant }: Cluste
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-slate-600 pl-6">Metadata Partition</span>
-                      <span className="font-mono font-semibold text-slate-900 tabular-nums">
+                      <span className="font-semibold text-slate-900 tabular-nums">
                         {formatBytes(metadataPartitionUsed)} / {formatBytes(metadataPartitionTotal)}
                       </span>
                     </div>
@@ -434,7 +434,7 @@ function ClusterStatusCard({ item, isExpanded, onToggleExpand, variant }: Cluste
                       >
                         <div className="flex items-center gap-2 min-w-0 flex-1">
                           <Server className="h-3.5 w-3.5 text-red-600 shrink-0" />
-                          <span className="font-mono text-xs truncate">{node.id.substring(0, 16)}...</span>
+                          <span className="text-xs truncate">{node.id.substring(0, 16)}...</span>
                         </div>
                         <Badge variant="destructive" className="text-xs shrink-0 ml-2">
                           {!node.isUp ? 'Down' : node.draining ? 'Draining' : 'Issue'}
@@ -445,34 +445,39 @@ function ClusterStatusCard({ item, isExpanded, onToggleExpand, variant }: Cluste
                 </div>
               )}
 
-              {variant === 'healthy' && nodes.length > 0 && (
-                <div className="space-y-2">
-                  <div className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                    Nodes ({nodes.length})
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="flex items-center gap-2 p-2 rounded bg-green-50">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
-                      <span className="text-slate-600">Online:</span>
-                      <span className="font-mono font-semibold text-slate-900 tabular-nums">{nodesUp}</span>
+              {variant === 'healthy' && nodes.length > 0 && (() => {
+                const activeStatusCount = 1 + (nodesDown > 0 ? 1 : 0) + (nodesDraining > 0 ? 1 : 0);
+                const gridColsClass = activeStatusCount === 1 ? 'grid-cols-1' : activeStatusCount === 2 ? 'grid-cols-2' : 'grid-cols-3';
+                
+                return (
+                  <div className="space-y-2">
+                    <div className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                      Nodes ({nodes.length})
                     </div>
-                    {nodesDown > 0 && (
-                      <div className="flex items-center gap-2 p-2 rounded bg-red-50">
-                        <XCircle className="h-3.5 w-3.5 text-red-600" />
-                        <span className="text-slate-600">Offline:</span>
-                        <span className="font-mono font-semibold text-slate-900 tabular-nums">{nodesDown}</span>
+                    <div className={`grid ${gridColsClass} gap-2 text-xs`}>
+                      <div className="flex items-center gap-2 p-2 rounded bg-green-50">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+                        <span className="text-slate-600">Online:</span>
+                        <span className="font-semibold text-slate-900 tabular-nums">{nodesUp}</span>
                       </div>
-                    )}
-                    {nodesDraining > 0 && (
-                      <div className="flex items-center gap-2 p-2 rounded bg-amber-50">
-                        <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
-                        <span className="text-slate-600">Draining:</span>
-                        <span className="font-mono font-semibold text-slate-900 tabular-nums">{nodesDraining}</span>
-                      </div>
-                    )}
+                      {nodesDown > 0 && (
+                        <div className="flex items-center gap-2 p-2 rounded bg-red-50">
+                          <XCircle className="h-3.5 w-3.5 text-red-600" />
+                          <span className="text-slate-600">Offline:</span>
+                          <span className="font-semibold text-slate-900 tabular-nums">{nodesDown}</span>
+                        </div>
+                      )}
+                      {nodesDraining > 0 && (
+                        <div className="flex items-center gap-2 p-2 rounded bg-amber-50">
+                          <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
+                          <span className="text-slate-600">Draining:</span>
+                          <span className="font-semibold text-slate-900 tabular-nums">{nodesDraining}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
           )}
         </div>
