@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import prisma from '../db.js';
 import { decrypt } from '../encryption.js';
 import axios from 'axios';
+import { logger } from '../logger.js';
 
 const router = Router();
 
@@ -38,7 +39,7 @@ router.all('/:clusterId/*splat', async (req: Request, res: Response) => {
     const accept = req.header('Accept');
 
     // Forward request
-    console.log(`[Proxy] ${req.method} ${targetUrl}`);
+    logger.debug({ method: req.method, targetUrl }, 'Proxy request');
     const response = await axios({
       method: req.method,
       url: targetUrl,
@@ -52,7 +53,7 @@ router.all('/:clusterId/*splat', async (req: Request, res: Response) => {
       validateStatus: () => true, // Pass all statuses back
     });
 
-    console.log(`[Proxy] Response: ${response.status}`);
+    logger.debug({ status: response.status, targetUrl }, 'Proxy response');
     const responseContentType = response.headers['content-type'];
     if (responseContentType) {
       res.setHeader('Content-Type', responseContentType);
@@ -60,7 +61,7 @@ router.all('/:clusterId/*splat', async (req: Request, res: Response) => {
     res.status(response.status).send(response.data);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Proxy error:', message);
+    logger.error({ err: error, message }, 'Proxy error');
     res.status(502).json({ error: 'Bad Gateway', details: message });
   }
 });

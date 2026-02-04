@@ -29,15 +29,18 @@ pnpm -C api npx prisma generate
 
 ## Configuration
 
-Copy `.env.example` to `.env` and configure:
+Copy `.env.example` to `.env` and configure (database file is fixed to `data.db`):
 
 ```bash
-DATABASE_URL="file:./dev.db"
 JWT_SECRET="your-secret"
 ENCRYPTION_KEY="32-byte-key"
 PORT=3001
-ADMIN_PASSWORD="admin"
+ADMIN_PASSWORD="your-admin-password"
+LOG_LEVEL="info"
+MORGAN_FORMAT="dev"
 ```
+
+`JWT_SECRET`, `ENCRYPTION_KEY`, and `ADMIN_PASSWORD` are required. The API will refuse to start if any are missing.
 
 ## Documentation
 

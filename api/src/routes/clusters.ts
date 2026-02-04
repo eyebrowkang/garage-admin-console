@@ -2,6 +2,7 @@ import { Router } from 'express';
 import prisma from '../db.js';
 import { encrypt } from '../encryption.js';
 import { z } from 'zod';
+import { logger } from '../logger.js';
 
 const router = Router();
 
@@ -41,7 +42,7 @@ router.get('/', async (req, res) => {
     });
     res.json(clusters);
   } catch (error) {
-    console.error('Error fetching clusters:', error);
+    logger.error({ err: error }, 'Error fetching clusters');
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
@@ -70,7 +71,7 @@ router.post('/', async (req, res) => {
     if (error instanceof z.ZodError) {
       res.status(400).json({ error: error.issues });
     } else {
-      console.error('Error creating cluster:', error);
+      logger.error({ err: error }, 'Error creating cluster');
       res.status(500).json({ error: 'Internal Server Error' });
     }
   }
@@ -100,7 +101,7 @@ router.put('/:id', async (req, res) => {
     if (error instanceof z.ZodError) {
       res.status(400).json({ error: error.issues });
     } else {
-      console.error('Error updating cluster:', error);
+      logger.error({ err: error }, 'Error updating cluster');
       res.status(500).json({ error: 'Internal Server Error' });
     }
   }
@@ -113,7 +114,7 @@ router.delete('/:id', async (req, res) => {
     await prisma.cluster.delete({ where: { id } });
     res.status(204).send();
   } catch (error) {
-    console.error('Error deleting cluster:', error);
+    logger.error({ err: error }, 'Error deleting cluster');
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });

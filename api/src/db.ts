@@ -4,10 +4,10 @@ import { createClient } from '@libsql/client';
 
 import path from 'path';
 
-const dbPath = path.resolve(process.cwd(), 'dev.db');
+const dbPath = path.resolve(process.cwd(), 'data.db');
 const dbUrl = `file:${dbPath}`;
 
-// Force env var for Prisma Schema validation if needed
+// Use fixed database name and ignore external DATABASE_URL overrides.
 process.env.DATABASE_URL = dbUrl;
 
 type LibSqlClientWithUrl = ReturnType<typeof createClient> & { url: string };

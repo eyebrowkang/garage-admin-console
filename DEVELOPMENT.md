@@ -107,11 +107,14 @@ Create `api/.env` with the following:
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `DATABASE_URL` | SQLite database path | `file:./dev.db` |
 | `JWT_SECRET` | Secret for JWT signing | Random 32+ char string |
 | `ENCRYPTION_KEY` | AES-256 key (exactly 32 bytes) | `01234567890123456789012345678901` |
 | `PORT` | API server port | `3001` |
-| `ADMIN_PASSWORD` | Console login password | `admin` |
+| `ADMIN_PASSWORD` | Console login password | `change-me` |
+| `LOG_LEVEL` | System log level | `info` |
+| `MORGAN_FORMAT` | HTTP log format (morgan) | `dev` |
+
+The database file is fixed to `api/data.db` and is not configurable.
 
 ### Development Servers
 
@@ -510,7 +513,7 @@ pnpm -C api npx prisma generate
 
 **Database connection errors**
 ```bash
-# Ensure DATABASE_URL is set correctly in api/.env
+# Ensure api/data.db is readable/writable
 # Reset database if corrupted
 pnpm -C api npx prisma migrate reset
 ```
@@ -535,7 +538,7 @@ pnpm -C web build
 
 ```bash
 # Enable verbose logging for API
-DEBUG=* pnpm -C api dev
+LOG_LEVEL=debug MORGAN_FORMAT=dev pnpm -C api dev
 
 # View Vite debug output
 DEBUG=vite:* pnpm -C web dev

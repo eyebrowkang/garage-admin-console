@@ -1,9 +1,6 @@
 import { type Request, type Response, type NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import dotenv from 'dotenv';
-
-dotenv.config();
-const JWT_SECRET = process.env.JWT_SECRET || 'secret';
+import { env } from '../config/env.js';
 
 type AuthenticatedRequest = Request & { user?: string | jwt.JwtPayload | undefined };
 
@@ -13,7 +10,7 @@ export function authenticateToken(req: Request, res: Response, next: NextFunctio
 
   if (!token) return res.sendStatus(401);
 
-  jwt.verify(token, JWT_SECRET, (err, user) => {
+  jwt.verify(token, env.jwtSecret, (err, user) => {
     if (err || !user) return res.sendStatus(403);
     (req as AuthenticatedRequest).user = user;
     next();

@@ -48,12 +48,15 @@ cp api/.env.example api/.env
 Edit `api/.env` with your settings:
 
 ```bash
-DATABASE_URL="file:./dev.db"
 JWT_SECRET="your-secure-jwt-secret"      # Change this!
 ENCRYPTION_KEY="your-32-byte-key-here"   # Must be exactly 32 bytes
 PORT=3001
 ADMIN_PASSWORD="your-admin-password"     # Console login password
+LOG_LEVEL="info"
+MORGAN_FORMAT="dev"
 ```
+
+`JWT_SECRET`, `ENCRYPTION_KEY`, and `ADMIN_PASSWORD` are required. The API will refuse to start if any are missing.
 
 ### Database Setup
 
@@ -65,7 +68,7 @@ pnpm -C api db:push
 pnpm -C api db:migrate
 ```
 
-The database will be created automatically at the path specified in `DATABASE_URL`.
+The database file is fixed to `api/data.db` and will be created automatically if missing.
 
 ### Development
 

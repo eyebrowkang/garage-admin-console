@@ -1,21 +1,12 @@
 import crypto from 'crypto';
-import dotenv from 'dotenv';
-
-dotenv.config();
+import { env } from './config/env.js';
 
 const ALGORITHM = 'aes-256-gcm';
-const KEY_STRING = process.env.ENCRYPTION_KEY || '';
+const KEY = Buffer.from(env.encryptionKey);
 
-if (KEY_STRING.length !== 32) {
-  console.warn(
-    'Warning: ENCRYPTION_KEY is not 32 characters long. Using unsafe fallback or failing.',
-  );
-  // For dev, we might accept shorter, but production should fail.
+if (KEY.length !== 32) {
+  throw new Error('ENCRYPTION_KEY must be exactly 32 bytes.');
 }
-
-// Ensure key is 32 bytes. If string, take bytes.
-const KEY = Buffer.alloc(32);
-KEY.write(KEY_STRING);
 
 export function encrypt(text: string): string {
   const iv = crypto.randomBytes(16);

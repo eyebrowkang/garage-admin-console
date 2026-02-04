@@ -1,3 +1,10 @@
 packages:
-  - "api"
-  - "web"
+  - api
+  - web
+
+onlyBuiltDependencies:
+  - '@prisma/engines'
+  - bcrypt
+  - esbuild
+  - prisma
+  - sqlite3
