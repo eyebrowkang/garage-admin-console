@@ -33,6 +33,8 @@ type ClusterFormState = {
   metricToken: string;
 };
 
+const normalizeEndpoint = (value: string) => value.trim().replace(/\/+$/, '');
+
 const emptyForm: ClusterFormState = {
   name: '',
   endpoint: '',
@@ -44,8 +46,12 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const [clusterForm, setClusterForm] = useState<ClusterFormState>(emptyForm);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editForm, setEditForm] = useState<ClusterFormState>(emptyForm);
+  const [editCluster, setEditCluster] = useState<ClusterSummary | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<ClusterSummary | null>(null);
   const [formError, setFormError] = useState('');
+  const [editError, setEditError] = useState('');
 
   const {
     data: clusters = [],
@@ -101,26 +107,27 @@ export default function Dashboard() {
 
   // Build clusters with status for monitoring
   const clustersWithStatus = clusters.map((cluster, index) => {
-    const health = healthById.get(cluster.id);
     const healthQuery = healthQueries[index];
+    const health = healthById.get(cluster.id);
     const healthError = healthQuery?.error;
     const healthStatus = health?.status ?? (healthError ? 'unreachable' : 'unknown');
+    const isLoading = !health && !healthError;
 
     return {
       cluster,
       health,
       status: statusById.get(cluster.id),
       healthStatus: healthStatus as 'healthy' | 'degraded' | 'unavailable' | 'unreachable' | 'unknown',
-      isLoading: healthQuery?.isLoading ?? true,
+      isLoading,
     };
   });
 
   const createMutation = useMutation({
     mutationFn: async (data: ClusterFormState) => {
-      const endpoint = data.endpoint.trim().replace(/\/+$/, '');
+      const endpoint = normalizeEndpoint(data.endpoint);
       // Check for duplicate endpoint
       const existing = clusters.find(
-        (c) => c.endpoint.replace(/\/+$/, '').toLowerCase() === endpoint.toLowerCase(),
+        (c) => normalizeEndpoint(c.endpoint).toLowerCase() === endpoint.toLowerCase(),
       );
       if (existing) {
         throw new Error(`Cluster with endpoint "${endpoint}" already exists as "${existing.name}"`);
@@ -142,6 +149,25 @@ export default function Dashboard() {
     },
     onError: (err) => {
       setFormError(getApiErrorMessage(err, 'Failed to connect cluster.'));
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<ClusterFormState> }) => {
+      await api.put(`/clusters/${id}`, data);
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['clusters'] });
+      queryClient.invalidateQueries({ queryKey: ['clusterHealth', variables.id] });
+      queryClient.invalidateQueries({ queryKey: ['clusterStatus', variables.id] });
+      setIsEditDialogOpen(false);
+      setEditForm(emptyForm);
+      setEditCluster(null);
+      setEditError('');
+      toast({ title: 'Cluster updated' });
+    },
+    onError: (err) => {
+      setEditError(getApiErrorMessage(err, 'Failed to update cluster.'));
     },
   });
 
@@ -168,6 +194,63 @@ export default function Dashboard() {
     !clusterForm.endpoint.trim() ||
     !clusterForm.adminToken.trim() ||
     createMutation.isPending;
+
+  const isEditDisabled =
+    !editForm.name.trim() || !editForm.endpoint.trim() || updateMutation.isPending;
+
+  const openEditDialog = (cluster: ClusterSummary) => {
+    setEditCluster(cluster);
+    setEditForm({
+      name: cluster.name,
+      endpoint: cluster.endpoint,
+      adminToken: '',
+      metricToken: '',
+    });
+    setEditError('');
+    setIsEditDialogOpen(true);
+  };
+
+  const handleEditSave = () => {
+    if (!editCluster) return;
+
+    const payload: Partial<ClusterFormState> = {};
+    const name = editForm.name.trim();
+    const endpoint = normalizeEndpoint(editForm.endpoint);
+
+    if (name && name !== editCluster.name) {
+      payload.name = name;
+    }
+
+    if (endpoint && endpoint !== normalizeEndpoint(editCluster.endpoint)) {
+      const existing = clusters.find(
+        (c) =>
+          c.id !== editCluster.id &&
+          normalizeEndpoint(c.endpoint).toLowerCase() === endpoint.toLowerCase(),
+      );
+      if (existing) {
+        setEditError(
+          `Cluster with endpoint "${endpoint}" already exists as "${existing.name}"`,
+        );
+        return;
+      }
+      payload.endpoint = endpoint;
+    }
+
+    if (editForm.adminToken.trim()) {
+      payload.adminToken = editForm.adminToken.trim();
+    }
+
+    if (editForm.metricToken.trim()) {
+      payload.metricToken = editForm.metricToken.trim();
+    }
+
+    if (Object.keys(payload).length === 0) {
+      setEditError('No changes to save.');
+      return;
+    }
+
+    updateMutation.mutate({ id: editCluster.id, data: payload });
+  };
 
   if (isLoading)
     return (
@@ -213,7 +296,7 @@ export default function Dashboard() {
             <ClusterForm
               form={clusterForm}
               setForm={setClusterForm}
-              showTokenFields
+              mode="create"
               error={formError}
             />
             <DialogFooter>
@@ -222,6 +305,33 @@ export default function Dashboard() {
                 disabled={isCreateDisabled}
               >
                 {createMutation.isPending ? 'Connecting...' : 'Connect'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog
+          open={isEditDialogOpen}
+          onOpenChange={(open) => {
+            setIsEditDialogOpen(open);
+            if (!open) {
+              setEditError('');
+              setEditForm(emptyForm);
+              setEditCluster(null);
+            }
+          }}
+        >
+          <DialogContent className="sm:max-w-[520px]">
+            <DialogHeader>
+              <DialogTitle>Update Cluster</DialogTitle>
+              <DialogDescription>
+                Edit connection details. Leave token fields blank to keep existing values.
+              </DialogDescription>
+            </DialogHeader>
+            <ClusterForm form={editForm} setForm={setEditForm} mode="edit" error={editError} />
+            <DialogFooter>
+              <Button onClick={handleEditSave} disabled={isEditDisabled}>
+                {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -238,7 +348,13 @@ export default function Dashboard() {
       )}
 
       {/* Cluster Status Monitor */}
-      {clusters.length > 0 && <ClusterStatusMonitor clustersWithStatus={clustersWithStatus} />}
+      {clusters.length > 0 && (
+        <ClusterStatusMonitor
+          clustersWithStatus={clustersWithStatus}
+          onEditCluster={openEditDialog}
+          onDeleteCluster={setDeleteConfirm}
+        />
+      )}
 
       {/* Empty State */}
       {clusters.length === 0 && (
@@ -279,14 +395,15 @@ export default function Dashboard() {
 function ClusterForm({
   form,
   setForm,
-  showTokenFields,
+  mode,
   error,
 }: {
   form: ClusterFormState;
   setForm: (form: ClusterFormState) => void;
-  showTokenFields: boolean;
+  mode: 'create' | 'edit';
   error: string;
 }) {
+  const isEdit = mode === 'edit';
   return (
     <div className="grid gap-4 py-4">
       <div className="grid gap-2">
@@ -307,31 +424,44 @@ function ClusterForm({
           placeholder="http://10.0.0.1:3903"
         />
       </div>
-      {showTokenFields && (
-        <>
-          <div className="grid gap-2">
-            <Label htmlFor="token">Admin Token</Label>
-            <Input
-              id="token"
-              type="password"
-              value={form.adminToken}
-              onChange={(e) => setForm({ ...form, adminToken: e.target.value })}
-              placeholder="Garage Admin API Token"
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="metric-token">Metric Token (optional)</Label>
-            <Input
-              id="metric-token"
-              type="password"
-              value={form.metricToken}
-              onChange={(e) => setForm({ ...form, metricToken: e.target.value })}
-              placeholder="Token for /metrics endpoint"
-            />
-            <p className="text-xs text-muted-foreground">Falls back to admin token if not set</p>
-          </div>
-        </>
-      )}
+      <>
+        <div className="grid gap-2">
+          <Label htmlFor="token">
+            Admin Token{isEdit ? ' (optional)' : ''}
+          </Label>
+          <Input
+            id="token"
+            type="password"
+            value={form.adminToken}
+            onChange={(e) => setForm({ ...form, adminToken: e.target.value })}
+            placeholder={isEdit ? 'Leave blank to keep current token' : 'Garage Admin API Token'}
+          />
+          {isEdit && (
+            <p className="text-xs text-muted-foreground">
+              Leave blank to keep the existing admin token.
+            </p>
+          )}
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="metric-token">
+            Metric Token (optional){isEdit ? ' — keep if blank' : ''}
+          </Label>
+          <Input
+            id="metric-token"
+            type="password"
+            value={form.metricToken}
+            onChange={(e) => setForm({ ...form, metricToken: e.target.value })}
+            placeholder={
+              isEdit ? 'Leave blank to keep current metric token' : 'Token for /metrics endpoint'
+            }
+          />
+          <p className="text-xs text-muted-foreground">
+            {isEdit
+              ? 'Leave blank to keep the existing token. Falls back to admin token if not set.'
+              : 'Falls back to admin token if not set.'}
+          </p>
+        </div>
+      </>
       {error && (
         <Alert variant="destructive">
           <AlertTitle>Error</AlertTitle>
