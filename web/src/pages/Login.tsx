@@ -12,7 +12,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Loader2, Lock, AlertCircle, Database } from 'lucide-react';
+import { Loader2, Lock, AlertCircle } from 'lucide-react';
 
 export default function Login() {
   const [password, setPassword] = useState('');
@@ -47,10 +47,10 @@ export default function Login() {
 
       {/* Floating garage icon pattern */}
       <div className="absolute top-20 left-10 w-24 h-24 opacity-5">
-        <Database className="w-full h-full text-primary" />
+        <img src="/garage-notext.svg" alt="Garage logo" className="w-full h-full" />
       </div>
       <div className="absolute bottom-20 right-10 w-32 h-32 opacity-5">
-        <Database className="w-full h-full text-primary" />
+        <img src="/garage-notext.svg" alt="Garage logo" className="w-full h-full" />
       </div>
 
       <Card className="w-full max-w-md shadow-2xl border-0 bg-white/90 backdrop-blur-xl relative z-10 overflow-hidden">
@@ -61,8 +61,12 @@ export default function Login() {
           {/* Logo/Icon */}
           <div className="mx-auto relative">
             <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full"></div>
-            <div className="relative h-20 w-20 mx-auto rounded-2xl bg-gradient-to-br from-primary to-amber-500 flex items-center justify-center shadow-lg shadow-primary/30">
-              <Database className="h-10 w-10 text-white" strokeWidth={1.5} />
+            <div className="relative h-20 w-20 mx-auto flex items-center justify-center">
+              <img
+                src="/garage-notext.svg"
+                alt="Garage"
+                className="h-14 w-14 scale-[1.35] drop-shadow-[0_8px_18px_rgba(251,146,60,0.35)]"
+              />
             </div>
           </div>
 
