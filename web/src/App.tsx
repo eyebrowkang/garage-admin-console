@@ -15,7 +15,6 @@ import { KeyDetail } from './pages/cluster/KeyDetail';
 import { ClusterNodeList } from './pages/cluster/NodeList';
 import { NodeDetail } from './pages/cluster/NodeDetail';
 import { LayoutManager } from './pages/cluster/LayoutManager';
-import { ApiExplorer } from './pages/cluster/ApiExplorer';
 import { AdminTokenList } from './pages/cluster/AdminTokenList';
 import { AdminTokenDetail } from './pages/cluster/AdminTokenDetail';
 import { BlockManager } from './pages/cluster/BlockManager';
@@ -71,10 +70,6 @@ function LayoutManagerWrapper() {
   return <LayoutManager clusterId={clusterId} />;
 }
 
-function ApiExplorerWrapper() {
-  const { clusterId } = useClusterContext();
-  return <ApiExplorer clusterId={clusterId} />;
-}
 
 function App() {
   return (
@@ -82,6 +77,14 @@ function App() {
       <Router>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route
+            path="/clusters/:id/metrics"
+            element={
+              <ProtectedRoute>
+                <MetricsPage />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/"
             element={
@@ -105,8 +108,6 @@ function App() {
               <Route path="tokens/:tid" element={<AdminTokenDetail />} />
               <Route path="blocks" element={<BlockManager />} />
               <Route path="workers" element={<WorkerManager />} />
-              <Route path="metrics" element={<MetricsPage />} />
-              <Route path="api" element={<ApiExplorerWrapper />} />
             </Route>
           </Route>
         </Routes>
