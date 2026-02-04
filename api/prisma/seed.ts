@@ -1,5 +1,11 @@
 import { PrismaClient } from '@prisma/client';
-import { logger } from '../src/logger.js';
+import pino from 'pino';
+
+const logger = pino({
+  level: 'info',
+  base: { service: 'garage-admin-console-api', component: 'seed' },
+  timestamp: pino.stdTimeFunctions.isoTime,
+});
 
 const prisma = new PrismaClient();
 

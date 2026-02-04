@@ -48,15 +48,24 @@ router.all('/:clusterId/*splat', async (req: Request, res: Response) => {
         ...(contentType ? { 'Content-Type': contentType } : {}),
         ...(accept ? { Accept: accept } : {}),
       },
-      data: Object.keys(req.body || {}).length > 0 ? req.body : undefined, // Only send body if present
+      data: req.body,
       params: req.query,
       validateStatus: () => true, // Pass all statuses back
     });
 
     logger.debug({ status: response.status, targetUrl }, 'Proxy response');
-    const responseContentType = response.headers['content-type'];
-    if (responseContentType) {
-      res.setHeader('Content-Type', responseContentType);
+    const passthroughHeaders = [
+      'content-type',
+      'content-disposition',
+      'cache-control',
+      'etag',
+      'last-modified',
+    ];
+    for (const header of passthroughHeaders) {
+      const value = response.headers[header];
+      if (value) {
+        res.setHeader(header, value);
+      }
     }
     res.status(response.status).send(response.data);
   } catch (error: unknown) {

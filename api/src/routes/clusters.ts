@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { Prisma } from '@prisma/client';
 import prisma from '../db.js';
 import { encrypt } from '../encryption.js';
 import { z } from 'zod';
@@ -11,7 +12,7 @@ const CreateClusterSchema = z.object({
   name: z.string().min(1),
   endpoint: z.string().url(),
   adminToken: z.string().min(1),
-  metricToken: z.string().optional(),
+  metricToken: z.string().min(1).nullable().optional(),
 });
 
 const UpdateClusterSchema = z
@@ -19,7 +20,7 @@ const UpdateClusterSchema = z
     name: z.string().min(1).optional(),
     endpoint: z.string().url().optional(),
     adminToken: z.string().min(1).optional(),
-    metricToken: z.string().optional(),
+    metricToken: z.string().min(1).nullable().optional(),
   })
   .refine((data) => Object.values(data).some((v) => v !== undefined), {
     message: 'At least one field must be provided',
@@ -33,6 +34,10 @@ const safeSelect = {
   createdAt: true,
   updatedAt: true,
 } as const;
+
+function isNotFoundError(error: unknown) {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025';
+}
 
 // GET /clusters
 router.get('/', async (req, res) => {
@@ -54,7 +59,10 @@ router.post('/', async (req, res) => {
 
     // Encrypt tokens
     const encryptedAdminToken = encrypt(body.adminToken);
-    const encryptedMetricToken = body.metricToken ? encrypt(body.metricToken) : null;
+    const encryptedMetricToken =
+      body.metricToken === undefined || body.metricToken === null
+        ? null
+        : encrypt(body.metricToken);
 
     const cluster = await prisma.cluster.create({
       data: {
@@ -88,7 +96,10 @@ router.put('/:id', async (req, res) => {
     if (body.name !== undefined) data.name = body.name;
     if (body.endpoint !== undefined) data.endpoint = body.endpoint;
     if (body.adminToken !== undefined) data.adminToken = encrypt(body.adminToken);
-    if (body.metricToken !== undefined) data.metricToken = encrypt(body.metricToken);
+    if (body.metricToken !== undefined) {
+      data.metricToken =
+        body.metricToken === null ? null : encrypt(body.metricToken);
+    }
 
     const cluster = await prisma.cluster.update({
       where: { id },
@@ -100,6 +111,8 @@ router.put('/:id', async (req, res) => {
   } catch (error) {
     if (error instanceof z.ZodError) {
       res.status(400).json({ error: error.issues });
+    } else if (isNotFoundError(error)) {
+      res.status(404).json({ error: 'Cluster not found' });
     } else {
       logger.error({ err: error }, 'Error updating cluster');
       res.status(500).json({ error: 'Internal Server Error' });
@@ -111,6 +124,10 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const existing = await prisma.cluster.findUnique({ where: { id } });
+    if (!existing) {
+      return res.status(404).json({ error: 'Cluster not found' });
+    }
     await prisma.cluster.delete({ where: { id } });
     res.status(204).send();
   } catch (error) {
