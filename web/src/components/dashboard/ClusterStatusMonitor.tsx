@@ -209,23 +209,51 @@ function ClusterStatusCard({ item, onEdit, onDelete }: ClusterStatusCardProps) {
   const nodesDraining = nodes.filter((n) => n.draining).length;
   const problemNodes = nodes.filter((n) => !n.isUp || n.draining);
 
-  const totalCapacity = nodes.reduce((sum, n) => sum + (n.role?.capacity ?? 0), 0);
+  const zoneStats = new Map<
+    string,
+    {
+      capacity: number;
+      dataUsed: number;
+      dataTotal: number;
+      metadataUsed: number;
+      metadataTotal: number;
+    }
+  >();
 
-  const dataPartitionUsed = nodes.reduce(
-    (sum, n) => sum + (n.dataPartition ? n.dataPartition.total - n.dataPartition.available : 0),
-    0,
-  );
-  const dataPartitionTotal = nodes.reduce((sum, n) => sum + (n.dataPartition?.total ?? 0), 0);
+  nodes.forEach((node) => {
+    const zone = node.role?.zone ?? 'unknown';
+    const entry =
+      zoneStats.get(zone) ?? {
+        capacity: 0,
+        dataUsed: 0,
+        dataTotal: 0,
+        metadataUsed: 0,
+        metadataTotal: 0,
+      };
 
-  const metadataPartitionUsed = nodes.reduce(
-    (sum, n) =>
-      sum + (n.metadataPartition ? n.metadataPartition.total - n.metadataPartition.available : 0),
-    0,
-  );
-  const metadataPartitionTotal = nodes.reduce(
-    (sum, n) => sum + (n.metadataPartition?.total ?? 0),
-    0,
-  );
+    if (node.role?.capacity) {
+      entry.capacity += node.role.capacity;
+    }
+
+    if (node.dataPartition) {
+      entry.dataTotal += node.dataPartition.total;
+      entry.dataUsed += node.dataPartition.total - node.dataPartition.available;
+    }
+
+    if (node.metadataPartition) {
+      entry.metadataTotal += node.metadataPartition.total;
+      entry.metadataUsed += node.metadataPartition.total - node.metadataPartition.available;
+    }
+
+    zoneStats.set(zone, entry);
+  });
+
+  const minZoneEntry = Array.from(zoneStats.entries())
+    .filter(([, stats]) => stats.capacity > 0)
+    .sort((a, b) => a[1].capacity - b[1].capacity || a[0].localeCompare(b[0]))[0];
+
+  const minZoneName = minZoneEntry?.[0];
+  const minZoneStats = minZoneEntry?.[1];
 
   const statusMessage = (() => {
     if (healthStatus === 'healthy') {
@@ -406,62 +434,70 @@ function ClusterStatusCard({ item, onEdit, onDelete }: ClusterStatusCardProps) {
                   </div>
                 )}
 
-                {totalCapacity > 0 && (
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-2 text-slate-600">
-                        <HardDrive className="h-4 w-4" />
-                        Configured Capacity
-                      </div>
-                      <span className="font-semibold text-slate-900 tabular-nums">
-                        {formatBytes(totalCapacity)}
-                      </span>
+              {minZoneStats && minZoneStats.capacity > 0 && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2 text-slate-600">
+                      <HardDrive className="h-4 w-4" />
+                      Cluster Capacity (min zone)
                     </div>
-                    <div className="text-xs text-muted-foreground pl-6">
-                      Total storage capacity configured for this cluster
-                    </div>
+                    <span className="font-semibold text-slate-900 tabular-nums">
+                      {formatBytes(minZoneStats.capacity)}
+                    </span>
                   </div>
-                )}
+                  <div className="text-xs text-muted-foreground pl-6">
+                    Based on smallest zone{minZoneName ? `: ${minZoneName}` : ''}
+                  </div>
+                </div>
+              )}
 
-                {dataPartitionTotal > 0 && (
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-slate-600">Data Partition</span>
-                      <span className="font-semibold text-slate-900 tabular-nums">
-                        {formatBytes(dataPartitionUsed)} / {formatBytes(dataPartitionTotal)}
-                      </span>
-                    </div>
-                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-blue-500 transition-all rounded-full"
-                        style={{ width: `${(dataPartitionUsed / dataPartitionTotal) * 100}%` }}
-                      />
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {((dataPartitionUsed / dataPartitionTotal) * 100).toFixed(1)}% used
-                    </div>
+              {minZoneStats && minZoneStats.dataTotal > 0 && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-slate-600">Data Partition (min zone)</span>
+                    <span className="font-semibold text-slate-900 tabular-nums">
+                      {formatBytes(minZoneStats.dataUsed)} / {formatBytes(minZoneStats.dataTotal)}
+                    </span>
                   </div>
-                )}
+                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-blue-500 transition-all rounded-full"
+                      style={{
+                        width: `${(minZoneStats.dataUsed / minZoneStats.dataTotal) * 100}%`,
+                      }}
+                    />
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {((minZoneStats.dataUsed / minZoneStats.dataTotal) * 100).toFixed(1)}% used
+                  </div>
+                </div>
+              )}
 
-                {metadataPartitionTotal > 0 && (
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-slate-600">Metadata Partition</span>
-                      <span className="font-semibold text-slate-900 tabular-nums">
-                        {formatBytes(metadataPartitionUsed)} / {formatBytes(metadataPartitionTotal)}
-                      </span>
-                    </div>
-                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-purple-500 transition-all rounded-full"
-                        style={{ width: `${(metadataPartitionUsed / metadataPartitionTotal) * 100}%` }}
-                      />
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {((metadataPartitionUsed / metadataPartitionTotal) * 100).toFixed(1)}% used
-                    </div>
+              {minZoneStats && minZoneStats.metadataTotal > 0 && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-slate-600">Metadata Partition (min zone)</span>
+                    <span className="font-semibold text-slate-900 tabular-nums">
+                      {formatBytes(minZoneStats.metadataUsed)} /{' '}
+                      {formatBytes(minZoneStats.metadataTotal)}
+                    </span>
                   </div>
-                )}
+                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-purple-500 transition-all rounded-full"
+                      style={{
+                        width: `${
+                          (minZoneStats.metadataUsed / minZoneStats.metadataTotal) * 100
+                        }%`,
+                      }}
+                    />
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {((minZoneStats.metadataUsed / minZoneStats.metadataTotal) * 100).toFixed(1)}%
+                    used
+                  </div>
+                </div>
+              )}
 
                 {problemNodes.length > 0 && (
                   <div className="space-y-2">

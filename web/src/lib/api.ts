@@ -19,7 +19,9 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     const status = error?.response?.status;
-    if (status === 401 || status === 403) {
+    const url = error?.config?.url ?? '';
+    const isProxyRequest = typeof url === 'string' && url.includes('/proxy/');
+    if ((status === 401 || status === 403) && !isProxyRequest) {
       localStorage.removeItem('token');
       if (typeof window !== 'undefined') {
         window.location.href = '/login';

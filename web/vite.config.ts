@@ -17,30 +17,6 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (pathValue) => pathValue.replace(/^\/api/, ''),
       },
-      '/auth': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-      },
-      '/clusters': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-      },
-      '/proxy': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-      },
-      '/health': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-      },
-      '/metrics': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-      },
-      '/check': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-      },
     },
   },
 });
