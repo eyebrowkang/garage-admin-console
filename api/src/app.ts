@@ -10,13 +10,17 @@ import proxyRouter from './routes/proxy.js';
 import { authenticateToken } from './middleware/auth.middleware.js';
 
 export const app = express();
+const stripAnsi = (value: string) => value.replace(/\u001b\[[0-9;]*m/g, '');
 
 if (env.httpLogFormat) {
   app.use(
     morgan(env.httpLogFormat, {
       stream: {
         write: (message) => {
-          httpLogger.info(message.trim());
+          const cleaned = stripAnsi(message).trim();
+          if (cleaned) {
+            httpLogger.info(cleaned);
+          }
         },
       },
     }),

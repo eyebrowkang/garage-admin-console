@@ -3,14 +3,27 @@ import { env } from './config/env.js';
 
 const base = { service: 'garage-admin-console-api' };
 
-export const logger = pino({
-  level: env.logLevel,
-  base: { ...base, component: 'system' },
-  timestamp: pino.stdTimeFunctions.isoTime,
-});
+const transport = env.logPretty
+  ? pino.transport({
+      target: 'pino-pretty',
+      options: {
+        colorize: true,
+        singleLine: true,
+        translateTime: 'SYS:standard',
+        ignore: 'pid,hostname',
+      },
+    })
+  : undefined;
 
-export const httpLogger = pino({
-  level: 'info',
-  base: { ...base, component: 'http' },
-  timestamp: pino.stdTimeFunctions.isoTime,
-});
+const createLogger = (component: string, level: string) =>
+  pino(
+    {
+      level,
+      base: { ...base, component },
+      timestamp: pino.stdTimeFunctions.isoTime,
+    },
+    transport,
+  );
+
+export const logger = createLogger('system', env.logLevel);
+export const httpLogger = createLogger('http', 'info');

@@ -34,6 +34,26 @@ if (!allowedLogLevels.has(logLevel)) {
 
 const nodeEnv = process.env.NODE_ENV ?? 'development';
 const morganFormatRaw = process.env.MORGAN_FORMAT?.trim();
+const logPrettyRaw = process.env.LOG_PRETTY?.trim();
+
+const truthy = new Set(['1', 'true', 'yes', 'on']);
+const falsy = new Set(['0', 'false', 'no', 'off']);
+
+let logPretty = nodeEnv !== 'production';
+if (logPrettyRaw) {
+  const normalized = logPrettyRaw.toLowerCase();
+  if (truthy.has(normalized)) {
+    logPretty = true;
+  } else if (falsy.has(normalized)) {
+    logPretty = false;
+  } else {
+    throw new Error('LOG_PRETTY must be one of: true, false, 1, 0, yes, no, on, off.');
+  }
+}
+
+if (nodeEnv === 'production') {
+  logPretty = false;
+}
 
 let httpLogFormat: string | null;
 if (morganFormatRaw) {
@@ -51,5 +71,6 @@ export const env = {
   adminPassword: process.env.ADMIN_PASSWORD as string,
   encryptionKey,
   logLevel,
+  logPretty,
   httpLogFormat,
 };
