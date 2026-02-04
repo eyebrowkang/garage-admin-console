@@ -2,7 +2,46 @@
 
 Backend-For-Frontend (BFF) service for Garage Admin Console.
 
-**Tech Stack**: Express 5, TypeScript, Prisma, SQLite/LibSQL
+**Tech Stack**: Express 5, TypeScript, Prisma, SQLite/LibSQL, Zod, Axios, Pino, Morgan
+
+## Architecture (API Only)
+
+```mermaid
+flowchart LR
+  subgraph Client
+    Browser[Admin Console / Browser]
+  end
+
+  subgraph API[BFF API]
+    Routes[Express Routes]
+    Auth[JWT Auth Middleware]
+    Proxy[Proxy Route]
+    DB[(SQLite via Prisma + LibSQL)]
+    Crypto[AES-256-GCM Encryption]
+  end
+
+  subgraph Garage[Garage Cluster]
+    GarageAPI[Garage Admin API]
+  end
+
+  Browser -->|/auth| Routes
+  Browser -->|/clusters| Auth --> Routes
+  Browser -->|/proxy/:clusterId/*| Auth --> Proxy --> GarageAPI
+  Routes --> DB
+  Routes --> Crypto
+  Proxy --> Crypto
+```
+
+## Technology Stack
+
+- Runtime: Node.js (ESM)
+- Web framework: Express 5
+- Validation: Zod
+- Auth: JWT (jsonwebtoken)
+- Database: SQLite (LibSQL) + Prisma
+- Encryption: AES-256-GCM (Node.js crypto)
+- HTTP client: Axios (proxying Garage API)
+- Logging: Pino (system), Morgan (HTTP)
 
 ## Development
 
