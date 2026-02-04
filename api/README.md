@@ -17,8 +17,8 @@ pnpm -C api lint       # Lint code
 ## Database
 
 ```bash
-# Run migrations
-pnpm -C api npx prisma migrate dev
+# Push schema to database
+pnpm -C api npx prisma db push
 
 # Open Prisma Studio
 pnpm -C api npx prisma studio

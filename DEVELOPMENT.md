@@ -95,7 +95,7 @@ cp api/.env.example api/.env
 # Edit api/.env with your settings
 
 # 5. Initialize the database
-pnpm -C api npx prisma migrate dev
+pnpm -C api npx prisma db push
 
 # 6. Start development servers
 pnpm dev
@@ -148,7 +148,6 @@ garage-admin-console/
 │   │       └── proxy.ts          # ALL /proxy/:clusterId/*
 │   ├── prisma/
 │   │   ├── schema.prisma         # Database schema
-│   │   └── migrations/           # Database migrations
 │   ├── package.json
 │   └── tsconfig.json
 │
@@ -349,11 +348,9 @@ npx playwright show-report
 ### Quick Commands
 
 ```bash
-pnpm -C api db:migrate   # Run migrations (dev)
 pnpm -C api db:push      # Push schema changes (dev)
 pnpm -C api db:seed      # Seed the database
 pnpm -C api db:studio    # Open Prisma Studio GUI
-pnpm -C api db:reset     # Reset database (WARNING: deletes all data)
 ```
 
 ### Initial Setup
@@ -368,18 +365,10 @@ pnpm -C api db:seed
 
 The seed script (`api/prisma/seed.ts`) is a placeholder that provides setup instructions. Clusters are added through the web UI, not seeded.
 
-### Migrations
+### Schema Changes
 
-```bash
-# Create a new migration
-pnpm -C api npx prisma migrate dev --name <migration_name>
-
-# Apply migrations (production)
-pnpm -C api npx prisma migrate deploy
-
-# Reset database (development only - deletes all data!)
-pnpm -C api db:reset
-```
+This project does not use migrations yet. For schema updates, use `db:push`.
+If you need a clean reset, delete `api/data.db` and run `db:push` again.
 
 ### Prisma Studio
 
@@ -515,7 +504,8 @@ pnpm -C api npx prisma generate
 ```bash
 # Ensure api/data.db is readable/writable
 # Reset database if corrupted
-pnpm -C api npx prisma migrate reset
+rm -f api/data.db
+pnpm -C api npx prisma db push
 ```
 
 **Port already in use**

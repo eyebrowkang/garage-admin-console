@@ -63,9 +63,6 @@ MORGAN_FORMAT="dev"
 ```bash
 # Initialize the database schema
 pnpm -C api db:push
-
-# Or run migrations (creates migration history)
-pnpm -C api db:migrate
 ```
 
 The database file is fixed to `api/data.db` and will be created automatically if missing.
@@ -130,9 +127,7 @@ Browser → Frontend → BFF API → Garage Cluster
 | `pnpm -C web test` | Run unit tests |
 | `npx playwright test` | Run E2E tests |
 | `pnpm -C api db:push` | Push schema to database |
-| `pnpm -C api db:migrate` | Run database migrations |
 | `pnpm -C api db:studio` | Open Prisma Studio GUI |
-| `pnpm -C api db:reset` | Reset database (deletes all data) |
 
 ## Security Notes
 
