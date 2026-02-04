@@ -64,19 +64,25 @@ export interface UpdateBucketRequest {
   quotas?: BucketQuotas;
 }
 
-export interface AddBucketAliasRequest {
-  bucketId: string;
-  alias: string;
-  accessKeyId?: string; // If provided, creates local alias
-}
+export type BucketAliasRequest =
+  | {
+      bucketId: string;
+      globalAlias: string;
+    }
+  | {
+      bucketId: string;
+      localAlias: string;
+      accessKeyId: string;
+    };
 
-export interface RemoveBucketAliasRequest {
+export interface BucketAliasInput {
   bucketId: string;
   alias: string;
-  accessKeyId?: string; // If provided, removes local alias
+  accessKeyId?: string; // If provided, uses local alias
 }
 
 export interface CleanupIncompleteUploadsRequest {
+  bucketId: string;
   olderThanSecs: number;
 }
 
@@ -257,9 +263,8 @@ export interface LayoutPreviewResponse {
 }
 
 // Admin Token types
-export interface AdminTokenScope {
-  createBucket?: boolean;
-}
+export type AdminTokenScope = string[];
+export type AdminTokenScopeInput = string[] | null;
 
 export interface AdminTokenInfo {
   id?: string | null;
@@ -271,9 +276,10 @@ export interface AdminTokenInfo {
 }
 
 export interface CreateAdminTokenRequest {
-  name: string;
-  scope?: AdminTokenScope;
-  expiration?: string;
+  name?: string | null;
+  scope?: AdminTokenScopeInput;
+  expiration?: string | null;
+  neverExpires?: boolean;
 }
 
 export interface CreateAdminTokenResponse extends AdminTokenInfo {
@@ -281,9 +287,10 @@ export interface CreateAdminTokenResponse extends AdminTokenInfo {
 }
 
 export interface UpdateAdminTokenRequest {
-  name?: string;
-  scope?: AdminTokenScope;
+  name?: string | null;
+  scope?: AdminTokenScopeInput;
   expiration?: string | null;
+  neverExpires?: boolean;
 }
 
 // Block types
@@ -313,9 +320,7 @@ export interface BlockInfo {
   versions: BlockVersion[];
 }
 
-export interface PurgeBlocksRequest {
-  blocks: string[];
-}
+export type PurgeBlocksRequest = string[];
 
 // Block errors response from ListBlockErrors
 export interface BlockErrorsResponse {

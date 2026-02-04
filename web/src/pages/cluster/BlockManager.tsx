@@ -41,6 +41,7 @@ export function BlockManager() {
 
   const [selectedNode, setSelectedNode] = useState<string>('*');
   const [selectedBlockHash, setSelectedBlockHash] = useState<string | null>(null);
+  const [selectedBlockNode, setSelectedBlockNode] = useState<string | null>(null);
   const [purgeDialogOpen, setPurgeDialogOpen] = useState(false);
   const [purgeHashes, setPurgeHashes] = useState('');
 
@@ -48,13 +49,14 @@ export function BlockManager() {
   const { data: blockInfo, isLoading: blockInfoLoading } = useBlockInfo(
     clusterId,
     selectedBlockHash || '',
+    selectedBlockNode || undefined,
   );
   const retryMutation = useRetryBlockResync(clusterId);
   const purgeMutation = usePurgeBlocks(clusterId);
 
-  const handleRetryResync = async (blockHash: string) => {
+  const handleRetryResync = async (blockHash: string, nodeId: string) => {
     try {
-      await retryMutation.mutateAsync({ blockHash });
+      await retryMutation.mutateAsync({ blockHash, nodeId });
       toast({
         title: 'Resync scheduled',
         description: `Block ${formatShortId(blockHash)} queued for resync`,
@@ -196,7 +198,10 @@ export function BlockManager() {
                     <TableCell>
                       <button
                         className="text-xs text-primary hover:underline"
-                        onClick={() => setSelectedBlockHash(blockError.blockHash)}
+                        onClick={() => {
+                          setSelectedBlockHash(blockError.blockHash);
+                          setSelectedBlockNode(blockError.nodeId);
+                        }}
                       >
                         {formatShortId(blockError.blockHash, 16)}
                       </button>
@@ -223,7 +228,10 @@ export function BlockManager() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => setSelectedBlockHash(blockError.blockHash)}
+                          onClick={() => {
+                            setSelectedBlockHash(blockError.blockHash);
+                            setSelectedBlockNode(blockError.nodeId);
+                          }}
                           title="View block info"
                         >
                           <Info className="h-4 w-4" />
@@ -231,7 +239,7 @@ export function BlockManager() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleRetryResync(blockError.blockHash)}
+                          onClick={() => handleRetryResync(blockError.blockHash, blockError.nodeId)}
                           disabled={retryMutation.isPending}
                           title="Retry resync"
                         >
@@ -270,7 +278,10 @@ export function BlockManager() {
               placeholder="Enter block hash..."
               className=""
               value={selectedBlockHash || ''}
-              onChange={(e) => setSelectedBlockHash(e.target.value || null)}
+              onChange={(e) => {
+                setSelectedBlockHash(e.target.value || null);
+                setSelectedBlockNode(null);
+              }}
             />
             <Button
               variant="outline"
@@ -287,7 +298,12 @@ export function BlockManager() {
       {/* Block Info Dialog */}
       <Dialog
         open={!!selectedBlockHash}
-        onOpenChange={(open) => !open && setSelectedBlockHash(null)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedBlockHash(null);
+            setSelectedBlockNode(null);
+          }
+        }}
       >
         <DialogContent className="max-w-2xl">
           <DialogHeader>

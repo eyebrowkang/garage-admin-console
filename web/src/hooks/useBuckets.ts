@@ -7,7 +7,24 @@ import type {
   CleanupIncompleteUploadsRequest,
   CleanupIncompleteUploadsResponse,
   InspectObjectResponse,
+  BucketAliasInput,
+  BucketAliasRequest,
 } from '@/types/garage';
+
+function buildBucketAliasRequest(data: BucketAliasInput): BucketAliasRequest {
+  if (data.accessKeyId) {
+    return {
+      bucketId: data.bucketId,
+      localAlias: data.alias,
+      accessKeyId: data.accessKeyId,
+    };
+  }
+
+  return {
+    bucketId: data.bucketId,
+    globalAlias: data.alias,
+  };
+}
 
 export function useBuckets(clusterId: string) {
   return useQuery<ListBucketsResponseItem[]>({
@@ -79,13 +96,10 @@ export function useCleanupIncompleteUploads(clusterId: string, bucketId: string)
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (data: CleanupIncompleteUploadsRequest) => {
+    mutationFn: async (data: Omit<CleanupIncompleteUploadsRequest, 'bucketId'>) => {
       const res = await api.post<CleanupIncompleteUploadsResponse>(
-        proxyPath(
-          clusterId,
-          `/v2/CleanupIncompleteUploads?bucketId=${encodeURIComponent(bucketId)}`,
-        ),
-        data,
+        proxyPath(clusterId, '/v2/CleanupIncompleteUploads'),
+        { ...data, bucketId },
       );
       return res.data;
     },
@@ -98,7 +112,7 @@ export function useCleanupIncompleteUploads(clusterId: string, bucketId: string)
 export function useInspectObject(clusterId: string, bucketId: string) {
   return useMutation({
     mutationFn: async (objectKey: string) => {
-      const res = await api.post<InspectObjectResponse>(
+      const res = await api.get<InspectObjectResponse>(
         proxyPath(
           clusterId,
           `/v2/InspectObject?bucketId=${encodeURIComponent(bucketId)}&key=${encodeURIComponent(objectKey)}`,
@@ -113,12 +127,8 @@ export function useAddBucketAlias(clusterId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (data: { bucketId: string; alias: string; accessKeyId?: string }) => {
-      const params = new URLSearchParams();
-      params.set('id', data.bucketId);
-      params.set('alias', data.alias);
-      if (data.accessKeyId) params.set('accessKeyId', data.accessKeyId);
-      await api.post(proxyPath(clusterId, `/v2/AddBucketAlias?${params.toString()}`));
+    mutationFn: async (data: BucketAliasInput) => {
+      await api.post(proxyPath(clusterId, '/v2/AddBucketAlias'), buildBucketAliasRequest(data));
     },
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ['bucket', clusterId, vars.bucketId] });
@@ -131,12 +141,8 @@ export function useRemoveBucketAlias(clusterId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (data: { bucketId: string; alias: string; accessKeyId?: string }) => {
-      const params = new URLSearchParams();
-      params.set('id', data.bucketId);
-      params.set('alias', data.alias);
-      if (data.accessKeyId) params.set('accessKeyId', data.accessKeyId);
-      await api.post(proxyPath(clusterId, `/v2/RemoveBucketAlias?${params.toString()}`));
+    mutationFn: async (data: BucketAliasInput) => {
+      await api.post(proxyPath(clusterId, '/v2/RemoveBucketAlias'), buildBucketAliasRequest(data));
     },
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ['bucket', clusterId, vars.bucketId] });

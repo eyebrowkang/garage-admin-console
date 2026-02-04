@@ -19,12 +19,15 @@ export function useBlockErrors(clusterId: string, nodeId: string = '*') {
   });
 }
 
-export function useBlockInfo(clusterId: string, blockHash: string) {
+export function useBlockInfo(clusterId: string, blockHash: string, nodeId?: string) {
   return useQuery<MultiNodeResponse<BlockInfoResponse>>({
-    queryKey: ['blockInfo', clusterId, blockHash],
+    queryKey: ['blockInfo', clusterId, blockHash, nodeId],
     queryFn: async () => {
-      const res = await api.get<MultiNodeResponse<BlockInfoResponse>>(
-        proxyPath(clusterId, `/v2/GetBlockInfo?hash=${encodeURIComponent(blockHash)}`),
+      const params =
+        nodeId && nodeId !== '*' ? `?node=${encodeURIComponent(nodeId)}` : '';
+      const res = await api.post<MultiNodeResponse<BlockInfoResponse>>(
+        proxyPath(clusterId, `/v2/GetBlockInfo${params}`),
+        { blockHash },
       );
       return res.data;
     },
@@ -37,10 +40,13 @@ export function useRetryBlockResync(clusterId: string) {
 
   return useMutation({
     mutationFn: async (data: { blockHash: string; nodeId?: string }) => {
-      const params = new URLSearchParams();
-      params.set('hash', data.blockHash);
-      if (data.nodeId) params.set('node', data.nodeId);
-      await api.post(proxyPath(clusterId, `/v2/RetryBlockResync?${params.toString()}`));
+      const params =
+        data.nodeId && data.nodeId !== '*'
+          ? `?node=${encodeURIComponent(data.nodeId)}`
+          : '';
+      await api.post(proxyPath(clusterId, `/v2/RetryBlockResync${params}`), {
+        blockHashes: [data.blockHash],
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['blockErrors', clusterId] });
@@ -52,8 +58,12 @@ export function usePurgeBlocks(clusterId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (data: PurgeBlocksRequest) => {
-      await api.post(proxyPath(clusterId, '/v2/PurgeBlocks'), data);
+    mutationFn: async (data: { blocks: PurgeBlocksRequest; nodeId?: string }) => {
+      const params =
+        data.nodeId && data.nodeId !== '*'
+          ? `?node=${encodeURIComponent(data.nodeId)}`
+          : '';
+      await api.post(proxyPath(clusterId, `/v2/PurgeBlocks${params}`), data.blocks);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['blockErrors', clusterId] });
