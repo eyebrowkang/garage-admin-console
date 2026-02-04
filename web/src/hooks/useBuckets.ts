@@ -11,6 +11,26 @@ import type {
   BucketAliasRequest,
 } from '@/types/garage';
 
+function bucketInfoToListItem(
+  bucket: BucketInfo,
+  existing?: ListBucketsResponseItem,
+): ListBucketsResponseItem {
+  const localAliases =
+    bucket.keys?.flatMap((key) =>
+      (key.bucketLocalAliases ?? []).map((alias) => ({
+        accessKeyId: key.accessKeyId,
+        alias,
+      })),
+    ) ?? existing?.localAliases ?? [];
+
+  return {
+    id: bucket.id,
+    created: bucket.created ?? existing?.created ?? '',
+    globalAliases: bucket.globalAliases ?? existing?.globalAliases ?? [],
+    localAliases,
+  };
+}
+
 function buildBucketAliasRequest(data: BucketAliasInput): BucketAliasRequest {
   if (data.accessKeyId) {
     return {
@@ -67,14 +87,14 @@ export function useUpdateBucket(clusterId: string, bucketId: string) {
 
   return useMutation({
     mutationFn: async (data: UpdateBucketRequest) => {
-      await api.post(
+      const res = await api.post<BucketInfo>(
         proxyPath(clusterId, `/v2/UpdateBucket?id=${encodeURIComponent(bucketId)}`),
         data,
       );
+      return res.data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['bucket', clusterId, bucketId] });
-      queryClient.invalidateQueries({ queryKey: ['buckets', clusterId] });
+    onSuccess: (bucketInfo) => {
+      queryClient.setQueryData(['bucket', clusterId, bucketId], bucketInfo);
     },
   });
 }
@@ -128,11 +148,23 @@ export function useAddBucketAlias(clusterId: string) {
 
   return useMutation({
     mutationFn: async (data: BucketAliasInput) => {
-      await api.post(proxyPath(clusterId, '/v2/AddBucketAlias'), buildBucketAliasRequest(data));
+      const res = await api.post<BucketInfo>(
+        proxyPath(clusterId, '/v2/AddBucketAlias'),
+        buildBucketAliasRequest(data),
+      );
+      return res.data;
     },
-    onSuccess: (_, vars) => {
-      queryClient.invalidateQueries({ queryKey: ['bucket', clusterId, vars.bucketId] });
-      queryClient.invalidateQueries({ queryKey: ['buckets', clusterId] });
+    onSuccess: (bucketInfo, vars) => {
+      queryClient.setQueryData(['bucket', clusterId, vars.bucketId], bucketInfo);
+      queryClient.setQueryData<ListBucketsResponseItem[]>(
+        ['buckets', clusterId],
+        (prev) => {
+          if (!prev) return prev;
+          return prev.map((item) =>
+            item.id === bucketInfo.id ? bucketInfoToListItem(bucketInfo, item) : item,
+          );
+        },
+      );
     },
   });
 }
@@ -142,11 +174,23 @@ export function useRemoveBucketAlias(clusterId: string) {
 
   return useMutation({
     mutationFn: async (data: BucketAliasInput) => {
-      await api.post(proxyPath(clusterId, '/v2/RemoveBucketAlias'), buildBucketAliasRequest(data));
+      const res = await api.post<BucketInfo>(
+        proxyPath(clusterId, '/v2/RemoveBucketAlias'),
+        buildBucketAliasRequest(data),
+      );
+      return res.data;
     },
-    onSuccess: (_, vars) => {
-      queryClient.invalidateQueries({ queryKey: ['bucket', clusterId, vars.bucketId] });
-      queryClient.invalidateQueries({ queryKey: ['buckets', clusterId] });
+    onSuccess: (bucketInfo, vars) => {
+      queryClient.setQueryData(['bucket', clusterId, vars.bucketId], bucketInfo);
+      queryClient.setQueryData<ListBucketsResponseItem[]>(
+        ['buckets', clusterId],
+        (prev) => {
+          if (!prev) return prev;
+          return prev.map((item) =>
+            item.id === bucketInfo.id ? bucketInfoToListItem(bucketInfo, item) : item,
+          );
+        },
+      );
     },
   });
 }

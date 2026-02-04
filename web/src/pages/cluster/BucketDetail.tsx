@@ -7,6 +7,13 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -35,7 +42,7 @@ import {
 import { useAllowBucketKey, useDenyBucketKey } from '@/hooks/usePermissions';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { JsonViewer } from '@/components/cluster/JsonViewer';
-import { formatBytes } from '@/lib/format';
+import { formatBytes, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { toast } from '@/hooks/use-toast';
 
@@ -44,7 +51,9 @@ export function BucketDetail() {
   const { clusterId } = useClusterContext();
 
   const [aliasDialogOpen, setAliasDialogOpen] = useState(false);
+  const [aliasType, setAliasType] = useState<'global' | 'local'>('global');
   const [newAlias, setNewAlias] = useState('');
+  const [aliasAccessKeyId, setAliasAccessKeyId] = useState('');
   const [cleanupDialogOpen, setCleanupDialogOpen] = useState(false);
   const [cleanupAge, setCleanupAge] = useState('86400');
   const [inspectKey, setInspectKey] = useState('');
@@ -87,9 +96,35 @@ export function BucketDetail() {
     return <div className="p-4">Bucket not found</div>;
   }
 
+  const localAliases = bucket.keys.flatMap((key) =>
+    (key.bucketLocalAliases ?? []).map((alias) => ({
+      alias,
+      accessKeyId: key.accessKeyId,
+      keyName: key.name,
+    })),
+  );
+  const aliasDescription =
+    aliasType === 'local'
+      ? 'Add a local alias tied to a specific access key.'
+      : 'Add a global alias for this bucket.';
+  const canAddAlias =
+    Boolean(newAlias.trim()) && (aliasType === 'global' || Boolean(aliasAccessKeyId));
+
   const handleAddAlias = async () => {
     try {
-      await addAliasMutation.mutateAsync({ bucketId: bid, alias: newAlias.trim() });
+      if (aliasType === 'local' && !aliasAccessKeyId) {
+        toast({
+          title: 'Access key required',
+          description: 'Select an access key to create a local alias.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      await addAliasMutation.mutateAsync({
+        bucketId: bid,
+        alias: newAlias.trim(),
+        accessKeyId: aliasType === 'local' ? aliasAccessKeyId : undefined,
+      });
       toast({ title: 'Alias added', description: `Added alias "${newAlias}"` });
       setAliasDialogOpen(false);
       setNewAlias('');
@@ -303,6 +338,38 @@ export function BucketDetail() {
                 )}
               </div>
             </div>
+            <div>
+              <h4 className="text-sm font-medium mb-2">Local Aliases</h4>
+              <div className="flex flex-wrap gap-2">
+                {localAliases.length > 0 ? (
+                  localAliases.map((alias) => (
+                    <Badge
+                      key={`${alias.accessKeyId}-${alias.alias}`}
+                      variant="outline"
+                      className="gap-1"
+                    >
+                      {alias.alias}
+                      <span className="text-[10px] text-muted-foreground">
+                        {alias.keyName || formatShortId(alias.accessKeyId, 10)}
+                      </span>
+                      <button
+                        onClick={() =>
+                          setRemoveAliasConfirm({
+                            alias: alias.alias,
+                            accessKeyId: alias.accessKeyId,
+                          })
+                        }
+                        className="ml-1 hover:text-destructive"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))
+                ) : (
+                  <span className="text-sm text-muted-foreground">No local aliases</span>
+                )}
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -457,13 +524,39 @@ export function BucketDetail() {
       </Card>
 
       {/* Add Alias Dialog */}
-      <Dialog open={aliasDialogOpen} onOpenChange={setAliasDialogOpen}>
+      <Dialog
+        open={aliasDialogOpen}
+        onOpenChange={(open) => {
+          setAliasDialogOpen(open);
+          if (open) {
+            setAliasType('global');
+            setAliasAccessKeyId(bucket.keys[0]?.accessKeyId || '');
+          } else {
+            setNewAlias('');
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add Bucket Alias</DialogTitle>
-            <DialogDescription>Add a new global alias for this bucket</DialogDescription>
+            <DialogDescription>{aliasDescription}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Alias Type</Label>
+              <Select
+                value={aliasType}
+                onValueChange={(value) => setAliasType(value as 'global' | 'local')}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select alias type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="global">Global alias</SelectItem>
+                  <SelectItem value="local">Local alias (per access key)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2">
               <Label>Alias Name</Label>
               <Input
@@ -472,12 +565,38 @@ export function BucketDetail() {
                 placeholder="my-bucket-alias"
               />
             </div>
+            {aliasType === 'local' && (
+              <div className="space-y-2">
+                <Label>Access Key</Label>
+                <Select
+                  value={aliasAccessKeyId}
+                  onValueChange={setAliasAccessKeyId}
+                  disabled={bucket.keys.length === 0}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select access key" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {bucket.keys.map((key) => (
+                      <SelectItem key={key.accessKeyId} value={key.accessKeyId}>
+                        {key.name || formatShortId(key.accessKeyId, 12)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {bucket.keys.length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    No access keys available for local aliases.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAliasDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleAddAlias} disabled={!newAlias.trim()}>
+            <Button onClick={handleAddAlias} disabled={!canAddAlias}>
               Add Alias
             </Button>
           </DialogFooter>
@@ -489,7 +608,11 @@ export function BucketDetail() {
         open={!!removeAliasConfirm}
         onOpenChange={(open) => !open && setRemoveAliasConfirm(null)}
         title="Remove Alias"
-        description={`Are you sure you want to remove the alias "${removeAliasConfirm?.alias}"?`}
+        description={
+          removeAliasConfirm?.accessKeyId
+            ? `Remove the local alias "${removeAliasConfirm.alias}" for access key ${formatShortId(removeAliasConfirm.accessKeyId, 10)}?`
+            : `Are you sure you want to remove the alias "${removeAliasConfirm?.alias}"?`
+        }
         onConfirm={handleRemoveAlias}
         isLoading={removeAliasMutation.isPending}
       />

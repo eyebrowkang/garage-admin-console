@@ -38,10 +38,12 @@ export interface BucketKeyPerm {
     write: boolean;
     owner: boolean;
   };
+  bucketLocalAliases?: string[];
 }
 
 export interface BucketInfo {
   id: string;
+  created?: string;
   globalAliases: string[];
   websiteAccess: boolean;
   websiteConfig?: BucketWebsiteConfig | null;

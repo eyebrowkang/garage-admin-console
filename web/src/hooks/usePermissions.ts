@@ -1,16 +1,17 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, proxyPath } from '@/lib/api';
-import type { AllowBucketKeyRequest, DenyBucketKeyRequest } from '@/types/garage';
+import type { AllowBucketKeyRequest, BucketInfo, DenyBucketKeyRequest } from '@/types/garage';
 
 export function useAllowBucketKey(clusterId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (data: AllowBucketKeyRequest) => {
-      await api.post(proxyPath(clusterId, '/v2/AllowBucketKey'), data);
+      const res = await api.post<BucketInfo>(proxyPath(clusterId, '/v2/AllowBucketKey'), data);
+      return res.data;
     },
-    onSuccess: (_, vars) => {
-      queryClient.invalidateQueries({ queryKey: ['bucket', clusterId, vars.bucketId] });
+    onSuccess: (bucketInfo, vars) => {
+      queryClient.setQueryData(['bucket', clusterId, vars.bucketId], bucketInfo);
       queryClient.invalidateQueries({ queryKey: ['key', clusterId, vars.accessKeyId] });
     },
   });
@@ -21,10 +22,11 @@ export function useDenyBucketKey(clusterId: string) {
 
   return useMutation({
     mutationFn: async (data: DenyBucketKeyRequest) => {
-      await api.post(proxyPath(clusterId, '/v2/DenyBucketKey'), data);
+      const res = await api.post<BucketInfo>(proxyPath(clusterId, '/v2/DenyBucketKey'), data);
+      return res.data;
     },
-    onSuccess: (_, vars) => {
-      queryClient.invalidateQueries({ queryKey: ['bucket', clusterId, vars.bucketId] });
+    onSuccess: (bucketInfo, vars) => {
+      queryClient.setQueryData(['bucket', clusterId, vars.bucketId], bucketInfo);
       queryClient.invalidateQueries({ queryKey: ['key', clusterId, vars.accessKeyId] });
     },
   });
