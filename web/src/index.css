@@ -69,6 +69,10 @@
 }
 
 @layer base {
+  html {
+    scrollbar-gutter: stable;
+  }
+
   * {
     @apply border-border;
   }
@@ -78,6 +82,7 @@
     font-family: 'Inter', sans-serif;
     background-image: linear-gradient(to bottom right, #fffbf5, #fff4e6);
     min-height: 100vh;
+    overflow-y: scroll;
   }
 
   /* Custom scrollbar styles */
