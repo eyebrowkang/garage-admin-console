@@ -1,5 +1,5 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MainLayout } from './layouts/MainLayout';
 import { ClusterLayout } from './layouts/ClusterLayout';
@@ -44,6 +44,16 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function ScrollToTop() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [pathname]);
+
+  return null;
+}
+
 // Wrapper components to pass clusterId from context
 function ClusterOverviewWrapper() {
   const { clusterId } = useClusterContext();
@@ -75,6 +85,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Router>
+        <ScrollToTop />
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route

@@ -18,11 +18,11 @@ const navItems = [
   { to: '', icon: Activity, label: 'Overview', exact: true },
   { to: 'buckets', icon: Database, label: 'Buckets' },
   { to: 'keys', icon: Key, label: 'Access Keys' },
-  { to: 'nodes', icon: Server, label: 'Nodes' },
   { to: 'layout', icon: LayoutGrid, label: 'Layout' },
+  { to: 'nodes', icon: Server, label: 'Nodes' },
   { to: 'tokens', icon: Shield, label: 'Admin Tokens' },
-  { to: 'blocks', icon: Blocks, label: 'Blocks' },
   { to: 'workers', icon: Settings, label: 'Workers' },
+  { to: 'blocks', icon: Blocks, label: 'Blocks' },
 ];
 
 function ClusterNavItem({
@@ -119,7 +119,7 @@ export function ClusterLayout() {
         </div>
 
         {/* Desktop sidebar nav */}
-        <aside className="hidden lg:block w-56 flex-shrink-0">
+        <aside className="hidden lg:block w-56 flex-shrink-0 self-start">
           <div className="sticky top-24 space-y-1">
             <div className="flex items-center gap-2 mb-4 px-3">
               <div className="h-8 w-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">

@@ -161,12 +161,6 @@ export function ClusterOverview({ clusterId }: ClusterOverviewProps) {
   const nodesUp = nodes.filter((n) => n.isUp).length;
   const nodesDown = nodes.filter((n) => !n.isUp).length;
   const nodesDraining = nodes.filter((n) => n.draining).length;
-  const sortedNodes = [...nodes].sort((a, b) => {
-    const zoneA = a.role?.zone ?? '';
-    const zoneB = b.role?.zone ?? '';
-    if (zoneA !== zoneB) return zoneA.localeCompare(zoneB);
-    return a.id.localeCompare(b.id);
-  });
 
   const statusMessage = (() => {
     if (healthStatus === 'healthy') {
@@ -196,10 +190,6 @@ export function ClusterOverview({ clusterId }: ClusterOverviewProps) {
 
   const hasLayout = Boolean(layout);
   const hasStats = Boolean(stats?.freeform);
-  const formatUsage = (used: number, total: number) =>
-    total > 0 ? `${formatBytes(used)} / ${formatBytes(total)}` : '-';
-  const formatPercent = (used: number, total: number) =>
-    total > 0 ? `${((used / total) * 100).toFixed(1)}% used` : '—';
 
   return (
     <div className="space-y-6">
@@ -352,134 +342,6 @@ export function ClusterOverview({ clusterId }: ClusterOverviewProps) {
               </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Server className="h-4 w-4 text-muted-foreground" />
-            Node Status
-          </CardTitle>
-          <CardDescription>
-            Per-node state, capacity, and partition utilization from GetClusterStatus
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {sortedNodes.length === 0 ? (
-            <div className="text-sm text-muted-foreground">No node data available.</div>
-          ) : (
-            <div className="rounded-lg border border-slate-200 divide-y overflow-x-auto">
-              <div className="min-w-[900px]">
-                <div className="hidden md:grid md:grid-cols-[minmax(260px,1.6fr)_minmax(120px,0.8fr)_minmax(120px,0.8fr)_minmax(170px,1fr)_minmax(170px,1fr)] gap-3 px-4 py-2 text-xs uppercase tracking-wider text-muted-foreground">
-                  <div>Node</div>
-                  <div>Zone</div>
-                  <div>Capacity</div>
-                  <div>Data Partition</div>
-                  <div>Metadata Partition</div>
-                </div>
-                {sortedNodes.map((node) => {
-                  const statusLabel = !node.isUp ? 'Down' : node.draining ? 'Draining' : 'Up';
-                  const statusVariant = !node.isUp
-                    ? 'destructive'
-                    : node.draining
-                      ? 'warning'
-                      : 'success';
-                  const dataUsed = node.dataPartition
-                    ? node.dataPartition.total - node.dataPartition.available
-                    : 0;
-                  const dataTotal = node.dataPartition?.total ?? 0;
-                  const metadataUsed = node.metadataPartition
-                    ? node.metadataPartition.total - node.metadataPartition.available
-                    : 0;
-                  const metadataTotal = node.metadataPartition?.total ?? 0;
-                  const capacity = node.role?.capacity ?? 0;
-                  const displayName = node.hostname || node.addr || node.id.slice(0, 12);
-                  const addr = node.addr ?? '-';
-                const lastSeen =
-                  node.lastSeenSecsAgo === null || node.lastSeenSecsAgo === undefined
-                    ? null
-                    : `${node.lastSeenSecsAgo}s ago`;
-
-                  return (
-                    <div
-                      key={node.id}
-                      className="grid gap-3 px-4 py-3 md:grid-cols-[minmax(260px,1.6fr)_minmax(120px,0.8fr)_minmax(120px,0.8fr)_minmax(170px,1fr)_minmax(170px,1fr)]"
-                    >
-                      <div className="space-y-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span
-                            className="font-medium text-slate-900 truncate"
-                            title={displayName}
-                          >
-                            {displayName}
-                          </span>
-                          <Badge variant={statusVariant} className="text-[10px] px-2 py-0.5">
-                            {statusLabel}
-                          </Badge>
-                        </div>
-                        <div
-                          className="text-xs text-muted-foreground font-mono truncate"
-                          title={node.id}
-                        >
-                          {node.id}
-                        </div>
-                        <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                          <span className="truncate font-mono" title={addr}>
-                            {addr}
-                          </span>
-                          <span aria-hidden="true">•</span>
-                          <span>{node.garageVersion ?? 'Version -'}</span>
-                        {lastSeen && (
-                          <>
-                            <span aria-hidden="true">•</span>
-                            <span>{lastSeen}</span>
-                          </>
-                        )}
-                        </div>
-                      </div>
-                      <div className="space-y-1">
-                        <div className="text-[10px] uppercase text-muted-foreground md:hidden">
-                          Zone
-                        </div>
-                        <div className="text-sm font-medium">{node.role?.zone ?? '-'}</div>
-                      </div>
-                      <div className="space-y-1">
-                        <div className="text-[10px] uppercase text-muted-foreground md:hidden">
-                          Capacity
-                        </div>
-                        <div className="text-sm font-medium">
-                          {capacity > 0 ? formatBytes(capacity) : '-'}
-                        </div>
-                      </div>
-                      <div className="space-y-1">
-                        <div className="text-[10px] uppercase text-muted-foreground md:hidden">
-                          Data Partition
-                        </div>
-                        <div className="text-sm font-medium">
-                          {formatUsage(dataUsed, dataTotal)}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {formatPercent(dataUsed, dataTotal)}
-                        </div>
-                      </div>
-                      <div className="space-y-1">
-                        <div className="text-[10px] uppercase text-muted-foreground md:hidden">
-                          Metadata Partition
-                        </div>
-                        <div className="text-sm font-medium">
-                          {formatUsage(metadataUsed, metadataTotal)}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {formatPercent(metadataUsed, metadataTotal)}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
         </CardContent>
       </Card>
 
