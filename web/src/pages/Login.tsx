@@ -2,17 +2,11 @@ import { useState } from 'react';
 import { api } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/errors';
 import { useNavigate } from 'react-router-dom';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Loader2, Lock, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
 
 export default function Login() {
   const [password, setPassword] = useState('');
@@ -53,14 +47,11 @@ export default function Login() {
         <img src="/garage-notext.svg" alt="Garage logo" className="w-full h-full" />
       </div>
 
-      <Card className="w-full max-w-md shadow-2xl border-0 bg-white/90 backdrop-blur-xl relative z-10 overflow-hidden">
-        {/* Accent bar */}
-        <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-primary via-amber-400 to-yellow-400"></div>
-
+      <Card className="w-full max-w-md border border-white/60 border-t-2 border-t-primary/80 bg-white/90 backdrop-blur-xl relative z-10 overflow-hidden">
         <CardHeader className="space-y-4 text-center pb-6 pt-12">
           {/* Logo/Icon */}
           <div className="mx-auto relative">
-            <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full"></div>
+            <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full logo-glow"></div>
             <div className="relative h-20 w-20 mx-auto flex items-center justify-center">
               <img
                 src="/garage-notext.svg"
@@ -72,11 +63,11 @@ export default function Login() {
 
           {/* Title */}
           <div className="space-y-2">
-            <CardTitle className="text-3xl font-bold tracking-tight bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text text-transparent">
-              Garage Admin
+            <CardTitle className="text-2xl font-bold tracking-tight bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text text-transparent">
+              Garage Admin Console
             </CardTitle>
             <CardDescription className="text-base text-gray-600">
-              Secure cluster management console
+              Manage and monitor your Garage cluster.
             </CardDescription>
           </div>
         </CardHeader>
@@ -85,12 +76,8 @@ export default function Login() {
           <form onSubmit={handleLogin} className="space-y-6">
             {/* Password input */}
             <div className="space-y-2.5">
-              <Label
-                htmlFor="password"
-                className="text-sm font-semibold text-gray-700 flex items-center gap-2"
-              >
-                <Lock className="h-4 w-4 text-primary" />
-                Admin Password
+              <Label htmlFor="password" className="text-sm font-semibold text-gray-700">
+                Password
               </Label>
               <div className="relative">
                 <Input
@@ -119,7 +106,7 @@ export default function Login() {
             {/* Submit button */}
             <Button
               type="submit"
-              className="w-full h-12 text-base font-semibold bg-gradient-to-r from-primary to-amber-500 hover:from-primary/90 hover:to-amber-500/90 shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 transition-all duration-200 active:scale-[0.98] rounded-lg"
+              className="w-full h-11 text-base font-semibold bg-primary text-white hover:bg-primary/90 shadow-sm transition-all duration-200 active:translate-y-px active:shadow-sm rounded-lg"
               disabled={isDisabled}
             >
               {isLoading ? (
@@ -128,10 +115,7 @@ export default function Login() {
                   Authenticating...
                 </>
               ) : (
-                <>
-                  <Lock className="mr-2 h-5 w-5" />
-                  Sign In
-                </>
+                'Sign In'
               )}
             </Button>
           </form>

@@ -108,3 +108,21 @@
     background-color: rgb(148 163 184);
   }
 }
+
+@layer utilities {
+  @keyframes logoGlow {
+    0%,
+    100% {
+      opacity: 0.18;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.8);
+    }
+  }
+
+  .logo-glow {
+    animation: logoGlow 5s ease-in-out infinite;
+  }
+}
