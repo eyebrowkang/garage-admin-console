@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Key, Database, Trash2, Edit2, Eye } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -6,6 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -25,10 +32,11 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useClusterContext } from '@/contexts/ClusterContext';
 import { useKeyInfo, useUpdateKey, useDeleteKey } from '@/hooks/useKeys';
+import { useBuckets } from '@/hooks/useBuckets';
 import { useAllowBucketKey, useDenyBucketKey } from '@/hooks/usePermissions';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { SecretReveal } from '@/components/cluster/SecretReveal';
-import { formatDateTime } from '@/lib/format';
+import { formatDateTime, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { toast } from '@/hooks/use-toast';
 
@@ -41,8 +49,14 @@ export function KeyDetail() {
   const [newName, setNewName] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [showSecret, setShowSecret] = useState(false);
+  const [grantBucketId, setGrantBucketId] = useState('');
+  const [grantRead, setGrantRead] = useState(true);
+  const [grantWrite, setGrantWrite] = useState(false);
+  const [grantOwner, setGrantOwner] = useState(false);
 
   const { data: keyInfo, isLoading, error, refetch } = useKeyInfo(clusterId, kid || '', showSecret);
+  const bucketsQuery = useBuckets(clusterId);
+  const buckets = bucketsQuery.data ?? [];
   const [secretKey, setSecretKey] = useState<string | null>(null);
   const [secretLoading, setSecretLoading] = useState(false);
 
@@ -62,6 +76,20 @@ export function KeyDetail() {
   const deleteKeyMutation = useDeleteKey(clusterId);
   const allowKeyMutation = useAllowBucketKey(clusterId);
   const denyKeyMutation = useDenyBucketKey(clusterId);
+  const bucketsLoading = bucketsQuery.isLoading;
+  const bucketsError = bucketsQuery.error;
+  const assignedBucketIds = new Set(keyInfo?.buckets?.map((bucket) => bucket.id) ?? []);
+  const availableBuckets = buckets.filter((bucket) => !assignedBucketIds.has(bucket.id));
+
+  useEffect(() => {
+    if (availableBuckets.length === 0) {
+      if (grantBucketId) setGrantBucketId('');
+      return;
+    }
+    if (!grantBucketId || !availableBuckets.some((bucket) => bucket.id === grantBucketId)) {
+      setGrantBucketId(availableBuckets[0].id);
+    }
+  }, [availableBuckets, grantBucketId]);
 
   if (!kid) {
     return <div className="p-4">Invalid key ID</div>;
@@ -136,6 +164,40 @@ export function KeyDetail() {
     } catch (err) {
       toast({
         title: 'Failed to update permission',
+        description: getApiErrorMessage(err),
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleGrantAccess = async () => {
+    if (!grantBucketId) {
+      toast({
+        title: 'Select a bucket',
+        description: 'Choose a bucket to grant access.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (!grantRead && !grantWrite && !grantOwner) {
+      toast({
+        title: 'Select permissions',
+        description: 'Choose at least one permission to grant.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      await allowKeyMutation.mutateAsync({
+        bucketId: grantBucketId,
+        accessKeyId: kid,
+        permissions: { read: grantRead, write: grantWrite, owner: grantOwner },
+      });
+      toast({ title: 'Access granted' });
+    } catch (err) {
+      toast({
+        title: 'Failed to grant access',
         description: getApiErrorMessage(err),
         variant: 'destructive',
       });
@@ -244,7 +306,84 @@ export function KeyDetail() {
           </CardTitle>
           <CardDescription>Buckets this key has access to</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          <div className="rounded-md border p-4 space-y-3">
+            <div className="text-sm font-medium">Grant Access</div>
+            {bucketsLoading ? (
+              <p className="text-sm text-muted-foreground">Loading buckets...</p>
+            ) : bucketsError ? (
+              <p className="text-sm text-destructive">
+                {getApiErrorMessage(bucketsError, 'Failed to load buckets.')}
+              </p>
+            ) : availableBuckets.length > 0 ? (
+              <>
+                <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+                  <div className="space-y-2">
+                    <Label>Bucket</Label>
+                    <Select value={grantBucketId} onValueChange={setGrantBucketId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select bucket" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableBuckets.map((bucket) => {
+                          const alias = bucket.globalAliases[0];
+                          const label = alias
+                            ? `${alias} (${formatShortId(bucket.id, 10)})`
+                            : formatShortId(bucket.id, 12);
+                          return (
+                            <SelectItem key={bucket.id} value={bucket.id}>
+                              {label}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                    onClick={handleGrantAccess}
+                    disabled={
+                      !grantBucketId || (!grantRead && !grantWrite && !grantOwner)
+                    }
+                  >
+                    Grant Access
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-4">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={grantRead}
+                      onChange={(e) => setGrantRead(e.target.checked)}
+                      className="h-4 w-4 cursor-pointer"
+                    />
+                    Read
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={grantWrite}
+                      onChange={(e) => setGrantWrite(e.target.checked)}
+                      className="h-4 w-4 cursor-pointer"
+                    />
+                    Write
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={grantOwner}
+                      onChange={(e) => setGrantOwner(e.target.checked)}
+                      className="h-4 w-4 cursor-pointer"
+                    />
+                    Owner
+                  </label>
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                All buckets already have permissions for this key.
+              </p>
+            )}
+          </div>
           {keyInfo.buckets && keyInfo.buckets.length > 0 ? (
             <Table>
               <TableHeader>

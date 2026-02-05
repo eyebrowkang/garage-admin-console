@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Globe, Key, Trash2, Plus, Settings, FileSearch, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Globe, Trash2, Plus, Settings, FileSearch, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -21,14 +21,6 @@ import {
   DialogFooter,
   DialogDescription,
 } from '@/components/ui/dialog';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useClusterContext } from '@/contexts/ClusterContext';
 import {
@@ -39,7 +31,6 @@ import {
   useRemoveBucketAlias,
   useInspectObject,
 } from '@/hooks/useBuckets';
-import { useAllowBucketKey, useDenyBucketKey } from '@/hooks/usePermissions';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { JsonViewer } from '@/components/cluster/JsonViewer';
 import { formatBytes, formatShortId } from '@/lib/format';
@@ -54,6 +45,10 @@ export function BucketDetail() {
   const [aliasType, setAliasType] = useState<'global' | 'local'>('global');
   const [newAlias, setNewAlias] = useState('');
   const [aliasAccessKeyId, setAliasAccessKeyId] = useState('');
+  const [websiteDialogOpen, setWebsiteDialogOpen] = useState(false);
+  const [websiteEnabled, setWebsiteEnabled] = useState(false);
+  const [websiteIndex, setWebsiteIndex] = useState('');
+  const [websiteError, setWebsiteError] = useState('');
   const [cleanupDialogOpen, setCleanupDialogOpen] = useState(false);
   const [cleanupAge, setCleanupAge] = useState('86400');
   const [inspectKey, setInspectKey] = useState('');
@@ -72,8 +67,6 @@ export function BucketDetail() {
   const addAliasMutation = useAddBucketAlias(clusterId);
   const removeAliasMutation = useRemoveBucketAlias(clusterId);
   const inspectMutation = useInspectObject(clusterId, bid || '');
-  const allowKeyMutation = useAllowBucketKey(clusterId);
-  const denyKeyMutation = useDenyBucketKey(clusterId);
 
   if (!bid) {
     return <div className="p-4">Invalid bucket ID</div>;
@@ -109,6 +102,28 @@ export function BucketDetail() {
       : 'Add a global alias for this bucket.';
   const canAddAlias =
     Boolean(newAlias.trim()) && (aliasType === 'global' || Boolean(aliasAccessKeyId));
+
+  const handleUpdateWebsiteAccess = async () => {
+    try {
+      const indexDocument = websiteIndex.trim();
+      const errorDocument = websiteError.trim();
+      await updateBucketMutation.mutateAsync({
+        websiteAccess: {
+          enabled: websiteEnabled,
+          indexDocument: websiteEnabled && indexDocument ? indexDocument : null,
+          errorDocument: websiteEnabled && errorDocument ? errorDocument : null,
+        },
+      });
+      toast({ title: 'Website access updated' });
+      setWebsiteDialogOpen(false);
+    } catch (err) {
+      toast({
+        title: 'Failed to update website access',
+        description: getApiErrorMessage(err),
+        variant: 'destructive',
+      });
+    }
+  };
 
   const handleAddAlias = async () => {
     try {
@@ -201,38 +216,6 @@ export function BucketDetail() {
     } catch (err) {
       toast({
         title: 'Failed to update quotas',
-        description: getApiErrorMessage(err),
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleTogglePermission = async (
-    keyId: string,
-    permission: 'read' | 'write' | 'owner',
-    currentValue: boolean,
-  ) => {
-    const key = bucket.keys.find((k) => k.accessKeyId === keyId);
-    if (!key) return;
-
-    try {
-      if (currentValue) {
-        await denyKeyMutation.mutateAsync({
-          bucketId: bid,
-          accessKeyId: keyId,
-          permissions: { read: false, write: false, owner: false, [permission]: true },
-        });
-      } else {
-        await allowKeyMutation.mutateAsync({
-          bucketId: bid,
-          accessKeyId: keyId,
-          permissions: { ...key.permissions, [permission]: true },
-        });
-      }
-      toast({ title: 'Permission updated' });
-    } catch (err) {
-      toast({
-        title: 'Failed to update permission',
         description: getApiErrorMessage(err),
         variant: 'destructive',
       });
@@ -374,71 +357,50 @@ export function BucketDetail() {
         </CardContent>
       </Card>
 
-      {/* Permissions Section */}
+      {/* Website Access Section */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Key className="h-5 w-5" />
-            Key Permissions
-          </CardTitle>
-          <CardDescription>Manage access key permissions for this bucket</CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Globe className="h-5 w-5" />
+                Website Access
+              </CardTitle>
+              <CardDescription>Static website configuration for this bucket</CardDescription>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setWebsiteEnabled(bucket.websiteAccess);
+                setWebsiteIndex(bucket.websiteConfig?.indexDocument || '');
+                setWebsiteError(bucket.websiteConfig?.errorDocument || '');
+                setWebsiteDialogOpen(true);
+              }}
+            >
+              Edit Website
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
-          {bucket.keys.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Access Key</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead className="text-center">Read</TableHead>
-                  <TableHead className="text-center">Write</TableHead>
-                  <TableHead className="text-center">Owner</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {bucket.keys.map((key) => (
-                  <TableRow key={key.accessKeyId}>
-                    <TableCell className="text-xs">
-                      {key.accessKeyId.slice(0, 12)}...
-                    </TableCell>
-                    <TableCell>{key.name || '-'}</TableCell>
-                    <TableCell className="text-center">
-                      <input
-                        type="checkbox"
-                        checked={key.permissions.read}
-                        onChange={() =>
-                          handleTogglePermission(key.accessKeyId, 'read', key.permissions.read)
-                        }
-                        className="h-4 w-4 cursor-pointer"
-                      />
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <input
-                        type="checkbox"
-                        checked={key.permissions.write}
-                        onChange={() =>
-                          handleTogglePermission(key.accessKeyId, 'write', key.permissions.write)
-                        }
-                        className="h-4 w-4 cursor-pointer"
-                      />
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <input
-                        type="checkbox"
-                        checked={key.permissions.owner}
-                        onChange={() =>
-                          handleTogglePermission(key.accessKeyId, 'owner', key.permissions.owner)
-                        }
-                        className="h-4 w-4 cursor-pointer"
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <p className="text-sm text-muted-foreground">No keys have access to this bucket</p>
-          )}
+          <div className="grid gap-4 md:grid-cols-3">
+            <div>
+              <div className="text-sm text-muted-foreground">Status</div>
+              <div className="font-medium">{bucket.websiteAccess ? 'Enabled' : 'Disabled'}</div>
+            </div>
+            <div>
+              <div className="text-sm text-muted-foreground">Index Document</div>
+              <div className="font-medium">
+                {bucket.websiteConfig?.indexDocument || '-'}
+              </div>
+            </div>
+            <div>
+              <div className="text-sm text-muted-foreground">Error Document</div>
+              <div className="font-medium">
+                {bucket.websiteConfig?.errorDocument || '-'}
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -646,6 +608,53 @@ export function BucketDetail() {
             </Button>
             <Button onClick={handleCleanup} disabled={cleanupMutation.isPending}>
               {cleanupMutation.isPending ? 'Cleaning...' : 'Cleanup'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Website Access Dialog */}
+      <Dialog open={websiteDialogOpen} onOpenChange={setWebsiteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Website Access</DialogTitle>
+            <DialogDescription>Configure static website hosting for this bucket</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={websiteEnabled}
+                onChange={(e) => setWebsiteEnabled(e.target.checked)}
+                className="h-4 w-4 cursor-pointer"
+              />
+              <Label>Enable website access</Label>
+            </div>
+            <div className="space-y-2">
+              <Label>Index Document</Label>
+              <Input
+                value={websiteIndex}
+                onChange={(e) => setWebsiteIndex(e.target.value)}
+                placeholder="index.html"
+                disabled={!websiteEnabled}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Error Document</Label>
+              <Input
+                value={websiteError}
+                onChange={(e) => setWebsiteError(e.target.value)}
+                placeholder="error.html"
+                disabled={!websiteEnabled}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setWebsiteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateWebsiteAccess} disabled={updateBucketMutation.isPending}>
+              {updateBucketMutation.isPending ? 'Saving...' : 'Save'}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -60,8 +60,8 @@ export interface BucketInfo {
 export interface UpdateBucketRequest {
   websiteAccess?: {
     enabled: boolean;
-    indexDocument?: string;
-    errorDocument?: string;
+    indexDocument?: string | null;
+    errorDocument?: string | null;
   };
   quotas?: BucketQuotas;
 }
