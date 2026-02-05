@@ -390,16 +390,29 @@ export interface BlockError {
   nextTry: string;
 }
 
-export interface BlockVersionBacklink {
-  id: string;
-  type: string;
-}
+export type BlockVersionBacklink =
+  | {
+      object: {
+        bucketId: string;
+        key: string;
+      };
+    }
+  | {
+      upload: {
+        bucketId?: string | null;
+        key?: string | null;
+        uploadId: string;
+        uploadDeleted: boolean;
+        uploadGarbageCollected: boolean;
+      };
+    };
 
 export interface BlockVersion {
   versionId: string;
-  deleted: boolean;
-  backlinkCount: number;
-  backlinks: BlockVersionBacklink[];
+  refDeleted: boolean;
+  versionDeleted: boolean;
+  garbageCollected: boolean;
+  backlink?: BlockVersionBacklink | null;
 }
 
 export interface BlockInfo {
@@ -417,9 +430,9 @@ export interface BlockErrorsResponse {
 
 // Block info response from GetBlockInfo (per-node)
 export interface BlockInfoResponse {
-  refcount?: number;
-  versions?: BlockVersion[];
-  freeform?: string;
+  blockHash: string;
+  refcount: number;
+  versions: BlockVersion[];
 }
 
 // Worker types

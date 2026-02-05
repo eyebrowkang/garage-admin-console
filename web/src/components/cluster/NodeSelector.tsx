@@ -25,7 +25,7 @@ export function NodeSelector({
       onChange={(e) => onChange(e.target.value)}
       className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
     >
-      {includeAll && <option value="">All Nodes</option>}
+      {includeAll && <option value="*">All Nodes</option>}
       {includeSelf && <option value="self">Self</option>}
       {nodes.map((node) => (
         <option key={node.id} value={node.id}>

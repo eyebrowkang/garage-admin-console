@@ -22,12 +22,7 @@ import {
 } from '@/components/ui/table';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useClusterContext } from '@/contexts/ClusterContext';
-import {
-  useBlockErrors,
-  useBlockInfo,
-  useRetryBlockResync,
-  usePurgeBlocks,
-} from '@/hooks/useBlocks';
+import { useBlockErrors, useBlockInfo, useRetryBlockResync, usePurgeBlocks } from '@/hooks/useBlocks';
 import { NodeSelector } from '@/components/cluster/NodeSelector';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { JsonViewer } from '@/components/cluster/JsonViewer';
@@ -40,19 +35,37 @@ export function BlockManager() {
   const { clusterId } = useClusterContext();
 
   const [selectedNode, setSelectedNode] = useState<string>('*');
-  const [selectedBlockHash, setSelectedBlockHash] = useState<string | null>(null);
-  const [selectedBlockNode, setSelectedBlockNode] = useState<string | null>(null);
+  const [lookupHash, setLookupHash] = useState('');
+  const [blockInfoOpen, setBlockInfoOpen] = useState(false);
+  const [blockInfoHash, setBlockInfoHash] = useState<string | null>(null);
+  const [blockInfoNode, setBlockInfoNode] = useState<string>('*');
   const [purgeDialogOpen, setPurgeDialogOpen] = useState(false);
   const [purgeHashes, setPurgeHashes] = useState('');
+  const [purgeConfirmOpen, setPurgeConfirmOpen] = useState(false);
+  const [purgeNode, setPurgeNode] = useState<string>('*');
+  const [retryAllDialogOpen, setRetryAllDialogOpen] = useState(false);
+  const [retryAllNode, setRetryAllNode] = useState<string>('*');
 
   const { data: errorData, isLoading, error, refetch } = useBlockErrors(clusterId, selectedNode);
-  const { data: blockInfo, isLoading: blockInfoLoading } = useBlockInfo(
-    clusterId,
-    selectedBlockHash || '',
-    selectedBlockNode || undefined,
-  );
+  const {
+    data: blockInfo,
+    isLoading: blockInfoLoading,
+    error: blockInfoError,
+  } = useBlockInfo(clusterId, blockInfoHash || '', blockInfoNode);
   const retryMutation = useRetryBlockResync(clusterId);
   const purgeMutation = usePurgeBlocks(clusterId);
+
+  const openBlockInfo = (hash: string, nodeId?: string) => {
+    setBlockInfoHash(hash);
+    setBlockInfoNode(nodeId || '*');
+    setBlockInfoOpen(true);
+  };
+
+  const handleLookup = () => {
+    const trimmed = lookupHash.trim();
+    if (!trimmed) return;
+    openBlockInfo(trimmed, selectedNode || '*');
+  };
 
   const handleRetryResync = async (blockHash: string, nodeId: string) => {
     try {
@@ -62,6 +75,29 @@ export function BlockManager() {
         description: `Block ${formatShortId(blockHash)} queued for resync`,
       });
       refetch();
+    } catch (err) {
+      toast({
+        title: 'Retry failed',
+        description: getApiErrorMessage(err),
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleRetryAll = async () => {
+    try {
+      await retryMutation.mutateAsync({ nodeId: retryAllNode || '*', all: true });
+      toast({
+        title: 'Resync requested',
+        description: `Retrying resync for all missing blocks on ${
+          retryAllNode === '*'
+            ? 'all nodes'
+            : retryAllNode === 'self'
+              ? 'self'
+              : formatShortId(retryAllNode, 10)
+        }`,
+      });
+      setRetryAllDialogOpen(false);
     } catch (err) {
       toast({
         title: 'Retry failed',
@@ -83,12 +119,13 @@ export function BlockManager() {
     }
 
     try {
-      await purgeMutation.mutateAsync({ blocks: hashes });
+      await purgeMutation.mutateAsync({ blocks: hashes, nodeId: purgeNode || '*' });
       toast({
         title: 'Blocks purged',
         description: `${hashes.length} block(s) have been purged`,
       });
       setPurgeDialogOpen(false);
+      setPurgeConfirmOpen(false);
       setPurgeHashes('');
       refetch();
     } catch (err) {
@@ -113,6 +150,12 @@ export function BlockManager() {
   }
 
   const hasErrors = allErrors.length > 0;
+  const lookupTargetLabel =
+    selectedNode === '*'
+      ? 'all nodes'
+      : selectedNode === 'self'
+        ? 'self'
+        : formatShortId(selectedNode, 10);
 
   return (
     <div className="space-y-6">
@@ -128,6 +171,10 @@ export function BlockManager() {
           <Button variant="outline" onClick={() => refetch()}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
+          </Button>
+          <Button variant="outline" onClick={() => setRetryAllDialogOpen(true)}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Retry Resync
           </Button>
           <Button variant="destructive" onClick={() => setPurgeDialogOpen(true)}>
             <Trash2 className="h-4 w-4 mr-2" />
@@ -151,7 +198,10 @@ export function BlockManager() {
       {/* Node Selector */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">Filter by Node</CardTitle>
+          <CardTitle className="text-sm">Target Node</CardTitle>
+          <CardDescription>
+            Used for filtering and for actions that support targeting a node.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <NodeSelector
@@ -159,6 +209,7 @@ export function BlockManager() {
             value={selectedNode}
             onChange={setSelectedNode}
             includeAll
+            includeSelf
           />
         </CardContent>
       </Card>
@@ -199,8 +250,7 @@ export function BlockManager() {
                       <button
                         className="text-xs text-primary hover:underline"
                         onClick={() => {
-                          setSelectedBlockHash(blockError.blockHash);
-                          setSelectedBlockNode(blockError.nodeId);
+                          openBlockInfo(blockError.blockHash, blockError.nodeId);
                         }}
                       >
                         {formatShortId(blockError.blockHash, 16)}
@@ -229,8 +279,7 @@ export function BlockManager() {
                           variant="ghost"
                           size="icon"
                           onClick={() => {
-                            setSelectedBlockHash(blockError.blockHash);
-                            setSelectedBlockNode(blockError.nodeId);
+                            openBlockInfo(blockError.blockHash, blockError.nodeId);
                           }}
                           title="View block info"
                         >
@@ -273,119 +322,95 @@ export function BlockManager() {
           <CardDescription>Look up detailed information about a specific block</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-2">
+          <div className="flex flex-col md:flex-row gap-3">
             <Input
               placeholder="Enter block hash..."
-              className=""
-              value={selectedBlockHash || ''}
+              value={lookupHash}
               onChange={(e) => {
-                setSelectedBlockHash(e.target.value || null);
-                setSelectedBlockNode(null);
+                setLookupHash(e.target.value);
               }}
             />
             <Button
               variant="outline"
-              disabled={!selectedBlockHash}
-              onClick={() => selectedBlockHash && setSelectedBlockHash(selectedBlockHash)}
+              disabled={!lookupHash.trim()}
+              onClick={handleLookup}
             >
               <Search className="h-4 w-4 mr-2" />
               Lookup
             </Button>
+          </div>
+          <div className="text-xs text-muted-foreground mt-2">
+            Lookup targets: {lookupTargetLabel}
           </div>
         </CardContent>
       </Card>
 
       {/* Block Info Dialog */}
       <Dialog
-        open={!!selectedBlockHash}
+        open={blockInfoOpen}
         onOpenChange={(open) => {
+          setBlockInfoOpen(open);
           if (!open) {
-            setSelectedBlockHash(null);
-            setSelectedBlockNode(null);
+            setBlockInfoHash(null);
+            setBlockInfoNode('*');
           }
         }}
       >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Block Information</DialogTitle>
-            <DialogDescription className="text-xs">{selectedBlockHash}</DialogDescription>
+            <DialogDescription className="text-xs">{blockInfoHash}</DialogDescription>
           </DialogHeader>
           {blockInfoLoading ? (
             <div className="py-8 text-center text-muted-foreground">Loading block info...</div>
+          ) : blockInfoError ? (
+            <Alert variant="destructive">
+              <AlertTitle>Failed to load block info</AlertTitle>
+              <AlertDescription>{getApiErrorMessage(blockInfoError)}</AlertDescription>
+            </Alert>
           ) : blockInfo ? (
             <div className="space-y-4">
-              {/* Multi-node response */}
-              {blockInfo.success &&
-                Object.entries(blockInfo.success).map(([nodeId, info]) => (
-                  <Card key={nodeId}>
-                    <CardHeader className="py-3">
-                      <CardTitle className="text-sm">
-                        {formatShortId(nodeId, 12)}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {info.refcount !== undefined && (
-                        <div>
-                          <div className="text-sm text-muted-foreground">Reference Count</div>
-                          <div className="font-medium">{info.refcount}</div>
-                        </div>
-                      )}
-                      {info.versions && info.versions.length > 0 && (
-                        <div>
-                          <div className="text-sm text-muted-foreground mb-2">Versions</div>
-                          <div className="space-y-2">
-                            {info.versions.map((version, idx: number) => (
-                              <div key={idx} className="border rounded p-2 text-xs">
-                                <div className="flex justify-between">
-                                  <span>
-                                    {formatShortId(version.versionId, 16)}
-                                  </span>
-                                  <Badge variant={version.deleted ? 'destructive' : 'secondary'}>
-                                    {version.deleted ? 'Deleted' : 'Active'}
-                                  </Badge>
-                                </div>
-                                {version.backlinks && version.backlinks.length > 0 && (
-                                  <div className="mt-1 text-muted-foreground">
-                                    {version.backlinks.map((bl, i: number) => (
-                                      <div key={i}>
-                                        {bl.type}: {bl.id}
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      {info.freeform && (
-                        <div>
-                          <div className="text-sm text-muted-foreground mb-2">Raw Data</div>
-                          <JsonViewer data={info.freeform} />
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-              {blockInfo.error && Object.keys(blockInfo.error).length > 0 && (
-                <Alert variant="destructive">
-                  <AlertTitle>Errors from some nodes</AlertTitle>
-                  <AlertDescription>
-                    <JsonViewer data={blockInfo.error} />
-                  </AlertDescription>
-                </Alert>
-              )}
+              <div className="text-sm text-muted-foreground">
+                Showing raw block info response.
+              </div>
+              <JsonViewer data={blockInfo} />
             </div>
           ) : (
             <div className="py-8 text-center text-muted-foreground">
               No block information available
             </div>
           )}
+          <div className="flex justify-end gap-2">
+            {blockInfoHash && (
+              <Button
+                variant="outline"
+                onClick={() => handleRetryResync(blockInfoHash, blockInfoNode)}
+                disabled={retryMutation.isPending}
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Retry Resync
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => setBlockInfoOpen(false)}>
+              Close
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 
       {/* Purge Blocks Dialog */}
-      <Dialog open={purgeDialogOpen} onOpenChange={setPurgeDialogOpen}>
+      <Dialog
+        open={purgeDialogOpen}
+        onOpenChange={(open) => {
+          setPurgeDialogOpen(open);
+          if (open) {
+            setPurgeNode(selectedNode || '*');
+          } else {
+            setPurgeHashes('');
+            setPurgeConfirmOpen(false);
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-destructive">
@@ -415,27 +440,90 @@ export function BlockManager() {
                 onChange={(e) => setPurgeHashes(e.target.value)}
               />
             </div>
+            <div className="space-y-2">
+              <Label>Target Node</Label>
+              <NodeSelector
+                clusterId={clusterId}
+                value={purgeNode}
+                onChange={setPurgeNode}
+                includeAll
+                includeSelf
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setPurgeDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => setPurgeConfirmOpen(true)}
+              disabled={purgeHashes.trim().length === 0}
+            >
+              Continue
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
 
       {/* Purge Confirmation */}
       <ConfirmDialog
-        open={purgeDialogOpen && purgeHashes.trim().length > 0}
-        onOpenChange={(open) => {
-          if (!open) {
-            setPurgeDialogOpen(false);
-            setPurgeHashes('');
-          }
-        }}
+        open={purgeConfirmOpen}
+        onOpenChange={setPurgeConfirmOpen}
         title="Confirm Block Purge"
-        description={`You are about to permanently delete ${purgeHashes.split('\n').filter((h) => h.trim()).length} block(s). This action cannot be undone and will delete all objects referencing these blocks.`}
+        description={`You are about to permanently delete ${purgeHashes
+          .split('\n')
+          .filter((h) => h.trim()).length} block(s) on ${
+          purgeNode === '*'
+            ? 'all nodes'
+            : purgeNode === 'self'
+              ? 'self'
+              : formatShortId(purgeNode, 10)
+        }. This action cannot be undone and will delete all objects referencing these blocks.`}
         tier="type-to-confirm"
         typeToConfirmValue="PURGE"
         confirmText="Purge Blocks"
         onConfirm={handlePurge}
         isLoading={purgeMutation.isPending}
       />
+
+      <Dialog
+        open={retryAllDialogOpen}
+        onOpenChange={(open) => {
+          setRetryAllDialogOpen(open);
+          if (open) setRetryAllNode(selectedNode || '*');
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Retry Block Resync</DialogTitle>
+            <DialogDescription>
+              Instruct Garage node(s) to retry resynchronization of missing blocks.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>Target Node</Label>
+            <NodeSelector
+              clusterId={clusterId}
+              value={retryAllNode}
+              onChange={setRetryAllNode}
+              includeAll
+              includeSelf
+            />
+            <p className="text-xs text-muted-foreground">
+              This operation targets all missing blocks on the selected node(s).
+            </p>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setRetryAllDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleRetryAll} disabled={retryMutation.isPending}>
+              {retryMutation.isPending ? 'Submitting...' : 'Retry Resync'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

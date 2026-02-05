@@ -12,7 +12,7 @@ export function useBlockErrors(clusterId: string, nodeId: string = '*') {
     queryKey: ['blockErrors', clusterId, nodeId],
     queryFn: async () => {
       const res = await api.get<MultiNodeResponse<BlockErrorsResponse>>(
-        proxyPath(clusterId, `/v2/ListBlockErrors?node=${encodeURIComponent(nodeId)}`),
+        proxyPath(clusterId, `/v2/ListBlockErrors?node=${encodeURIComponent(nodeId || '*')}`),
       );
       return res.data;
     },
@@ -23,8 +23,7 @@ export function useBlockInfo(clusterId: string, blockHash: string, nodeId?: stri
   return useQuery<MultiNodeResponse<BlockInfoResponse>>({
     queryKey: ['blockInfo', clusterId, blockHash, nodeId],
     queryFn: async () => {
-      const params =
-        nodeId && nodeId !== '*' ? `?node=${encodeURIComponent(nodeId)}` : '';
+      const params = `?node=${encodeURIComponent(nodeId || '*')}`;
       const res = await api.post<MultiNodeResponse<BlockInfoResponse>>(
         proxyPath(clusterId, `/v2/GetBlockInfo${params}`),
         { blockHash },
@@ -39,11 +38,15 @@ export function useRetryBlockResync(clusterId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (data: { blockHash: string; nodeId?: string }) => {
-      const params =
-        data.nodeId && data.nodeId !== '*'
-          ? `?node=${encodeURIComponent(data.nodeId)}`
-          : '';
+    mutationFn: async (data: { blockHash?: string; nodeId?: string; all?: boolean }) => {
+      const params = `?node=${encodeURIComponent(data.nodeId || '*')}`;
+      if (data.all) {
+        await api.post(proxyPath(clusterId, `/v2/RetryBlockResync${params}`), { all: true });
+        return;
+      }
+      if (!data.blockHash) {
+        throw new Error('blockHash is required when all is not set.');
+      }
       await api.post(proxyPath(clusterId, `/v2/RetryBlockResync${params}`), {
         blockHashes: [data.blockHash],
       });
@@ -59,10 +62,7 @@ export function usePurgeBlocks(clusterId: string) {
 
   return useMutation({
     mutationFn: async (data: { blocks: PurgeBlocksRequest; nodeId?: string }) => {
-      const params =
-        data.nodeId && data.nodeId !== '*'
-          ? `?node=${encodeURIComponent(data.nodeId)}`
-          : '';
+      const params = `?node=${encodeURIComponent(data.nodeId || '*')}`;
       await api.post(proxyPath(clusterId, `/v2/PurgeBlocks${params}`), data.blocks);
     },
     onSuccess: () => {
