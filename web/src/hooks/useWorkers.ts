@@ -8,13 +8,18 @@ import type {
   SetWorkerVariableRequest,
 } from '@/types/garage';
 
-export function useWorkers(clusterId: string, nodeId: string = '*', busyOnly?: boolean) {
+export function useWorkers(
+  clusterId: string,
+  nodeId: string = '*',
+  filters?: { busyOnly?: boolean; errorOnly?: boolean },
+) {
+  const { busyOnly, errorOnly } = filters ?? {};
   return useQuery<MultiNodeResponse<WorkersResponse>>({
-    queryKey: ['workers', clusterId, nodeId, busyOnly],
+    queryKey: ['workers', clusterId, nodeId, busyOnly, errorOnly],
     queryFn: async () => {
       const res = await api.post<MultiNodeResponse<WorkersResponse>>(
         proxyPath(clusterId, `/v2/ListWorkers?node=${encodeURIComponent(nodeId)}`),
-        { busyOnly },
+        { busyOnly, errorOnly },
       );
       return res.data;
     },
@@ -38,18 +43,18 @@ export function useWorkerInfo(clusterId: string, nodeId: string = '*', workerId:
 export function useWorkerVariable(
   clusterId: string,
   nodeId: string = '*',
-  variableName: string,
+  variableName?: string | null,
 ) {
   return useQuery<MultiNodeResponse<WorkerVariableResponse>>({
-    queryKey: ['workerVariable', clusterId, nodeId, variableName],
+    queryKey: ['workerVariable', clusterId, nodeId, variableName ?? 'all'],
     queryFn: async () => {
       const res = await api.post<MultiNodeResponse<WorkerVariableResponse>>(
         proxyPath(clusterId, `/v2/GetWorkerVariable?node=${encodeURIComponent(nodeId)}`),
-        { variable: variableName },
+        { variable: variableName ?? null },
       );
       return res.data;
     },
-    enabled: Boolean(variableName),
+    enabled: variableName !== undefined,
   });
 }
 

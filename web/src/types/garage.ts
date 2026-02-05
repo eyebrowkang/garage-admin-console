@@ -436,38 +436,39 @@ export interface BlockInfoResponse {
 }
 
 // Worker types
-export interface WorkerListItem {
-  id: number;
-  name: string;
-  state: string;
-  tranquility?: number | null;
-  progress?: number | null;
-  freeform?: string | null;
+export interface WorkerLastError {
+  message: string;
+  secsAgo: number;
 }
 
-// Workers response from ListWorkers
-export interface WorkersResponse {
-  workers: WorkerListItem[];
-}
+export type WorkerState =
+  | 'busy'
+  | 'idle'
+  | 'done'
+  | {
+      throttled: {
+        durationSecs: number;
+      };
+    };
 
 export interface WorkerInfo {
   id: number;
   name: string;
-  state: string;
+  state: WorkerState;
   errors: number;
+  consecutiveErrors: number;
+  freeform: string[];
+  lastError?: WorkerLastError | null;
+  persistentErrors?: number | null;
+  progress?: string | null;
+  queueLength?: number | null;
   tranquility?: number | null;
-  progress?: number | null;
-  freeform?: string | null;
 }
 
-export interface WorkerVariableResponse {
-  value: string;
-}
+// Workers response from ListWorkers
+export type WorkersResponse = WorkerInfo[];
 
-export interface WorkerVariable {
-  name: string;
-  value: string;
-}
+export type WorkerVariableResponse = Record<string, string>;
 
 export interface SetWorkerVariableRequest {
   variable: string;
