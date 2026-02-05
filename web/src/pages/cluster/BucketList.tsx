@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Trash2, Loader2, Plus, ChevronRight } from 'lucide-react';
+import { Trash2, Loader2, Plus } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -23,12 +23,20 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { api, proxyPath } from '@/lib/api';
 import { formatDateTime, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { toast } from '@/hooks/use-toast';
-import type { ListBucketsResponseItem } from '@/types/garage';
+import { useKeys } from '@/hooks/useKeys';
+import type { CreateBucketRequest, ListBucketsResponseItem } from '@/types/garage';
 
 interface BucketListProps {
   clusterId: string;
@@ -38,9 +46,14 @@ export function BucketList({ clusterId }: BucketListProps) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [newBucketName, setNewBucketName] = useState('');
+  const [aliasType, setAliasType] = useState<'none' | 'global' | 'local' | 'both'>('global');
+  const [globalAlias, setGlobalAlias] = useState('');
+  const [localAlias, setLocalAlias] = useState('');
+  const [localAccessKeyId, setLocalAccessKeyId] = useState('');
   const [actionError, setActionError] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
+  const keysQuery = useKeys(clusterId);
+  const keys = keysQuery.data ?? [];
 
   const {
     data: buckets = [],
@@ -55,21 +68,52 @@ export function BucketList({ clusterId }: BucketListProps) {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (alias: string) => {
-      await api.post(proxyPath(clusterId, '/v2/CreateBucket'), {
-        globalAlias: alias,
-      });
+    mutationFn: async (payload: CreateBucketRequest) => {
+      await api.post(proxyPath(clusterId, '/v2/CreateBucket'), payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['buckets', clusterId] });
       setIsDialogOpen(false);
-      setNewBucketName('');
+      setGlobalAlias('');
+      setLocalAlias('');
+      setLocalAccessKeyId('');
       setActionError('');
     },
     onError: (err) => {
       setActionError(getApiErrorMessage(err, 'Failed to create bucket.'));
     },
   });
+
+  const needsGlobal = aliasType === 'global' || aliasType === 'both';
+  const needsLocal = aliasType === 'local' || aliasType === 'both';
+  const hasLocalKey = Boolean(localAccessKeyId);
+  const canCreate =
+    !createMutation.isPending &&
+    (!needsGlobal || Boolean(globalAlias.trim())) &&
+    (!needsLocal || (Boolean(localAlias.trim()) && hasLocalKey));
+
+  const handleCreate = () => {
+    const payload: CreateBucketRequest = {};
+    if (needsGlobal) {
+      payload.globalAlias = globalAlias.trim();
+    }
+    if (needsLocal) {
+      payload.localAlias = {
+        accessKeyId: localAccessKeyId,
+        alias: localAlias.trim(),
+      };
+    }
+    createMutation.mutate(payload);
+  };
+
+  useEffect(() => {
+    if (!isDialogOpen) return;
+    if (!needsLocal) return;
+    if (!keys.length) return;
+    if (!localAccessKeyId || !keys.some((key) => key.id === localAccessKeyId)) {
+      setLocalAccessKeyId(keys[0].id);
+    }
+  }, [isDialogOpen, needsLocal, keys, localAccessKeyId]);
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -107,7 +151,14 @@ export function BucketList({ clusterId }: BucketListProps) {
           open={isDialogOpen}
           onOpenChange={(open) => {
             setIsDialogOpen(open);
-            if (!open) setActionError('');
+            if (open) {
+              setAliasType('global');
+              setGlobalAlias('');
+              setLocalAlias('');
+              setLocalAccessKeyId(keys[0]?.id || '');
+            } else {
+              setActionError('');
+            }
           }}
         >
           <DialogTrigger asChild>
@@ -119,13 +170,77 @@ export function BucketList({ clusterId }: BucketListProps) {
             <DialogHeader>
               <DialogTitle>Create Bucket</DialogTitle>
             </DialogHeader>
-            <div className="space-y-2">
-              <Label>Bucket Name (Global Alias)</Label>
-              <Input
-                value={newBucketName}
-                onChange={(e) => setNewBucketName(e.target.value)}
-                placeholder="my-bucket"
-              />
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Alias Type</Label>
+                <Select
+                  value={aliasType}
+                  onValueChange={(value) =>
+                    setAliasType(value as 'none' | 'global' | 'local' | 'both')
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select alias type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="global">Global alias</SelectItem>
+                    <SelectItem value="local">Local alias</SelectItem>
+                    <SelectItem value="both">Global + Local</SelectItem>
+                    <SelectItem value="none">No alias</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {needsGlobal && (
+                <div className="space-y-2">
+                  <Label>Global Alias</Label>
+                  <Input
+                    value={globalAlias}
+                    onChange={(e) => setGlobalAlias(e.target.value)}
+                    placeholder="my-bucket"
+                  />
+                </div>
+              )}
+
+              {needsLocal && (
+                <>
+                  <div className="space-y-2">
+                    <Label>Local Alias</Label>
+                    <Input
+                      value={localAlias}
+                      onChange={(e) => setLocalAlias(e.target.value)}
+                      placeholder="my-bucket"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Access Key</Label>
+                    {keysQuery.isLoading ? (
+                      <div className="text-sm text-muted-foreground">Loading access keys...</div>
+                    ) : keysQuery.error ? (
+                      <div className="text-sm text-destructive">
+                        {getApiErrorMessage(keysQuery.error, 'Failed to load access keys.')}
+                      </div>
+                    ) : keys.length > 0 ? (
+                      <Select value={localAccessKeyId} onValueChange={setLocalAccessKeyId}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select access key" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {keys.map((key) => (
+                            <SelectItem key={key.id} value={key.id}>
+                              {key.name || formatShortId(key.id, 12)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <div className="text-sm text-muted-foreground">
+                        No access keys available for local alias creation.
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
             {actionError && (
               <Alert variant="destructive">
@@ -135,8 +250,8 @@ export function BucketList({ clusterId }: BucketListProps) {
             )}
             <DialogFooter>
               <Button
-                onClick={() => createMutation.mutate(newBucketName.trim())}
-                disabled={!newBucketName.trim() || createMutation.isPending}
+                onClick={handleCreate}
+                disabled={!canCreate}
               >
                 {createMutation.isPending ? 'Creating...' : 'Create'}
               </Button>
@@ -222,9 +337,6 @@ export function BucketList({ clusterId }: BucketListProps) {
                       }
                     >
                       <Trash2 className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon">
-                      <ChevronRight className="h-4 w-4" />
                     </Button>
                   </div>
                 </TableCell>

@@ -83,6 +83,15 @@
     background-image: linear-gradient(to bottom right, #fffbf5, #fff4e6);
     min-height: 100vh;
     overflow-y: scroll;
+    margin: 0;
+  }
+
+  html body[data-scroll-locked],
+  html body[data-radix-scroll-lock] {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
   }
 
   /* Custom scrollbar styles */

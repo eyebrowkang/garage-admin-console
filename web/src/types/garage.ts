@@ -66,6 +66,21 @@ export interface UpdateBucketRequest {
   quotas?: BucketQuotas;
 }
 
+export interface CreateBucketLocalAlias {
+  accessKeyId: string;
+  alias: string;
+  allow?: {
+    read?: boolean;
+    write?: boolean;
+    owner?: boolean;
+  };
+}
+
+export interface CreateBucketRequest {
+  globalAlias?: string | null;
+  localAlias?: CreateBucketLocalAlias | null;
+}
+
 export type BucketAliasRequest =
   | {
       bucketId: string;

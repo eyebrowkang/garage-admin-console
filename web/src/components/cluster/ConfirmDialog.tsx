@@ -61,11 +61,13 @@ export function ConfirmDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 break-words [overflow-wrap:anywhere]">
             {isDanger && <AlertTriangle className="h-5 w-5 text-destructive" />}
             {title}
           </DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
+          <DialogDescription className="break-words [overflow-wrap:anywhere]">
+            {description}
+          </DialogDescription>
         </DialogHeader>
 
         {tier === 'type-to-confirm' && typeToConfirmValue && (

@@ -9,6 +9,7 @@ import type {
   InspectObjectResponse,
   BucketAliasInput,
   BucketAliasRequest,
+  CreateBucketRequest,
 } from '@/types/garage';
 
 function bucketInfoToListItem(
@@ -73,8 +74,8 @@ export function useCreateBucket(clusterId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (globalAlias: string) => {
-      await api.post(proxyPath(clusterId, '/v2/CreateBucket'), { globalAlias });
+    mutationFn: async (data: CreateBucketRequest) => {
+      await api.post(proxyPath(clusterId, '/v2/CreateBucket'), data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['buckets', clusterId] });

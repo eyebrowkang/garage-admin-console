@@ -1,11 +1,19 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Globe, Trash2, Plus, Settings, FileSearch, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Globe, Key, Trash2, Plus, Settings, FileSearch, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import {
   Select,
   SelectContent,
@@ -354,6 +362,69 @@ export function BucketDetail() {
               </div>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Key Permissions (Read-only) */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Key className="h-5 w-5" />
+            Key Permissions
+          </CardTitle>
+          <CardDescription>Access keys with permissions on this bucket (read-only)</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {bucket.keys.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Access Key</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead className="text-center">Read</TableHead>
+                  <TableHead className="text-center">Write</TableHead>
+                  <TableHead className="text-center">Owner</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {bucket.keys.map((key) => (
+                  <TableRow key={key.accessKeyId}>
+                    <TableCell className="text-xs">{key.accessKeyId.slice(0, 12)}...</TableCell>
+                    <TableCell>{key.name || '-'}</TableCell>
+                    <TableCell className="text-center">
+                      {key.permissions.read ? (
+                        <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
+                          Yes
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">No</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {key.permissions.write ? (
+                        <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
+                          Yes
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">No</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {key.permissions.owner ? (
+                        <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
+                          Yes
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">No</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <p className="text-sm text-muted-foreground">No keys have access to this bucket</p>
+          )}
         </CardContent>
       </Card>
 
