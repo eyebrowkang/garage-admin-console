@@ -19,6 +19,13 @@ export function formatDateTime(value?: string | null): string {
   return date.toLocaleString();
 }
 
+export function formatDateTime24h(value?: string | null): string {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString(undefined, { hour12: false });
+}
+
 export function formatRelativeSeconds(seconds?: number | null): string {
   if (seconds === null || seconds === undefined) return '-';
   const totalSeconds = Math.max(0, Math.floor(seconds));

@@ -31,7 +31,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { api, proxyPath } from '@/lib/api';
-import { formatDateTime, formatShortId } from '@/lib/format';
+import { formatDateTime24h, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { toast } from '@/hooks/use-toast';
@@ -321,7 +321,7 @@ export function BucketList({ clusterId }: BucketListProps) {
                   </div>
                 </TableCell>
                 <TableCell className="text-xs text-muted-foreground">
-                  {formatDateTime(bucket.created)}
+                  {formatDateTime24h(bucket.created)}
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>

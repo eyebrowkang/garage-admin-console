@@ -1,6 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, proxyPath } from '@/lib/api';
-import type { ListKeysResponseItem, GetKeyInfoResponse, ImportKeyRequest } from '@/types/garage';
+import type {
+  ListKeysResponseItem,
+  GetKeyInfoResponse,
+  ImportKeyRequest,
+  CreateKeyRequest,
+  UpdateKeyRequest,
+} from '@/types/garage';
 
 export function useKeys(clusterId: string) {
   return useQuery<ListKeysResponseItem[]>({
@@ -32,10 +38,11 @@ export function useCreateKey(clusterId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (name: string) => {
-      const res = await api.post<GetKeyInfoResponse>(proxyPath(clusterId, '/v2/CreateKey'), {
-        name,
-      });
+    mutationFn: async (data: CreateKeyRequest) => {
+      const res = await api.post<GetKeyInfoResponse>(
+        proxyPath(clusterId, '/v2/CreateKey'),
+        data,
+      );
       return res.data;
     },
     onSuccess: () => {
@@ -48,10 +55,12 @@ export function useUpdateKey(clusterId: string, keyId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (name: string) => {
-      await api.post(proxyPath(clusterId, `/v2/UpdateKey?id=${encodeURIComponent(keyId)}`), {
-        name,
-      });
+    mutationFn: async (payload: UpdateKeyRequest) => {
+      const res = await api.post<GetKeyInfoResponse>(
+        proxyPath(clusterId, `/v2/UpdateKey?id=${encodeURIComponent(keyId)}`),
+        payload,
+      );
+      return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['key', clusterId, keyId] });

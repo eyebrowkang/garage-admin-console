@@ -109,6 +109,18 @@ export interface CleanupIncompleteUploadsResponse {
 }
 
 // Key types
+export interface KeyPerm {
+  createBucket?: boolean;
+}
+
+export interface CreateKeyRequest {
+  allow?: KeyPerm | null;
+  deny?: KeyPerm | null;
+  expiration?: string | null;
+  name?: string | null;
+  neverExpires?: boolean;
+}
+
 export interface ListKeysResponseItem {
   id: string;
   name: string;
@@ -134,9 +146,12 @@ export interface GetKeyInfoResponse {
   expired: boolean;
   created?: string | null;
   expiration?: string | null;
+  permissions: KeyPerm;
   secretAccessKey?: string | null;
   buckets?: KeyBucketPerm[];
 }
+
+export interface UpdateKeyRequest extends CreateKeyRequest {}
 
 export interface ImportKeyRequest {
   accessKeyId: string;

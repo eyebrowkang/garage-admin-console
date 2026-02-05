@@ -31,7 +31,7 @@ import {
 import { NodeSelector } from '@/components/cluster/NodeSelector';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { JsonViewer } from '@/components/cluster/JsonViewer';
-import { formatDateTime, formatShortId } from '@/lib/format';
+import { formatDateTime24h, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { toast } from '@/hooks/use-toast';
 import type { BlockError } from '@/types/garage';
@@ -218,10 +218,10 @@ export function BlockManager() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
-                      {blockError.lastTry ? formatDateTime(blockError.lastTry) : '-'}
+                      {blockError.lastTry ? formatDateTime24h(blockError.lastTry) : '-'}
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
-                      {blockError.nextTry ? formatDateTime(blockError.nextTry) : '-'}
+                      {blockError.nextTry ? formatDateTime24h(blockError.nextTry) : '-'}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">

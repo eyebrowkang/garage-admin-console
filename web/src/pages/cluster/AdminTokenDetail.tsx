@@ -24,7 +24,7 @@ import {
 } from '@/hooks/useAdminTokens';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { JsonViewer } from '@/components/cluster/JsonViewer';
-import { formatDateTime } from '@/lib/format';
+import { formatDateTime24h } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { toast } from '@/hooks/use-toast';
 
@@ -164,11 +164,11 @@ export function AdminTokenDetail() {
             )}
             <div>
               <div className="text-sm text-muted-foreground">Created</div>
-              <div>{formatDateTime(token.created) || '-'}</div>
+              <div>{formatDateTime24h(token.created) || '-'}</div>
             </div>
             <div>
               <div className="text-sm text-muted-foreground">Expires</div>
-              <div>{formatDateTime(token.expiration) || 'Never'}</div>
+              <div>{formatDateTime24h(token.expiration) || 'Never'}</div>
             </div>
           </div>
         </CardContent>

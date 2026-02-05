@@ -35,10 +35,13 @@ import { useKeyInfo, useUpdateKey, useDeleteKey } from '@/hooks/useKeys';
 import { useBuckets } from '@/hooks/useBuckets';
 import { useAllowBucketKey, useDenyBucketKey } from '@/hooks/usePermissions';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
-import { SecretReveal } from '@/components/cluster/SecretReveal';
-import { formatDateTime, formatShortId } from '@/lib/format';
+import { formatDateTime24h, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { toast } from '@/hooks/use-toast';
+import type { UpdateKeyRequest } from '@/types/garage';
+
+const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+const MINUTE_OPTIONS = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
 
 export function KeyDetail() {
   const { kid } = useParams<{ kid: string }>();
@@ -47,6 +50,14 @@ export function KeyDetail() {
 
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [newName, setNewName] = useState('');
+  const [editExpirationDate, setEditExpirationDate] = useState('');
+  const [editExpirationHour, setEditExpirationHour] = useState('00');
+  const [editExpirationMinute, setEditExpirationMinute] = useState('00');
+  const [editNeverExpires, setEditNeverExpires] = useState(false);
+  const [editBucketPermission, setEditBucketPermission] = useState<
+    'default' | 'allow' | 'deny'
+  >('default');
+  const [editError, setEditError] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [showSecret, setShowSecret] = useState(false);
   const [grantBucketId, setGrantBucketId] = useState('');
@@ -72,6 +83,25 @@ export function KeyDetail() {
       setSecretLoading(false);
     }
   };
+
+  const handleHideSecret = () => {
+    setSecretKey(null);
+    setShowSecret(false);
+  };
+
+  const handleCopySecret = async () => {
+    if (!secretKey) return;
+    try {
+      await navigator.clipboard.writeText(secretKey);
+      toast({ title: 'Secret copied' });
+    } catch (err) {
+      toast({
+        title: 'Failed to copy secret',
+        description: getApiErrorMessage(err, 'Clipboard access denied.'),
+        variant: 'destructive',
+      });
+    }
+  };
   const updateKeyMutation = useUpdateKey(clusterId, kid || '');
   const deleteKeyMutation = useDeleteKey(clusterId);
   const allowKeyMutation = useAllowBucketKey(clusterId);
@@ -80,6 +110,34 @@ export function KeyDetail() {
   const bucketsError = bucketsQuery.error;
   const assignedBucketIds = new Set(keyInfo?.buckets?.map((bucket) => bucket.id) ?? []);
   const availableBuckets = buckets.filter((bucket) => !assignedBucketIds.has(bucket.id));
+
+  const toDateParts = (value?: string | null) => {
+    if (!value) {
+      return { date: '', hour: '00', minute: '00' };
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return { date: '', hour: '00', minute: '00' };
+    }
+    const pad = (num: number) => String(num).padStart(2, '0');
+    const year = date.getFullYear();
+    const month = pad(date.getMonth() + 1);
+    const day = pad(date.getDate());
+    const hours = pad(date.getHours());
+    const minutes = pad(date.getMinutes());
+    return { date: `${year}-${month}-${day}`, hour: hours, minute: minutes };
+  };
+
+  const editExpirationDateValue = editExpirationDate
+    ? new Date(`${editExpirationDate}T${editExpirationHour}:${editExpirationMinute}:00`)
+    : null;
+  const editExpirationIso =
+    editExpirationDateValue && !Number.isNaN(editExpirationDateValue.getTime())
+      ? editExpirationDateValue.toISOString()
+      : null;
+  const editExpirationInvalid = Boolean(editExpirationDate) && !editExpirationIso;
+
+  const currentBucketPermission = keyInfo?.permissions?.createBucket ? 'Allowed' : 'Denied';
 
   useEffect(() => {
     if (availableBuckets.length === 0) {
@@ -112,12 +170,32 @@ export function KeyDetail() {
     return <div className="p-4">Key not found</div>;
   }
 
-  const handleUpdateName = async () => {
+  const handleUpdateKey = async () => {
+    if (!keyInfo) return;
+    if (editExpirationInvalid) return;
+    const payload: UpdateKeyRequest = {};
+    const trimmedName = newName.trim();
+    if (trimmedName !== keyInfo.name) {
+      payload.name = trimmedName || null;
+    }
+    if (editNeverExpires) {
+      payload.neverExpires = true;
+    } else if (editExpirationIso) {
+      payload.expiration = editExpirationIso;
+    } else if (keyInfo.expiration) {
+      payload.expiration = null;
+    }
+    if (editBucketPermission === 'allow') {
+      payload.allow = { createBucket: true };
+    } else if (editBucketPermission === 'deny') {
+      payload.deny = { createBucket: true };
+    }
     try {
-      await updateKeyMutation.mutateAsync(newName.trim());
-      toast({ title: 'Key updated', description: 'Key name has been updated' });
+      await updateKeyMutation.mutateAsync(payload);
+      toast({ title: 'Key updated', description: 'Key settings have been updated' });
       setEditDialogOpen(false);
     } catch (err) {
+      setEditError(getApiErrorMessage(err));
       toast({
         title: 'Failed to update key',
         description: getApiErrorMessage(err),
@@ -230,7 +308,14 @@ export function KeyDetail() {
           <Button
             variant="outline"
             onClick={() => {
+              const parts = toDateParts(keyInfo.expiration);
               setNewName(keyInfo.name);
+              setEditExpirationDate(parts.date);
+              setEditExpirationHour(parts.hour);
+              setEditExpirationMinute(parts.minute);
+              setEditNeverExpires(!keyInfo.expiration);
+              setEditBucketPermission('default');
+              setEditError('');
               setEditDialogOpen(true);
             }}
           >
@@ -263,34 +348,57 @@ export function KeyDetail() {
               <div className="font-medium">{keyInfo.name || '-'}</div>
             </div>
             <div>
+              <div className="text-sm text-muted-foreground">Create Bucket</div>
+              <div>
+                {keyInfo.permissions?.createBucket === true
+                  ? 'Allowed'
+                  : keyInfo.permissions?.createBucket === false
+                    ? 'Denied'
+                    : 'Default'}
+              </div>
+            </div>
+            <div>
               <div className="text-sm text-muted-foreground">Created</div>
-              <div>{formatDateTime(keyInfo.created)}</div>
+              <div>{formatDateTime24h(keyInfo.created)}</div>
             </div>
             <div>
               <div className="text-sm text-muted-foreground">Expiration</div>
-              <div>{formatDateTime(keyInfo.expiration) || 'Never'}</div>
+              <div>{keyInfo.expiration ? formatDateTime24h(keyInfo.expiration) : 'Never'}</div>
             </div>
           </div>
 
           {/* Secret Key Section */}
           <div className="pt-4 border-t">
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-2 gap-3">
               <Label>Secret Access Key</Label>
-              {!secretKey && !secretLoading && (
-                <Button variant="outline" size="sm" onClick={handleRevealSecret}>
+              {secretKey ? (
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={handleHideSecret}>
+                    Hide
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleCopySecret}>
+                    Copy
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRevealSecret}
+                  disabled={secretLoading}
+                >
                   <Eye className="h-4 w-4 mr-2" />
-                  Reveal Secret
+                  {secretLoading ? 'Loading...' : 'Reveal Secret'}
                 </Button>
               )}
             </div>
-            {secretLoading ? (
-              <div className="text-sm text-muted-foreground">Loading secret...</div>
-            ) : secretKey ? (
-              <SecretReveal label="Secret Access Key" value={secretKey} />
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Click "Reveal Secret" to show the secret access key. This will make a secure request
-                to the cluster.
+            <div className="rounded-md border bg-muted/20 px-3 py-2 text-sm font-mono break-all">
+              {secretLoading ? 'Loading...' : secretKey || '••••••••••••••••'}
+            </div>
+            {!secretKey && !secretLoading && (
+              <p className="text-sm text-muted-foreground mt-2">
+                Click "Reveal Secret" to show the secret access key. This will make a secure
+                request to the cluster.
               </p>
             )}
           </div>
@@ -469,11 +577,17 @@ export function KeyDetail() {
       </Card>
 
       {/* Edit Name Dialog */}
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+      <Dialog
+        open={editDialogOpen}
+        onOpenChange={(open) => {
+          setEditDialogOpen(open);
+          if (!open) setEditError('');
+        }}
+      >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Key Name</DialogTitle>
-            <DialogDescription>Update the display name for this access key</DialogDescription>
+            <DialogTitle>Edit Access Key</DialogTitle>
+            <DialogDescription>Update settings for this access key</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -484,12 +598,118 @@ export function KeyDetail() {
                 placeholder="my-app-key"
               />
             </div>
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label>Expiration (24h)</Label>
+                <div className="flex flex-wrap items-end gap-3">
+                  <div className="space-y-1">
+                    <div className="text-xs text-muted-foreground">Date</div>
+                    <Input
+                      type="date"
+                      value={editExpirationDate}
+                      onChange={(e) => setEditExpirationDate(e.target.value)}
+                      disabled={editNeverExpires}
+                      className="min-w-[170px]"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="text-xs text-muted-foreground">Time</div>
+                    <div className="flex items-center gap-2">
+                      <Select
+                        value={editExpirationHour}
+                        onValueChange={setEditExpirationHour}
+                        disabled={editNeverExpires}
+                      >
+                        <SelectTrigger className="w-[84px]">
+                          <SelectValue placeholder="HH" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {HOUR_OPTIONS.map((hour) => (
+                            <SelectItem key={hour} value={hour}>
+                              {hour}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <span className="text-sm text-muted-foreground">:</span>
+                      <Select
+                        value={editExpirationMinute}
+                        onValueChange={setEditExpirationMinute}
+                        disabled={editNeverExpires}
+                      >
+                        <SelectTrigger className="w-[84px]">
+                          <SelectValue placeholder="MM" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {MINUTE_OPTIONS.map((minute) => (
+                            <SelectItem key={minute} value={minute}>
+                              {minute}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Current: {keyInfo.expiration ? formatDateTime24h(keyInfo.expiration) : 'Never'}
+                </p>
+                {editExpirationInvalid && (
+                  <p className="text-xs text-destructive">Invalid date and time.</p>
+                )}
+              </div>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={editNeverExpires}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setEditNeverExpires(checked);
+                    if (checked) {
+                      setEditExpirationDate('');
+                      setEditExpirationHour('00');
+                      setEditExpirationMinute('00');
+                    }
+                  }}
+                  className="h-4 w-4 cursor-pointer"
+                />
+                Never expires
+              </label>
+            </div>
+            <div className="space-y-2">
+              <Label>Bucket Creation Permission</Label>
+              <Select
+                value={editBucketPermission}
+                onValueChange={(value) =>
+                  setEditBucketPermission(value as 'default' | 'allow' | 'deny')
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Default" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="default">No change</SelectItem>
+                  <SelectItem value="allow">Allow create bucket</SelectItem>
+                  <SelectItem value="deny">Deny create bucket</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">Current: {currentBucketPermission}</p>
+            </div>
+            {editError && (
+              <Alert variant="destructive">
+                <AlertTitle>Update failed</AlertTitle>
+                <AlertDescription>{editError}</AlertDescription>
+              </Alert>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleUpdateName} disabled={updateKeyMutation.isPending}>
+            <Button
+              onClick={handleUpdateKey}
+              disabled={editExpirationInvalid || updateKeyMutation.isPending}
+            >
               {updateKeyMutation.isPending ? 'Saving...' : 'Save'}
             </Button>
           </DialogFooter>

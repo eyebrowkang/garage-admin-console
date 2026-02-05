@@ -32,7 +32,7 @@ import {
 } from '@/hooks/useAdminTokens';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { SecretReveal } from '@/components/cluster/SecretReveal';
-import { formatDateTime } from '@/lib/format';
+import { formatDateTime24h } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { toast } from '@/hooks/use-toast';
 import type { CreateAdminTokenResponse } from '@/types/garage';
@@ -128,11 +128,11 @@ export function AdminTokenList() {
               </div>
               <div>
                 <div className="text-sm text-muted-foreground">Created</div>
-                <div>{formatDateTime(currentToken.created)}</div>
+                <div>{formatDateTime24h(currentToken.created)}</div>
               </div>
               <div>
                 <div className="text-sm text-muted-foreground">Expires</div>
-                <div>{formatDateTime(currentToken.expiration) || 'Never'}</div>
+                <div>{formatDateTime24h(currentToken.expiration) || 'Never'}</div>
               </div>
             </div>
           </CardContent>
@@ -182,10 +182,10 @@ export function AdminTokenList() {
                       </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {formatDateTime(token.created) || '-'}
+                      {formatDateTime24h(token.created) || '-'}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {formatDateTime(token.expiration) || 'Never'}
+                      {formatDateTime24h(token.expiration) || 'Never'}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
