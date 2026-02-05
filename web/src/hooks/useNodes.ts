@@ -4,6 +4,7 @@ import type {
   GetClusterStatusResponse,
   MultiNodeResponse,
   NodeResp,
+  NodeInfoResponse,
   NodeStatisticsResponse,
   ConnectClusterNodesRequest,
   LaunchRepairOperationRequest,
@@ -21,12 +22,12 @@ export function useNodes(clusterId: string) {
   });
 }
 
-export function useNodeInfo(clusterId: string, nodeId?: string) {
-  return useQuery<MultiNodeResponse<NodeResp>>({
+export function useNodeInfo(clusterId: string, nodeId: string) {
+  return useQuery<MultiNodeResponse<NodeInfoResponse>>({
     queryKey: ['nodeInfo', clusterId, nodeId],
     queryFn: async () => {
-      const params = nodeId ? `?node=${encodeURIComponent(nodeId)}` : '';
-      const res = await api.get<MultiNodeResponse<NodeResp>>(
+      const params = `?node=${encodeURIComponent(nodeId)}`;
+      const res = await api.get<MultiNodeResponse<NodeInfoResponse>>(
         proxyPath(clusterId, `/v2/GetNodeInfo${params}`),
       );
       return res.data;
@@ -65,8 +66,9 @@ export function useConnectNodes(clusterId: string) {
 
 export function useCreateMetadataSnapshot(clusterId: string) {
   return useMutation({
-    mutationFn: async (nodeId?: string) => {
-      const params = nodeId ? `?node=${encodeURIComponent(nodeId)}` : '';
+    mutationFn: async (nodeId: string) => {
+      const target = nodeId || '*';
+      const params = `?node=${encodeURIComponent(target)}`;
       await api.post(proxyPath(clusterId, `/v2/CreateMetadataSnapshot${params}`));
     },
   });
@@ -75,9 +77,10 @@ export function useCreateMetadataSnapshot(clusterId: string) {
 export function useLaunchRepairOperation(clusterId: string) {
   return useMutation({
     mutationFn: async (data: LaunchRepairOperationRequest & { nodeId?: string }) => {
-      const params = data.nodeId ? `?node=${encodeURIComponent(data.nodeId)}` : '';
+      const target = data.nodeId || '*';
+      const params = `?node=${encodeURIComponent(target)}`;
       await api.post(proxyPath(clusterId, `/v2/LaunchRepairOperation${params}`), {
-        operation: data.operation,
+        repairType: data.repairType,
       });
     },
   });

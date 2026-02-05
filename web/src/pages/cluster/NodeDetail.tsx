@@ -24,6 +24,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useClusterContext } from '@/contexts/ClusterContext';
 import {
   useNodes,
+  useNodeInfo,
   useNodeStatistics,
   useCreateMetadataSnapshot,
   useLaunchRepairOperation,
@@ -37,10 +38,28 @@ const REPAIR_OPERATIONS = [
   { value: 'tables', label: 'Tables', description: 'Verify and repair all metadata tables' },
   { value: 'blocks', label: 'Blocks', description: 'Verify block integrity and rebalance' },
   { value: 'versions', label: 'Versions', description: 'Verify object versions consistency' },
-  { value: 'block_refs', label: 'Block Refs', description: 'Verify block reference counts' },
-  { value: 'block_rc', label: 'Block RC', description: 'Recalculate block reference counts' },
+  {
+    value: 'multipartUploads',
+    label: 'Multipart Uploads',
+    description: 'Repair multipart upload metadata',
+  },
+  { value: 'blockRefs', label: 'Block Refs', description: 'Verify block reference counts' },
+  { value: 'blockRc', label: 'Block RC', description: 'Recalculate block reference counts' },
   { value: 'rebalance', label: 'Rebalance', description: 'Rebalance data across nodes' },
+  { value: 'aliases', label: 'Aliases', description: 'Rebuild bucket alias metadata' },
+  {
+    value: 'clearResyncQueue',
+    label: 'Clear Resync Queue',
+    description: 'Clear pending resync tasks',
+  },
   { value: 'scrub', label: 'Scrub', description: 'Full data scrub and verification' },
+];
+
+const SCRUB_COMMANDS = [
+  { value: 'start', label: 'Start' },
+  { value: 'pause', label: 'Pause' },
+  { value: 'resume', label: 'Resume' },
+  { value: 'cancel', label: 'Cancel' },
 ];
 
 export function NodeDetail() {
@@ -50,9 +69,19 @@ export function NodeDetail() {
   const [snapshotDialogOpen, setSnapshotDialogOpen] = useState(false);
   const [repairDialogOpen, setRepairDialogOpen] = useState(false);
   const [selectedRepairOp, setSelectedRepairOp] = useState('tables');
+  const [scrubCommand, setScrubCommand] = useState<'start' | 'pause' | 'resume' | 'cancel'>(
+    'start',
+  );
 
   const { data: status, isLoading, error } = useNodes(clusterId);
-  const { data: stats } = useNodeStatistics(clusterId, nid);
+  const { data: nodeInfo, isLoading: infoLoading, error: infoError } = useNodeInfo(
+    clusterId,
+    nid || '',
+  );
+  const { data: stats, isLoading: statsLoading, error: statsError } = useNodeStatistics(
+    clusterId,
+    nid,
+  );
   const snapshotMutation = useCreateMetadataSnapshot(clusterId);
   const repairMutation = useLaunchRepairOperation(clusterId);
 
@@ -74,6 +103,8 @@ export function NodeDetail() {
   }
 
   const node = status?.nodes.find((n) => n.id === nid);
+  const nodeInfoData = nodeInfo?.success?.[nid];
+  const nodeInfoError = nodeInfo?.error?.[nid];
 
   if (!node) {
     return <div className="p-4">Node not found</div>;
@@ -95,10 +126,15 @@ export function NodeDetail() {
 
   const handleRepair = async () => {
     try {
-      await repairMutation.mutateAsync({ operation: selectedRepairOp, nodeId: nid });
+      const repairType =
+        selectedRepairOp === 'scrub' ? { scrub: scrubCommand } : selectedRepairOp;
+      const repairLabel =
+        REPAIR_OPERATIONS.find((op) => op.value === selectedRepairOp)?.label ?? selectedRepairOp;
+      const repairSuffix = selectedRepairOp === 'scrub' ? ` (${scrubCommand})` : '';
+      await repairMutation.mutateAsync({ repairType, nodeId: nid });
       toast({
         title: 'Repair operation started',
-        description: `${selectedRepairOp} operation has been launched`,
+        description: `${repairLabel}${repairSuffix} operation has been launched`,
       });
       setRepairDialogOpen(false);
     } catch (err) {
@@ -111,6 +147,7 @@ export function NodeDetail() {
   };
 
   const nodeStats = stats?.success?.[nid];
+  const nodeStatsError = stats?.error?.[nid];
 
   return (
     <div className="space-y-6">
@@ -205,6 +242,63 @@ export function NodeDetail() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Node Info</CardTitle>
+          <CardDescription>Garage daemon details for this node</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {infoLoading ? (
+            <div className="text-sm text-muted-foreground">Loading node info...</div>
+          ) : infoError ? (
+            <Alert variant="destructive">
+              <AlertTitle>Failed to load node info</AlertTitle>
+              <AlertDescription>{getApiErrorMessage(infoError)}</AlertDescription>
+            </Alert>
+          ) : nodeInfoError ? (
+            <Alert variant="destructive">
+              <AlertTitle>Node info unavailable</AlertTitle>
+              <AlertDescription>{nodeInfoError}</AlertDescription>
+            </Alert>
+          ) : nodeInfoData ? (
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <div className="text-sm text-muted-foreground">Garage Version</div>
+                <div className="font-medium">{nodeInfoData.garageVersion}</div>
+              </div>
+              <div>
+                <div className="text-sm text-muted-foreground">Rust Version</div>
+                <div className="font-medium">{nodeInfoData.rustVersion}</div>
+              </div>
+              <div>
+                <div className="text-sm text-muted-foreground">DB Engine</div>
+                <div className="font-medium">{nodeInfoData.dbEngine}</div>
+              </div>
+              <div>
+                <div className="text-sm text-muted-foreground">Node ID</div>
+                <div className="font-medium break-all">{nodeInfoData.nodeId}</div>
+              </div>
+              <div className="md:col-span-2">
+                <div className="text-sm text-muted-foreground">Features</div>
+                {nodeInfoData.garageFeatures && nodeInfoData.garageFeatures.length > 0 ? (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {nodeInfoData.garageFeatures.map((feature) => (
+                      <Badge key={feature} variant="outline">
+                        {feature}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-sm text-muted-foreground">No features reported</div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="text-sm text-muted-foreground">No node info available.</div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Role & Capacity */}
       {node.role && (
@@ -329,19 +423,31 @@ export function NodeDetail() {
       </div>
 
       {/* Node Statistics */}
-      {nodeStats && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Node Statistics</CardTitle>
-            <CardDescription>Detailed statistics from this node</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <pre className="text-xs bg-slate-50/80 border rounded-lg p-4 whitespace-pre-wrap break-words text-slate-700">
-              {nodeStats.freeform || 'No statistics available'}
+      <Card>
+        <CardHeader>
+          <CardTitle>Node Statistics</CardTitle>
+          <CardDescription>Detailed statistics from this node</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {statsLoading ? (
+            <div className="text-sm text-muted-foreground">Loading statistics...</div>
+          ) : statsError ? (
+            <Alert variant="destructive">
+              <AlertTitle>Failed to load statistics</AlertTitle>
+              <AlertDescription>{getApiErrorMessage(statsError)}</AlertDescription>
+            </Alert>
+          ) : nodeStatsError ? (
+            <Alert variant="destructive">
+              <AlertTitle>Statistics unavailable</AlertTitle>
+              <AlertDescription>{nodeStatsError}</AlertDescription>
+            </Alert>
+          ) : (
+            <pre className="text-xs leading-relaxed font-mono bg-slate-50 border border-slate-200 rounded-lg p-4 whitespace-pre overflow-auto max-h-[600px]">
+              {nodeStats?.freeform || 'No statistics available'}
             </pre>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
 
       {/* Snapshot Confirmation */}
       <ConfirmDialog
@@ -364,23 +470,40 @@ export function NodeDetail() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Operation Type</Label>
+              <Label>Repair Type</Label>
               <Select value={selectedRepairOp} onValueChange={setSelectedRepairOp}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {REPAIR_OPERATIONS.map((op) => (
                     <SelectItem key={op.value} value={op.value}>
-                      <div>
-                        <div className="font-medium">{op.label}</div>
-                        <div className="text-xs text-muted-foreground">{op.description}</div>
-                      </div>
+                      {op.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">
+                {REPAIR_OPERATIONS.find((op) => op.value === selectedRepairOp)?.description}
+              </p>
             </div>
+            {selectedRepairOp === 'scrub' && (
+              <div className="space-y-2">
+                <Label>Scrub Command</Label>
+                <Select value={scrubCommand} onValueChange={setScrubCommand}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SCRUB_COMMANDS.map((command) => (
+                      <SelectItem key={command.value} value={command.value}>
+                        {command.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRepairDialogOpen(false)}>

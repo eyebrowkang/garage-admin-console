@@ -204,6 +204,14 @@ export interface NodeResp {
   metadataPartition?: FreeSpaceResp | null;
 }
 
+export interface NodeInfoResponse {
+  nodeId: string;
+  garageVersion: string;
+  rustVersion: string;
+  dbEngine: string;
+  garageFeatures?: string[] | null;
+}
+
 export interface GetClusterStatusResponse {
   layoutVersion: number;
   nodes: NodeResp[];
@@ -228,8 +236,22 @@ export interface ConnectClusterNodesRequest {
   nodes: string[]; // Format: node_id@address
 }
 
+export type ScrubCommand = 'start' | 'pause' | 'resume' | 'cancel';
+
+export type RepairType =
+  | 'tables'
+  | 'blocks'
+  | 'versions'
+  | 'multipartUploads'
+  | 'blockRefs'
+  | 'blockRc'
+  | 'rebalance'
+  | 'aliases'
+  | 'clearResyncQueue'
+  | { scrub: ScrubCommand };
+
 export interface LaunchRepairOperationRequest {
-  operation: string;
+  repairType: RepairType;
 }
 
 export interface SkipDeadNodesRequest {
