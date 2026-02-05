@@ -336,9 +336,12 @@ export function ClusterOverview({ clusterId }: ClusterOverviewProps) {
               </div>
             </div>
             <div className="space-y-1">
-              <div className="text-sm text-muted-foreground">Pending Changes</div>
+              <div className="text-sm text-muted-foreground">Staged Changes</div>
               <div className="text-xl font-semibold">
-                {hasLayout ? layout?.stagedRoleChanges?.length ?? 0 : '-'}
+                {hasLayout
+                  ? (layout?.stagedRoleChanges?.length ?? 0) +
+                    (layout?.stagedParameters ? 1 : 0)
+                  : '-'}
               </div>
             </div>
           </div>

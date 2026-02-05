@@ -273,25 +273,59 @@ export interface GetClusterLayoutResponse {
   stagedRoleChanges: NodeRoleChange[];
 }
 
-export interface LayoutHistoryEntry {
+export interface ApplyClusterLayoutRequest {
   version: number;
-  applyDate: string;
-  roles: LayoutNodeRole[];
 }
 
-export interface LayoutHistory {
-  current: LayoutHistoryEntry;
-  versions: LayoutHistoryEntry[];
+export interface ApplyClusterLayoutResponse {
+  message: string[];
+  layout: GetClusterLayoutResponse;
 }
 
-export interface LayoutPreviewResponse {
-  layout: {
-    version: number;
-    roles: LayoutNodeRole[];
-    parameters: LayoutParameters;
-    partitionSize: number;
-  };
-  messages: string[];
+export interface UpdateClusterLayoutRequest {
+  parameters?: LayoutParameters | null;
+  roles?: NodeRoleChange[];
+}
+
+export type PreviewClusterLayoutChangesResponse =
+  | {
+      error: string;
+    }
+  | {
+      message: string[];
+      newLayout: GetClusterLayoutResponse;
+    };
+
+export interface ClusterLayoutSkipDeadNodesRequest {
+  version: number;
+  allowMissingData: boolean;
+}
+
+export interface ClusterLayoutSkipDeadNodesResponse {
+  ackUpdated: string[];
+  syncUpdated: string[];
+}
+
+export type ClusterLayoutVersionStatus = 'Current' | 'Draining' | 'Historical';
+
+export interface ClusterLayoutVersion {
+  version: number;
+  status: ClusterLayoutVersionStatus;
+  storageNodes: number;
+  gatewayNodes: number;
+}
+
+export interface NodeUpdateTrackers {
+  ack: number;
+  sync: number;
+  syncAck: number;
+}
+
+export interface GetClusterLayoutHistoryResponse {
+  currentVersion: number;
+  minAck: number;
+  updateTrackers?: Record<string, NodeUpdateTrackers> | null;
+  versions: ClusterLayoutVersion[];
 }
 
 // Admin Token types
