@@ -33,6 +33,7 @@ import { api, proxyPath } from '@/lib/api';
 import { formatDateTime24h, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
+import { CopyButton } from '@/components/cluster/CopyButton';
 import { InlineLoadingState } from '@/components/cluster/InlineLoadingState';
 import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
@@ -286,13 +287,19 @@ export function BucketList({ clusterId }: BucketListProps) {
                 className="cursor-pointer hover:bg-muted/50"
                 onClick={() => navigate(`/clusters/${clusterId}/buckets/${bucket.id}`)}
               >
-                <TableCell className="text-xs">{formatShortId(bucket.id, 10)}</TableCell>
+                <TableCell className="text-xs">
+                  <div className="inline-flex items-center gap-1">
+                    <span>{formatShortId(bucket.id, 10)}</span>
+                    <CopyButton value={bucket.id} label="Bucket ID" compact />
+                  </div>
+                </TableCell>
                 <TableCell>
                   <div className="flex flex-wrap gap-1">
                     {bucket.globalAliases.length > 0 ? (
                       bucket.globalAliases.map((alias) => (
-                        <Badge key={alias} variant="secondary">
+                        <Badge key={alias} variant="secondary" className="gap-1">
                           {alias}
+                          <CopyButton value={alias} label="Global alias" compact />
                         </Badge>
                       ))
                     ) : (
@@ -304,8 +311,13 @@ export function BucketList({ clusterId }: BucketListProps) {
                   <div className="flex flex-wrap gap-1">
                     {bucket.localAliases.length > 0 ? (
                       bucket.localAliases.map((alias) => (
-                        <Badge key={`${alias.accessKeyId}-${alias.alias}`} variant="outline">
+                        <Badge
+                          key={`${alias.accessKeyId}-${alias.alias}`}
+                          variant="outline"
+                          className="gap-1"
+                        >
                           {alias.alias}
+                          <CopyButton value={alias.alias} label="Local alias" compact />
                         </Badge>
                       ))
                     ) : (

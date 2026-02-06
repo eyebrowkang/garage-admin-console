@@ -34,6 +34,7 @@ import { api, proxyPath } from '@/lib/api';
 import { formatBytes, formatRelativeSeconds, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
+import { CopyButton } from '@/components/cluster/CopyButton';
 import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
 import { ConnectActionIcon, RepairActionIcon, SnapshotActionIcon } from '@/lib/action-icons';
@@ -293,9 +294,23 @@ node_id@address`}
                 className="cursor-pointer hover:bg-muted/50"
                 onClick={() => navigate(`/clusters/${clusterId}/nodes/${node.id}`)}
               >
-                <TableCell className="text-xs">{formatShortId(node.id, 10)}</TableCell>
+                <TableCell className="text-xs">
+                  <div className="inline-flex items-center gap-1">
+                    <span>{formatShortId(node.id, 10)}</span>
+                    <CopyButton value={node.id} label="Node ID" compact />
+                  </div>
+                </TableCell>
                 <TableCell>{node.hostname || '-'}</TableCell>
-                <TableCell className="text-xs text-muted-foreground">{node.addr || '-'}</TableCell>
+                <TableCell className="text-xs text-muted-foreground">
+                  {node.addr ? (
+                    <div className="inline-flex items-center gap-1">
+                      <span>{node.addr}</span>
+                      <CopyButton value={node.addr} label="Node address" compact />
+                    </div>
+                  ) : (
+                    '-'
+                  )}
+                </TableCell>
                 <TableCell>
                   <div className="flex flex-col gap-1">
                     {getStatusBadge(node)}

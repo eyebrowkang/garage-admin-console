@@ -34,6 +34,7 @@ import { api, proxyPath } from '@/lib/api';
 import { formatDateTime24h, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
+import { CopyButton } from '@/components/cluster/CopyButton';
 import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
 import { AddActionIcon, CopyActionIcon, DeleteActionIcon } from '@/lib/action-icons';
@@ -447,7 +448,12 @@ export function KeyList({ clusterId }: KeyListProps) {
                 className="cursor-pointer hover:bg-muted/50"
                 onClick={() => navigate(`/clusters/${clusterId}/keys/${k.id}`)}
               >
-                <TableCell className="text-xs">{formatShortId(k.id, 12)}</TableCell>
+                <TableCell className="text-xs">
+                  <div className="inline-flex items-center gap-1">
+                    <span>{formatShortId(k.id, 12)}</span>
+                    <CopyButton value={k.id} label="Access key ID" compact />
+                  </div>
+                </TableCell>
                 <TableCell>{k.name || '-'}</TableCell>
                 <TableCell>
                   {k.expired ? (

@@ -30,6 +30,7 @@ import {
   useLaunchRepairOperation,
 } from '@/hooks/useNodes';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
+import { CopyButton } from '@/components/cluster/CopyButton';
 import { DetailPageHeader } from '@/components/cluster/DetailPageHeader';
 import { InlineLoadingState } from '@/components/cluster/InlineLoadingState';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
@@ -227,7 +228,14 @@ export function NodeDetail() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-lg">{node.addr || '-'}</div>
+            {node.addr ? (
+              <div className="inline-flex items-center gap-1 text-lg">
+                <span>{node.addr}</span>
+                <CopyButton value={node.addr} label="Node address" />
+              </div>
+            ) : (
+              <div className="text-lg">-</div>
+            )}
           </CardContent>
         </Card>
 
@@ -290,7 +298,10 @@ export function NodeDetail() {
               </div>
               <div>
                 <div className="text-sm text-muted-foreground">Node ID</div>
-                <div className="font-medium break-all">{nodeInfoData.nodeId}</div>
+                <div className="inline-flex items-center gap-1 font-medium break-all">
+                  <span>{nodeInfoData.nodeId}</span>
+                  <CopyButton value={nodeInfoData.nodeId} label="Node ID" />
+                </div>
               </div>
               <div className="md:col-span-2">
                 <div className="text-sm text-muted-foreground">Features</div>

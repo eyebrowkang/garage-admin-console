@@ -41,6 +41,7 @@ import {
   useInspectObject,
 } from '@/hooks/useBuckets';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
+import { CopyButton } from '@/components/cluster/CopyButton';
 import { DetailPageHeader } from '@/components/cluster/DetailPageHeader';
 import { JsonViewer } from '@/components/cluster/JsonViewer';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
@@ -308,6 +309,7 @@ export function BucketDetail() {
                   bucket.globalAliases.map((alias) => (
                     <Badge key={alias} variant="secondary" className="gap-1">
                       {alias}
+                      <CopyButton value={alias} label="Global alias" compact />
                       <button
                         onClick={() => setRemoveAliasConfirm({ alias })}
                         className="ml-1 hover:text-destructive"
@@ -335,6 +337,7 @@ export function BucketDetail() {
                       <span className="text-[10px] text-muted-foreground">
                         {alias.keyName || formatShortId(alias.accessKeyId, 10)}
                       </span>
+                      <CopyButton value={alias.alias} label="Local alias" compact />
                       <button
                         onClick={() =>
                           setRemoveAliasConfirm({
@@ -381,7 +384,12 @@ export function BucketDetail() {
               <TableBody>
                 {bucket.keys.map((key) => (
                   <TableRow key={key.accessKeyId}>
-                    <TableCell className="text-xs">{key.accessKeyId.slice(0, 12)}...</TableCell>
+                    <TableCell className="text-xs">
+                      <div className="inline-flex items-center gap-1">
+                        <span>{key.accessKeyId.slice(0, 12)}...</span>
+                        <CopyButton value={key.accessKeyId} label="Access key ID" compact />
+                      </div>
+                    </TableCell>
                     <TableCell>{key.name || '-'}</TableCell>
                     <TableCell className="text-center">
                       {key.permissions.read ? (

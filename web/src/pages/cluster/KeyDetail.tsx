@@ -35,6 +35,7 @@ import { useKeyInfo, useUpdateKey, useDeleteKey } from '@/hooks/useKeys';
 import { useBuckets } from '@/hooks/useBuckets';
 import { useAllowBucketKey, useDenyBucketKey } from '@/hooks/usePermissions';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
+import { CopyButton } from '@/components/cluster/CopyButton';
 import { DetailPageHeader } from '@/components/cluster/DetailPageHeader';
 import { InlineLoadingState } from '@/components/cluster/InlineLoadingState';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
@@ -350,7 +351,10 @@ export function KeyDetail() {
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <div className="text-sm text-muted-foreground">Access Key ID</div>
-              <div>{keyInfo.accessKeyId}</div>
+              <div className="inline-flex items-center gap-1">
+                <span>{keyInfo.accessKeyId}</span>
+                <CopyButton value={keyInfo.accessKeyId} label="Access key ID" />
+              </div>
             </div>
             <div>
               <div className="text-sm text-muted-foreground">Name</div>
