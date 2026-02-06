@@ -96,8 +96,10 @@ garage-admin-console/
 ├── api/                 # Backend-For-Frontend (Express + Prisma)
 ├── web/                 # Frontend SPA (React + Vite)
 ├── e2e/                 # End-to-end tests (Playwright)
-└── garage-admin-v2.json # Garage Admin API OpenAPI specification
+└── web/public/garage-admin-v2.json # Garage Admin API OpenAPI specification
 ```
+
+OpenAPI spec is served by the frontend at `/garage-admin-v2.json`.
 
 ## Architecture
 

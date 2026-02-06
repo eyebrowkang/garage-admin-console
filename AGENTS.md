@@ -96,7 +96,7 @@ Pages at different hierarchy levels should have slight differences.
 
 ## Key Files
 
-- `garage-admin-v2.json` — Garage OpenAPI spec (reference for all admin API endpoints)
+- `web/public/garage-admin-v2.json` — Garage OpenAPI spec (reference for all admin API endpoints)
 - `api/src/encryption.ts` — AES-256-GCM encrypt/decrypt for Garage tokens
 - `api/src/middleware/auth.middleware.ts` — JWT verification middleware
 - `api/src/db.ts` — Prisma client initialization with LibSQL adapter

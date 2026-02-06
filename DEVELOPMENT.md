@@ -183,7 +183,7 @@ garage-admin-console/
 ├── pnpm-workspace.yaml
 ├── playwright.config.ts
 ├── prettier.config.cjs
-└── garage-admin-v2.json          # Garage OpenAPI spec
+└── web/public/garage-admin-v2.json # Garage OpenAPI spec
 ```
 
 ---
@@ -478,7 +478,7 @@ pnpm -C web build
 
 ### Adding a New Garage API Integration
 
-1. Check `garage-admin-v2.json` for endpoint specification
+1. Check `web/public/garage-admin-v2.json` for endpoint specification
 2. Add TypeScript types to `web/src/types/garage.ts`
 3. Create or update hook in `web/src/hooks/`
 4. Update relevant page components
