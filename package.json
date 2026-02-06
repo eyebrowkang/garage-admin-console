@@ -3,6 +3,9 @@
   "private": true,
   "license": "AGPL-3.0-only",
   "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=24.0.0"
+  },
   "scripts": {
     "build": "pnpm -C api build && pnpm -C web build",
     "dev": "pnpm -r --parallel --filter api --filter web dev",
@@ -12,7 +15,7 @@
     "format:check": "pnpm -C api format:check && pnpm -C web format:check"
   },
   "devDependencies": {
-    "@playwright/test": "^1.58.0",
-    "playwright": "^1.58.0"
+    "@playwright/test": "^1.58.1",
+    "playwright": "^1.58.1"
   }
 }
