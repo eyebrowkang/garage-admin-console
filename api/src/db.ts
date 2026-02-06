@@ -4,7 +4,8 @@ import { createClient } from '@libsql/client';
 
 import path from 'path';
 
-const dbPath = path.resolve(process.cwd(), 'data.db');
+const dataDir = process.env.DATA_DIR || process.cwd();
+const dbPath = path.resolve(dataDir, 'data.db');
 const dbUrl = `file:${dbPath}`;
 
 // Use fixed database name and ignore external DATABASE_URL overrides.

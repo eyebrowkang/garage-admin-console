@@ -1,0 +1,20 @@
+services:
+  garage-admin-console:
+    build: .
+    # image: garage-admin-console:latest  # use this instead of build when using a pre-built image
+    ports:
+      - '3001:3001'
+    volumes:
+      - garage-data:/data
+    environment:
+      # Required — change all three values before starting
+      - JWT_SECRET=change-me-to-a-random-string
+      - ENCRYPTION_KEY=change-me-exactly-32-characters!!
+      - ADMIN_PASSWORD=change-me-admin-password
+      # Optional
+      # - PORT=3001
+      # - LOG_LEVEL=info
+    restart: unless-stopped
+
+volumes:
+  garage-data:

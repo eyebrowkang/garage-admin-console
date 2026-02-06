@@ -16,11 +16,53 @@ A modern web-based administration interface for managing [Garage](https://garage
 - **Admin Token Management** - Manage API tokens with scoped permissions
 - **Secure Credential Storage** - AES-256-GCM encrypted storage for Garage admin tokens
 
-## Quick Start
+## Quick Start (Docker)
+
+The easiest way to run the console is with Docker. A single image bundles both the frontend and API.
+
+### Using Docker Compose
+
+```bash
+# Clone the repository
+git clone https://github.com/your-org/garage-admin-console.git
+cd garage-admin-console
+
+# Edit docker-compose.yml — change the three required environment variables
+# Then start the service:
+docker compose up -d
+```
+
+The console is available at **http://localhost:3001**.
+
+See `docker-compose.yml` for all available options. At minimum you must set:
+
+| Variable | Description |
+|----------|-------------|
+| `JWT_SECRET` | Random string for JWT signing |
+| `ENCRYPTION_KEY` | Exactly 32 characters for AES-256 encryption |
+| `ADMIN_PASSWORD` | Console login password |
+
+Data is persisted in the `/data` volume (SQLite database).
+
+### Using Docker Run
+
+```bash
+docker build -t garage-admin-console .
+
+docker run -d \
+  -p 3001:3001 \
+  -v garage-data:/data \
+  -e JWT_SECRET=change-me-to-a-random-string \
+  -e ENCRYPTION_KEY=change-me-exactly-32-characters!! \
+  -e ADMIN_PASSWORD=change-me-admin-password \
+  garage-admin-console
+```
+
+## Development Setup
 
 ### Prerequisites
 
-- Node.js 20+
+- Node.js 24+
 - pnpm 10+
 
 ### Installation
@@ -51,9 +93,9 @@ Edit `api/.env` with your settings. See `api/.env.example` for all available var
 pnpm -C api db:push
 ```
 
-The database file is fixed to `api/data.db` and will be created automatically if missing.
+The database file is created at `api/data.db` automatically.
 
-### Development
+### Running
 
 ```bash
 pnpm dev
@@ -113,7 +155,7 @@ Browser → Frontend → BFF API → Garage Cluster
 ## Security Notes
 
 - Deploy behind a reverse proxy with HTTPS in production
-- Use strong, unique values for `JWT_SECRET` and `ENCRYPTION_KEY`
+- Use strong, unique values for `JWT_SECRET`, `ENCRYPTION_KEY`, and `ADMIN_PASSWORD`
 - The console is designed for internal network deployment
 - Consider additional authentication layers (VPN, SSO) for production use
 

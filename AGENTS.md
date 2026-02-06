@@ -107,6 +107,10 @@ Pages at different hierarchy levels should have slight differences.
 - `web/src/types/garage.ts` — TypeScript interfaces for Garage API responses
 - `web/src/lib/api.ts` — Axios instance, interceptors, `proxyPath()` helper
 
+## Docker
+
+The project builds as a single Docker image (see `Dockerfile`). The image serves both the API and frontend from one Express process. Key production environment variables: `DATA_DIR` (database directory, default `/data`), `STATIC_DIR` (frontend files, default `/app/static`). See `docker-compose.yml` for a complete example.
+
 ## Environment Variables (api/.env)
 
 See `api/.env.example` for all variables. Validation logic is in `api/src/config/env.ts`.

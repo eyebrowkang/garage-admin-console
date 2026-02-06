@@ -13,6 +13,7 @@ This document provides comprehensive guidance for developers working on the Gara
 - [Database Management](#database-management)
 - [Code Style](#code-style)
 - [Common Tasks](#common-tasks)
+- [Docker Build](#docker-build)
 - [Troubleshooting](#troubleshooting)
 
 ---
@@ -74,7 +75,7 @@ The Garage Admin Console follows a **Backend-For-Frontend (BFF)** proxy pattern:
 
 ### Prerequisites
 
-- **Node.js** 20.x or later
+- **Node.js** 24.x or later
 - **pnpm** 10.x or later
 
 ### Initial Setup
@@ -114,7 +115,7 @@ Create `api/.env` from `api/.env.example`. Available variables:
 | `LOG_LEVEL` | No | System log level: fatal, error, warn, info, debug, trace, silent (default: `info`) |
 | `MORGAN_FORMAT` | No | HTTP log format for morgan, or `off` to disable (default: `dev` in development) |
 
-Environment validation is handled in `api/src/config/env.ts`. The database file is fixed to `api/data.db` and is not configurable.
+Environment validation is handled in `api/src/config/env.ts`. In development, the database is stored at `api/data.db`. In Docker, the `DATA_DIR` environment variable controls the database location (defaults to `/data`).
 
 ### Development Servers
 
@@ -420,6 +421,56 @@ For custom cluster components: create in `web/src/components/cluster/`.
 2. Add TypeScript types to `web/src/types/garage.ts`
 3. Create or update hook in `web/src/hooks/`
 4. Update relevant page components
+
+---
+
+## Docker Build
+
+### How It Works
+
+The `Dockerfile` uses a multi-stage build to produce a single image containing both the API and frontend:
+
+1. **Build stage** (`node:24-alpine`) — installs dependencies, compiles TypeScript, builds the Vite frontend, and creates a standalone production deployment using `pnpm deploy --legacy`
+2. **Production stage** (`node:24-alpine`) — copies the deployed API (with production-only `node_modules`) and the built frontend static files
+
+In production, the Express server serves the frontend from `/app/static/` with SPA fallback (see `api/src/index.ts`). The frontend is built with `VITE_API_BASE_URL=/` so API requests go directly to the same origin — no separate reverse proxy is needed.
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `Dockerfile` | Multi-stage build definition |
+| `docker-compose.yml` | Example Compose configuration |
+| `.dockerignore` | Files excluded from build context |
+
+### Building
+
+```bash
+docker build -t garage-admin-console .
+```
+
+### Environment Variables (Production)
+
+These variables are set in `docker-compose.yml` or passed via `docker run -e`:
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `JWT_SECRET` | Yes | — | Secret for JWT signing |
+| `ENCRYPTION_KEY` | Yes | — | AES-256 key (exactly 32 characters) |
+| `ADMIN_PASSWORD` | Yes | — | Console login password |
+| `PORT` | No | `3001` | Server port |
+| `LOG_LEVEL` | No | `info` | Log level |
+| `DATA_DIR` | No | `/data` | Directory for SQLite database |
+| `STATIC_DIR` | No | `/app/static` | Directory for frontend files |
+
+### Data Persistence
+
+The SQLite database is stored in the `DATA_DIR` directory (`/data` by default). Mount a volume to this path to persist data across container restarts:
+
+```yaml
+volumes:
+  - garage-data:/data
+```
 
 ---
 
