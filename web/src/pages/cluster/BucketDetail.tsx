@@ -301,60 +301,85 @@ export function BucketDetail() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            <div>
-              <h4 className="text-sm font-medium mb-2">Global Aliases</h4>
-              <div className="flex flex-wrap gap-2">
-                {bucket.globalAliases.length > 0 ? (
-                  bucket.globalAliases.map((alias) => (
-                    <Badge key={alias} variant="secondary" className="gap-1">
-                      {alias}
-                      <CopyButton value={alias} label="Global alias" compact />
-                      <button
-                        onClick={() => setRemoveAliasConfirm({ alias })}
-                        className="ml-1 hover:text-destructive"
-                      >
-                        <DeleteActionIcon className="h-3 w-3" />
-                      </button>
-                    </Badge>
-                  ))
-                ) : (
-                  <span className="text-sm text-muted-foreground">No global aliases</span>
-                )}
-              </div>
-            </div>
-            <div>
-              <h4 className="text-sm font-medium mb-2">Local Aliases</h4>
-              <div className="flex flex-wrap gap-2">
-                {localAliases.length > 0 ? (
-                  localAliases.map((alias) => (
-                    <Badge
-                      key={`${alias.accessKeyId}-${alias.alias}`}
-                      variant="outline"
-                      className="gap-1"
+          <div className="space-y-5">
+            <div className="space-y-2.5">
+              <h4 className="text-sm font-medium">Global Aliases</h4>
+              {bucket.globalAliases.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {bucket.globalAliases.map((alias) => (
+                    <div
+                      key={alias}
+                      className="group inline-flex items-center gap-2 rounded-md border bg-muted/20 px-2.5 py-1.5 text-sm"
                     >
-                      {alias.alias}
-                      <span className="text-[10px] text-muted-foreground">
-                        {alias.keyName || formatShortId(alias.accessKeyId, 10)}
-                      </span>
-                      <CopyButton value={alias.alias} label="Local alias" compact />
-                      <button
-                        onClick={() =>
-                          setRemoveAliasConfirm({
-                            alias: alias.alias,
-                            accessKeyId: alias.accessKeyId,
-                          })
-                        }
-                        className="ml-1 hover:text-destructive"
-                      >
-                        <DeleteActionIcon className="h-3 w-3" />
-                      </button>
-                    </Badge>
-                  ))
-                ) : (
-                  <span className="text-sm text-muted-foreground">No local aliases</span>
-                )}
-              </div>
+                      <span className="font-medium">{alias}</span>
+                      <div className="ml-1 flex items-center gap-0.5 border-l border-border/60 pl-1">
+                        <CopyButton
+                          value={alias}
+                          label="Global alias"
+                          compact
+                          className="h-5 w-5 rounded-sm"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5 rounded-sm text-muted-foreground hover:text-destructive"
+                          onClick={() => setRemoveAliasConfirm({ alias })}
+                        >
+                          <DeleteActionIcon className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <span className="text-sm text-muted-foreground">No global aliases</span>
+              )}
+            </div>
+
+            <div className="space-y-2.5">
+              <h4 className="text-sm font-medium">Local Aliases</h4>
+              {localAliases.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {localAliases.map((alias) => (
+                    <div
+                      key={`${alias.accessKeyId}-${alias.alias}`}
+                      className="group inline-flex items-center gap-2 rounded-md border bg-background px-2.5 py-1.5"
+                    >
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium leading-none">{alias.alias}</div>
+                        <div className="mt-1 text-[11px] leading-none text-muted-foreground">
+                          {alias.keyName || formatShortId(alias.accessKeyId, 10)}
+                        </div>
+                      </div>
+                      <div className="ml-1 flex items-center gap-0.5 border-l border-border/60 pl-1">
+                        <CopyButton
+                          value={alias.alias}
+                          label="Local alias"
+                          compact
+                          className="h-5 w-5 rounded-sm"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5 rounded-sm text-muted-foreground hover:text-destructive"
+                          onClick={() =>
+                            setRemoveAliasConfirm({
+                              alias: alias.alias,
+                              accessKeyId: alias.accessKeyId,
+                            })
+                          }
+                        >
+                          <DeleteActionIcon className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <span className="text-sm text-muted-foreground">No local aliases</span>
+              )}
             </div>
           </div>
         </CardContent>
