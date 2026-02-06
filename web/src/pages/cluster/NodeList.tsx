@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Server, Link2, Camera, Wrench } from 'lucide-react';
+import { Server, Link2, Camera, Wrench } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -23,6 +23,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -35,6 +36,7 @@ import { formatBytes, formatRelativeSeconds, formatShortId } from '@/lib/format'
 import { getApiErrorMessage } from '@/lib/errors';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
+import { PageLoadingState } from '@/components/cluster/PageLoadingState';
 import { toast } from '@/hooks/use-toast';
 import {
   useConnectNodes,
@@ -100,12 +102,7 @@ export function ClusterNodeList({ clusterId }: NodeListProps) {
     },
   });
 
-  if (isLoading)
-    return (
-      <div className="flex justify-center p-4">
-        <Loader2 className="animate-spin" />
-      </div>
-    );
+  if (isLoading) return <PageLoadingState label="Loading nodes..." />;
 
   if (error) {
     return (
@@ -193,7 +190,7 @@ export function ClusterNodeList({ clusterId }: NodeListProps) {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <ModulePageHeader
         title="Nodes"
         description="Cluster node inventory and cluster-wide node operations."
@@ -233,8 +230,8 @@ export function ClusterNodeList({ clusterId }: NodeListProps) {
                 </DialogHeader>
                 <div className="space-y-2">
                   <Label>Nodes</Label>
-                  <textarea
-                    className="min-h-[140px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 font-mono"
+                  <Textarea
+                    className="min-h-[140px] font-mono"
                     placeholder={`node_id@address
 node_id@address`}
                     value={connectNodesInput}

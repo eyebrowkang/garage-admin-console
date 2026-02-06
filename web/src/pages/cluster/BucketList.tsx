@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Trash2, Loader2, Plus } from 'lucide-react';
+import { Trash2, Plus } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -34,7 +34,9 @@ import { api, proxyPath } from '@/lib/api';
 import { formatDateTime24h, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
+import { InlineLoadingState } from '@/components/cluster/InlineLoadingState';
 import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
+import { PageLoadingState } from '@/components/cluster/PageLoadingState';
 import { toast } from '@/hooks/use-toast';
 import { useKeys } from '@/hooks/useKeys';
 import type { CreateBucketRequest, ListBucketsResponseItem } from '@/types/garage';
@@ -129,15 +131,10 @@ export function BucketList({ clusterId }: BucketListProps) {
     },
   });
 
-  if (isLoading)
-    return (
-      <div className="flex justify-center p-4">
-        <Loader2 className="animate-spin" />
-      </div>
-    );
+  if (isLoading) return <PageLoadingState label="Loading buckets..." />;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <ModulePageHeader
         title="Buckets"
         description="List-level management for bucket aliases and lifecycle."
@@ -210,7 +207,7 @@ export function BucketList({ clusterId }: BucketListProps) {
                     <div className="space-y-2">
                       <Label>Access Key</Label>
                       {keysQuery.isLoading ? (
-                        <div className="text-sm text-muted-foreground">Loading access keys...</div>
+                        <InlineLoadingState label="Loading access keys..." />
                       ) : keysQuery.error ? (
                         <div className="text-sm text-destructive">
                           {getApiErrorMessage(keysQuery.error, 'Failed to load access keys.')}

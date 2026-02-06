@@ -38,6 +38,7 @@ import {
   useSetWorkerVariable,
 } from '@/hooks/useWorkers';
 import { NodeSelector } from '@/components/cluster/NodeSelector';
+import { InlineLoadingState } from '@/components/cluster/InlineLoadingState';
 import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
 import { formatRelativeSeconds, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
@@ -209,7 +210,7 @@ export function WorkerManager() {
       {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">Filters</CardTitle>
+          <CardTitle>Filters</CardTitle>
           <CardDescription>Limit results by node and worker state.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -248,7 +249,7 @@ export function WorkerManager() {
         </CardHeader>
         <CardContent>
           {allVariablesLoading ? (
-            <div className="text-sm text-muted-foreground">Loading variables...</div>
+            <InlineLoadingState label="Loading variables..." />
           ) : allVariablesError ? (
             <Alert variant="destructive">
               <AlertTitle>Unable to load variables</AlertTitle>
@@ -338,7 +339,7 @@ export function WorkerManager() {
 
           {variableLookupName ? (
             variableLookupLoading ? (
-              <div className="text-sm text-muted-foreground">Loading variable...</div>
+              <InlineLoadingState label="Loading variable..." />
             ) : variableLookupError ? (
               <Alert variant="destructive">
                 <AlertTitle>Failed to fetch variable</AlertTitle>
@@ -398,7 +399,7 @@ export function WorkerManager() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="text-center py-8 text-muted-foreground">Loading workers...</div>
+            <InlineLoadingState label="Loading workers..." />
           ) : error ? (
             <Alert variant="destructive">
               <AlertTitle>Unable to load workers</AlertTitle>
@@ -504,7 +505,7 @@ export function WorkerManager() {
           </SheetHeader>
           <div className="mt-6 space-y-6">
             {workerInfoLoading ? (
-              <div className="text-center py-8 text-muted-foreground">Loading worker info...</div>
+              <InlineLoadingState label="Loading worker info..." />
             ) : workerInfo?.success && selectedWorker ? (
               <div className="space-y-6">
                 {Object.entries(workerInfo.success).map(([nodeId, info]) => (

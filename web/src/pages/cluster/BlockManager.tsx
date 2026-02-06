@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
@@ -30,6 +31,7 @@ import {
 } from '@/hooks/useBlocks';
 import { NodeSelector } from '@/components/cluster/NodeSelector';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
+import { InlineLoadingState } from '@/components/cluster/InlineLoadingState';
 import { JsonViewer } from '@/components/cluster/JsonViewer';
 import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
 import { formatDateTime24h, formatShortId } from '@/lib/format';
@@ -201,7 +203,7 @@ export function BlockManager() {
       {/* Node Selector */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">Target Node</CardTitle>
+          <CardTitle>Target Node</CardTitle>
           <CardDescription>
             Used for filtering and for actions that support targeting a node.
           </CardDescription>
@@ -228,7 +230,7 @@ export function BlockManager() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="text-center py-8 text-muted-foreground">Loading block errors...</div>
+            <InlineLoadingState label="Loading block errors..." />
           ) : error ? (
             <Alert variant="destructive">
               <AlertDescription>{getApiErrorMessage(error)}</AlertDescription>
@@ -308,7 +310,7 @@ export function BlockManager() {
               </Table>
             </div>
           ) : (
-            <div className="text-center py-8">
+            <div className="py-8 text-center">
               <Database className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
               <p className="text-muted-foreground">No block errors found</p>
               <p className="text-sm text-muted-foreground mt-1">
@@ -365,7 +367,7 @@ export function BlockManager() {
             <DialogDescription className="text-xs">{blockInfoHash}</DialogDescription>
           </DialogHeader>
           {blockInfoLoading ? (
-            <div className="py-8 text-center text-muted-foreground">Loading block info...</div>
+            <InlineLoadingState label="Loading block info..." />
           ) : blockInfoError ? (
             <Alert variant="destructive">
               <AlertTitle>Failed to load block info</AlertTitle>
@@ -434,8 +436,8 @@ export function BlockManager() {
             </Alert>
             <div className="space-y-2">
               <Label>Block Hashes (one per line)</Label>
-              <textarea
-                className="w-full min-h-[150px] p-3 border rounded-md text-xs resize-y"
+              <Textarea
+                className="min-h-[150px] resize-y text-xs"
                 placeholder="Enter block hashes to purge, one per line..."
                 value={purgeHashes}
                 onChange={(e) => setPurgeHashes(e.target.value)}

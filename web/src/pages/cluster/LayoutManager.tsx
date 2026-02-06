@@ -23,12 +23,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Checkbox } from '@/components/ui/checkbox';
 import { AlertCircle, CheckCircle2, Eye, Plus, RotateCcw, Save, Trash2 } from 'lucide-react';
 import { api, proxyPath } from '@/lib/api';
 import { formatBytes, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
+import { PageLoadingState } from '@/components/cluster/PageLoadingState';
 import { toast } from '@/hooks/use-toast';
 import {
   Select,
@@ -348,7 +350,7 @@ export function LayoutManager({ clusterId }: LayoutManagerProps) {
   };
 
   if (layoutQuery.isLoading || statusQuery.isLoading || historyQuery.isLoading) {
-    return <div className="p-4">Loading layout...</div>;
+    return <PageLoadingState label="Loading layout..." />;
   }
 
   if (layoutQuery.error || statusQuery.error || historyQuery.error) {
@@ -710,7 +712,7 @@ export function LayoutManager({ clusterId }: LayoutManagerProps) {
               <div className="space-y-4">
                 <div>
                   <div className="text-sm font-medium mb-2">Layout computation output</div>
-                  <pre className="text-xs leading-relaxed font-mono bg-slate-50 border border-slate-200 rounded-lg p-4 whitespace-pre overflow-auto max-h-[360px]">
+                  <pre className="max-h-[360px] overflow-auto whitespace-pre rounded-lg border bg-muted/40 p-4 font-mono text-xs leading-relaxed">
                     {previewResult.message.join('\n')}
                   </pre>
                 </div>
@@ -838,12 +840,7 @@ export function LayoutManager({ clusterId }: LayoutManagerProps) {
                   onChange={(e) => setSkipVersionInput(e.target.value)}
                 />
                 <label className="flex items-center gap-2 text-sm text-violet-900">
-                  <input
-                    type="checkbox"
-                    checked={allowMissingData}
-                    onChange={(e) => setAllowMissingData(e.target.checked)}
-                    className="h-4 w-4 cursor-pointer"
-                  />
+                  <Checkbox checked={allowMissingData} onCheckedChange={setAllowMissingData} />
                   Allow missing data (unsafe)
                 </label>
               </div>
@@ -909,7 +906,7 @@ export function LayoutManager({ clusterId }: LayoutManagerProps) {
             <div className="space-y-4">
               <div>
                 <div className="text-sm font-medium mb-2">Layout computation output</div>
-                <pre className="text-xs leading-relaxed font-mono bg-slate-50 border border-slate-200 rounded-lg p-4 whitespace-pre overflow-auto max-h-[360px]">
+                <pre className="max-h-[360px] overflow-auto whitespace-pre rounded-lg border bg-muted/40 p-4 font-mono text-xs leading-relaxed">
                   {applyResult.message.join('\n')}
                 </pre>
               </div>

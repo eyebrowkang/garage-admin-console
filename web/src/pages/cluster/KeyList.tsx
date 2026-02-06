@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Trash2, Loader2, Plus, Copy } from 'lucide-react';
+import { Trash2, Plus, Copy } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -22,6 +22,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -35,6 +36,7 @@ import { formatDateTime24h, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
+import { PageLoadingState } from '@/components/cluster/PageLoadingState';
 import { toast } from '@/hooks/use-toast';
 import { useImportKey } from '@/hooks/useKeys';
 import type { CreateKeyRequest, GetKeyInfoResponse, ListKeysResponseItem } from '@/types/garage';
@@ -190,15 +192,10 @@ export function KeyList({ clusterId }: KeyListProps) {
     }
   };
 
-  if (isLoading)
-    return (
-      <div className="flex justify-center p-4">
-        <Loader2 className="animate-spin" />
-      </div>
-    );
+  if (isLoading) return <PageLoadingState label="Loading access keys..." />;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <ModulePageHeader
         title="Access Keys"
         description="Top-level key inventory. Open a key for granular permission controls."
@@ -359,12 +356,10 @@ export function KeyList({ clusterId }: KeyListProps) {
                         <p className="text-xs text-destructive">Invalid date and time.</p>
                       )}
                     </div>
-                    <label className="flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
+                    <label className="flex items-center gap-2 text-sm text-foreground">
+                      <Checkbox
                         checked={createNeverExpires}
-                        onChange={(e) => {
-                          const checked = e.target.checked;
+                        onCheckedChange={(checked) => {
                           setCreateNeverExpires(checked);
                           if (checked) {
                             setCreateExpirationDate('');
@@ -372,7 +367,6 @@ export function KeyList({ clusterId }: KeyListProps) {
                             setCreateExpirationMinute('00');
                           }
                         }}
-                        className="h-4 w-4 cursor-pointer"
                       />
                       Never expires
                     </label>

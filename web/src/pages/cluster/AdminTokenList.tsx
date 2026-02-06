@@ -4,8 +4,10 @@ import { Plus, Trash2, Shield, ChevronRight, AlertTriangle } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
@@ -41,6 +43,7 @@ import {
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { SecretReveal } from '@/components/cluster/SecretReveal';
 import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
+import { PageLoadingState } from '@/components/cluster/PageLoadingState';
 import { formatDateTime24h, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { toast } from '@/hooks/use-toast';
@@ -205,7 +208,7 @@ export function AdminTokenList() {
   };
 
   if (isLoading) {
-    return <div className="p-4">Loading admin tokens...</div>;
+    return <PageLoadingState label="Loading admin tokens..." />;
   }
 
   if (error) {
@@ -525,8 +528,8 @@ export function AdminTokenList() {
             {createScopeMode === 'custom' && (
               <div className="space-y-2">
                 <Label>Allowed endpoints (one per line)</Label>
-                <textarea
-                  className="w-full min-h-[120px] p-3 border rounded-md text-xs resize-y"
+                <Textarea
+                  className="min-h-[120px] resize-y text-xs"
                   placeholder="e.g.\nGetClusterStatus\nListBuckets"
                   value={createScopeInput}
                   onChange={(e) => setCreateScopeInput(e.target.value)}
@@ -585,13 +588,8 @@ export function AdminTokenList() {
                   </SelectContent>
                 </Select>
               </div>
-              <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                <input
-                  type="checkbox"
-                  checked={createNeverExpires}
-                  onChange={(e) => setCreateNeverExpires(e.target.checked)}
-                  className="h-4 w-4 cursor-pointer"
-                />
+              <label className="flex items-center gap-2 text-sm text-foreground">
+                <Checkbox checked={createNeverExpires} onCheckedChange={setCreateNeverExpires} />
                 Never expires
               </label>
               {expirationInvalid && !createNeverExpires && (

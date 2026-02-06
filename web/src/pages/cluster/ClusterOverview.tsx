@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { InlineLoadingState } from '@/components/cluster/InlineLoadingState';
 import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
 import { api, proxyPath } from '@/lib/api';
 import { formatBytes } from '@/lib/format';
@@ -363,9 +364,9 @@ export function ClusterOverview({ clusterId }: ClusterOverviewProps) {
         </CardHeader>
         <CardContent>
           {statsQuery.isLoading ? (
-            <div className="text-sm text-muted-foreground">Loading statistics...</div>
+            <InlineLoadingState label="Loading statistics..." />
           ) : (
-            <pre className="text-xs leading-relaxed font-mono bg-slate-50 border border-slate-200 rounded-lg p-4 whitespace-pre overflow-auto max-h-[400px]">
+            <pre className="max-h-[400px] overflow-auto whitespace-pre rounded-lg border bg-muted/40 p-4 font-mono text-xs leading-relaxed">
               {hasStats ? stats?.freeform : 'No statistics available.'}
             </pre>
           )}

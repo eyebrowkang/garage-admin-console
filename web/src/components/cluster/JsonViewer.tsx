@@ -24,8 +24,8 @@ export function JsonViewer({ data, collapsed = false }: JsonViewerProps) {
   };
 
   return (
-    <div className="rounded-lg border border-slate-200 overflow-hidden">
-      <div className="flex items-center justify-between px-3 py-2 border-b bg-slate-100/80">
+    <div className="overflow-hidden rounded-lg border bg-card">
+      <div className="flex items-center justify-between border-b bg-muted/30 px-3 py-2">
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
           className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
@@ -42,7 +42,7 @@ export function JsonViewer({ data, collapsed = false }: JsonViewerProps) {
         </div>
       </div>
       {!isCollapsed && (
-        <pre className="p-4 text-xs leading-relaxed whitespace-pre-wrap break-words text-slate-800 bg-slate-50 max-h-96 overflow-auto">
+        <pre className="max-h-96 overflow-auto whitespace-pre-wrap break-words bg-muted/20 p-4 font-mono text-xs leading-relaxed">
           {jsonString}
         </pre>
       )}

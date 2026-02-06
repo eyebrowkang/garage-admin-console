@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
@@ -363,8 +364,8 @@ export function AdminTokenDetail() {
             {editScopeMode === 'custom' && (
               <div className="space-y-2">
                 <Label>Allowed endpoints (one per line)</Label>
-                <textarea
-                  className="w-full min-h-[120px] p-3 border rounded-md text-xs resize-y"
+                <Textarea
+                  className="min-h-[120px] resize-y text-xs"
                   placeholder="e.g.\nGetClusterStatus\nListBuckets"
                   value={editScopeInput}
                   onChange={(e) => setEditScopeInput(e.target.value)}
@@ -423,7 +424,7 @@ export function AdminTokenDetail() {
                   </SelectContent>
                 </Select>
               </div>
-              <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              <label className="flex items-center gap-2 text-sm text-foreground">
                 <Checkbox checked={editNeverExpires} onCheckedChange={setEditNeverExpires} />
                 Never expires
               </label>
