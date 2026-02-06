@@ -334,15 +334,23 @@ Test fixtures (`e2e/fixtures.ts`) provide pre-authenticated page setup. Shared n
 ### Quick Commands
 
 ```bash
-pnpm -C api db:push      # Push schema changes to database
+pnpm -C api db:migrate   # Apply pending migrations (safe for production)
+pnpm -C api db:push      # Push schema directly (development only)
 pnpm -C api db:seed      # Run seed script
 pnpm -C api db:studio    # Open Prisma Studio GUI
 ```
 
 ### Schema Changes
 
-This project does not use migrations. For schema updates, use `db:push`.
-If you need a clean reset, delete `api/data.db` and run `db:push` again.
+This project uses Prisma Migrate for schema management. The workflow:
+
+1. Edit `api/prisma/schema.prisma`
+2. Generate a migration: `pnpm -C api npx prisma migrate dev --name <description>`
+3. The migration SQL is saved to `api/prisma/migrations/` and committed to version control
+
+In production (Docker), `prisma migrate deploy` runs automatically on container startup, applying any pending migrations safely without data loss.
+
+`db:push` is available for development convenience (e.g., rapid prototyping) but should not be used for production databases.
 
 ### Regenerate Client
 
