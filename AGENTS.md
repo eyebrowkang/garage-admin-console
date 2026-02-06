@@ -45,26 +45,29 @@ Browser → /proxy/:clusterId/* → BFF decrypts stored admin token → forwards
 
 ### API Routes (`api/src/routes/`)
 
+Routes are registered in `api/src/app.ts`.
+
 | Route                     | Auth | Purpose                         |
 | ------------------------- | ---- | ------------------------------- |
 | `POST /auth/login`        | No   | Returns JWT                     |
 | `GET /health`             | No   | Health check                    |
 | `GET /clusters`           | JWT  | List clusters (tokens excluded) |
 | `POST /clusters`          | JWT  | Add cluster                     |
+| `PUT /clusters/:id`       | JWT  | Update cluster                  |
 | `DELETE /clusters/:id`    | JWT  | Remove cluster                  |
 | `ALL /proxy/:clusterId/*` | JWT  | Proxy to Garage admin API       |
 
 ### Frontend Structure (`web/src/`)
 
-- **Routing** (React Router v7): `/login`, `/` (Dashboard), `/clusters/:id` (ClusterDetail with tabs)
-- **Pages**: `Login`, `Dashboard` (cluster list/management), `ClusterDetail` (tabbed: Overview, Buckets, Keys, Nodes, Layout, API Explorer)
+- **Routing** (React Router v7, defined in `App.tsx`): `/login`, `/` (Dashboard), `/clusters/:id` (ClusterDetail with sidebar navigation)
+- **Pages**: `Login`, `Dashboard` (cluster list/management), Cluster pages (Overview, Buckets, Keys, Nodes, Layout, Admin Tokens, Workers, Blocks, Metrics)
 - **API client** (`lib/api.ts`): Axios instance with JWT interceptor; 401/403 → redirect to login
 - **UI**: shadcn/ui components (`components/ui/`) built on Radix UI primitives, styled with Tailwind
 - **Path alias**: `@` → `web/src/`
 
 ### Database Schema (`api/prisma/schema.prisma`)
 
-Two models: `Cluster` (id, name, endpoint, region?, adminToken encrypted, timestamps) and `AppSettings` (key-value).
+Two models: `Cluster` (id, name, endpoint, adminToken encrypted, metricToken encrypted optional, timestamps) and `AppSettings` (key-value).
 
 ## Frontend UX/UI design principles and approach
 
@@ -97,6 +100,7 @@ Pages at different hierarchy levels should have slight differences.
 ## Key Files
 
 - `web/public/garage-admin-v2.json` — Garage OpenAPI spec (reference for all admin API endpoints)
+- `api/src/app.ts` — Express app setup and route registration
 - `api/src/encryption.ts` — AES-256-GCM encrypt/decrypt for Garage tokens
 - `api/src/middleware/auth.middleware.ts` — JWT verification middleware
 - `api/src/db.ts` — Prisma client initialization with LibSQL adapter
@@ -105,7 +109,7 @@ Pages at different hierarchy levels should have slight differences.
 
 ## Environment Variables (api/.env)
 
-check `api/.env.example`
+See `api/.env.example` for all variables. Validation logic is in `api/src/config/env.ts`.
 
 ## Code Style
 

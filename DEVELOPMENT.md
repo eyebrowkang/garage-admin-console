@@ -25,33 +25,33 @@ The Garage Admin Console follows a **Backend-For-Frontend (BFF)** proxy pattern:
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                         Browser                               │
+│                         Browser                              │
 └─────────────────────────────┬────────────────────────────────┘
                               │ HTTP
                               ▼
 ┌──────────────────────────────────────────────────────────────┐
 │                    Frontend (React SPA)                       │
-│  - React 19 + TypeScript                                      │
-│  - TanStack React Query (data fetching)                       │
-│  - React Router v7 (routing)                                  │
-│  - Tailwind CSS + shadcn/ui (styling)                         │
-│  - ECharts (visualizations)                                   │
+│  - React 19 + TypeScript                                     │
+│  - TanStack React Query (data fetching)                      │
+│  - React Router v7 (routing)                                 │
+│  - Tailwind CSS + shadcn/ui (styling)                        │
+│  - ECharts (visualizations)                                  │
 └─────────────────────────────┬────────────────────────────────┘
                               │ /api/* (proxied in dev)
                               ▼
 ┌──────────────────────────────────────────────────────────────┐
-│                     BFF API (Express)                         │
-│  - Express 5 + TypeScript                                     │
-│  - JWT authentication                                         │
-│  - Prisma ORM (SQLite/LibSQL)                                 │
-│  - AES-256-GCM credential encryption                          │
+│                     BFF API (Express)                        │
+│  - Express 5 + TypeScript                                    │
+│  - JWT authentication                                        │
+│  - Prisma ORM (SQLite/LibSQL)                                │
+│  - AES-256-GCM credential encryption                         │
 └─────────────────────────────┬────────────────────────────────┘
                               │ /proxy/:clusterId/*
                               ▼
 ┌──────────────────────────────────────────────────────────────┐
 │                    Garage Clusters                            │
-│  - Admin API v2 endpoints                                     │
-│  - Multiple clusters supported                                │
+│  - Admin API v2 endpoints                                    │
+│  - Multiple clusters supported                               │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -64,7 +64,7 @@ The Garage Admin Console follows a **Backend-For-Frontend (BFF)** proxy pattern:
 
 2. **Single Admin Password**: Simple authentication model using a single admin password. JWT tokens are issued with 24-hour expiry.
 
-3. **Encrypted Credentials**: Garage admin tokens are stored encrypted using AES-256-GCM. They are only decrypted in memory when proxying requests.
+3. **Encrypted Credentials**: Garage admin tokens are stored encrypted using AES-256-GCM (see `api/src/encryption.ts`). They are only decrypted in memory when proxying requests.
 
 4. **Monorepo Structure**: Both API and frontend live in a single repository using pnpm workspaces.
 
@@ -95,7 +95,7 @@ cp api/.env.example api/.env
 # Edit api/.env with your settings
 
 # 5. Initialize the database
-pnpm -C api npx prisma db push
+pnpm -C api db:push
 
 # 6. Start development servers
 pnpm dev
@@ -103,18 +103,18 @@ pnpm dev
 
 ### Environment Variables
 
-Create `api/.env` with the following:
+Create `api/.env` from `api/.env.example`. Available variables:
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `JWT_SECRET` | Secret for JWT signing | Random 32+ char string |
-| `ENCRYPTION_KEY` | AES-256 key (exactly 32 bytes) | `01234567890123456789012345678901` |
-| `PORT` | API server port | `3001` |
-| `ADMIN_PASSWORD` | Console login password | `change-me` |
-| `LOG_LEVEL` | System log level | `info` |
-| `MORGAN_FORMAT` | HTTP log format (morgan) | `dev` |
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `JWT_SECRET` | Yes | Secret for JWT signing (random 32+ char string) |
+| `ENCRYPTION_KEY` | Yes | AES-256 key (exactly 32 bytes) |
+| `ADMIN_PASSWORD` | Yes | Console login password |
+| `PORT` | No | API server port (default: `3001`) |
+| `LOG_LEVEL` | No | System log level: fatal, error, warn, info, debug, trace, silent (default: `info`) |
+| `MORGAN_FORMAT` | No | HTTP log format for morgan, or `off` to disable (default: `dev` in development) |
 
-The database file is fixed to `api/data.db` and is not configurable.
+Environment validation is handled in `api/src/config/env.ts`. The database file is fixed to `api/data.db` and is not configurable.
 
 ### Development Servers
 
@@ -127,7 +127,7 @@ pnpm -C api dev    # API on http://localhost:3001
 pnpm -C web dev    # Frontend on http://localhost:5173
 ```
 
-The frontend dev server proxies API requests to the backend automatically.
+The frontend dev server proxies `/api/*` requests to the backend automatically (configured in `web/vite.config.ts`).
 
 ---
 
@@ -137,19 +137,22 @@ The frontend dev server proxies API requests to the backend automatically.
 garage-admin-console/
 ├── api/                          # Backend-For-Frontend service
 │   ├── src/
-│   │   ├── index.ts              # Express app entry point
+│   │   ├── index.ts              # Server entry point
+│   │   ├── app.ts                # Express app setup and route registration
 │   │   ├── db.ts                 # Prisma client initialization
 │   │   ├── encryption.ts         # AES-256-GCM utilities
+│   │   ├── logger.ts             # Pino logger configuration
+│   │   ├── config/
+│   │   │   └── env.ts            # Environment variable validation
 │   │   ├── middleware/
-│   │   │   └── auth.middleware.ts
+│   │   │   └── auth.middleware.ts # JWT verification
 │   │   └── routes/
 │   │       ├── auth.ts           # POST /auth/login
 │   │       ├── clusters.ts       # CRUD /clusters
 │   │       └── proxy.ts          # ALL /proxy/:clusterId/*
 │   ├── prisma/
-│   │   ├── schema.prisma         # Database schema
-│   ├── package.json
-│   └── tsconfig.json
+│   │   └── schema.prisma         # Database schema
+│   └── package.json
 │
 ├── web/                          # Frontend SPA
 │   ├── src/
@@ -159,21 +162,25 @@ garage-admin-console/
 │   │   │   ├── Login.tsx
 │   │   │   ├── Dashboard.tsx
 │   │   │   └── cluster/          # Cluster detail pages
-│   │   ├── layouts/              # Layout components
+│   │   ├── layouts/
+│   │   │   ├── MainLayout.tsx    # Top-level header layout
+│   │   │   └── ClusterLayout.tsx # Sidebar navigation layout
 │   │   ├── components/
-│   │   │   ├── ui/               # shadcn/ui components
-│   │   │   ├── cluster/          # Cluster-specific components
-│   │   │   └── charts/           # ECharts visualizations
+│   │   │   ├── ui/               # shadcn/ui primitives
+│   │   │   ├── cluster/          # Reusable cluster components
+│   │   │   └── dashboard/        # Dashboard components
 │   │   ├── hooks/                # Custom React hooks
 │   │   ├── contexts/             # React contexts
 │   │   ├── lib/                  # Utility functions
 │   │   └── types/                # TypeScript types
-│   ├── package.json
+│   ├── public/
+│   │   └── garage-admin-v2.json  # Garage OpenAPI spec
 │   ├── vite.config.ts
-│   └── vitest.config.ts
+│   └── package.json
 │
-├── e2e/                          # End-to-end tests
-│   ├── fixtures.ts               # Test fixtures and helpers
+├── e2e/                          # End-to-end tests (Playwright)
+│   ├── fixtures.ts               # Test fixtures
+│   ├── helpers.ts                # Shared test helpers
 │   ├── auth.spec.ts
 │   ├── cluster.spec.ts
 │   ├── buckets.spec.ts
@@ -181,9 +188,7 @@ garage-admin-console/
 │
 ├── package.json                  # Workspace configuration
 ├── pnpm-workspace.yaml
-├── playwright.config.ts
-├── prettier.config.cjs
-└── web/public/garage-admin-v2.json # Garage OpenAPI spec
+└── playwright.config.ts
 ```
 
 ---
@@ -191,6 +196,8 @@ garage-admin-console/
 ## API Package
 
 ### Routes
+
+Routes are registered in `api/src/app.ts`.
 
 | Endpoint | Method | Auth | Description |
 |----------|--------|------|-------------|
@@ -204,15 +211,19 @@ garage-admin-console/
 
 ### Database Schema
 
-See [Database Management](#database-management) section for the current schema.
+Defined in `api/prisma/schema.prisma`. Two models:
+
+- **Cluster** — `id`, `name`, `endpoint`, `adminToken` (AES-256-GCM encrypted), `metricToken` (encrypted, optional), `createdAt`, `updatedAt`
+- **AppSettings** — Key-value store (`key`, `value`)
 
 ### Key Files
 
-- **`src/index.ts`** - Express app setup and route registration
-- **`src/db.ts`** - Prisma client with LibSQL adapter
-- **`src/encryption.ts`** - AES-256-GCM encrypt/decrypt functions
-- **`src/middleware/auth.middleware.ts`** - JWT verification middleware
-- **`src/routes/proxy.ts`** - Garage API proxy with credential decryption
+- `api/src/app.ts` — Express app setup, middleware, and route registration
+- `api/src/index.ts` — Server entry point
+- `api/src/db.ts` — Prisma client with LibSQL adapter
+- `api/src/encryption.ts` — AES-256-GCM encrypt/decrypt functions
+- `api/src/middleware/auth.middleware.ts` — JWT verification middleware
+- `api/src/routes/proxy.ts` — Garage API proxy with credential decryption
 
 ---
 
@@ -220,80 +231,73 @@ See [Database Management](#database-management) section for the current schema.
 
 ### Routing Structure
 
+Defined in `web/src/App.tsx`:
+
 ```
-/login                      → Login page
-/                           → Dashboard (cluster list)
-/clusters/:id               → Cluster detail (nested routes)
-  /clusters/:id/            → Overview
-  /clusters/:id/buckets     → Bucket list
-  /clusters/:id/buckets/:bid → Bucket detail
-  /clusters/:id/keys        → Key list
-  /clusters/:id/keys/:kid   → Key detail
-  /clusters/:id/nodes       → Node list
-  /clusters/:id/nodes/:nid  → Node detail
-  /clusters/:id/layout      → Layout manager
-  /clusters/:id/tokens      → Admin token list
-  /clusters/:id/blocks      → Block manager
-  /clusters/:id/workers     → Worker manager
-  /clusters/:id/metrics     → Prometheus metrics
-  /clusters/:id/api         → API explorer
+/login                        → Login page
+/                             → Dashboard (cluster list)
+/clusters/:id                 → Cluster detail (sidebar layout)
+  /clusters/:id/              → Overview
+  /clusters/:id/buckets       → Bucket list
+  /clusters/:id/buckets/:bid  → Bucket detail
+  /clusters/:id/keys          → Key list
+  /clusters/:id/keys/:kid     → Key detail
+  /clusters/:id/nodes         → Node list
+  /clusters/:id/nodes/:nid    → Node detail
+  /clusters/:id/layout        → Layout manager
+  /clusters/:id/tokens        → Admin token list
+  /clusters/:id/tokens/:tid   → Admin token detail
+  /clusters/:id/blocks        → Block manager
+  /clusters/:id/workers       → Worker manager
+/clusters/:id/metrics         → Prometheus metrics (standalone)
 ```
 
 ### Component Organization
 
-```
-components/
-├── ui/                     # shadcn/ui primitives
-│   ├── button.tsx
-│   ├── dialog.tsx
-│   ├── table.tsx
-│   └── ...
-├── cluster/                # Cluster feature components
-│   ├── ConfirmDialog.tsx   # 3-tier confirmation dialog
-│   ├── PageHeader.tsx      # Consistent page headers
-│   ├── SecretReveal.tsx    # One-time secret display
-│   ├── NodeSelector.tsx    # Node selection dropdown
-│   └── JsonViewer.tsx      # JSON display component
-└── charts/                 # Data visualization
-    ├── ClusterHealthChart.tsx
-    ├── CapacityGauge.tsx
-    └── NodeStatusChart.tsx
-```
+Reusable cluster components live in `web/src/components/cluster/`:
+
+| Component | Purpose |
+|-----------|---------|
+| `ConfirmDialog.tsx` | 3-tier confirmation dialog (simple / danger / type-to-confirm) |
+| `ModulePageHeader.tsx` | Consistent page header for module list pages |
+| `DetailPageHeader.tsx` | Page header for detail pages with back navigation |
+| `SecretReveal.tsx` | One-time secret display |
+| `NodeSelector.tsx` | Node selection dropdown |
+| `JsonViewer.tsx` | JSON display component |
+| `CopyButton.tsx` | Click-to-copy button |
+| `AliasMiniChip.tsx` | Compact alias badge |
+| `PageLoadingState.tsx` | Full-page loading spinner |
+| `InlineLoadingState.tsx` | Inline loading indicator |
+
+Dashboard components live in `web/src/components/dashboard/` (e.g., `ClusterStatusMonitor.tsx`).
+
+UI primitives (button, dialog, table, etc.) are in `web/src/components/ui/`, built on shadcn/ui and Radix UI.
 
 ### Custom Hooks
+
+Located in `web/src/hooks/`:
 
 | Hook | Purpose |
 |------|---------|
 | `useClusters` | Cluster CRUD operations |
-| `useClusterHealth` | Health and status queries |
 | `useBuckets` | Bucket operations |
 | `useKeys` | Access key operations |
-| `useNodes` | Node info and operations |
-| `useLayout` | Layout management |
+| `useNodes` | Node info and cluster status queries |
 | `useBlocks` | Block error management |
 | `useWorkers` | Worker management |
 | `useAdminTokens` | Admin token CRUD |
-| `usePermissions` | Bucket-key permissions |
+| `usePermissions` | Bucket-key permission grants (allow/deny) |
 
 ### API Client
 
-The API client (`lib/api.ts`) provides:
+The API client is defined in `web/src/lib/api.ts`. It provides:
 
 - Axios instance with base URL configuration
-- JWT token injection via interceptor
-- Automatic redirect to login on 401/403
-- `proxyPath(clusterId, path)` helper for Garage API calls
+- JWT token injection via request interceptor
+- Automatic redirect to login on 401/403 responses
+- `proxyPath(clusterId, path)` helper for constructing Garage API proxy URLs
 
-```typescript
-// Example usage
-import { api, proxyPath } from '@/lib/api';
-
-// Direct API call
-const clusters = await api.get('/clusters');
-
-// Proxied Garage API call
-const buckets = await api.get(proxyPath(clusterId, '/v2/ListBuckets'));
-```
+Garage API type definitions are in `web/src/types/garage.ts`.
 
 ---
 
@@ -302,44 +306,25 @@ const buckets = await api.get(proxyPath(clusterId, '/v2/ListBuckets'));
 ### Unit Tests (Vitest)
 
 ```bash
-# Run in watch mode
-pnpm -C web test
-
-# Run once
-pnpm -C web test:run
-
-# Run with coverage
-pnpm -C web test:coverage
+pnpm -C web test          # Run in watch mode
+pnpm -C web test:run      # Run once
+pnpm -C web test:coverage # Run with coverage
 ```
 
-Unit tests are located alongside source files with `.test.ts` or `.test.tsx` extension.
-
-**Test setup**: `web/src/test/setup.ts` configures jsdom environment and mocks.
+Unit tests are located alongside source files with `.test.ts` or `.test.tsx` extension. Test setup is in `web/src/test/setup.ts`.
 
 ### E2E Tests (Playwright)
 
 ```bash
-# Run all E2E tests
-npx playwright test
-
-# Run with UI
-npx playwright test --ui
-
-# Run specific test file
-npx playwright test e2e/auth.spec.ts
-
-# View report
-npx playwright show-report
+npx playwright test                    # Run all E2E tests
+npx playwright test --ui               # Run with UI
+npx playwright test e2e/auth.spec.ts   # Run specific test file
+npx playwright show-report             # View report
 ```
 
-**Configuration**: `playwright.config.ts`
-- Browser: Chromium
-- Base URL: `http://localhost:5173`
-- Auto-starts dev server if not running
+Configuration is in `playwright.config.ts`. Tests run against Chromium with base URL `http://localhost:5173`, and auto-start the dev server if not running.
 
-**Test fixtures**: `e2e/fixtures.ts` provides:
-- `authenticatedPage` - Pre-logged-in page fixture
-- `TEST_GARAGE_CLUSTER` - Test cluster credentials
+Test fixtures (`e2e/fixtures.ts`) provide pre-authenticated page setup. Shared navigation helpers are in `e2e/helpers.ts`.
 
 ---
 
@@ -348,59 +333,22 @@ npx playwright show-report
 ### Quick Commands
 
 ```bash
-pnpm -C api db:push      # Push schema changes (dev)
-pnpm -C api db:seed      # Seed the database
+pnpm -C api db:push      # Push schema changes to database
+pnpm -C api db:seed      # Run seed script
 pnpm -C api db:studio    # Open Prisma Studio GUI
 ```
 
-### Initial Setup
-
-```bash
-# 1. Initialize database with schema
-pnpm -C api db:push
-
-# 2. (Optional) Run seed script
-pnpm -C api db:seed
-```
-
-The seed script (`api/prisma/seed.ts`) is a placeholder that provides setup instructions. Clusters are added through the web UI, not seeded.
-
 ### Schema Changes
 
-This project does not use migrations yet. For schema updates, use `db:push`.
+This project does not use migrations. For schema updates, use `db:push`.
 If you need a clean reset, delete `api/data.db` and run `db:push` again.
 
-### Prisma Studio
+### Regenerate Client
+
+After schema changes, regenerate the Prisma client:
 
 ```bash
-# Open database GUI
-pnpm -C api db:studio
-```
-
-### Generate Client
-
-```bash
-# Regenerate Prisma client after schema changes
 pnpm -C api npx prisma generate
-```
-
-### Schema
-
-```prisma
-model Cluster {
-  id          String   @id @default(uuid())
-  name        String
-  endpoint    String
-  adminToken  String   // AES-256-GCM encrypted
-  metricToken String?  // AES-256-GCM encrypted (optional)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
-model AppSettings {
-  key   String @id
-  value String
-}
 ```
 
 ---
@@ -409,15 +357,12 @@ model AppSettings {
 
 ### Formatting
 
-- **Prettier** with 100-char line width, single quotes, trailing commas
-- **EditorConfig** for consistent editor settings
+- **Prettier** with 100-char line width, single quotes, trailing commas, semicolons, 2-space indent
+- Configuration in `prettier.config.cjs`
 
 ```bash
-# Format all files
-pnpm format
-
-# Check formatting
-pnpm format:check
+pnpm format        # Format all files
+pnpm format:check  # Check formatting
 ```
 
 ### Linting
@@ -426,31 +371,24 @@ pnpm format:check
 - React Hooks and React Refresh plugins for frontend
 
 ```bash
-# Lint all files
-pnpm lint
-
-# Auto-fix issues
-pnpm lint:fix
+pnpm lint      # Lint all files
+pnpm lint:fix  # Auto-fix issues
 ```
 
 ### Type Checking
 
 ```bash
-# Check API types
-pnpm -C api typecheck
-
-# Web types are checked during build
-pnpm -C web build
+pnpm -C api typecheck  # Check API types (tsc --noEmit)
+pnpm -C web build      # Web types are checked during build
 ```
 
 ### Conventions
 
-- Use TypeScript strict mode
-- Prefer named exports over default exports
-- Use `@/` path alias for imports in web package
-- Keep components focused and composable
-- Extract business logic into custom hooks
-- Use TanStack Query for all data fetching
+- TypeScript strict mode in both packages
+- ES modules throughout
+- `@/` path alias for imports in web package (configured in `web/vite.config.ts`)
+- Business logic extracted into custom hooks
+- TanStack Query for all data fetching
 
 ---
 
@@ -458,7 +396,7 @@ pnpm -C web build
 
 ### Adding a New Page
 
-1. Create page component in `web/src/pages/`
+1. Create page component in `web/src/pages/` (or `web/src/pages/cluster/` for cluster pages)
 2. Add route in `web/src/App.tsx`
 3. Create any necessary hooks in `web/src/hooks/`
 4. Add types in `web/src/types/garage.ts` if needed
@@ -466,15 +404,15 @@ pnpm -C web build
 ### Adding a New API Endpoint
 
 1. Create or update route handler in `api/src/routes/`
-2. Register route in `api/src/index.ts`
+2. Register route in `api/src/app.ts`
 3. Add Zod schema for request validation
 4. Update frontend API calls as needed
 
 ### Adding a UI Component
 
-1. For shadcn/ui components: `npx shadcn-ui@latest add <component>`
-2. For custom components: create in `web/src/components/cluster/`
-3. Export from `web/src/components/cluster/index.ts`
+For shadcn/ui components: `npx shadcn-ui@latest add <component>` (installs to `web/src/components/ui/`).
+
+For custom cluster components: create in `web/src/components/cluster/`.
 
 ### Adding a New Garage API Integration
 
@@ -505,21 +443,17 @@ pnpm -C api npx prisma generate
 # Ensure api/data.db is readable/writable
 # Reset database if corrupted
 rm -f api/data.db
-pnpm -C api npx prisma db push
+pnpm -C api db:push
 ```
 
 **Port already in use**
 ```bash
-# Kill process on port 3001
-lsof -ti:3001 | xargs kill -9
-
-# Kill process on port 5173
-lsof -ti:5173 | xargs kill -9
+lsof -ti:3001 | xargs kill -9   # Kill process on port 3001
+lsof -ti:5173 | xargs kill -9   # Kill process on port 5173
 ```
 
 **TypeScript errors after pulling changes**
 ```bash
-# Regenerate types
 pnpm -C api npx prisma generate
 pnpm -C web build
 ```
@@ -541,9 +475,8 @@ DEBUG=vite:* pnpm -C web dev
 1. Create a feature branch from `main`
 2. Make your changes following the code style guidelines
 3. Add tests for new functionality
-4. Ensure all tests pass: `pnpm -C web test:run && npx playwright test`
-5. Run linting: `pnpm lint`
-6. Create a pull request with a clear description
+4. Ensure all checks pass: `pnpm lint && pnpm -C web test:run && npx playwright test`
+5. Create a pull request with a clear description
 
 ### Commit Messages
 

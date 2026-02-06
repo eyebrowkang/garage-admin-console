@@ -739,10 +739,7 @@ export function BucketDetail() {
             <Button variant="outline" onClick={() => setWebsiteDialogOpen(false)}>
               Cancel
             </Button>
-            <Button
-              onClick={handleUpdateWebsiteAccess}
-              disabled={updateBucketMutation.isPending}
-            >
+            <Button onClick={handleUpdateWebsiteAccess} disabled={updateBucketMutation.isPending}>
               {updateBucketMutation.isPending ? 'Saving...' : 'Save'}
             </Button>
           </DialogFooter>
@@ -780,10 +777,7 @@ export function BucketDetail() {
             <Button variant="outline" onClick={() => setQuotasDialogOpen(false)}>
               Cancel
             </Button>
-            <Button
-              onClick={handleUpdateQuotas}
-              disabled={updateBucketMutation.isPending}
-            >
+            <Button onClick={handleUpdateQuotas} disabled={updateBucketMutation.isPending}>
               {updateBucketMutation.isPending ? 'Saving...' : 'Save'}
             </Button>
           </DialogFooter>

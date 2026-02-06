@@ -32,17 +32,6 @@ flowchart LR
   Proxy --> Crypto
 ```
 
-## Technology Stack
-
-- Runtime: Node.js (ESM)
-- Web framework: Express 5
-- Validation: Zod
-- Auth: JWT (jsonwebtoken)
-- Database: SQLite (LibSQL) + Prisma
-- Encryption: AES-256-GCM (Node.js crypto)
-- HTTP client: Axios (proxying Garage API)
-- Logging: Pino (system), Morgan (HTTP)
-
 ## Development
 
 ```bash
@@ -56,36 +45,23 @@ pnpm -C api lint       # Lint code
 ## Database
 
 ```bash
-# Push schema to database
-pnpm -C api npx prisma db push
+pnpm -C api db:push    # Push schema to database
+pnpm -C api db:studio  # Open Prisma Studio
+pnpm -C api db:seed    # Run seed script
+```
 
-# Open Prisma Studio
-pnpm -C api npx prisma studio
+After schema changes, regenerate the Prisma client:
 
-# Generate client after schema changes
+```bash
 pnpm -C api npx prisma generate
 ```
 
 ## Configuration
 
-Copy `.env.example` to `.env` and configure (database file is fixed to `data.db`):
+Copy `.env.example` to `.env` and configure. See `.env.example` for all available variables. `JWT_SECRET`, `ENCRYPTION_KEY`, and `ADMIN_PASSWORD` are required.
 
-```bash
-JWT_SECRET="your-secret"
-ENCRYPTION_KEY="32-byte-key"
-PORT=3001
-ADMIN_PASSWORD="your-admin-password"
-LOG_LEVEL="info"
-MORGAN_FORMAT="dev"
-```
-
-`JWT_SECRET`, `ENCRYPTION_KEY`, and `ADMIN_PASSWORD` are required. The API will refuse to start if any are missing.
+The database file is fixed to `data.db` and is not configurable.
 
 ## Documentation
 
-See [DEVELOPMENT.md](../DEVELOPMENT.md) for detailed development guide including:
-
-- API routes
-- Database schema
-- Authentication
-- Proxy pattern
+See [DEVELOPMENT.md](../DEVELOPMENT.md) for the detailed development guide.

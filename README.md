@@ -26,42 +26,28 @@ A modern web-based administration interface for managing [Garage](https://garage
 ### Installation
 
 ```bash
-# Clone the repository
 git clone https://github.com/your-org/garage-admin-console.git
 cd garage-admin-console
 
-# Install dependencies
 pnpm install
 
-# If pnpm blocks native builds (Prisma, bcrypt, sqlite3)
+# If pnpm blocks native builds (Prisma)
 pnpm approve-builds
 ```
 
 ### Configuration
 
-Create the API environment file:
+Create the API environment file from the provided template:
 
 ```bash
 cp api/.env.example api/.env
 ```
 
-Edit `api/.env` with your settings:
-
-```bash
-JWT_SECRET="your-secure-jwt-secret"      # Change this!
-ENCRYPTION_KEY="your-32-byte-key-here"   # Must be exactly 32 bytes
-PORT=3001
-ADMIN_PASSWORD="your-admin-password"     # Console login password
-LOG_LEVEL="info"
-MORGAN_FORMAT="dev"
-```
-
-`JWT_SECRET`, `ENCRYPTION_KEY`, and `ADMIN_PASSWORD` are required. The API will refuse to start if any are missing.
+Edit `api/.env` with your settings. See `api/.env.example` for all available variables and their descriptions. `JWT_SECRET`, `ENCRYPTION_KEY`, and `ADMIN_PASSWORD` are required — the API will refuse to start if any are missing.
 
 ### Database Setup
 
 ```bash
-# Initialize the database schema
 pnpm -C api db:push
 ```
 
@@ -70,7 +56,6 @@ The database file is fixed to `api/data.db` and will be created automatically if
 ### Development
 
 ```bash
-# Start both API and frontend
 pnpm dev
 ```
 
@@ -80,14 +65,11 @@ pnpm dev
 ### Production Build
 
 ```bash
-# Build both packages
 pnpm build
-
-# Start the API server
 pnpm -C api start
 ```
 
-Serve the `web/dist/` directory with your preferred web server (Nginx, Caddy, etc.) and configure reverse proxy for `/api/*` routes to the API server.
+Serve `web/dist/` with your preferred web server (Nginx, Caddy, etc.) and configure reverse proxy for `/api/*` routes to the API server.
 
 ## Project Structure
 
@@ -96,10 +78,8 @@ garage-admin-console/
 ├── api/                 # Backend-For-Frontend (Express + Prisma)
 ├── web/                 # Frontend SPA (React + Vite)
 ├── e2e/                 # End-to-end tests (Playwright)
-└── web/public/garage-admin-v2.json # Garage Admin API OpenAPI specification
+└── web/public/garage-admin-v2.json  # Garage Admin API OpenAPI specification
 ```
-
-OpenAPI spec is served by the frontend at `/garage-admin-v2.json`.
 
 ## Architecture
 
@@ -116,7 +96,6 @@ Browser → Frontend → BFF API → Garage Cluster
 ## Documentation
 
 - **[DEVELOPMENT.md](./DEVELOPMENT.md)** - Developer guide with architecture details, testing, and contribution guidelines
-- **[CLAUDE.md](./CLAUDE.md)** - AI assistant context for Claude Code
 
 ## Scripts
 
