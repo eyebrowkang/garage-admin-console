@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Shield, Edit2, Trash2, AlertTriangle } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Shield, Edit2, Trash2, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -30,6 +31,8 @@ import {
   useDeleteAdminToken,
 } from '@/hooks/useAdminTokens';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
+import { DetailPageHeader } from '@/components/cluster/DetailPageHeader';
+import { PageLoadingState } from '@/components/cluster/PageLoadingState';
 import { formatDateTime24h } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { toast } from '@/hooks/use-toast';
@@ -82,11 +85,16 @@ export function AdminTokenDetail() {
   };
 
   if (!tid) {
-    return <div className="p-4">Invalid token ID</div>;
+    return (
+      <Alert variant="destructive">
+        <AlertTitle>Invalid token ID</AlertTitle>
+        <AlertDescription>The requested admin token identifier is missing.</AlertDescription>
+      </Alert>
+    );
   }
 
   if (isLoading) {
-    return <div className="p-4">Loading token details...</div>;
+    return <PageLoadingState label="Loading token details..." />;
   }
 
   if (error) {
@@ -99,7 +107,12 @@ export function AdminTokenDetail() {
   }
 
   if (!token) {
-    return <div className="p-4">Token not found</div>;
+    return (
+      <Alert variant="destructive">
+        <AlertTitle>Token not found</AlertTitle>
+        <AlertDescription>The token may have been revoked or is unavailable.</AlertDescription>
+      </Alert>
+    );
   }
 
   const editScope = editScopeMode === 'full' ? ['*'] : parseScopeInput(editScopeInput);
@@ -179,55 +192,49 @@ export function AdminTokenDetail() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link to={`/clusters/${clusterId}/tokens`}>
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </Link>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold">{token.name}</h1>
-              {isCurrent && <Badge variant="secondary">Current Token</Badge>}
-              {token.expired ? (
-                <Badge variant="destructive">Expired</Badge>
-              ) : (
-                <Badge variant="success">Active</Badge>
-              )}
-            </div>
-            {token.id && (
-              <p className="text-sm text-muted-foreground">{token.id}</p>
+      <DetailPageHeader
+        backTo={`/clusters/${clusterId}/tokens`}
+        title={token.name}
+        subtitle={token.id}
+        badges={
+          <>
+            {isCurrent && <Badge variant="secondary">Current Token</Badge>}
+            {token.expired ? (
+              <Badge variant="destructive">Expired</Badge>
+            ) : (
+              <Badge variant="success">Active</Badge>
             )}
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => {
-              const parts = toDateParts(token.expiration);
-              const isFullScope = token.scope.includes('*');
-              setNewName(token.name);
-              setEditScopeMode(isFullScope ? 'full' : 'custom');
-              setEditScopeInput(isFullScope ? '' : token.scope.join('\n'));
-              setEditNeverExpires(!token.expiration);
-              setEditExpirationDate(parts.date);
-              setEditExpirationHour(parts.hour);
-              setEditExpirationMinute(parts.minute);
-              setEditError('');
-              setEditDialogOpen(true);
-            }}
-          >
-            <Edit2 className="h-4 w-4 mr-2" />
-            Edit
-          </Button>
-          <Button variant="destructive" onClick={() => setDeleteDialogOpen(true)}>
-            <Trash2 className="h-4 w-4 mr-2" />
-            Delete
-          </Button>
-        </div>
-      </div>
+          </>
+        }
+        actions={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const parts = toDateParts(token.expiration);
+                const isFullScope = token.scope.includes('*');
+                setNewName(token.name);
+                setEditScopeMode(isFullScope ? 'full' : 'custom');
+                setEditScopeInput(isFullScope ? '' : token.scope.join('\n'));
+                setEditNeverExpires(!token.expiration);
+                setEditExpirationDate(parts.date);
+                setEditExpirationHour(parts.hour);
+                setEditExpirationMinute(parts.minute);
+                setEditError('');
+                setEditDialogOpen(true);
+              }}
+            >
+              <Edit2 className="h-4 w-4 mr-2" />
+              Edit
+            </Button>
+            <Button variant="destructive" size="sm" onClick={() => setDeleteDialogOpen(true)}>
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete
+            </Button>
+          </>
+        }
+      />
 
       {isCurrent && (
         <Alert>
@@ -417,12 +424,7 @@ export function AdminTokenDetail() {
                 </Select>
               </div>
               <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                <input
-                  type="checkbox"
-                  checked={editNeverExpires}
-                  onChange={(e) => setEditNeverExpires(e.target.checked)}
-                  className="h-4 w-4 cursor-pointer"
-                />
+                <Checkbox checked={editNeverExpires} onCheckedChange={setEditNeverExpires} />
                 Never expires
               </label>
               {editExpirationInvalid && !editNeverExpires && (
@@ -440,7 +442,7 @@ export function AdminTokenDetail() {
             <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleUpdate} disabled={updateMutation.isPending}>
+            <Button variant="solid" onClick={handleUpdate} disabled={updateMutation.isPending}>
               {updateMutation.isPending ? 'Saving...' : 'Save'}
             </Button>
           </DialogFooter>

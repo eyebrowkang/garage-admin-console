@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Key, Database, Trash2, Edit2, Eye } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Key, Database, Trash2, Edit2, Eye } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -35,6 +36,9 @@ import { useKeyInfo, useUpdateKey, useDeleteKey } from '@/hooks/useKeys';
 import { useBuckets } from '@/hooks/useBuckets';
 import { useAllowBucketKey, useDenyBucketKey } from '@/hooks/usePermissions';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
+import { DetailPageHeader } from '@/components/cluster/DetailPageHeader';
+import { InlineLoadingState } from '@/components/cluster/InlineLoadingState';
+import { PageLoadingState } from '@/components/cluster/PageLoadingState';
 import { formatDateTime24h, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { toast } from '@/hooks/use-toast';
@@ -54,9 +58,9 @@ export function KeyDetail() {
   const [editExpirationHour, setEditExpirationHour] = useState('00');
   const [editExpirationMinute, setEditExpirationMinute] = useState('00');
   const [editNeverExpires, setEditNeverExpires] = useState(false);
-  const [editBucketPermission, setEditBucketPermission] = useState<
-    'default' | 'allow' | 'deny'
-  >('default');
+  const [editBucketPermission, setEditBucketPermission] = useState<'default' | 'allow' | 'deny'>(
+    'default',
+  );
   const [editError, setEditError] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [showSecret, setShowSecret] = useState(false);
@@ -150,11 +154,16 @@ export function KeyDetail() {
   }, [availableBuckets, grantBucketId]);
 
   if (!kid) {
-    return <div className="p-4">Invalid key ID</div>;
+    return (
+      <Alert variant="destructive">
+        <AlertTitle>Invalid key ID</AlertTitle>
+        <AlertDescription>The requested access key identifier is missing.</AlertDescription>
+      </Alert>
+    );
   }
 
   if (isLoading) {
-    return <div className="p-4">Loading key details...</div>;
+    return <PageLoadingState label="Loading key details..." />;
   }
 
   if (error) {
@@ -167,7 +176,12 @@ export function KeyDetail() {
   }
 
   if (!keyInfo) {
-    return <div className="p-4">Key not found</div>;
+    return (
+      <Alert variant="destructive">
+        <AlertTitle>Key not found</AlertTitle>
+        <AlertDescription>The key may have been removed or is unavailable.</AlertDescription>
+      </Alert>
+    );
   }
 
   const handleUpdateKey = async () => {
@@ -284,50 +298,44 @@ export function KeyDetail() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link to={`/clusters/${clusterId}/keys`}>
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-4 w-4" />
+      <DetailPageHeader
+        backTo={`/clusters/${clusterId}/keys`}
+        title={keyInfo.name || 'Unnamed Key'}
+        subtitle={keyInfo.accessKeyId}
+        badges={
+          keyInfo.expired ? (
+            <Badge variant="destructive">Expired</Badge>
+          ) : (
+            <Badge variant="success">Active</Badge>
+          )
+        }
+        actions={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const parts = toDateParts(keyInfo.expiration);
+                setNewName(keyInfo.name);
+                setEditExpirationDate(parts.date);
+                setEditExpirationHour(parts.hour);
+                setEditExpirationMinute(parts.minute);
+                setEditNeverExpires(!keyInfo.expiration);
+                setEditBucketPermission('default');
+                setEditError('');
+                setEditDialogOpen(true);
+              }}
+            >
+              <Edit2 className="h-4 w-4 mr-2" />
+              Edit
             </Button>
-          </Link>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold">{keyInfo.name || 'Unnamed Key'}</h1>
-              {keyInfo.expired ? (
-                <Badge variant="destructive">Expired</Badge>
-              ) : (
-                <Badge variant="success">Active</Badge>
-              )}
-            </div>
-            <p className="text-sm text-muted-foreground">{keyInfo.accessKeyId}</p>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => {
-              const parts = toDateParts(keyInfo.expiration);
-              setNewName(keyInfo.name);
-              setEditExpirationDate(parts.date);
-              setEditExpirationHour(parts.hour);
-              setEditExpirationMinute(parts.minute);
-              setEditNeverExpires(!keyInfo.expiration);
-              setEditBucketPermission('default');
-              setEditError('');
-              setEditDialogOpen(true);
-            }}
-          >
-            <Edit2 className="h-4 w-4 mr-2" />
-            Edit
-          </Button>
-          <Button variant="destructive" onClick={() => setDeleteDialogOpen(true)}>
-            <Trash2 className="h-4 w-4 mr-2" />
-            Delete
-          </Button>
-        </div>
-      </div>
+            <Button variant="destructive" size="sm" onClick={() => setDeleteDialogOpen(true)}>
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete
+            </Button>
+          </>
+        }
+      />
 
       {/* Key Info Card */}
       <Card>
@@ -397,8 +405,8 @@ export function KeyDetail() {
             </div>
             {!secretKey && !secretLoading && (
               <p className="text-sm text-muted-foreground mt-2">
-                Click "Reveal Secret" to show the secret access key. This will make a secure
-                request to the cluster.
+                Click "Reveal Secret" to show the secret access key. This will make a secure request
+                to the cluster.
               </p>
             )}
           </div>
@@ -418,7 +426,7 @@ export function KeyDetail() {
           <div className="rounded-md border p-4 space-y-3">
             <div className="text-sm font-medium">Grant Access</div>
             {bucketsLoading ? (
-              <p className="text-sm text-muted-foreground">Loading buckets...</p>
+              <InlineLoadingState label="Loading buckets..." />
             ) : bucketsError ? (
               <p className="text-sm text-destructive">
                 {getApiErrorMessage(bucketsError, 'Failed to load buckets.')}
@@ -448,40 +456,24 @@ export function KeyDetail() {
                     </Select>
                   </div>
                   <Button
+                    variant="solid"
                     onClick={handleGrantAccess}
-                    disabled={
-                      !grantBucketId || (!grantRead && !grantWrite && !grantOwner)
-                    }
+                    disabled={!grantBucketId || (!grantRead && !grantWrite && !grantOwner)}
                   >
                     Grant Access
                   </Button>
                 </div>
                 <div className="flex flex-wrap gap-4">
                   <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={grantRead}
-                      onChange={(e) => setGrantRead(e.target.checked)}
-                      className="h-4 w-4 cursor-pointer"
-                    />
+                    <Checkbox checked={grantRead} onCheckedChange={setGrantRead} />
                     Read
                   </label>
                   <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={grantWrite}
-                      onChange={(e) => setGrantWrite(e.target.checked)}
-                      className="h-4 w-4 cursor-pointer"
-                    />
+                    <Checkbox checked={grantWrite} onCheckedChange={setGrantWrite} />
                     Write
                   </label>
                   <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={grantOwner}
-                      onChange={(e) => setGrantOwner(e.target.checked)}
-                      className="h-4 w-4 cursor-pointer"
-                    />
+                    <Checkbox checked={grantOwner} onCheckedChange={setGrantOwner} />
                     Owner
                   </label>
                 </div>
@@ -522,10 +514,9 @@ export function KeyDetail() {
                       </div>
                     </TableCell>
                     <TableCell className="text-center">
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={bucket.permissions.read}
-                        onChange={() =>
+                        onCheckedChange={() =>
                           handleTogglePermission(
                             bucket.id,
                             'read',
@@ -533,14 +524,13 @@ export function KeyDetail() {
                             bucket.permissions,
                           )
                         }
-                        className="h-4 w-4 cursor-pointer"
+                        aria-label="Toggle read permission"
                       />
                     </TableCell>
                     <TableCell className="text-center">
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={bucket.permissions.write}
-                        onChange={() =>
+                        onCheckedChange={() =>
                           handleTogglePermission(
                             bucket.id,
                             'write',
@@ -548,14 +538,13 @@ export function KeyDetail() {
                             bucket.permissions,
                           )
                         }
-                        className="h-4 w-4 cursor-pointer"
+                        aria-label="Toggle write permission"
                       />
                     </TableCell>
                     <TableCell className="text-center">
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={bucket.permissions.owner}
-                        onChange={() =>
+                        onCheckedChange={() =>
                           handleTogglePermission(
                             bucket.id,
                             'owner',
@@ -563,7 +552,7 @@ export function KeyDetail() {
                             bucket.permissions,
                           )
                         }
-                        className="h-4 w-4 cursor-pointer"
+                        aria-label="Toggle owner permission"
                       />
                     </TableCell>
                   </TableRow>
@@ -659,11 +648,9 @@ export function KeyDetail() {
                 )}
               </div>
               <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={editNeverExpires}
-                  onChange={(e) => {
-                    const checked = e.target.checked;
+                  onCheckedChange={(checked) => {
                     setEditNeverExpires(checked);
                     if (checked) {
                       setEditExpirationDate('');
@@ -671,7 +658,6 @@ export function KeyDetail() {
                       setEditExpirationMinute('00');
                     }
                   }}
-                  className="h-4 w-4 cursor-pointer"
                 />
                 Never expires
               </label>
@@ -707,6 +693,7 @@ export function KeyDetail() {
               Cancel
             </Button>
             <Button
+              variant="solid"
               onClick={handleUpdateKey}
               disabled={editExpirationInvalid || updateKeyMutation.isPending}
             >

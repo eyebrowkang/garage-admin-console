@@ -1,5 +1,12 @@
 import { useNodes } from '@/hooks/useNodes';
 import { formatShortId } from '@/lib/format';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface NodeSelectorProps {
   clusterId: string;
@@ -16,22 +23,39 @@ export function NodeSelector({
   includeAll = true,
   includeSelf = true,
 }: NodeSelectorProps) {
-  const { data: status } = useNodes(clusterId);
+  const { data: status, isLoading } = useNodes(clusterId);
   const nodes = status?.nodes ?? [];
+  const options: Array<{ value: string; label: string }> = [];
+
+  if (includeAll) {
+    options.push({ value: '*', label: 'All Nodes' });
+  }
+  if (includeSelf) {
+    options.push({ value: 'self', label: 'Self' });
+  }
+  options.push(
+    ...nodes.map((node) => ({
+      value: node.id,
+      label: `${node.hostname || formatShortId(node.id, 12)} ${node.isUp ? '(up)' : '(down)'}`,
+    })),
+  );
+
+  const selectedValue = options.some((option) => option.value === value)
+    ? value
+    : options[0]?.value;
 
   return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-    >
-      {includeAll && <option value="*">All Nodes</option>}
-      {includeSelf && <option value="self">Self</option>}
-      {nodes.map((node) => (
-        <option key={node.id} value={node.id}>
-          {node.hostname || formatShortId(node.id, 12)} {node.isUp ? '(up)' : '(down)'}
-        </option>
-      ))}
-    </select>
+    <Select value={selectedValue} onValueChange={onChange} disabled={isLoading || !options.length}>
+      <SelectTrigger>
+        <SelectValue placeholder={isLoading ? 'Loading nodes...' : 'Select node'} />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((option) => (
+          <SelectItem key={option.value} value={option.value}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }

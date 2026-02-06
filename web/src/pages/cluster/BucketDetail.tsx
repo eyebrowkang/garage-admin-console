@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Globe, Key, Trash2, Plus, Settings, FileSearch, RefreshCw } from 'lucide-react';
+import { useParams } from 'react-router-dom';
+import { Globe, Key, Trash2, Plus, Settings, FileSearch, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -40,7 +41,9 @@ import {
   useInspectObject,
 } from '@/hooks/useBuckets';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
+import { DetailPageHeader } from '@/components/cluster/DetailPageHeader';
 import { JsonViewer } from '@/components/cluster/JsonViewer';
+import { PageLoadingState } from '@/components/cluster/PageLoadingState';
 import { formatBytes, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { toast } from '@/hooks/use-toast';
@@ -77,11 +80,16 @@ export function BucketDetail() {
   const inspectMutation = useInspectObject(clusterId, bid || '');
 
   if (!bid) {
-    return <div className="p-4">Invalid bucket ID</div>;
+    return (
+      <Alert variant="destructive">
+        <AlertTitle>Invalid bucket ID</AlertTitle>
+        <AlertDescription>The requested bucket identifier is missing.</AlertDescription>
+      </Alert>
+    );
   }
 
   if (isLoading) {
-    return <div className="p-4">Loading bucket details...</div>;
+    return <PageLoadingState label="Loading bucket details..." />;
   }
 
   if (error) {
@@ -94,7 +102,12 @@ export function BucketDetail() {
   }
 
   if (!bucket) {
-    return <div className="p-4">Bucket not found</div>;
+    return (
+      <Alert variant="destructive">
+        <AlertTitle>Bucket not found</AlertTitle>
+        <AlertDescription>The bucket may have been deleted or is unavailable.</AlertDescription>
+      </Alert>
+    );
   }
 
   const localAliases = bucket.keys.flatMap((key) =>
@@ -232,63 +245,41 @@ export function BucketDetail() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Link to={`/clusters/${clusterId}/buckets`}>
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold">
-            {bucket.globalAliases[0] || bucket.id.slice(0, 12) + '...'}
-          </h1>
-          <p className="text-sm text-muted-foreground">{bucket.id}</p>
-        </div>
-      </div>
+      <DetailPageHeader
+        backTo={`/clusters/${clusterId}/buckets`}
+        title={bucket.globalAliases[0] || `${bucket.id.slice(0, 12)}...`}
+        subtitle={bucket.id}
+      />
 
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Objects</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{bucket.objects.toLocaleString()}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Size</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatBytes(bucket.bytes)}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Incomplete Uploads
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{bucket.unfinishedUploads}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Multipart Uploads
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{bucket.unfinishedMultipartUploads}</div>
-            <div className="text-xs text-muted-foreground">
-              {formatBytes(bucket.unfinishedMultipartUploadBytes)}
+      <Card>
+        <CardHeader>
+          <CardTitle>Bucket Summary</CardTitle>
+          <CardDescription>Primary status and usage metrics for this bucket</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-3 md:grid-cols-4">
+            <div className="rounded-lg border bg-muted/30 p-3">
+              <div className="text-xs text-muted-foreground">Objects</div>
+              <div className="text-xl font-semibold">{bucket.objects.toLocaleString()}</div>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+            <div className="rounded-lg border bg-muted/30 p-3">
+              <div className="text-xs text-muted-foreground">Total Size</div>
+              <div className="text-xl font-semibold">{formatBytes(bucket.bytes)}</div>
+            </div>
+            <div className="rounded-lg border bg-muted/30 p-3">
+              <div className="text-xs text-muted-foreground">Incomplete Uploads</div>
+              <div className="text-xl font-semibold">{bucket.unfinishedUploads}</div>
+            </div>
+            <div className="rounded-lg border bg-muted/30 p-3">
+              <div className="text-xs text-muted-foreground">Multipart Uploads</div>
+              <div className="text-xl font-semibold">{bucket.unfinishedMultipartUploads}</div>
+              <div className="text-xs text-muted-foreground">
+                {formatBytes(bucket.unfinishedMultipartUploadBytes)}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Aliases Section */}
       <Card>
@@ -301,7 +292,7 @@ export function BucketDetail() {
               </CardTitle>
               <CardDescription>Global and local bucket aliases</CardDescription>
             </div>
-            <Button size="sm" onClick={() => setAliasDialogOpen(true)}>
+            <Button variant="outline" size="sm" onClick={() => setAliasDialogOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Add Alias
             </Button>
@@ -461,15 +452,11 @@ export function BucketDetail() {
             </div>
             <div>
               <div className="text-sm text-muted-foreground">Index Document</div>
-              <div className="font-medium">
-                {bucket.websiteConfig?.indexDocument || '-'}
-              </div>
+              <div className="font-medium">{bucket.websiteConfig?.indexDocument || '-'}</div>
             </div>
             <div>
               <div className="text-sm text-muted-foreground">Error Document</div>
-              <div className="font-medium">
-                {bucket.websiteConfig?.errorDocument || '-'}
-              </div>
+              <div className="font-medium">{bucket.websiteConfig?.errorDocument || '-'}</div>
             </div>
           </div>
         </CardContent>
@@ -547,7 +534,7 @@ export function BucketDetail() {
                 value={inspectKey}
                 onChange={(e) => setInspectKey(e.target.value)}
               />
-              <Button onClick={handleInspect} disabled={!inspectKey.trim()}>
+              <Button variant="outline" onClick={handleInspect} disabled={!inspectKey.trim()}>
                 <FileSearch className="h-4 w-4 mr-2" />
                 Inspect
               </Button>
@@ -629,7 +616,7 @@ export function BucketDetail() {
             <Button variant="outline" onClick={() => setAliasDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleAddAlias} disabled={!canAddAlias}>
+            <Button variant="solid" onClick={handleAddAlias} disabled={!canAddAlias}>
               Add Alias
             </Button>
           </DialogFooter>
@@ -677,7 +664,7 @@ export function BucketDetail() {
             <Button variant="outline" onClick={() => setCleanupDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleCleanup} disabled={cleanupMutation.isPending}>
+            <Button variant="solid" onClick={handleCleanup} disabled={cleanupMutation.isPending}>
               {cleanupMutation.isPending ? 'Cleaning...' : 'Cleanup'}
             </Button>
           </DialogFooter>
@@ -693,12 +680,7 @@ export function BucketDetail() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={websiteEnabled}
-                onChange={(e) => setWebsiteEnabled(e.target.checked)}
-                className="h-4 w-4 cursor-pointer"
-              />
+              <Checkbox checked={websiteEnabled} onCheckedChange={setWebsiteEnabled} />
               <Label>Enable website access</Label>
             </div>
             <div className="space-y-2">
@@ -724,7 +706,11 @@ export function BucketDetail() {
             <Button variant="outline" onClick={() => setWebsiteDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleUpdateWebsiteAccess} disabled={updateBucketMutation.isPending}>
+            <Button
+              variant="solid"
+              onClick={handleUpdateWebsiteAccess}
+              disabled={updateBucketMutation.isPending}
+            >
               {updateBucketMutation.isPending ? 'Saving...' : 'Save'}
             </Button>
           </DialogFooter>
@@ -762,7 +748,11 @@ export function BucketDetail() {
             <Button variant="outline" onClick={() => setQuotasDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleUpdateQuotas} disabled={updateBucketMutation.isPending}>
+            <Button
+              variant="solid"
+              onClick={handleUpdateQuotas}
+              disabled={updateBucketMutation.isPending}
+            >
               {updateBucketMutation.isPending ? 'Saving...' : 'Save'}
             </Button>
           </DialogFooter>
@@ -777,7 +767,9 @@ export function BucketDetail() {
           </DialogHeader>
           {inspectMutation.data && <JsonViewer data={inspectMutation.data} />}
           <DialogFooter>
-            <Button onClick={() => setInspectDialogOpen(false)}>Close</Button>
+            <Button variant="outline" onClick={() => setInspectDialogOpen(false)}>
+              Close
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

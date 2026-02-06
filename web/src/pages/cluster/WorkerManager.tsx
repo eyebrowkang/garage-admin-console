@@ -3,6 +3,7 @@ import { Activity, Cog, RefreshCw, Settings } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -224,21 +225,11 @@ export function WorkerManager() {
             </div>
             <div className="flex flex-col gap-2 text-sm text-muted-foreground">
               <label className="flex items-center gap-2 text-foreground">
-                <input
-                  type="checkbox"
-                  checked={busyOnly}
-                  onChange={(e) => setBusyOnly(e.target.checked)}
-                  className="h-4 w-4 cursor-pointer"
-                />
+                <Checkbox checked={busyOnly} onCheckedChange={setBusyOnly} />
                 Busy only
               </label>
               <label className="flex items-center gap-2 text-foreground">
-                <input
-                  type="checkbox"
-                  checked={errorOnly}
-                  onChange={(e) => setErrorOnly(e.target.checked)}
-                  className="h-4 w-4 cursor-pointer"
-                />
+                <Checkbox checked={errorOnly} onCheckedChange={setErrorOnly} />
                 Error only
               </label>
             </div>

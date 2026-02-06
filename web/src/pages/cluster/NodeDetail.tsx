@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Server, HardDrive, Activity, Database, Wrench, Camera } from 'lucide-react';
+import { useParams } from 'react-router-dom';
+import { Server, HardDrive, Activity, Database, Wrench, Camera } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -30,6 +30,9 @@ import {
   useLaunchRepairOperation,
 } from '@/hooks/useNodes';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
+import { DetailPageHeader } from '@/components/cluster/DetailPageHeader';
+import { InlineLoadingState } from '@/components/cluster/InlineLoadingState';
+import { PageLoadingState } from '@/components/cluster/PageLoadingState';
 import { formatBytes, formatRelativeSeconds } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { toast } from '@/hooks/use-toast';
@@ -89,11 +92,16 @@ export function NodeDetail() {
   const repairMutation = useLaunchRepairOperation(clusterId);
 
   if (!nid) {
-    return <div className="p-4">Invalid node ID</div>;
+    return (
+      <Alert variant="destructive">
+        <AlertTitle>Invalid node ID</AlertTitle>
+        <AlertDescription>The requested node identifier is missing.</AlertDescription>
+      </Alert>
+    );
   }
 
   if (isLoading) {
-    return <div className="p-4">Loading node details...</div>;
+    return <PageLoadingState label="Loading node details..." />;
   }
 
   if (error) {
@@ -110,7 +118,14 @@ export function NodeDetail() {
   const nodeInfoError = nodeInfo?.error?.[nid];
 
   if (!node) {
-    return <div className="p-4">Node not found</div>;
+    return (
+      <Alert variant="destructive">
+        <AlertTitle>Node not found</AlertTitle>
+        <AlertDescription>
+          The node may be offline or no longer part of the cluster.
+        </AlertDescription>
+      </Alert>
+    );
   }
 
   const handleSnapshot = async () => {
@@ -154,39 +169,32 @@ export function NodeDetail() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link to={`/clusters/${clusterId}/nodes`}>
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-4 w-4" />
+      <DetailPageHeader
+        backTo={`/clusters/${clusterId}/nodes`}
+        title={node.hostname || 'Unknown Host'}
+        subtitle={node.id}
+        badges={
+          node.draining ? (
+            <Badge variant="warning">Draining</Badge>
+          ) : node.isUp ? (
+            <Badge variant="success">Up</Badge>
+          ) : (
+            <Badge variant="destructive">Down</Badge>
+          )
+        }
+        actions={
+          <>
+            <Button variant="outline" size="sm" onClick={() => setSnapshotDialogOpen(true)}>
+              <Camera className="h-4 w-4 mr-2" />
+              Create Snapshot
             </Button>
-          </Link>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold">{node.hostname || 'Unknown Host'}</h1>
-              {node.draining ? (
-                <Badge variant="warning">Draining</Badge>
-              ) : node.isUp ? (
-                <Badge variant="success">Up</Badge>
-              ) : (
-                <Badge variant="destructive">Down</Badge>
-              )}
-            </div>
-            <p className="text-sm text-muted-foreground">{node.id}</p>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setSnapshotDialogOpen(true)}>
-            <Camera className="h-4 w-4 mr-2" />
-            Create Snapshot
-          </Button>
-          <Button variant="outline" onClick={() => setRepairDialogOpen(true)}>
-            <Wrench className="h-4 w-4 mr-2" />
-            Repair
-          </Button>
-        </div>
-      </div>
+            <Button variant="outline" size="sm" onClick={() => setRepairDialogOpen(true)}>
+              <Wrench className="h-4 w-4 mr-2" />
+              Repair
+            </Button>
+          </>
+        }
+      />
 
       {/* Node Info */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -253,7 +261,7 @@ export function NodeDetail() {
         </CardHeader>
         <CardContent>
           {infoLoading ? (
-            <div className="text-sm text-muted-foreground">Loading node info...</div>
+            <InlineLoadingState label="Loading node info..." />
           ) : infoError ? (
             <Alert variant="destructive">
               <AlertTitle>Failed to load node info</AlertTitle>
@@ -358,7 +366,7 @@ export function NodeDetail() {
                   <span>Total</span>
                   <span className="font-medium">{formatBytes(node.dataPartition.total)}</span>
                 </div>
-                <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                <div className="h-2 overflow-hidden rounded-full bg-muted">
                   <div
                     className="h-full bg-primary"
                     style={{
@@ -401,7 +409,7 @@ export function NodeDetail() {
                   <span>Total</span>
                   <span className="font-medium">{formatBytes(node.metadataPartition.total)}</span>
                 </div>
-                <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                <div className="h-2 overflow-hidden rounded-full bg-muted">
                   <div
                     className="h-full bg-primary"
                     style={{
@@ -433,7 +441,7 @@ export function NodeDetail() {
         </CardHeader>
         <CardContent>
           {statsLoading ? (
-            <div className="text-sm text-muted-foreground">Loading statistics...</div>
+            <InlineLoadingState label="Loading statistics..." />
           ) : statsError ? (
             <Alert variant="destructive">
               <AlertTitle>Failed to load statistics</AlertTitle>
@@ -445,7 +453,7 @@ export function NodeDetail() {
               <AlertDescription>{nodeStatsError}</AlertDescription>
             </Alert>
           ) : (
-            <pre className="text-xs leading-relaxed font-mono bg-slate-50 border border-slate-200 rounded-lg p-4 whitespace-pre overflow-auto max-h-[600px]">
+            <pre className="max-h-[600px] overflow-auto rounded-lg border bg-muted/40 p-4 font-mono text-xs leading-relaxed whitespace-pre">
               {nodeStats?.freeform || 'No statistics available'}
             </pre>
           )}
