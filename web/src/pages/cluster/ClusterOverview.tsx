@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
 import { api, proxyPath } from '@/lib/api';
 import { formatBytes } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
@@ -193,6 +194,11 @@ export function ClusterOverview({ clusterId }: ClusterOverviewProps) {
 
   return (
     <div className="space-y-6">
+      <ModulePageHeader
+        title="Overview"
+        description="Cluster-wide health, layout status, and statistics at a glance."
+      />
+
       {/* Block Errors Alert */}
       {blockErrorCount > 0 && (
         <Alert variant="destructive">

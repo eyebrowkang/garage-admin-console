@@ -34,6 +34,7 @@ import { api, proxyPath } from '@/lib/api';
 import { formatDateTime24h, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
+import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
 import { toast } from '@/hooks/use-toast';
 import { useImportKey } from '@/hooks/useKeys';
 import type { CreateKeyRequest, GetKeyInfoResponse, ListKeysResponseItem } from '@/types/garage';
@@ -197,228 +198,226 @@ export function KeyList({ clusterId }: KeyListProps) {
     );
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <div>
-          <h3 className="text-lg font-semibold text-slate-900">Access Keys</h3>
-          <p className="text-sm text-muted-foreground">
-            Create and manage API keys for bucket access.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Dialog
-            open={isImportDialogOpen}
-            onOpenChange={(open) => {
-              setIsImportDialogOpen(open);
-              if (!open) resetImportForm();
-            }}
-          >
-            <DialogTrigger asChild>
-              <Button size="sm" variant="outline">
-                Import Key
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Import Access Key</DialogTitle>
-              </DialogHeader>
-              <Alert variant="warning">
-                <AlertTitle>Migration only</AlertTitle>
-                <AlertDescription>
-                  Imports an existing API key. This feature must only be used for migrations and
-                  backup restore. Do not use it to generate custom key identifiers or you will break
-                  your Garage cluster.
-                </AlertDescription>
-              </Alert>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Access Key ID</Label>
-                  <Input
-                    value={importAccessKeyId}
-                    onChange={(e) => setImportAccessKeyId(e.target.value)}
-                    placeholder="AKIA..."
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Secret Access Key</Label>
-                  <Input
-                    type="password"
-                    value={importSecretAccessKey}
-                    onChange={(e) => setImportSecretAccessKey(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Key Name (optional)</Label>
-                  <Input
-                    value={importKeyName}
-                    onChange={(e) => setImportKeyName(e.target.value)}
-                    placeholder="migrated-key"
-                  />
-                </div>
-              </div>
-              {importError && (
-                <Alert variant="destructive">
-                  <AlertTitle>Import failed</AlertTitle>
-                  <AlertDescription>{importError}</AlertDescription>
-                </Alert>
-              )}
-              <DialogFooter>
-                <Button
-                  onClick={handleImport}
-                  disabled={
-                    importKeyMutation.isPending ||
-                    !importAccessKeyId.trim() ||
-                    !importSecretAccessKey.trim()
-                  }
-                >
-                  {importKeyMutation.isPending ? 'Importing...' : 'Import'}
+    <div className="space-y-5">
+      <ModulePageHeader
+        title="Access Keys"
+        description="Top-level key inventory. Open a key for granular permission controls."
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <Dialog
+              open={isImportDialogOpen}
+              onOpenChange={(open) => {
+                setIsImportDialogOpen(open);
+                if (!open) resetImportForm();
+              }}
+            >
+              <DialogTrigger asChild>
+                <Button size="sm" variant="outline">
+                  Import Key
                 </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-          <Dialog
-            open={isDialogOpen}
-            onOpenChange={(open) => {
-              setIsDialogOpen(open);
-              if (!open) resetCreateForm();
-            }}
-          >
-            <DialogTrigger asChild>
-              <Button size="sm">
-                <Plus className="mr-2 h-4 w-4" /> Create Key
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Create Access Key</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Key Name</Label>
-                  <Input
-                    value={newKeyName}
-                    onChange={(e) => setNewKeyName(e.target.value)}
-                    placeholder="my-app-key"
-                  />
-                </div>
-                <div className="space-y-3">
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Import Access Key</DialogTitle>
+                </DialogHeader>
+                <Alert variant="warning">
+                  <AlertTitle>Migration only</AlertTitle>
+                  <AlertDescription>
+                    Imports an existing API key. This feature must only be used for migrations and
+                    backup restore. Do not use it to generate custom key identifiers or you will
+                    break your Garage cluster.
+                  </AlertDescription>
+                </Alert>
+                <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label>Expiration (24h)</Label>
-                    <div className="flex flex-wrap items-end gap-3">
-                      <div className="space-y-1">
-                        <div className="text-xs text-muted-foreground">Date</div>
-                        <Input
-                          type="date"
-                          value={createExpirationDate}
-                          onChange={(e) => setCreateExpirationDate(e.target.value)}
-                          disabled={createNeverExpires}
-                          className="min-w-[170px]"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <div className="text-xs text-muted-foreground">Time</div>
-                        <div className="flex items-center gap-2">
-                          <Select
-                            value={createExpirationHour}
-                            onValueChange={setCreateExpirationHour}
-                            disabled={createNeverExpires}
-                          >
-                            <SelectTrigger className="w-[84px]">
-                              <SelectValue placeholder="HH" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {HOUR_OPTIONS.map((hour) => (
-                                <SelectItem key={hour} value={hour}>
-                                  {hour}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <span className="text-sm text-muted-foreground">:</span>
-                          <Select
-                            value={createExpirationMinute}
-                            onValueChange={setCreateExpirationMinute}
-                            disabled={createNeverExpires}
-                          >
-                            <SelectTrigger className="w-[84px]">
-                              <SelectValue placeholder="MM" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {MINUTE_OPTIONS.map((minute) => (
-                                <SelectItem key={minute} value={minute}>
-                                  {minute}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Leave empty to use the default expiration policy.
-                    </p>
-                    {expirationInvalid && (
-                      <p className="text-xs text-destructive">Invalid date and time.</p>
-                    )}
-                  </div>
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={createNeverExpires}
-                      onChange={(e) => {
-                        const checked = e.target.checked;
-                        setCreateNeverExpires(checked);
-                        if (checked) {
-                          setCreateExpirationDate('');
-                          setCreateExpirationHour('00');
-                          setCreateExpirationMinute('00');
-                        }
-                      }}
-                      className="h-4 w-4 cursor-pointer"
+                    <Label>Access Key ID</Label>
+                    <Input
+                      value={importAccessKeyId}
+                      onChange={(e) => setImportAccessKeyId(e.target.value)}
+                      placeholder="AKIA..."
                     />
-                    Never expires
-                  </label>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Secret Access Key</Label>
+                    <Input
+                      type="password"
+                      value={importSecretAccessKey}
+                      onChange={(e) => setImportSecretAccessKey(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Key Name (optional)</Label>
+                    <Input
+                      value={importKeyName}
+                      onChange={(e) => setImportKeyName(e.target.value)}
+                      placeholder="migrated-key"
+                    />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>Bucket Creation Permission</Label>
-                  <Select
-                    value={createBucketPermission}
-                    onValueChange={(value) =>
-                      setCreateBucketPermission(value as 'default' | 'allow' | 'deny')
+                {importError && (
+                  <Alert variant="destructive">
+                    <AlertTitle>Import failed</AlertTitle>
+                    <AlertDescription>{importError}</AlertDescription>
+                  </Alert>
+                )}
+                <DialogFooter>
+                  <Button
+                    onClick={handleImport}
+                    disabled={
+                      importKeyMutation.isPending ||
+                      !importAccessKeyId.trim() ||
+                      !importSecretAccessKey.trim()
                     }
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Default" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="default">Default (no override)</SelectItem>
-                      <SelectItem value="allow">Allow create bucket</SelectItem>
-                      <SelectItem value="deny">Deny create bucket</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    Controls whether the key can create buckets.
-                  </p>
-                </div>
-              </div>
-              {actionError && (
-                <Alert variant="destructive">
-                  <AlertTitle>Key creation failed</AlertTitle>
-                  <AlertDescription>{actionError}</AlertDescription>
-                </Alert>
-              )}
-              <DialogFooter>
-                <Button
-                  onClick={handleCreate}
-                  disabled={expirationInvalid || createMutation.isPending}
-                >
-                  {createMutation.isPending ? 'Creating...' : 'Create'}
+                    {importKeyMutation.isPending ? 'Importing...' : 'Import'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+            <Dialog
+              open={isDialogOpen}
+              onOpenChange={(open) => {
+                setIsDialogOpen(open);
+                if (!open) resetCreateForm();
+              }}
+            >
+              <DialogTrigger asChild>
+                <Button size="sm">
+                  <Plus className="mr-2 h-4 w-4" /> Create Key
                 </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </div>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Create Access Key</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Key Name</Label>
+                    <Input
+                      value={newKeyName}
+                      onChange={(e) => setNewKeyName(e.target.value)}
+                      placeholder="my-app-key"
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <Label>Expiration (24h)</Label>
+                      <div className="flex flex-wrap items-end gap-3">
+                        <div className="space-y-1">
+                          <div className="text-xs text-muted-foreground">Date</div>
+                          <Input
+                            type="date"
+                            value={createExpirationDate}
+                            onChange={(e) => setCreateExpirationDate(e.target.value)}
+                            disabled={createNeverExpires}
+                            className="min-w-[170px]"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <div className="text-xs text-muted-foreground">Time</div>
+                          <div className="flex items-center gap-2">
+                            <Select
+                              value={createExpirationHour}
+                              onValueChange={setCreateExpirationHour}
+                              disabled={createNeverExpires}
+                            >
+                              <SelectTrigger className="w-[84px]">
+                                <SelectValue placeholder="HH" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {HOUR_OPTIONS.map((hour) => (
+                                  <SelectItem key={hour} value={hour}>
+                                    {hour}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <span className="text-sm text-muted-foreground">:</span>
+                            <Select
+                              value={createExpirationMinute}
+                              onValueChange={setCreateExpirationMinute}
+                              disabled={createNeverExpires}
+                            >
+                              <SelectTrigger className="w-[84px]">
+                                <SelectValue placeholder="MM" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {MINUTE_OPTIONS.map((minute) => (
+                                  <SelectItem key={minute} value={minute}>
+                                    {minute}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Leave empty to use the default expiration policy.
+                      </p>
+                      {expirationInvalid && (
+                        <p className="text-xs text-destructive">Invalid date and time.</p>
+                      )}
+                    </div>
+                    <label className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={createNeverExpires}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setCreateNeverExpires(checked);
+                          if (checked) {
+                            setCreateExpirationDate('');
+                            setCreateExpirationHour('00');
+                            setCreateExpirationMinute('00');
+                          }
+                        }}
+                        className="h-4 w-4 cursor-pointer"
+                      />
+                      Never expires
+                    </label>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Bucket Creation Permission</Label>
+                    <Select
+                      value={createBucketPermission}
+                      onValueChange={(value) =>
+                        setCreateBucketPermission(value as 'default' | 'allow' | 'deny')
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Default" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="default">Default (no override)</SelectItem>
+                        <SelectItem value="allow">Allow create bucket</SelectItem>
+                        <SelectItem value="deny">Deny create bucket</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Controls whether the key can create buckets.
+                    </p>
+                  </div>
+                </div>
+                {actionError && (
+                  <Alert variant="destructive">
+                    <AlertTitle>Key creation failed</AlertTitle>
+                    <AlertDescription>{actionError}</AlertDescription>
+                  </Alert>
+                )}
+                <DialogFooter>
+                  <Button
+                    onClick={handleCreate}
+                    disabled={expirationInvalid || createMutation.isPending}
+                  >
+                    {createMutation.isPending ? 'Creating...' : 'Create'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+        }
+      />
 
       {error && (
         <Alert variant="destructive">
@@ -435,7 +434,7 @@ export function KeyList({ clusterId }: KeyListProps) {
         </Alert>
       )}
 
-      <div className="border rounded-md overflow-hidden">
+      <div className="overflow-hidden rounded-lg border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
@@ -506,10 +505,12 @@ export function KeyList({ clusterId }: KeyListProps) {
           </DialogHeader>
           {createdKey && (
             <div className="space-y-4">
-              <div className="rounded-lg border bg-slate-50/70 p-3">
+              <div className="rounded-lg border bg-muted/40 p-3">
                 <div className="text-xs text-muted-foreground">Access Key ID</div>
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm text-slate-900 break-all">{createdKey.accessKeyId}</span>
+                  <span className="text-sm text-foreground break-all">
+                    {createdKey.accessKeyId}
+                  </span>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -522,10 +523,10 @@ export function KeyList({ clusterId }: KeyListProps) {
                   <div className="text-xs text-green-600 mt-1">Copied!</div>
                 )}
               </div>
-              <div className="rounded-lg border bg-slate-50/70 p-3">
+              <div className="rounded-lg border bg-muted/40 p-3">
                 <div className="text-xs text-muted-foreground">Secret Access Key</div>
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm text-slate-900 break-all">
+                  <span className="text-sm text-foreground break-all">
                     {createdKey.secretAccessKey || '-'}
                   </span>
                   {createdKey.secretAccessKey && (

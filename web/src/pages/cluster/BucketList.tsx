@@ -34,6 +34,7 @@ import { api, proxyPath } from '@/lib/api';
 import { formatDateTime24h, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
+import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
 import { toast } from '@/hooks/use-toast';
 import { useKeys } from '@/hooks/useKeys';
 import type { CreateBucketRequest, ListBucketsResponseItem } from '@/types/garage';
@@ -136,121 +137,124 @@ export function BucketList({ clusterId }: BucketListProps) {
     );
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <div>
-          <h3 className="text-lg font-semibold text-slate-900">Buckets</h3>
-          <p className="text-sm text-muted-foreground">Manage bucket aliases and lifecycle.</p>
-        </div>
-        <Dialog
-          open={isDialogOpen}
-          onOpenChange={(open) => {
-            setIsDialogOpen(open);
-            if (open) {
-              setAliasType('global');
-              setGlobalAlias('');
-              setLocalAlias('');
-              setLocalAccessKeyId('');
-            } else {
-              setActionError('');
-            }
-          }}
-        >
-          <DialogTrigger asChild>
-            <Button size="sm">
-              <Plus className="mr-2 h-4 w-4" /> Create Bucket
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create Bucket</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Alias Type</Label>
-                <Select
-                  value={aliasType}
-                  onValueChange={(value) =>
-                    setAliasType(value as 'none' | 'global' | 'local' | 'both')
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select alias type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="global">Global alias</SelectItem>
-                    <SelectItem value="local">Local alias</SelectItem>
-                    <SelectItem value="both">Global + Local</SelectItem>
-                    <SelectItem value="none">No alias</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {needsGlobal && (
+    <div className="space-y-5">
+      <ModulePageHeader
+        title="Buckets"
+        description="List-level management for bucket aliases and lifecycle."
+        actions={
+          <Dialog
+            open={isDialogOpen}
+            onOpenChange={(open) => {
+              setIsDialogOpen(open);
+              if (open) {
+                setAliasType('global');
+                setGlobalAlias('');
+                setLocalAlias('');
+                setLocalAccessKeyId('');
+              } else {
+                setActionError('');
+              }
+            }}
+          >
+            <DialogTrigger asChild>
+              <Button size="sm">
+                <Plus className="mr-2 h-4 w-4" /> Create Bucket
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create Bucket</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Global Alias</Label>
-                  <Input
-                    value={globalAlias}
-                    onChange={(e) => setGlobalAlias(e.target.value)}
-                    placeholder="my-bucket"
-                  />
+                  <Label>Alias Type</Label>
+                  <Select
+                    value={aliasType}
+                    onValueChange={(value) =>
+                      setAliasType(value as 'none' | 'global' | 'local' | 'both')
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select alias type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="global">Global alias</SelectItem>
+                      <SelectItem value="local">Local alias</SelectItem>
+                      <SelectItem value="both">Global + Local</SelectItem>
+                      <SelectItem value="none">No alias</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-              )}
 
-              {needsLocal && (
-                <>
+                {needsGlobal && (
                   <div className="space-y-2">
-                    <Label>Local Alias</Label>
+                    <Label>Global Alias</Label>
                     <Input
-                      value={localAlias}
-                      onChange={(e) => setLocalAlias(e.target.value)}
+                      value={globalAlias}
+                      onChange={(e) => setGlobalAlias(e.target.value)}
                       placeholder="my-bucket"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label>Access Key</Label>
-                    {keysQuery.isLoading ? (
-                      <div className="text-sm text-muted-foreground">Loading access keys...</div>
-                    ) : keysQuery.error ? (
-                      <div className="text-sm text-destructive">
-                        {getApiErrorMessage(keysQuery.error, 'Failed to load access keys.')}
-                      </div>
-                    ) : keys.length > 0 ? (
-                      <Select value={selectedLocalAccessKeyId} onValueChange={setLocalAccessKeyId}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select access key" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {keys.map((key) => (
-                            <SelectItem key={key.id} value={key.id}>
-                              {key.name || formatShortId(key.id, 12)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <div className="text-sm text-muted-foreground">
-                        No access keys available for local alias creation.
-                      </div>
-                    )}
-                  </div>
-                </>
+                )}
+
+                {needsLocal && (
+                  <>
+                    <div className="space-y-2">
+                      <Label>Local Alias</Label>
+                      <Input
+                        value={localAlias}
+                        onChange={(e) => setLocalAlias(e.target.value)}
+                        placeholder="my-bucket"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Access Key</Label>
+                      {keysQuery.isLoading ? (
+                        <div className="text-sm text-muted-foreground">Loading access keys...</div>
+                      ) : keysQuery.error ? (
+                        <div className="text-sm text-destructive">
+                          {getApiErrorMessage(keysQuery.error, 'Failed to load access keys.')}
+                        </div>
+                      ) : keys.length > 0 ? (
+                        <Select
+                          value={selectedLocalAccessKeyId}
+                          onValueChange={setLocalAccessKeyId}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select access key" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {keys.map((key) => (
+                              <SelectItem key={key.id} value={key.id}>
+                                {key.name || formatShortId(key.id, 12)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <div className="text-sm text-muted-foreground">
+                          No access keys available for local alias creation.
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+              {actionError && (
+                <Alert variant="destructive">
+                  <AlertTitle>Bucket creation failed</AlertTitle>
+                  <AlertDescription>{actionError}</AlertDescription>
+                </Alert>
               )}
-            </div>
-            {actionError && (
-              <Alert variant="destructive">
-                <AlertTitle>Bucket creation failed</AlertTitle>
-                <AlertDescription>{actionError}</AlertDescription>
-              </Alert>
-            )}
-            <DialogFooter>
-              <Button onClick={handleCreate} disabled={!canCreate}>
-                {createMutation.isPending ? 'Creating...' : 'Create'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
+              <DialogFooter>
+                <Button onClick={handleCreate} disabled={!canCreate}>
+                  {createMutation.isPending ? 'Creating...' : 'Create'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        }
+      />
 
       {error && (
         <Alert variant="destructive">
@@ -267,7 +271,7 @@ export function BucketList({ clusterId }: BucketListProps) {
         </Alert>
       )}
 
-      <div className="border rounded-md overflow-hidden">
+      <div className="overflow-hidden rounded-lg border bg-card">
         <Table>
           <TableHeader>
             <TableRow>

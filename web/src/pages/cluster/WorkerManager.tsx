@@ -37,6 +37,7 @@ import {
   useSetWorkerVariable,
 } from '@/hooks/useWorkers';
 import { NodeSelector } from '@/components/cluster/NodeSelector';
+import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
 import { formatRelativeSeconds, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { toast } from '@/hooks/use-toast';
@@ -187,25 +188,22 @@ export function WorkerManager() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Worker Management</h1>
-          <p className="text-sm text-muted-foreground">
-            Monitor and configure background workers across cluster nodes
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => refetch()}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
-          <Button variant="outline" onClick={() => openSetVariableDialog()}>
-            <Settings className="h-4 w-4 mr-2" />
-            Set Variable
-          </Button>
-        </div>
-      </div>
+      <ModulePageHeader
+        title="Worker Management"
+        description="Observe background workers and tune worker variables per node or cluster-wide."
+        actions={
+          <>
+            <Button variant="outline" size="sm" onClick={() => refetch()}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+            <Button size="sm" onClick={() => openSetVariableDialog()}>
+              <Settings className="h-4 w-4 mr-2" />
+              Set Variable
+            </Button>
+          </>
+        }
+      />
 
       {/* Filters */}
       <Card>
@@ -570,7 +568,7 @@ export function WorkerManager() {
                     )}
                     <div>
                       <div className="text-sm text-muted-foreground mb-2">Freeform output</div>
-                      <pre className="text-xs leading-relaxed font-mono bg-slate-50 border border-slate-200 rounded-lg p-4 whitespace-pre overflow-auto max-h-80">
+                      <pre className="max-h-80 overflow-auto rounded-lg border bg-muted/40 p-4 font-mono text-xs leading-relaxed whitespace-pre">
                         {info.freeform && info.freeform.length > 0
                           ? info.freeform.join('\n')
                           : 'No freeform output.'}

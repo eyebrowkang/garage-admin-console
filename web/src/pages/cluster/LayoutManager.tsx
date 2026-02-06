@@ -28,6 +28,7 @@ import { api, proxyPath } from '@/lib/api';
 import { formatBytes, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
+import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
 import { toast } from '@/hooks/use-toast';
 import {
   Select,
@@ -367,6 +368,11 @@ export function LayoutManager({ clusterId }: LayoutManagerProps) {
 
   return (
     <div className="space-y-6">
+      <ModulePageHeader
+        title="Layout"
+        description="Stage, preview, and apply cluster layout changes with explicit version control."
+      />
+
       <Card>
         <CardHeader>
           <div className="flex flex-wrap items-start justify-between gap-4">

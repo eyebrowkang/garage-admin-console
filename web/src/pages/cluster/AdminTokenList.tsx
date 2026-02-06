@@ -40,6 +40,7 @@ import {
 } from '@/hooks/useAdminTokens';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { SecretReveal } from '@/components/cluster/SecretReveal';
+import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
 import { formatDateTime24h, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { toast } from '@/hooks/use-toast';
@@ -181,7 +182,7 @@ export function AdminTokenList() {
     const preview = scope.slice(0, 3).join(', ');
     const suffix = scope.length > 3 ? ` +${scope.length - 3} more` : '';
     return (
-      <span className="text-xs font-mono text-slate-700">
+      <span className="text-xs font-mono text-foreground">
         {preview}
         {suffix}
       </span>
@@ -218,6 +219,17 @@ export function AdminTokenList() {
 
   return (
     <div className="space-y-6">
+      <ModulePageHeader
+        title="Admin Tokens"
+        description="Manage cluster admin tokens and inspect their scopes from a single control plane."
+        actions={
+          <Button size="sm" onClick={() => setCreateDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Create Token
+          </Button>
+        }
+      />
+
       {/* Warning Banner */}
       <Alert>
         <AlertTriangle className="h-4 w-4" />
@@ -345,7 +357,7 @@ export function AdminTokenList() {
             </Alert>
           )}
           {lookupResult && (
-            <Card className="border-slate-200">
+            <Card className="border-border">
               <CardContent className="pt-4 space-y-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="font-medium">{lookupResult.name}</div>
@@ -389,16 +401,8 @@ export function AdminTokenList() {
       {/* Token List */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Admin Tokens</CardTitle>
-              <CardDescription>Manage admin API tokens for this cluster</CardDescription>
-            </div>
-            <Button onClick={() => setCreateDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Token
-            </Button>
-          </div>
+          <CardTitle>Admin Tokens</CardTitle>
+          <CardDescription>Manage admin API tokens for this cluster</CardDescription>
         </CardHeader>
         <CardContent>
           {tokens && tokens.length > 0 ? (

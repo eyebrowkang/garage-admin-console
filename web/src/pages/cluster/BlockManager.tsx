@@ -22,10 +22,16 @@ import {
 } from '@/components/ui/table';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useClusterContext } from '@/contexts/ClusterContext';
-import { useBlockErrors, useBlockInfo, useRetryBlockResync, usePurgeBlocks } from '@/hooks/useBlocks';
+import {
+  useBlockErrors,
+  useBlockInfo,
+  useRetryBlockResync,
+  usePurgeBlocks,
+} from '@/hooks/useBlocks';
 import { NodeSelector } from '@/components/cluster/NodeSelector';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { JsonViewer } from '@/components/cluster/JsonViewer';
+import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
 import { formatDateTime24h, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { toast } from '@/hooks/use-toast';
@@ -159,29 +165,26 @@ export function BlockManager() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Block Management</h1>
-          <p className="text-sm text-muted-foreground">
-            Monitor and resolve block synchronization errors
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => refetch()}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
-          <Button variant="outline" onClick={() => setRetryAllDialogOpen(true)}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Retry Resync
-          </Button>
-          <Button variant="destructive" onClick={() => setPurgeDialogOpen(true)}>
-            <Trash2 className="h-4 w-4 mr-2" />
-            Purge Blocks
-          </Button>
-        </div>
-      </div>
+      <ModulePageHeader
+        title="Block Management"
+        description="Review synchronization failures and run recovery operations on affected blocks."
+        actions={
+          <>
+            <Button variant="outline" size="sm" onClick={() => refetch()}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+            <Button size="sm" onClick={() => setRetryAllDialogOpen(true)}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Retry Resync
+            </Button>
+            <Button variant="destructive" size="sm" onClick={() => setPurgeDialogOpen(true)}>
+              <Trash2 className="h-4 w-4 mr-2" />
+              Purge Blocks
+            </Button>
+          </>
+        }
+      />
 
       {/* Warning Banner */}
       {hasErrors && (
@@ -231,75 +234,79 @@ export function BlockManager() {
               <AlertDescription>{getApiErrorMessage(error)}</AlertDescription>
             </Alert>
           ) : allErrors.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Block Hash</TableHead>
-                  <TableHead>Node</TableHead>
-                  <TableHead>Ref Count</TableHead>
-                  <TableHead>Error Count</TableHead>
-                  <TableHead>Last Try</TableHead>
-                  <TableHead>Next Retry</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {allErrors.map((blockError) => (
-                  <TableRow key={`${blockError.nodeId}-${blockError.blockHash}`}>
-                    <TableCell>
-                      <button
-                        className="text-xs text-primary hover:underline"
-                        onClick={() => {
-                          openBlockInfo(blockError.blockHash, blockError.nodeId);
-                        }}
-                      >
-                        {formatShortId(blockError.blockHash, 16)}
-                      </button>
-                    </TableCell>
-                    <TableCell className="text-xs">
-                      {formatShortId(blockError.nodeId, 8)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{blockError.refcount}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={blockError.errorCount > 3 ? 'destructive' : 'warning'}>
-                        {blockError.errorCount}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {blockError.lastTry ? formatDateTime24h(blockError.lastTry) : '-'}
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {blockError.nextTry ? formatDateTime24h(blockError.nextTry) : '-'}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
+            <div className="overflow-hidden rounded-lg border bg-card">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Block Hash</TableHead>
+                    <TableHead>Node</TableHead>
+                    <TableHead>Ref Count</TableHead>
+                    <TableHead>Error Count</TableHead>
+                    <TableHead>Last Try</TableHead>
+                    <TableHead>Next Retry</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {allErrors.map((blockError) => (
+                    <TableRow key={`${blockError.nodeId}-${blockError.blockHash}`}>
+                      <TableCell>
+                        <button
+                          className="text-xs text-primary hover:underline"
                           onClick={() => {
                             openBlockInfo(blockError.blockHash, blockError.nodeId);
                           }}
-                          title="View block info"
                         >
-                          <Info className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleRetryResync(blockError.blockHash, blockError.nodeId)}
-                          disabled={retryMutation.isPending}
-                          title="Retry resync"
-                        >
-                          <RefreshCw className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                          {formatShortId(blockError.blockHash, 16)}
+                        </button>
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {formatShortId(blockError.nodeId, 8)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{blockError.refcount}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={blockError.errorCount > 3 ? 'destructive' : 'warning'}>
+                          {blockError.errorCount}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {blockError.lastTry ? formatDateTime24h(blockError.lastTry) : '-'}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {blockError.nextTry ? formatDateTime24h(blockError.nextTry) : '-'}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              openBlockInfo(blockError.blockHash, blockError.nodeId);
+                            }}
+                            title="View block info"
+                          >
+                            <Info className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() =>
+                              handleRetryResync(blockError.blockHash, blockError.nodeId)
+                            }
+                            disabled={retryMutation.isPending}
+                            title="Retry resync"
+                          >
+                            <RefreshCw className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           ) : (
             <div className="text-center py-8">
               <Database className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
@@ -330,11 +337,7 @@ export function BlockManager() {
                 setLookupHash(e.target.value);
               }}
             />
-            <Button
-              variant="outline"
-              disabled={!lookupHash.trim()}
-              onClick={handleLookup}
-            >
+            <Button variant="outline" disabled={!lookupHash.trim()} onClick={handleLookup}>
               <Search className="h-4 w-4 mr-2" />
               Lookup
             </Button>
@@ -370,9 +373,7 @@ export function BlockManager() {
             </Alert>
           ) : blockInfo ? (
             <div className="space-y-4">
-              <div className="text-sm text-muted-foreground">
-                Showing raw block info response.
-              </div>
+              <div className="text-sm text-muted-foreground">Showing raw block info response.</div>
               <JsonViewer data={blockInfo} />
             </div>
           ) : (
@@ -471,9 +472,9 @@ export function BlockManager() {
         open={purgeConfirmOpen}
         onOpenChange={setPurgeConfirmOpen}
         title="Confirm Block Purge"
-        description={`You are about to permanently delete ${purgeHashes
-          .split('\n')
-          .filter((h) => h.trim()).length} block(s) on ${
+        description={`You are about to permanently delete ${
+          purgeHashes.split('\n').filter((h) => h.trim()).length
+        } block(s) on ${
           purgeNode === '*'
             ? 'all nodes'
             : purgeNode === 'self'

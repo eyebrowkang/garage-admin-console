@@ -34,6 +34,7 @@ import { api, proxyPath } from '@/lib/api';
 import { formatBytes, formatRelativeSeconds, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
+import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
 import { toast } from '@/hooks/use-toast';
 import {
   useConnectNodes,
@@ -192,85 +193,88 @@ export function ClusterNodeList({ clusterId }: NodeListProps) {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-        <div>
-          <h3 className="text-lg font-semibold text-slate-900">Nodes</h3>
-          <p className="text-sm text-muted-foreground">Monitor and manage cluster nodes.</p>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
+    <div className="space-y-5">
+      <ModulePageHeader
+        title="Nodes"
+        description="Cluster node inventory and cluster-wide node operations."
+        meta={
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Server className="h-4 w-4" />
             Layout version:{' '}
-            <span className="font-medium text-slate-900">{data?.layoutVersion ?? '-'}</span>
+            <span className="font-medium text-foreground">{data?.layoutVersion ?? '-'}</span>
           </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Dialog
-            open={connectDialogOpen}
-            onOpenChange={(open) => {
-              setConnectDialogOpen(open);
-              if (!open) {
-                setConnectNodesInput('');
-                setConnectError('');
-              }
-            }}
-          >
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Link2 className="mr-2 h-4 w-4" />
-                Connect Nodes
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Connect Cluster Nodes</DialogTitle>
-                <DialogDescription>
-                  Instruct this Garage node to connect to other Garage nodes at
-                  {' <node_id>@<net_address>'}. Node IDs are generated automatically on node start.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-2">
-                <Label>Nodes</Label>
-                <textarea
-                  className="min-h-[140px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 font-mono"
-                  placeholder={`node_id@address
+        }
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <Dialog
+              open={connectDialogOpen}
+              onOpenChange={(open) => {
+                setConnectDialogOpen(open);
+                if (!open) {
+                  setConnectNodesInput('');
+                  setConnectError('');
+                }
+              }}
+            >
+              <DialogTrigger asChild>
+                <Button size="sm">
+                  <Link2 className="mr-2 h-4 w-4" />
+                  Connect Nodes
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Connect Cluster Nodes</DialogTitle>
+                  <DialogDescription>
+                    Instruct this Garage node to connect to other Garage nodes at
+                    {' <node_id>@<net_address>'}. Node IDs are generated automatically on node
+                    start.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-2">
+                  <Label>Nodes</Label>
+                  <textarea
+                    className="min-h-[140px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 font-mono"
+                    placeholder={`node_id@address
 node_id@address`}
-                  value={connectNodesInput}
-                  onChange={(e) => {
-                    setConnectNodesInput(e.target.value);
-                    if (connectError) setConnectError('');
-                  }}
-                />
-                <p className="text-xs text-muted-foreground">One node per line.</p>
-              </div>
-              {connectError && (
-                <Alert variant="destructive">
-                  <AlertTitle>Connect failed</AlertTitle>
-                  <AlertDescription>{connectError}</AlertDescription>
-                </Alert>
-              )}
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setConnectDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleConnectNodes} disabled={connectMutation.isPending}>
-                  {connectMutation.isPending ? 'Connecting...' : 'Connect'}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+                    value={connectNodesInput}
+                    onChange={(e) => {
+                      setConnectNodesInput(e.target.value);
+                      if (connectError) setConnectError('');
+                    }}
+                  />
+                  <p className="text-xs text-muted-foreground">One node per line.</p>
+                </div>
+                {connectError && (
+                  <Alert variant="destructive">
+                    <AlertTitle>Connect failed</AlertTitle>
+                    <AlertDescription>{connectError}</AlertDescription>
+                  </Alert>
+                )}
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setConnectDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleConnectNodes} disabled={connectMutation.isPending}>
+                    {connectMutation.isPending ? 'Connecting...' : 'Connect'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
-          <Button variant="outline" size="sm" onClick={() => setSnapshotConfirmOpen(true)}>
-            <Camera className="mr-2 h-4 w-4" />
-            Create Snapshot
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => setRepairDialogOpen(true)}>
-            <Wrench className="mr-2 h-4 w-4" />
-            Launch Repair
-          </Button>
-        </div>
-      </div>
+            <Button variant="outline" size="sm" onClick={() => setSnapshotConfirmOpen(true)}>
+              <Camera className="mr-2 h-4 w-4" />
+              Create Snapshot
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setRepairDialogOpen(true)}>
+              <Wrench className="mr-2 h-4 w-4" />
+              Launch Repair
+            </Button>
+          </div>
+        }
+      />
 
-      <div className="border rounded-md overflow-hidden">
+      <div className="overflow-hidden rounded-lg border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
@@ -310,11 +314,11 @@ node_id@address`}
                   {node.role ? (
                     <div className="space-y-1">
                       <div className="text-xs text-muted-foreground">
-                        Zone: <span className="text-slate-900">{node.role.zone}</span>
+                        Zone: <span className="text-foreground">{node.role.zone}</span>
                       </div>
                       <div className="text-xs text-muted-foreground">
                         Capacity:{' '}
-                        <span className="text-slate-900">
+                        <span className="text-foreground">
                           {formatBytes(node.role.capacity ?? null)}
                         </span>
                       </div>
