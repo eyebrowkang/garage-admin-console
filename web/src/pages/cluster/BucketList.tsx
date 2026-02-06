@@ -20,7 +20,6 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   Select,
@@ -33,6 +32,7 @@ import { api, proxyPath } from '@/lib/api';
 import { formatDateTime24h, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
+import { AliasMiniChip } from '@/components/cluster/AliasMiniChip';
 import { CopyButton } from '@/components/cluster/CopyButton';
 import { InlineLoadingState } from '@/components/cluster/InlineLoadingState';
 import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
@@ -297,10 +297,7 @@ export function BucketList({ clusterId }: BucketListProps) {
                   <div className="flex flex-wrap gap-1">
                     {bucket.globalAliases.length > 0 ? (
                       bucket.globalAliases.map((alias) => (
-                        <Badge key={alias} variant="secondary" className="gap-1">
-                          {alias}
-                          <CopyButton value={alias} label="Global alias" compact />
-                        </Badge>
+                        <AliasMiniChip key={alias} value={alias} kind="global" />
                       ))
                     ) : (
                       <span className="text-xs text-muted-foreground">-</span>
@@ -311,14 +308,11 @@ export function BucketList({ clusterId }: BucketListProps) {
                   <div className="flex flex-wrap gap-1">
                     {bucket.localAliases.length > 0 ? (
                       bucket.localAliases.map((alias) => (
-                        <Badge
+                        <AliasMiniChip
                           key={`${alias.accessKeyId}-${alias.alias}`}
-                          variant="outline"
-                          className="gap-1"
-                        >
-                          {alias.alias}
-                          <CopyButton value={alias.alias} label="Local alias" compact />
-                        </Badge>
+                          value={alias.alias}
+                          kind="local"
+                        />
                       ))
                     ) : (
                       <span className="text-xs text-muted-foreground">-</span>

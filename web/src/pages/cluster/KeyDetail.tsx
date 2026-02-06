@@ -34,6 +34,7 @@ import { useClusterContext } from '@/contexts/ClusterContext';
 import { useKeyInfo, useUpdateKey, useDeleteKey } from '@/hooks/useKeys';
 import { useBuckets } from '@/hooks/useBuckets';
 import { useAllowBucketKey, useDenyBucketKey } from '@/hooks/usePermissions';
+import { AliasMiniChip } from '@/components/cluster/AliasMiniChip';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { CopyButton } from '@/components/cluster/CopyButton';
 import { DetailPageHeader } from '@/components/cluster/DetailPageHeader';
@@ -506,14 +507,10 @@ export function KeyDetail() {
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
                         {bucket.globalAliases.map((alias) => (
-                          <Badge key={alias} variant="secondary" className="text-xs">
-                            {alias}
-                          </Badge>
+                          <AliasMiniChip key={alias} value={alias} kind="global" />
                         ))}
                         {bucket.localAliases.map((alias) => (
-                          <Badge key={alias} variant="outline" className="text-xs">
-                            {alias}
-                          </Badge>
+                          <AliasMiniChip key={alias} value={alias} kind="local" />
                         ))}
                       </div>
                     </TableCell>
