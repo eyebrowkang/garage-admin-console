@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Globe, Key, Trash2, Tags, Settings, RefreshCw } from 'lucide-react';
+import { Globe, Trash2, Tags, Settings, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -44,6 +44,7 @@ import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { DetailPageHeader } from '@/components/cluster/DetailPageHeader';
 import { JsonViewer } from '@/components/cluster/JsonViewer';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
+import { KeyIcon } from '@/lib/entity-icons';
 import { formatBytes, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { toast } from '@/hooks/use-toast';
@@ -359,7 +360,7 @@ export function BucketDetail() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Key className="h-5 w-5" />
+            <KeyIcon className="h-5 w-5" />
             Key Permissions
           </CardTitle>
           <CardDescription>Access keys with permissions on this bucket (read-only)</CardDescription>

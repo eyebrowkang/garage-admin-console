@@ -7,13 +7,13 @@ import {
   HardDrive,
   Link2Off,
   Pencil,
-  Server,
   XCircle,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatBytes } from '@/lib/format';
+import { NodeIcon } from '@/lib/entity-icons';
 import type {
   ClusterSummary,
   GetClusterHealthResponse,
@@ -236,7 +236,7 @@ export function ClusterStatusMonitor({
                 <div className="grid gap-2 sm:grid-cols-3">
                   <div className="rounded-lg border bg-card p-2">
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Server className="h-3.5 w-3.5" />
+                      <NodeIcon className="h-3.5 w-3.5" />
                       Nodes
                     </div>
                     <div className="text-sm font-semibold">

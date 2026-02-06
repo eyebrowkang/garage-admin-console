@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Key, Boxes, Trash2, Edit2 } from 'lucide-react';
+import { Trash2, Edit2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -39,6 +39,7 @@ import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { DetailPageHeader } from '@/components/cluster/DetailPageHeader';
 import { InlineLoadingState } from '@/components/cluster/InlineLoadingState';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
+import { BucketIcon, KeyIcon } from '@/lib/entity-icons';
 import { formatDateTime24h, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { toast } from '@/hooks/use-toast';
@@ -341,7 +342,7 @@ export function KeyDetail() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Key className="h-5 w-5" />
+            <KeyIcon className="h-5 w-5" />
             Key Information
           </CardTitle>
         </CardHeader>
@@ -416,7 +417,7 @@ export function KeyDetail() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Boxes className="h-5 w-5" />
+            <BucketIcon className="h-5 w-5" />
             Bucket Permissions
           </CardTitle>
           <CardDescription>Buckets this key has access to</CardDescription>

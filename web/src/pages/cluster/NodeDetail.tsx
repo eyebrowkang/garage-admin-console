@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Server, HardDrive, Activity, Database, Wrench, Camera } from 'lucide-react';
+import { HardDrive, Activity, Database, Wrench, Camera } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -33,6 +33,7 @@ import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { DetailPageHeader } from '@/components/cluster/DetailPageHeader';
 import { InlineLoadingState } from '@/components/cluster/InlineLoadingState';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
+import { NodeIcon } from '@/lib/entity-icons';
 import { formatBytes, formatRelativeSeconds } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { toast } from '@/hooks/use-toast';
@@ -201,7 +202,7 @@ export function NodeDetail() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Server className="h-4 w-4" />
+              <NodeIcon className="h-4 w-4" />
               Status
             </CardTitle>
           </CardHeader>

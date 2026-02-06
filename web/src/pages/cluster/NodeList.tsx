@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Server, Link2, Camera, Wrench } from 'lucide-react';
+import { Link2, Camera, Wrench } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -38,6 +38,7 @@ import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
 import { toast } from '@/hooks/use-toast';
+import { NodeIcon } from '@/lib/entity-icons';
 import {
   useConnectNodes,
   useCreateMetadataSnapshot,
@@ -196,7 +197,7 @@ export function ClusterNodeList({ clusterId }: NodeListProps) {
         description="Cluster node inventory and cluster-wide node operations."
         meta={
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Server className="h-4 w-4" />
+            <NodeIcon className="h-4 w-4" />
             Layout version:{' '}
             <span className="font-medium text-foreground">{data?.layoutVersion ?? '-'}</span>
           </div>

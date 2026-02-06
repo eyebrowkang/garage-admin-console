@@ -1,28 +1,20 @@
 import { Outlet, useParams, NavLink, useLocation } from 'react-router-dom';
-import {
-  Activity,
-  Database,
-  Key,
-  Server,
-  LayoutGrid,
-  Shield,
-  Blocks,
-  Settings,
-} from 'lucide-react';
+import { Activity, LayoutGrid, Settings, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useClusters } from '@/hooks/useClusters';
 import { useBlockErrors } from '@/hooks/useBlocks';
 import { ClusterContext } from '@/contexts/ClusterContext';
+import { BlockIcon, BucketIcon, KeyIcon, NodeIcon, TokenIcon } from '@/lib/entity-icons';
 
 const navItems = [
   { to: '', icon: Activity, label: 'Overview', exact: true },
-  { to: 'buckets', icon: Database, label: 'Buckets' },
-  { to: 'keys', icon: Key, label: 'Access Keys' },
+  { to: 'buckets', icon: BucketIcon, label: 'Buckets' },
+  { to: 'keys', icon: KeyIcon, label: 'Access Keys' },
   { to: 'layout', icon: LayoutGrid, label: 'Layout' },
-  { to: 'nodes', icon: Server, label: 'Nodes' },
-  { to: 'tokens', icon: Shield, label: 'Admin Tokens' },
+  { to: 'nodes', icon: NodeIcon, label: 'Nodes' },
+  { to: 'tokens', icon: TokenIcon, label: 'Admin Tokens' },
   { to: 'workers', icon: Settings, label: 'Workers' },
-  { to: 'blocks', icon: Blocks, label: 'Blocks' },
+  { to: 'blocks', icon: BlockIcon, label: 'Blocks' },
 ];
 
 function ClusterNavItem({
@@ -34,7 +26,7 @@ function ClusterNavItem({
   badge,
 }: {
   to: string;
-  icon: typeof Activity;
+  icon: LucideIcon;
   label: string;
   clusterId: string;
   exact?: boolean;
@@ -93,7 +85,7 @@ export function ClusterLayout() {
         <div className="lg:hidden">
           <div className="flex items-center gap-2 mb-4">
             <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-              <Server className="h-4 w-4" />
+              <NodeIcon className="h-4 w-4" />
             </div>
             <div>
               <h2 className="font-semibold text-lg">{cluster?.name || 'Loading...'}</h2>
@@ -123,7 +115,7 @@ export function ClusterLayout() {
           <div className="sticky top-20 space-y-2 rounded-xl border bg-card/90 p-3">
             <div className="flex items-center gap-2 mb-2 px-2">
               <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                <Server className="h-4 w-4" />
+                <NodeIcon className="h-4 w-4" />
               </div>
               <div className="overflow-hidden">
                 <h2 className="font-semibold text-sm truncate">{cluster?.name || 'Loading...'}</h2>

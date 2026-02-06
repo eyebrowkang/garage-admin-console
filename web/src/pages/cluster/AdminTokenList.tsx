@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Shield, ChevronRight, AlertTriangle } from 'lucide-react';
+import { Plus, Trash2, ChevronRight, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -46,6 +46,7 @@ import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
 import { formatDateTime24h, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
+import { TokenIcon } from '@/lib/entity-icons';
 import { toast } from '@/hooks/use-toast';
 import type { AdminTokenInfo, CreateAdminTokenResponse } from '@/types/garage';
 
@@ -248,7 +249,7 @@ export function AdminTokenList() {
         <Card className="border-primary/20 bg-primary/5">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-primary" />
+              <TokenIcon className="h-5 w-5 text-primary" />
               Current Token
             </CardTitle>
             <CardDescription>The token being used for this connection</CardDescription>

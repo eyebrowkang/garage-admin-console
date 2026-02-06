@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Shield, Edit2, Trash2, AlertTriangle } from 'lucide-react';
+import { Edit2, Trash2, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -34,6 +34,7 @@ import {
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { DetailPageHeader } from '@/components/cluster/DetailPageHeader';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
+import { TokenIcon } from '@/lib/entity-icons';
 import { formatDateTime24h } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { toast } from '@/hooks/use-toast';
@@ -239,7 +240,7 @@ export function AdminTokenDetail() {
 
       {isCurrent && (
         <Alert>
-          <Shield className="h-4 w-4" />
+          <TokenIcon className="h-4 w-4" />
           <AlertTitle>Current Token</AlertTitle>
           <AlertDescription>
             This is the token currently being used for this connection. Deleting it will revoke your
@@ -252,7 +253,7 @@ export function AdminTokenDetail() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5" />
+            <TokenIcon className="h-5 w-5" />
             Token Information
           </CardTitle>
         </CardHeader>

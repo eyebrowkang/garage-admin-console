@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   LayoutGrid,
   Layers,
-  Server,
   ShieldCheck,
   XCircle,
 } from 'lucide-react';
@@ -20,6 +19,7 @@ import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
 import { api, proxyPath } from '@/lib/api';
 import { formatBytes } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
+import { NodeIcon } from '@/lib/entity-icons';
 import type {
   GetClusterHealthResponse,
   GetClusterLayoutResponse,
@@ -272,7 +272,7 @@ export function ClusterOverview({ clusterId }: ClusterOverviewProps) {
             </div>
             <div className="flex items-center gap-3 rounded-lg bg-slate-50 px-3 py-2">
               <div className="h-8 w-8 rounded-lg bg-white flex items-center justify-center shadow-sm">
-                <Server className="h-4 w-4 text-slate-500" />
+                <NodeIcon className="h-4 w-4 text-slate-500" />
               </div>
               <div>
                 <div className="text-xs text-muted-foreground">Storage Nodes</div>
