@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AlertTriangle, Database, RefreshCw, Trash2, Info, Search } from 'lucide-react';
+import { AlertTriangle, Blocks, RefreshCw, Trash2, Info, Search } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -223,7 +223,7 @@ export function BlockManager() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Database className="h-5 w-5" />
+            <Blocks className="h-5 w-5" />
             Block Errors
           </CardTitle>
           <CardDescription>Blocks with synchronization or integrity errors</CardDescription>
@@ -311,7 +311,7 @@ export function BlockManager() {
             </div>
           ) : (
             <div className="py-8 text-center">
-              <Database className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+              <Blocks className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
               <p className="text-muted-foreground">No block errors found</p>
               <p className="text-sm text-muted-foreground mt-1">
                 All blocks are synchronized correctly

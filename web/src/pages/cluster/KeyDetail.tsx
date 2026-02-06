@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Key, Database, Trash2, Edit2, Eye } from 'lucide-react';
+import { Key, Boxes, Trash2, Edit2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -395,7 +395,6 @@ export function KeyDetail() {
                   onClick={handleRevealSecret}
                   disabled={secretLoading}
                 >
-                  <Eye className="h-4 w-4 mr-2" />
                   {secretLoading ? 'Loading...' : 'Reveal Secret'}
                 </Button>
               )}
@@ -417,7 +416,7 @@ export function KeyDetail() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Database className="h-5 w-5" />
+            <Boxes className="h-5 w-5" />
             Bucket Permissions
           </CardTitle>
           <CardDescription>Buckets this key has access to</CardDescription>

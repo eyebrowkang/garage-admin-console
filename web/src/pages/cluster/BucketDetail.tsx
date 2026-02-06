@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Globe, Key, Trash2, Plus, Settings, FileSearch, RefreshCw } from 'lucide-react';
+import { Globe, Key, Trash2, Tags, Settings, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -287,13 +287,12 @@ export function BucketDetail() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="flex items-center gap-2">
-                <Globe className="h-5 w-5" />
+                <Tags className="h-5 w-5" />
                 Aliases
               </CardTitle>
               <CardDescription>Global and local bucket aliases</CardDescription>
             </div>
             <Button variant="outline" size="sm" onClick={() => setAliasDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
               Add Alias
             </Button>
           </div>
@@ -535,7 +534,6 @@ export function BucketDetail() {
                 onChange={(e) => setInspectKey(e.target.value)}
               />
               <Button variant="outline" onClick={handleInspect} disabled={!inspectKey.trim()}>
-                <FileSearch className="h-4 w-4 mr-2" />
                 Inspect
               </Button>
             </div>
