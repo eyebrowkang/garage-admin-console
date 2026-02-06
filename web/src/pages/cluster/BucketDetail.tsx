@@ -649,7 +649,7 @@ export function BucketDetail() {
             <Button variant="outline" onClick={() => setAliasDialogOpen(false)}>
               Cancel
             </Button>
-            <Button variant="solid" onClick={handleAddAlias} disabled={!canAddAlias}>
+            <Button onClick={handleAddAlias} disabled={!canAddAlias}>
               Add Alias
             </Button>
           </DialogFooter>
@@ -697,7 +697,7 @@ export function BucketDetail() {
             <Button variant="outline" onClick={() => setCleanupDialogOpen(false)}>
               Cancel
             </Button>
-            <Button variant="solid" onClick={handleCleanup} disabled={cleanupMutation.isPending}>
+            <Button onClick={handleCleanup} disabled={cleanupMutation.isPending}>
               {cleanupMutation.isPending ? 'Cleaning...' : 'Cleanup'}
             </Button>
           </DialogFooter>
@@ -740,7 +740,6 @@ export function BucketDetail() {
               Cancel
             </Button>
             <Button
-              variant="solid"
               onClick={handleUpdateWebsiteAccess}
               disabled={updateBucketMutation.isPending}
             >
@@ -782,7 +781,6 @@ export function BucketDetail() {
               Cancel
             </Button>
             <Button
-              variant="solid"
               onClick={handleUpdateQuotas}
               disabled={updateBucketMutation.isPending}
             >

@@ -445,7 +445,7 @@ export function AdminTokenDetail() {
             <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
               Cancel
             </Button>
-            <Button variant="solid" onClick={handleUpdate} disabled={updateMutation.isPending}>
+            <Button onClick={handleUpdate} disabled={updateMutation.isPending}>
               {updateMutation.isPending ? 'Saving...' : 'Save'}
             </Button>
           </DialogFooter>

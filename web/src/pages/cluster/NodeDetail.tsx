@@ -383,16 +383,18 @@ export function NodeDetail() {
                   <div
                     className="h-full bg-primary"
                     style={{
-                      width: `${((node.dataPartition.total - node.dataPartition.available) / node.dataPartition.total) * 100}%`,
+                      width: `${node.dataPartition.total > 0 ? ((node.dataPartition.total - node.dataPartition.available) / node.dataPartition.total) * 100 : 0}%`,
                     }}
                   />
                 </div>
                 <div className="text-xs text-muted-foreground text-right">
-                  {Math.round(
-                    ((node.dataPartition.total - node.dataPartition.available) /
-                      node.dataPartition.total) *
-                      100,
-                  )}
+                  {node.dataPartition.total > 0
+                    ? Math.round(
+                        ((node.dataPartition.total - node.dataPartition.available) /
+                          node.dataPartition.total) *
+                          100,
+                      )
+                    : 0}
                   % used
                 </div>
               </div>
@@ -426,16 +428,18 @@ export function NodeDetail() {
                   <div
                     className="h-full bg-primary"
                     style={{
-                      width: `${((node.metadataPartition.total - node.metadataPartition.available) / node.metadataPartition.total) * 100}%`,
+                      width: `${node.metadataPartition.total > 0 ? ((node.metadataPartition.total - node.metadataPartition.available) / node.metadataPartition.total) * 100 : 0}%`,
                     }}
                   />
                 </div>
                 <div className="text-xs text-muted-foreground text-right">
-                  {Math.round(
-                    ((node.metadataPartition.total - node.metadataPartition.available) /
-                      node.metadataPartition.total) *
-                      100,
-                  )}
+                  {node.metadataPartition.total > 0
+                    ? Math.round(
+                        ((node.metadataPartition.total - node.metadataPartition.available) /
+                          node.metadataPartition.total) *
+                          100,
+                      )
+                    : 0}
                   % used
                 </div>
               </div>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -74,7 +74,6 @@ export function KeyDetail() {
 
   const { data: keyInfo, isLoading, error, refetch } = useKeyInfo(clusterId, kid || '', showSecret);
   const bucketsQuery = useBuckets(clusterId);
-  const buckets = bucketsQuery.data ?? [];
   const [secretKey, setSecretKey] = useState<string | null>(null);
   const [secretLoading, setSecretLoading] = useState(false);
 
@@ -115,8 +114,10 @@ export function KeyDetail() {
   const denyKeyMutation = useDenyBucketKey(clusterId);
   const bucketsLoading = bucketsQuery.isLoading;
   const bucketsError = bucketsQuery.error;
-  const assignedBucketIds = new Set(keyInfo?.buckets?.map((bucket) => bucket.id) ?? []);
-  const availableBuckets = buckets.filter((bucket) => !assignedBucketIds.has(bucket.id));
+  const availableBuckets = useMemo(() => {
+    const assignedBucketIds = new Set(keyInfo?.buckets?.map((bucket) => bucket.id) ?? []);
+    return (bucketsQuery.data ?? []).filter((bucket) => !assignedBucketIds.has(bucket.id));
+  }, [bucketsQuery.data, keyInfo?.buckets]);
 
   const toDateParts = (value?: string | null) => {
     if (!value) {
@@ -461,7 +462,6 @@ export function KeyDetail() {
                     </Select>
                   </div>
                   <Button
-                    variant="solid"
                     onClick={handleGrantAccess}
                     disabled={!grantBucketId || (!grantRead && !grantWrite && !grantOwner)}
                   >
@@ -694,7 +694,6 @@ export function KeyDetail() {
               Cancel
             </Button>
             <Button
-              variant="solid"
               onClick={handleUpdateKey}
               disabled={editExpirationInvalid || updateKeyMutation.isPending}
             >

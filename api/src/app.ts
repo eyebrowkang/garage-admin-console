@@ -28,7 +28,7 @@ if (env.httpLogFormat) {
   );
 }
 
-app.use(express.json({ strict: false }));
+app.use(express.json());
 
 // Public routes
 app.use('/auth', authRouter);

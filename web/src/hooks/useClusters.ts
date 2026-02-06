@@ -5,7 +5,6 @@ import type { ClusterSummary } from '@/types/garage';
 export interface CreateClusterData {
   name: string;
   endpoint: string;
-  region?: string;
   adminToken: string;
   metricToken?: string;
 }
@@ -13,7 +12,6 @@ export interface CreateClusterData {
 export interface UpdateClusterData {
   name?: string;
   endpoint?: string;
-  region?: string;
   adminToken?: string;
   metricToken?: string;
 }

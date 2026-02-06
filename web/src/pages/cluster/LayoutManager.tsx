@@ -681,7 +681,7 @@ export function LayoutManager({ clusterId }: LayoutManagerProps) {
                 })}
                 {nodes.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center h-24 text-muted-foreground">
+                    <TableCell colSpan={8} className="text-center h-24 text-muted-foreground">
                       No nodes reported by the cluster.
                     </TableCell>
                   </TableRow>
