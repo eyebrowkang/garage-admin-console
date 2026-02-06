@@ -140,4 +140,12 @@ Browser → Frontend → BFF API → Garage Cluster
 
 ## License
 
-MIT
+This project is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0),
+consistent with the Garage project. See `LICENSE` for the full text.
+
+The following assets are sourced from the Garage project repository and are governed by
+Garage's own license terms:
+
+- Logo assets in `web/public/garage.svg`, `web/public/garage.png`,
+  `web/public/garage-notext.svg`, and `web/public/garage-notext.png`
+- OpenAPI specification in `web/public/garage-admin-v2.json`

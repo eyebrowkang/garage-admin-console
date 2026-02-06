@@ -24,7 +24,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "AGPL-3.0-only",
   "dependencies": {
     "@libsql/client": "^0.17.0",
     "@prisma/adapter-libsql": "^7.3.0",

@@ -6,3 +6,4 @@
 **/*.log
 **/*.db
 **/*.db-journal
+web/public/garage-admin-v2.json
