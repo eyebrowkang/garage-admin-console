@@ -3,7 +3,6 @@
 ## Project Overview
 
 Garage Admin Console — a web-based administration interface for managing [Garage](https://garagehq.deuxfleurs.fr/) object storage clusters.
-Designed for internal network deployment with lightweight authentication and encrypted credential storage.
 
 ## Commands
 
@@ -44,10 +43,6 @@ The frontend never talks to Garage clusters directly. All Garage API calls go th
 Browser → /proxy/:clusterId/* → BFF decrypts stored admin token → forwards to Garage cluster endpoint
 ```
 
-- **Auth**: Single admin password → JWT (24h, stored in localStorage). Set via `ADMIN_PASSWORD` env var.
-- **Credential storage**: Garage admin tokens are AES-256-GCM encrypted in SQLite. Decrypted only when proxying.
-- **Vite dev proxy**: Routes `/auth`, `/clusters`, `/proxy`, `/health`, `/metrics`, `/check` to `localhost:3001`. The `/api` prefix is stripped via rewrite.
-
 ### API Routes (`api/src/routes/`)
 
 | Route                     | Auth | Purpose                         |
@@ -71,6 +66,34 @@ Browser → /proxy/:clusterId/* → BFF decrypts stored admin token → forwards
 
 Two models: `Cluster` (id, name, endpoint, region?, adminToken encrypted, timestamps) and `AppSettings` (key-value).
 
+## Frontend UX/UI design principles and approach
+
+### UX
+
+The overall approach progresses from simple to complex, layer by layer.
+
+The outermost layer is the Dashboard page, which displays information for all clusters.
+There will be multiple clusters here, usually independent of each other, so it should present key cluster-level information, such as the number of nodes, whether the cluster is healthy, and whether storage capacity is under pressure.
+
+After clicking on a cluster, you enter the operation page for a single cluster.
+The overall layout has a function selection area on the left and a function display/operation area on the right.
+The first and default function is the Overview page, which displays information about a single cluster.
+The information here should be more detailed than on the Dashboard, presenting an overview of a single cluster, including health status, layout information, statistical information, and so on.
+
+Next are seven major functional modules: Buckets, Access Keys, Layout, Nodes, Admin Tokens, Workers, and Blocks.
+Each module continues to follow the logic of progressing from simple to complex, layer by layer. For example, in Buckets, the main page displays a list that only shows the primary information about buckets, along with functions to create and delete them.
+After clicking on a bucket, you enter the detail page, where you can see more information and perform more operations, such as Aliases and Website Access.
+
+### UI
+
+The theme color is orange `rgb(255, 148, 41)`. The logo comes from Garage official assets and is located in the `web/public` directory.
+The overall style is light-themed, and switching to a dark theme is not supported for now.
+The page should not use too many colors; keep the style simple.
+Red represents errors, green represents health, purple represents warnings.
+Together with the theme color, there should be a total of four colors; try not to add additional colors.
+The style should remain consistent, especially across pages at the same hierarchy level—their styles or style direction should be as consistent as possible.
+Pages at different hierarchy levels should have slight differences.
+
 ## Key Files
 
 - `garage-admin-v2.json` — Garage OpenAPI spec (reference for all admin API endpoints)
@@ -82,13 +105,7 @@ Two models: `Cluster` (id, name, endpoint, region?, adminToken encrypted, timest
 
 ## Environment Variables (api/.env)
 
-```
-DATABASE_URL="file:./dev.db"
-JWT_SECRET="..."
-ENCRYPTION_KEY="..."          # Must be exactly 32 bytes
-PORT=3001
-ADMIN_PASSWORD="..."
-```
+check `api/.env.example`
 
 ## Code Style
 
