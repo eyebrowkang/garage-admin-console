@@ -28,9 +28,7 @@ export function SecretReveal({ label, value, hidden = true }: SecretRevealProps)
     <div className="rounded-lg border bg-slate-50/70 p-3">
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className="flex items-center justify-between gap-2 mt-1">
-        <span className="text-sm text-slate-900 break-all">
-          {isRevealed ? value : maskedValue}
-        </span>
+        <span className="text-sm text-slate-900 break-all">{isRevealed ? value : maskedValue}</span>
         <div className="flex items-center gap-1">
           {hidden && (
             <Button
@@ -47,7 +45,7 @@ export function SecretReveal({ label, value, hidden = true }: SecretRevealProps)
           </Button>
         </div>
       </div>
-      {copied && <div className="text-xs text-emerald-600 mt-1">Copied!</div>}
+      {copied && <div className="text-xs text-green-600 mt-1">Copied!</div>}
     </div>
   );
 }

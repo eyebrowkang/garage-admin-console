@@ -117,7 +117,12 @@ export default function Dashboard() {
       cluster,
       health,
       status: statusById.get(cluster.id),
-      healthStatus: healthStatus as 'healthy' | 'degraded' | 'unavailable' | 'unreachable' | 'unknown',
+      healthStatus: healthStatus as
+        | 'healthy'
+        | 'degraded'
+        | 'unavailable'
+        | 'unreachable'
+        | 'unknown',
       isLoading,
     };
   });
@@ -228,9 +233,7 @@ export default function Dashboard() {
           normalizeEndpoint(c.endpoint).toLowerCase() === endpoint.toLowerCase(),
       );
       if (existing) {
-        setEditError(
-          `Cluster with endpoint "${endpoint}" already exists as "${existing.name}"`,
-        );
+        setEditError(`Cluster with endpoint "${endpoint}" already exists as "${existing.name}"`);
         return;
       }
       payload.endpoint = endpoint;
@@ -264,9 +267,9 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Dashboard</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground mt-1">
-            Manage your Garage storage clusters from a centralized view.
+            Cluster-level overview first. Open a cluster for deeper operations and diagnostics.
           </p>
         </div>
 
@@ -358,13 +361,13 @@ export default function Dashboard() {
 
       {/* Empty State */}
       {clusters.length === 0 && (
-        <Card className="border-dashed border-2 bg-slate-50/50">
+        <Card className="border-dashed border-2 bg-muted/30">
           <CardContent className="h-64 flex flex-col items-center justify-center text-center p-8 space-y-4">
-            <div className="h-16 w-16 rounded-full bg-slate-100 flex items-center justify-center">
-              <Plus className="h-8 w-8 text-slate-400" />
+            <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+              <Plus className="h-8 w-8 text-primary" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-slate-900">No clusters connected</h3>
+              <h3 className="text-lg font-semibold">No clusters connected</h3>
               <p className="text-muted-foreground">
                 Start by connecting your first Garage cluster.
               </p>
@@ -426,9 +429,7 @@ function ClusterForm({
       </div>
       <>
         <div className="grid gap-2">
-          <Label htmlFor="token">
-            Admin Token{isEdit ? ' (optional)' : ''}
-          </Label>
+          <Label htmlFor="token">Admin Token{isEdit ? ' (optional)' : ''}</Label>
           <Input
             id="token"
             type="password"

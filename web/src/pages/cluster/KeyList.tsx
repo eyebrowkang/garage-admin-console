@@ -85,14 +85,10 @@ export function KeyList({ clusterId }: KeyListProps) {
   };
 
   const expirationDate = createExpirationDate
-    ? new Date(
-        `${createExpirationDate}T${createExpirationHour}:${createExpirationMinute}:00`,
-      )
+    ? new Date(`${createExpirationDate}T${createExpirationHour}:${createExpirationMinute}:00`)
     : null;
   const expirationIso =
-    expirationDate && !Number.isNaN(expirationDate.getTime())
-      ? expirationDate.toISOString()
-      : null;
+    expirationDate && !Number.isNaN(expirationDate.getTime()) ? expirationDate.toISOString() : null;
   const expirationInvalid = Boolean(createExpirationDate) && !expirationIso;
 
   const {
@@ -230,8 +226,8 @@ export function KeyList({ clusterId }: KeyListProps) {
                 <AlertTitle>Migration only</AlertTitle>
                 <AlertDescription>
                   Imports an existing API key. This feature must only be used for migrations and
-                  backup restore. Do not use it to generate custom key identifiers or you will
-                  break your Garage cluster.
+                  backup restore. Do not use it to generate custom key identifiers or you will break
+                  your Garage cluster.
                 </AlertDescription>
               </Alert>
               <div className="space-y-4">
@@ -513,9 +509,7 @@ export function KeyList({ clusterId }: KeyListProps) {
               <div className="rounded-lg border bg-slate-50/70 p-3">
                 <div className="text-xs text-muted-foreground">Access Key ID</div>
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm text-slate-900 break-all">
-                    {createdKey.accessKeyId}
-                  </span>
+                  <span className="text-sm text-slate-900 break-all">{createdKey.accessKeyId}</span>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -525,7 +519,7 @@ export function KeyList({ clusterId }: KeyListProps) {
                   </Button>
                 </div>
                 {copiedValue === createdKey.accessKeyId && (
-                  <div className="text-xs text-emerald-600 mt-1">Copied!</div>
+                  <div className="text-xs text-green-600 mt-1">Copied!</div>
                 )}
               </div>
               <div className="rounded-lg border bg-slate-50/70 p-3">
@@ -545,7 +539,7 @@ export function KeyList({ clusterId }: KeyListProps) {
                   )}
                 </div>
                 {createdKey.secretAccessKey && copiedValue === createdKey.secretAccessKey && (
-                  <div className="text-xs text-emerald-600 mt-1">Copied!</div>
+                  <div className="text-xs text-green-600 mt-1">Copied!</div>
                 )}
               </div>
               <div className="text-xs text-muted-foreground">

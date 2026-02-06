@@ -30,15 +30,11 @@ export function JsonViewer({ data, collapsed = false }: JsonViewerProps) {
           onClick={() => setIsCollapsed(!isCollapsed)}
           className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
         >
-          {isCollapsed ? (
-            <ChevronRight className="h-4 w-4" />
-          ) : (
-            <ChevronDown className="h-4 w-4" />
-          )}
+          {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           JSON
         </button>
         <div className="flex items-center gap-2">
-          {copied && <span className="text-xs text-emerald-600">Copied!</span>}
+          {copied && <span className="text-xs text-green-600">Copied!</span>}
           <Button variant="ghost" size="sm" onClick={handleCopy}>
             <Copy className="h-3 w-3 mr-1" />
             Copy

@@ -50,10 +50,10 @@ function ClusterNavItem({
     <NavLink
       to={fullPath}
       className={cn(
-        'flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors relative',
+        'relative flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors',
         isActive
-          ? 'bg-primary/10 text-primary font-medium'
-          : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+          ? 'border-primary/40 bg-primary/10 text-primary font-medium'
+          : 'border-transparent text-muted-foreground hover:bg-muted hover:text-foreground',
       )}
     >
       <Icon className="h-4 w-4" />
@@ -92,7 +92,7 @@ export function ClusterLayout() {
         {/* Cluster Header */}
         <div className="lg:hidden">
           <div className="flex items-center gap-2 mb-4">
-            <div className="h-8 w-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
+            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
               <Server className="h-4 w-4" />
             </div>
             <div>
@@ -119,10 +119,10 @@ export function ClusterLayout() {
         </div>
 
         {/* Desktop sidebar nav */}
-        <aside className="hidden lg:block w-56 flex-shrink-0 self-start">
-          <div className="sticky top-24 space-y-1">
-            <div className="flex items-center gap-2 mb-4 px-3">
-              <div className="h-8 w-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
+        <aside className="hidden lg:block w-60 flex-shrink-0 self-start">
+          <div className="sticky top-20 space-y-2 rounded-xl border bg-card/90 p-3">
+            <div className="flex items-center gap-2 mb-2 px-2">
+              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
                 <Server className="h-4 w-4" />
               </div>
               <div className="overflow-hidden">

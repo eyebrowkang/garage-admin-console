@@ -40,7 +40,7 @@ import {
   useCreateMetadataSnapshot,
   useLaunchRepairOperation,
 } from '@/hooks/useNodes';
-import type { GetClusterStatusResponse, NodeResp } from '@/types/garage';
+import type { GetClusterStatusResponse, NodeResp, RepairType, ScrubCommand } from '@/types/garage';
 
 interface NodeListProps {
   clusterId: string;
@@ -65,14 +65,16 @@ const REPAIR_OPERATIONS = [
     description: 'Clear pending resync tasks',
   },
   { value: 'scrub', label: 'Scrub', description: 'Full data scrub and verification' },
-];
+] as const;
 
 const SCRUB_COMMANDS = [
   { value: 'start', label: 'Start' },
   { value: 'pause', label: 'Pause' },
   { value: 'resume', label: 'Resume' },
   { value: 'cancel', label: 'Cancel' },
-];
+] as const;
+
+type RepairOperationValue = (typeof REPAIR_OPERATIONS)[number]['value'];
 
 export function ClusterNodeList({ clusterId }: NodeListProps) {
   const navigate = useNavigate();
@@ -81,10 +83,8 @@ export function ClusterNodeList({ clusterId }: NodeListProps) {
   const [connectError, setConnectError] = useState('');
   const [snapshotConfirmOpen, setSnapshotConfirmOpen] = useState(false);
   const [repairDialogOpen, setRepairDialogOpen] = useState(false);
-  const [selectedRepairOp, setSelectedRepairOp] = useState('tables');
-  const [scrubCommand, setScrubCommand] = useState<'start' | 'pause' | 'resume' | 'cancel'>(
-    'start',
-  );
+  const [selectedRepairOp, setSelectedRepairOp] = useState<RepairOperationValue>('tables');
+  const [scrubCommand, setScrubCommand] = useState<ScrubCommand>('start');
 
   const connectMutation = useConnectNodes(clusterId);
   const snapshotMutation = useCreateMetadataSnapshot(clusterId);
@@ -160,7 +160,7 @@ export function ClusterNodeList({ clusterId }: NodeListProps) {
 
   const handleRepairAll = async () => {
     try {
-      const repairType =
+      const repairType: RepairType =
         selectedRepairOp === 'scrub' ? { scrub: scrubCommand } : selectedRepairOp;
       const repairLabel =
         REPAIR_OPERATIONS.find((op) => op.value === selectedRepairOp)?.label ?? selectedRepairOp;
@@ -240,9 +240,7 @@ node_id@address`}
                     if (connectError) setConnectError('');
                   }}
                 />
-                <p className="text-xs text-muted-foreground">
-                  One node per line.
-                </p>
+                <p className="text-xs text-muted-foreground">One node per line.</p>
               </div>
               {connectError && (
                 <Alert variant="destructive">
@@ -383,7 +381,10 @@ node_id@address`}
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Repair Type</Label>
-              <Select value={selectedRepairOp} onValueChange={setSelectedRepairOp}>
+              <Select
+                value={selectedRepairOp}
+                onValueChange={(value) => setSelectedRepairOp(value as RepairOperationValue)}
+              >
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
@@ -402,7 +403,10 @@ node_id@address`}
             {selectedRepairOp === 'scrub' && (
               <div className="space-y-2">
                 <Label>Scrub Command</Label>
-                <Select value={scrubCommand} onValueChange={setScrubCommand}>
+                <Select
+                  value={scrubCommand}
+                  onValueChange={(value) => setScrubCommand(value as ScrubCommand)}
+                >
                   <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>

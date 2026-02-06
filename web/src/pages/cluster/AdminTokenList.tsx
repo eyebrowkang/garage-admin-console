@@ -91,8 +91,7 @@ export function AdminTokenList() {
     setCreateError('');
   };
 
-  const createScope =
-    createScopeMode === 'full' ? ['*'] : parseScopeInput(createScopeInput);
+  const createScope = createScopeMode === 'full' ? ['*'] : parseScopeInput(createScopeInput);
   const createScopeWarning =
     createScopeMode === 'full' ||
     createScope.some(
@@ -103,9 +102,7 @@ export function AdminTokenList() {
     ? new Date(`${createExpirationDate}T${createExpirationHour}:${createExpirationMinute}:00`)
     : null;
   const expirationIso =
-    expirationDate && !Number.isNaN(expirationDate.getTime())
-      ? expirationDate.toISOString()
-      : null;
+    expirationDate && !Number.isNaN(expirationDate.getTime()) ? expirationDate.toISOString() : null;
   const expirationInvalid = Boolean(createExpirationDate) && !expirationIso;
 
   const handleCreate = async () => {
@@ -172,19 +169,23 @@ export function AdminTokenList() {
     }
   };
 
-  const formatExpiration = (value?: string | null) =>
-    value ? formatDateTime24h(value) : 'Never';
+  const formatExpiration = (value?: string | null) => (value ? formatDateTime24h(value) : 'Never');
 
   const renderScopeSummary = (scope: string[]) => {
     if (scope.includes('*')) {
-      return <span className="text-amber-700 font-medium">Full access (*)</span>;
+      return <span className="text-violet-700 font-medium">Full access (*)</span>;
     }
     if (scope.length === 0) {
       return <span className="text-muted-foreground">No scope</span>;
     }
     const preview = scope.slice(0, 3).join(', ');
     const suffix = scope.length > 3 ? ` +${scope.length - 3} more` : '';
-    return <span className="text-xs font-mono text-slate-700">{preview}{suffix}</span>;
+    return (
+      <span className="text-xs font-mono text-slate-700">
+        {preview}
+        {suffix}
+      </span>
+    );
   };
 
   const handleDelete = async () => {
@@ -271,7 +272,10 @@ export function AdminTokenList() {
               {renderScopeSummary(currentToken.scope)}
             </div>
             {currentToken.id && (
-              <Button variant="outline" onClick={() => navigate(`/clusters/${clusterId}/tokens/${currentToken.id}`)}>
+              <Button
+                variant="outline"
+                onClick={() => navigate(`/clusters/${clusterId}/tokens/${currentToken.id}`)}
+              >
                 View Details
               </Button>
             )}
@@ -413,7 +417,9 @@ export function AdminTokenList() {
                   <TableRow
                     key={token.id || index}
                     className={token.id ? 'cursor-pointer hover:bg-muted/50' : ''}
-                    onClick={() => token.id && navigate(`/clusters/${clusterId}/tokens/${token.id}`)}
+                    onClick={() =>
+                      token.id && navigate(`/clusters/${clusterId}/tokens/${token.id}`)
+                    }
                   >
                     <TableCell>
                       <div className="flex flex-wrap items-center gap-2">
@@ -452,9 +458,7 @@ export function AdminTokenList() {
                               variant="ghost"
                               size="icon"
                               className="text-destructive"
-                              onClick={() =>
-                                setDeleteConfirm({ id: token.id!, name: token.name })
-                              }
+                              onClick={() => setDeleteConfirm({ id: token.id!, name: token.name })}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -630,9 +634,7 @@ export function AdminTokenList() {
                 </div>
                 <div>
                   <div className="text-muted-foreground">Token ID</div>
-                  <div className="text-xs">
-                    {createdToken.id ? createdToken.id : 'Unavailable'}
-                  </div>
+                  <div className="text-xs">{createdToken.id ? createdToken.id : 'Unavailable'}</div>
                 </div>
                 <div>
                   <div className="text-muted-foreground">Expires</div>

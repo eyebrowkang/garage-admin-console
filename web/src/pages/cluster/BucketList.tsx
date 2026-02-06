@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Trash2, Loader2, Plus } from 'lucide-react';
 import {
@@ -86,7 +86,11 @@ export function BucketList({ clusterId }: BucketListProps) {
 
   const needsGlobal = aliasType === 'global' || aliasType === 'both';
   const needsLocal = aliasType === 'local' || aliasType === 'both';
-  const hasLocalKey = Boolean(localAccessKeyId);
+  const selectedLocalAccessKeyId =
+    localAccessKeyId && keys.some((key) => key.id === localAccessKeyId)
+      ? localAccessKeyId
+      : keys[0]?.id || '';
+  const hasLocalKey = Boolean(selectedLocalAccessKeyId);
   const canCreate =
     !createMutation.isPending &&
     (!needsGlobal || Boolean(globalAlias.trim())) &&
@@ -99,21 +103,12 @@ export function BucketList({ clusterId }: BucketListProps) {
     }
     if (needsLocal) {
       payload.localAlias = {
-        accessKeyId: localAccessKeyId,
+        accessKeyId: selectedLocalAccessKeyId,
         alias: localAlias.trim(),
       };
     }
     createMutation.mutate(payload);
   };
-
-  useEffect(() => {
-    if (!isDialogOpen) return;
-    if (!needsLocal) return;
-    if (!keys.length) return;
-    if (!localAccessKeyId || !keys.some((key) => key.id === localAccessKeyId)) {
-      setLocalAccessKeyId(keys[0].id);
-    }
-  }, [isDialogOpen, needsLocal, keys, localAccessKeyId]);
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -155,7 +150,7 @@ export function BucketList({ clusterId }: BucketListProps) {
               setAliasType('global');
               setGlobalAlias('');
               setLocalAlias('');
-              setLocalAccessKeyId(keys[0]?.id || '');
+              setLocalAccessKeyId('');
             } else {
               setActionError('');
             }
@@ -221,7 +216,7 @@ export function BucketList({ clusterId }: BucketListProps) {
                         {getApiErrorMessage(keysQuery.error, 'Failed to load access keys.')}
                       </div>
                     ) : keys.length > 0 ? (
-                      <Select value={localAccessKeyId} onValueChange={setLocalAccessKeyId}>
+                      <Select value={selectedLocalAccessKeyId} onValueChange={setLocalAccessKeyId}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select access key" />
                         </SelectTrigger>
@@ -249,10 +244,7 @@ export function BucketList({ clusterId }: BucketListProps) {
               </Alert>
             )}
             <DialogFooter>
-              <Button
-                onClick={handleCreate}
-                disabled={!canCreate}
-              >
+              <Button onClick={handleCreate} disabled={!canCreate}>
                 {createMutation.isPending ? 'Creating...' : 'Create'}
               </Button>
             </DialogFooter>

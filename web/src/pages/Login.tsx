@@ -1,12 +1,13 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Loader2, LockKeyhole } from 'lucide-react';
 import { api } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/errors';
-import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function Login() {
   const [password, setPassword] = useState('');
@@ -14,18 +15,17 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleLogin = async (event: React.FormEvent) => {
+    event.preventDefault();
     setIsLoading(true);
     setError('');
 
     try {
-      const res = await api.post('/auth/login', { password });
-      localStorage.setItem('token', res.data.token);
+      const response = await api.post('/auth/login', { password });
+      localStorage.setItem('token', response.data.token);
       navigate('/');
     } catch (err: unknown) {
-      const message = getApiErrorMessage(err, 'Login failed. Please try again.');
-      setError(message);
+      setError(getApiErrorMessage(err, 'Login failed. Please try again.'));
     } finally {
       setIsLoading(false);
     }
@@ -34,85 +34,48 @@ export default function Login() {
   const isDisabled = isLoading || !password.trim();
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 relative overflow-hidden">
-      {/* Decorative background elements */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(251,146,60,0.08),transparent_50%),radial-gradient(circle_at_70%_80%,rgba(245,158,11,0.08),transparent_50%)]"></div>
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(251,146,60,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(251,146,60,0.03)_1px,transparent_1px)] bg-[size:40px_40px]"></div>
+    <div className="relative flex min-h-screen items-center justify-center px-4 py-10">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,148,41,0.16),transparent_55%)]" />
 
-      {/* Floating garage icon pattern */}
-      <div className="absolute top-20 left-10 w-24 h-24 opacity-5">
-        <img src="/garage-notext.svg" alt="Garage logo" className="w-full h-full" />
-      </div>
-      <div className="absolute bottom-20 right-10 w-32 h-32 opacity-5">
-        <img src="/garage-notext.svg" alt="Garage logo" className="w-full h-full" />
-      </div>
-
-      <Card className="w-full max-w-md border border-white/60 border-t-2 border-t-primary/80 bg-white/90 backdrop-blur-xl relative z-10 overflow-hidden">
-        <CardHeader className="space-y-4 text-center pb-6 pt-12">
-          {/* Logo/Icon */}
-          <div className="mx-auto relative">
-            <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full logo-glow"></div>
-            <div className="relative h-20 w-20 mx-auto flex items-center justify-center">
-              <img
-                src="/garage-notext.svg"
-                alt="Garage"
-                className="h-14 w-14 scale-[1.35] drop-shadow-[0_8px_18px_rgba(251,146,60,0.35)]"
-              />
-            </div>
+      <Card className="relative w-full max-w-md border-primary/25 shadow-lg">
+        <CardHeader className="space-y-3 text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
+            <img src="/garage-notext.svg" alt="Garage" className="h-10 w-10" />
           </div>
-
-          {/* Title */}
-          <div className="space-y-2">
-            <CardTitle className="text-2xl font-bold tracking-tight bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text text-transparent">
-              Garage Admin Console
-            </CardTitle>
-            <CardDescription className="text-base text-gray-600">
-              Manage and monitor your Garage cluster.
-            </CardDescription>
+          <div className="space-y-1">
+            <CardTitle className="text-2xl">Garage Admin Console</CardTitle>
+            <CardDescription>Sign in to manage your Garage clusters.</CardDescription>
           </div>
         </CardHeader>
 
-        <CardContent className="px-8 pb-8">
-          <form onSubmit={handleLogin} className="space-y-6">
-            {/* Password input */}
-            <div className="space-y-2.5">
-              <Label htmlFor="password" className="text-sm font-semibold text-gray-700">
-                Password
-              </Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                  className="h-12 pl-4 pr-4 bg-white border-2 border-gray-200 focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all rounded-lg text-base"
-                  autoFocus
-                />
-              </div>
+        <CardContent>
+          <form onSubmit={handleLogin} className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="Enter your password"
+                className="h-11"
+                autoFocus
+              />
             </div>
 
-            {/* Error message */}
             {error && (
-              <div
-                role="alert"
-                className="p-4 rounded-lg bg-red-50 border-2 border-red-200 text-red-700 text-sm font-medium flex items-start gap-3 animate-in fade-in slide-in-from-top-2"
-              >
-                <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
-                <span>{error}</span>
-              </div>
+              <Alert variant="destructive">
+                <LockKeyhole className="h-4 w-4" />
+                <AlertTitle>Authentication failed</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
             )}
 
-            {/* Submit button */}
-            <Button
-              type="submit"
-              className="w-full h-11 text-base font-semibold bg-primary text-white hover:bg-primary/90 shadow-sm transition-all duration-200 active:translate-y-px active:shadow-sm rounded-lg"
-              disabled={isDisabled}
-            >
+            <Button type="submit" className="h-11 w-full" disabled={isDisabled}>
               {isLoading ? (
                 <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Authenticating...
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Signing in...
                 </>
               ) : (
                 'Sign In'

@@ -1,20 +1,24 @@
 import { Link } from 'react-router-dom';
 import {
-  CheckCircle2,
-  AlertTriangle,
-  XCircle,
-  Server,
-  Database,
-  HardDrive,
   Activity,
-  Pencil,
+  AlertTriangle,
+  ArrowRight,
+  CheckCircle2,
+  HardDrive,
   Link2Off,
+  Pencil,
+  Server,
+  XCircle,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatBytes } from '@/lib/format';
-import type { ClusterSummary, GetClusterHealthResponse, GetClusterStatusResponse } from '@/types/garage';
+import type {
+  ClusterSummary,
+  GetClusterHealthResponse,
+  GetClusterStatusResponse,
+} from '@/types/garage';
 
 interface ClusterWithStatus {
   cluster: ClusterSummary;
@@ -30,210 +34,64 @@ interface ClusterStatusMonitorProps {
   onDeleteCluster: (cluster: ClusterSummary) => void;
 }
 
-export function ClusterStatusMonitor({
-  clustersWithStatus,
-  onEditCluster,
-  onDeleteCluster,
-}: ClusterStatusMonitorProps) {
-  const problemClusters = clustersWithStatus.filter(
-    (c) =>
-      c.healthStatus === 'unavailable' ||
-      c.healthStatus === 'unreachable' ||
-      c.healthStatus === 'degraded',
-  );
-  const checkingClusters = clustersWithStatus.filter(
-    (c) => c.healthStatus === 'unknown' || c.isLoading,
-  );
-  const healthyClusters = clustersWithStatus.filter((c) => c.healthStatus === 'healthy');
+const statusConfig = {
+  healthy: {
+    label: 'Healthy',
+    icon: CheckCircle2,
+    badge: 'success' as const,
+    iconClass: 'text-green-600',
+    bgClass: 'bg-green-50 border-green-200',
+  },
+  degraded: {
+    label: 'Degraded',
+    icon: AlertTriangle,
+    badge: 'warning' as const,
+    iconClass: 'text-violet-700',
+    bgClass: 'bg-violet-50 border-violet-200',
+  },
+  unavailable: {
+    label: 'Unavailable',
+    icon: XCircle,
+    badge: 'destructive' as const,
+    iconClass: 'text-destructive',
+    bgClass: 'bg-destructive/5 border-destructive/30',
+  },
+  unreachable: {
+    label: 'Unreachable',
+    icon: XCircle,
+    badge: 'destructive' as const,
+    iconClass: 'text-destructive',
+    bgClass: 'bg-destructive/5 border-destructive/30',
+  },
+  unknown: {
+    label: 'Checking',
+    icon: Activity,
+    badge: 'secondary' as const,
+    iconClass: 'text-primary',
+    bgClass: 'bg-primary/5 border-primary/25',
+  },
+};
 
-  const totalNodes = clustersWithStatus.reduce((sum, c) => {
-    return sum + (c.status?.nodes?.length ?? 0);
-  }, 0);
-
-  const totalNodesUp = clustersWithStatus.reduce((sum, c) => {
-    return sum + (c.status?.nodes?.filter((n) => n.isUp).length ?? 0);
-  }, 0);
-
-  if (clustersWithStatus.length === 0) {
-    return null;
-  }
-
-  const hasProblems = problemClusters.length > 0;
-  const hasChecking = checkingClusters.length > 0;
-
-  const summary = hasProblems
-    ? {
-        title: `${problemClusters.length} Cluster${problemClusters.length > 1 ? 's' : ''} Need Attention`,
-        description: `Issues detected in ${problemClusters.length} of ${clustersWithStatus.length} clusters`,
-        icon: AlertTriangle,
-        cardClass: 'border-red-200 bg-red-50/50',
-        iconClass: 'bg-red-100 text-red-600',
-        titleClass: 'text-red-900',
-        stats: [
-          { label: 'Issues', value: problemClusters.length, valueClass: 'text-red-900' },
-          {
-            label: 'Nodes Up',
-            value: `${totalNodesUp}/${totalNodes}`,
-            valueClass: 'text-slate-900',
-          },
-        ],
-      }
-    : hasChecking
-      ? {
-          title: 'Checking Cluster Health',
-          description: `${checkingClusters.length} cluster${checkingClusters.length > 1 ? 's' : ''} still reporting.`,
-          icon: Activity,
-          cardClass: 'border-slate-200 bg-slate-50/60',
-          iconClass: 'bg-slate-100 text-slate-600',
-          titleClass: 'text-slate-900',
-          stats: [
-            { label: 'Checking', value: checkingClusters.length, valueClass: 'text-slate-900' },
-            { label: 'Healthy', value: healthyClusters.length, valueClass: 'text-emerald-700' },
-          ],
-        }
-      : {
-          title: 'All Systems Operational',
-          description: `${clustersWithStatus.length} clusters, ${totalNodes} nodes running smoothly`,
-          icon: CheckCircle2,
-          cardClass: 'border-green-200 bg-green-50/50',
-          iconClass: 'bg-green-100 text-green-600',
-          titleClass: 'text-green-900',
-          stats: [
-            { label: 'Clusters', value: clustersWithStatus.length, valueClass: 'text-green-900' },
-            { label: 'Nodes', value: totalNodesUp, valueClass: 'text-green-900' },
-          ],
-        };
-
-  const SummaryIcon = summary.icon;
-
-  return (
-    <div className="space-y-6">
-      <Card className={summary.cardClass}>
-        <CardContent className="py-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center">
-            <div className="flex items-center gap-4 flex-1 min-w-0">
-              <div
-                className={`h-12 w-12 rounded-full flex items-center justify-center shrink-0 ${summary.iconClass}`}
-              >
-                <SummaryIcon className="h-6 w-6" />
-              </div>
-              <div className="min-w-0">
-                <h2 className={`text-xl font-bold leading-tight ${summary.titleClass}`}>
-                  {summary.title}
-                </h2>
-                <p className="text-sm text-slate-600 mt-1">{summary.description}</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4 text-sm w-full sm:w-auto sm:flex sm:gap-6 sm:justify-end">
-              {summary.stats.map((stat) => (
-                <div key={stat.label} className="text-center">
-                  <div className={`text-2xl font-bold tabular-nums ${stat.valueClass}`}>
-                    {stat.value}
-                  </div>
-                  <div className="text-slate-600">{stat.label}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-1 gap-4 md:[grid-template-columns:repeat(auto-fit,minmax(480px,1fr))]">
-        {clustersWithStatus.map((item) => (
-          <ClusterStatusCard
-            key={item.cluster.id}
-            item={item}
-            onEdit={() => onEditCluster(item.cluster)}
-            onDelete={() => onDeleteCluster(item.cluster)}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-interface ClusterStatusCardProps {
-  item: ClusterWithStatus;
-  onEdit: () => void;
-  onDelete: () => void;
-}
-
-function ClusterStatusCard({ item, onEdit, onDelete }: ClusterStatusCardProps) {
-  const { cluster, health, status, healthStatus, isLoading } = item;
-
-  const statusConfig = {
-    healthy: {
-      color: 'text-green-600',
-      bgColor: 'bg-green-50',
-      borderColor: 'border-green-200',
-      icon: CheckCircle2,
-      label: 'Healthy',
-    },
-    degraded: {
-      color: 'text-amber-600',
-      bgColor: 'bg-amber-50',
-      borderColor: 'border-amber-200',
-      icon: AlertTriangle,
-      label: 'Degraded',
-    },
-    unavailable: {
-      color: 'text-red-600',
-      bgColor: 'bg-red-50',
-      borderColor: 'border-red-200',
-      icon: XCircle,
-      label: 'Unavailable',
-    },
-    unreachable: {
-      color: 'text-red-600',
-      bgColor: 'bg-red-50',
-      borderColor: 'border-red-200',
-      icon: XCircle,
-      label: 'Unreachable',
-    },
-    unknown: {
-      color: 'text-slate-600',
-      bgColor: 'bg-slate-50',
-      borderColor: 'border-slate-200',
-      icon: Activity,
-      label: 'Checking',
-    },
-  };
-
-  const config = statusConfig[healthStatus];
-  const Icon = config.icon;
-  const canNavigate = healthStatus === 'healthy';
-
+function getPressurePercent(status?: GetClusterStatusResponse) {
   const nodes = status?.nodes ?? [];
-  const nodesUp = nodes.filter((n) => n.isUp).length;
-  const nodesDown = nodes.filter((n) => !n.isUp).length;
-  const nodesDraining = nodes.filter((n) => n.draining).length;
-  const problemNodes = nodes.filter((n) => !n.isUp || n.draining);
+  if (nodes.length === 0) return null;
 
   const zoneStats = new Map<
     string,
-    {
-      capacity: number;
-      dataUsed: number;
-      dataTotal: number;
-      metadataUsed: number;
-      metadataTotal: number;
-    }
+    { capacity: number; dataUsed: number; dataTotal: number; metaUsed: number; metaTotal: number }
   >();
 
-  nodes.forEach((node) => {
+  for (const node of nodes) {
     const zone = node.role?.zone ?? 'unknown';
-    const entry =
-      zoneStats.get(zone) ?? {
-        capacity: 0,
-        dataUsed: 0,
-        dataTotal: 0,
-        metadataUsed: 0,
-        metadataTotal: 0,
-      };
+    const entry = zoneStats.get(zone) ?? {
+      capacity: 0,
+      dataUsed: 0,
+      dataTotal: 0,
+      metaUsed: 0,
+      metaTotal: 0,
+    };
 
-    if (node.role?.capacity) {
-      entry.capacity += node.role.capacity;
-    }
+    if (node.role?.capacity) entry.capacity += node.role.capacity;
 
     if (node.dataPartition) {
       entry.dataTotal += node.dataPartition.total;
@@ -241,292 +99,219 @@ function ClusterStatusCard({ item, onEdit, onDelete }: ClusterStatusCardProps) {
     }
 
     if (node.metadataPartition) {
-      entry.metadataTotal += node.metadataPartition.total;
-      entry.metadataUsed += node.metadataPartition.total - node.metadataPartition.available;
+      entry.metaTotal += node.metadataPartition.total;
+      entry.metaUsed += node.metadataPartition.total - node.metadataPartition.available;
     }
 
     zoneStats.set(zone, entry);
-  });
+  }
 
-  const minZoneEntry = Array.from(zoneStats.entries())
-    .filter(([, stats]) => stats.capacity > 0)
-    .sort((a, b) => a[1].capacity - b[1].capacity || a[0].localeCompare(b[0]))[0];
+  const minZone = Array.from(zoneStats.values())
+    .filter((entry) => entry.capacity > 0)
+    .sort((a, b) => a.capacity - b.capacity)[0];
 
-  const minZoneName = minZoneEntry?.[0];
-  const minZoneStats = minZoneEntry?.[1];
+  if (!minZone) return null;
 
-  const statusMessage = (() => {
-    if (healthStatus === 'healthy') {
-      return nodes.length > 0 ? `${nodesUp}/${nodes.length} nodes online` : 'All checks passing';
-    }
-    if (healthStatus === 'unknown' || isLoading) {
-      return 'Checking cluster health...';
-    }
-    if (healthStatus === 'unreachable') {
-      return 'Unable to reach cluster health endpoint.';
-    }
-    if (healthStatus === 'unavailable') {
-      if (health?.partitions) {
-        return `Partitions OK ${health.partitionsAllOk}/${health.partitions}`;
-      }
-      return 'Cluster unavailable. Some checks failed.';
-    }
-    if (healthStatus === 'degraded') {
-      const parts = health?.partitions
-        ? `Partitions OK ${health.partitionsAllOk}/${health.partitions}`
-        : null;
-      const nodesInfo = nodes.length
-        ? `${nodesDown} down, ${nodesDraining} draining`
-        : null;
-      return [nodesInfo, parts].filter(Boolean).join(' • ') || 'Cluster degraded.';
-    }
-    return 'Status unavailable.';
-  })();
+  const dataRatio = minZone.dataTotal > 0 ? minZone.dataUsed / minZone.dataTotal : 0;
+  const metaRatio = minZone.metaTotal > 0 ? minZone.metaUsed / minZone.metaTotal : 0;
 
-  const hasMetrics = Boolean(health || status);
-  const showDiagnostics =
-    !hasMetrics &&
-    (healthStatus === 'unreachable' || healthStatus === 'unavailable' || healthStatus === 'degraded');
-  const shortId = cluster.id.length > 12 ? `${cluster.id.slice(0, 8)}…` : cluster.id;
-  const emptyStateMessage =
-    healthStatus === 'unreachable'
-      ? 'Unable to reach the cluster health endpoint.'
-      : healthStatus === 'unavailable'
-        ? 'Cluster reported unavailable. Health metrics not returned.'
-        : healthStatus === 'degraded'
-          ? 'Cluster reported degraded. Waiting for detailed metrics.'
-          : 'Health and node metrics are still loading.';
+  return Math.max(dataRatio, metaRatio) * 100;
+}
+
+function getStatusMessage(item: ClusterWithStatus) {
+  const nodes = item.status?.nodes ?? [];
+  const nodesUp = nodes.filter((node) => node.isUp).length;
+
+  if (item.healthStatus === 'healthy') {
+    return nodes.length > 0 ? `${nodesUp}/${nodes.length} nodes online` : 'All checks passing';
+  }
+  if (item.healthStatus === 'unknown' || item.isLoading) return 'Checking cluster health...';
+  if (item.healthStatus === 'unreachable') return 'Unable to reach health endpoint.';
+  if (item.healthStatus === 'degraded') return 'Cluster degraded. Review details in cluster page.';
+  return 'Cluster reports unavailable health.';
+}
+
+export function ClusterStatusMonitor({
+  clustersWithStatus,
+  onEditCluster,
+  onDeleteCluster,
+}: ClusterStatusMonitorProps) {
+  if (clustersWithStatus.length === 0) return null;
+
+  const healthy = clustersWithStatus.filter((item) => item.healthStatus === 'healthy').length;
+  const warning = clustersWithStatus.filter((item) => item.healthStatus === 'degraded').length;
+  const error = clustersWithStatus.filter(
+    (item) => item.healthStatus === 'unavailable' || item.healthStatus === 'unreachable',
+  ).length;
+  const checking = clustersWithStatus.filter((item) => item.healthStatus === 'unknown').length;
+  const totalNodes = clustersWithStatus.reduce(
+    (sum, item) => sum + (item.status?.nodes?.length ?? 0),
+    0,
+  );
+  const nodesUp = clustersWithStatus.reduce(
+    (sum, item) => sum + (item.status?.nodes?.filter((node) => node.isUp).length ?? 0),
+    0,
+  );
 
   return (
-    <Card
-      className={`${config.borderColor} ${
-        healthStatus === 'degraded' || healthStatus === 'unavailable' || healthStatus === 'unreachable'
-          ? 'shadow-md'
-          : 'shadow-sm'
-      } w-full max-w-[640px] h-[410px]`}
-    >
-      <CardContent className="p-5 h-full">
-        <div className="flex h-full flex-col gap-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="flex items-start gap-3 min-w-0">
-              <div
-                className={`h-10 w-10 rounded-xl ${config.bgColor} flex items-center justify-center shrink-0`}
-              >
-                <Icon className={`h-5 w-5 ${config.color}`} />
+    <div className="space-y-4">
+      <Card className="border-primary/30 bg-primary/5">
+        <CardContent className="grid gap-4 p-5 md:grid-cols-5">
+          <div className="md:col-span-2">
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">Dashboard</div>
+            <h2 className="mt-1 text-xl font-semibold">Cluster Fleet Summary</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Top-level health and capacity indicators for all connected clusters.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-3 text-sm md:col-span-3 md:grid-cols-4">
+            <div className="rounded-lg border bg-card px-3 py-2">
+              <div className="text-muted-foreground">Healthy</div>
+              <div className="text-lg font-semibold text-green-700">{healthy}</div>
+            </div>
+            <div className="rounded-lg border bg-card px-3 py-2">
+              <div className="text-muted-foreground">Warnings</div>
+              <div className="text-lg font-semibold text-violet-700">{warning}</div>
+            </div>
+            <div className="rounded-lg border bg-card px-3 py-2">
+              <div className="text-muted-foreground">Errors</div>
+              <div className="text-lg font-semibold text-destructive">{error}</div>
+            </div>
+            <div className="rounded-lg border bg-card px-3 py-2">
+              <div className="text-muted-foreground">Nodes Up</div>
+              <div className="text-lg font-semibold">
+                {nodesUp}/{totalNodes}
               </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  {canNavigate ? (
+              {checking > 0 && (
+                <div className="text-xs text-muted-foreground">Checking: {checking}</div>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        {clustersWithStatus.map((item) => {
+          const config = statusConfig[item.healthStatus];
+          const StatusIcon = config.icon;
+          const nodes = item.status?.nodes ?? [];
+          const up = nodes.filter((node) => node.isUp).length;
+          const pressure = getPressurePercent(item.status);
+          const pressureVariant =
+            pressure === null
+              ? 'secondary'
+              : pressure >= 85
+                ? 'destructive'
+                : pressure >= 70
+                  ? 'warning'
+                  : 'success';
+          const capacityValues = nodes
+            .map((node) => node.role?.capacity)
+            .filter(
+              (value): value is number => typeof value === 'number' && Number.isFinite(value),
+            );
+          const minCapacity = capacityValues.length > 0 ? Math.min(...capacityValues) : null;
+
+          return (
+            <Card key={item.cluster.id} className={`border ${config.bgClass}`}>
+              <CardContent className="space-y-4 p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
                     <Link
-                      to={`/clusters/${cluster.id}`}
-                      className="inline-block"
+                      to={`/clusters/${item.cluster.id}`}
+                      className="inline-flex items-center gap-2 text-base font-semibold hover:text-primary"
                     >
-                      <h3 className="font-semibold text-slate-900 truncate transition-colors hover:text-primary">
-                        {cluster.name}
-                      </h3>
+                      {item.cluster.name}
                     </Link>
-                  ) : (
-                    <span
-                      className="font-semibold text-slate-500 cursor-not-allowed"
-                      title="Cluster is unhealthy and cannot be opened"
-                    >
-                      {cluster.name}
-                    </span>
-                  )}
-                  <Badge
-                    variant={
-                      healthStatus === 'healthy'
-                        ? 'success'
-                        : healthStatus === 'degraded'
-                          ? 'warning'
-                          : healthStatus === 'unavailable' || healthStatus === 'unreachable'
-                            ? 'destructive'
-                            : 'secondary'
-                    }
-                    className="text-xs"
-                  >
+                    <div className="mt-1 truncate text-xs text-muted-foreground">
+                      {item.cluster.endpoint}
+                    </div>
+                  </div>
+                  <Badge variant={config.badge} className="shrink-0">
+                    <StatusIcon className={`mr-1 h-3.5 w-3.5 ${config.iconClass}`} />
                     {config.label}
                   </Badge>
                 </div>
-                <div className="text-xs text-muted-foreground truncate">{cluster.endpoint}</div>
-                <div className={`text-xs mt-1 ${config.color}`}>{statusMessage}</div>
-              </div>
-            </div>
 
-            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:justify-end">
-              <Button variant="outline" size="sm" onClick={onEdit} className="w-full sm:w-auto">
-                <Pencil className="h-4 w-4 mr-1" /> Edit
-              </Button>
-              <Button variant="destructive" size="sm" onClick={onDelete} className="w-full sm:w-auto">
-                <Link2Off className="h-4 w-4 mr-1" /> Disconnect
-              </Button>
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-hidden">
-            {!hasMetrics && (
-              <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
-                <div>{emptyStateMessage}</div>
-                {showDiagnostics && (
-                  <div className="mt-3 space-y-2 text-[11px] text-slate-500">
-                    <div className="grid grid-cols-[90px_1fr] items-center gap-2">
-                      <span>Endpoint</span>
-                      <span className="font-medium text-slate-700 truncate min-w-0">
-                        {cluster.endpoint}
-                      </span>
+                <div className="grid gap-2 sm:grid-cols-3">
+                  <div className="rounded-lg border bg-card p-2">
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Server className="h-3.5 w-3.5" />
+                      Nodes
                     </div>
-                    <div className="grid grid-cols-[90px_1fr] items-center gap-2">
-                      <span>Cluster ID</span>
-                      <span className="font-mono text-slate-700">{shortId}</span>
-                    </div>
-                    <div className="grid grid-cols-[90px_1fr] items-center gap-2">
-                      <span>Health Check</span>
-                      <span className="font-medium text-slate-700">/v2/GetClusterHealth</span>
-                    </div>
-                    <div>Auto-retrying every 30s.</div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {hasMetrics && (
-              <div className="space-y-4 h-full overflow-auto pr-1">
-                {health && (
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 text-sm">
-                    <div className="flex items-center justify-between p-2 rounded bg-slate-50">
-                      <span className="text-slate-600">Partitions OK</span>
-                      <span className="font-semibold text-slate-900 tabular-nums">
-                        {health.partitionsAllOk}/{health.partitions}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between p-2 rounded bg-slate-50">
-                      <span className="text-slate-600">Quorum OK</span>
-                      <span className="font-semibold text-slate-900 tabular-nums">
-                        {health.partitionsQuorum}/{health.partitions}
-                      </span>
+                    <div className="text-sm font-semibold">
+                      {nodes.length > 0 ? `${up}/${nodes.length}` : '-'}
                     </div>
                   </div>
-                )}
-
-                {status && (
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 text-sm">
-                    <div className="flex items-center gap-2 p-2 rounded bg-slate-50">
-                      <Database className="h-4 w-4 text-slate-400" />
-                      <span className="text-slate-600">Nodes</span>
-                      <span className="ml-auto font-semibold text-slate-900 tabular-nums">
-                        {nodesUp}/{nodes.length}
-                      </span>
+                  <div className="rounded-lg border bg-card p-2">
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Activity className="h-3.5 w-3.5" />
+                      Partitions OK
                     </div>
-                    <div className="flex items-center gap-2 p-2 rounded bg-slate-50">
-                      <XCircle className="h-4 w-4 text-red-500" />
-                      <span className="text-slate-600">Down</span>
-                      <span className="ml-auto font-semibold text-slate-900 tabular-nums">
-                        {nodesDown}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 p-2 rounded bg-slate-50">
-                      <AlertTriangle className="h-4 w-4 text-amber-500" />
-                      <span className="text-slate-600">Draining</span>
-                      <span className="ml-auto font-semibold text-slate-900 tabular-nums">
-                        {nodesDraining}
-                      </span>
+                    <div className="text-sm font-semibold">
+                      {item.health
+                        ? `${item.health.partitionsAllOk}/${item.health.partitions}`
+                        : '-'}
                     </div>
                   </div>
-                )}
-
-              {minZoneStats && minZoneStats.capacity > 0 && (
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2 text-slate-600">
-                      <HardDrive className="h-4 w-4" />
-                      Cluster Capacity (min zone)
+                  <div className="rounded-lg border bg-card p-2">
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <HardDrive className="h-3.5 w-3.5" />
+                      Capacity Pressure
                     </div>
-                    <span className="font-semibold text-slate-900 tabular-nums">
-                      {formatBytes(minZoneStats.capacity)}
-                    </span>
-                  </div>
-                  <div className="text-xs text-muted-foreground pl-6">
-                    Based on smallest zone{minZoneName ? `: ${minZoneName}` : ''}
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold">
+                        {pressure === null ? '-' : `${pressure.toFixed(1)}%`}
+                      </span>
+                      <Badge variant={pressureVariant}>
+                        {pressure === null
+                          ? 'N/A'
+                          : pressure >= 85
+                            ? 'High'
+                            : pressure >= 70
+                              ? 'Medium'
+                              : 'Low'}
+                      </Badge>
+                    </div>
                   </div>
                 </div>
-              )}
 
-              {minZoneStats && minZoneStats.dataTotal > 0 && (
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-600">Data Partition (min zone)</span>
-                    <span className="font-semibold text-slate-900 tabular-nums">
-                      {formatBytes(minZoneStats.dataUsed)} / {formatBytes(minZoneStats.dataTotal)}
-                    </span>
-                  </div>
-                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-blue-500 transition-all rounded-full"
-                      style={{
-                        width: `${(minZoneStats.dataUsed / minZoneStats.dataTotal) * 100}%`,
-                      }}
-                    />
-                  </div>
+                {item.status?.nodes && item.status.nodes.length > 0 && (
                   <div className="text-xs text-muted-foreground">
-                    {((minZoneStats.dataUsed / minZoneStats.dataTotal) * 100).toFixed(1)}% used
-                  </div>
-                </div>
-              )}
-
-              {minZoneStats && minZoneStats.metadataTotal > 0 && (
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-600">Metadata Partition (min zone)</span>
-                    <span className="font-semibold text-slate-900 tabular-nums">
-                      {formatBytes(minZoneStats.metadataUsed)} /{' '}
-                      {formatBytes(minZoneStats.metadataTotal)}
+                    Min zone capacity estimate:{' '}
+                    <span className="font-medium text-foreground">
+                      {minCapacity !== null ? formatBytes(minCapacity) : '-'}
                     </span>
                   </div>
-                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-purple-500 transition-all rounded-full"
-                      style={{
-                        width: `${
-                          (minZoneStats.metadataUsed / minZoneStats.metadataTotal) * 100
-                        }%`,
-                      }}
-                    />
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {((minZoneStats.metadataUsed / minZoneStats.metadataTotal) * 100).toFixed(1)}%
-                    used
-                  </div>
-                </div>
-              )}
-
-                {problemNodes.length > 0 && (
-                  <div className="space-y-2">
-                    <div className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                      Nodes with Issues ({problemNodes.length})
-                    </div>
-                    <div className="space-y-1 max-h-[200px] overflow-y-auto custom-scrollbar">
-                      {problemNodes.map((node) => (
-                        <div
-                          key={node.id}
-                          className="flex items-center justify-between p-2 rounded bg-red-50 border border-red-200 text-sm"
-                        >
-                          <div className="flex items-center gap-2 min-w-0 flex-1">
-                            <Server className="h-3.5 w-3.5 text-red-600 shrink-0" />
-                            <span className="text-xs truncate">{node.id.substring(0, 16)}...</span>
-                          </div>
-                          <Badge variant="destructive" className="text-xs shrink-0 ml-2">
-                            {!node.isUp ? 'Down' : node.draining ? 'Draining' : 'Issue'}
-                          </Badge>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
                 )}
-              </div>
-            )}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+
+                <div className="text-xs text-muted-foreground">{getStatusMessage(item)}</div>
+
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <Button asChild size="sm">
+                    <Link to={`/clusters/${item.cluster.id}`}>
+                      Open
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </Link>
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => onEditCluster(item.cluster)}>
+                    <Pencil className="h-3.5 w-3.5" />
+                    Edit
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => onDeleteCluster(item.cluster)}
+                  >
+                    <Link2Off className="h-3.5 w-3.5" />
+                    Disconnect
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+    </div>
   );
 }

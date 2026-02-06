@@ -33,6 +33,7 @@ import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { formatBytes, formatRelativeSeconds } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { toast } from '@/hooks/use-toast';
+import type { RepairType, ScrubCommand } from '@/types/garage';
 
 const REPAIR_OPERATIONS = [
   { value: 'tables', label: 'Tables', description: 'Verify and repair all metadata tables' },
@@ -53,14 +54,16 @@ const REPAIR_OPERATIONS = [
     description: 'Clear pending resync tasks',
   },
   { value: 'scrub', label: 'Scrub', description: 'Full data scrub and verification' },
-];
+] as const;
 
 const SCRUB_COMMANDS = [
   { value: 'start', label: 'Start' },
   { value: 'pause', label: 'Pause' },
   { value: 'resume', label: 'Resume' },
   { value: 'cancel', label: 'Cancel' },
-];
+] as const;
+
+type RepairOperationValue = (typeof REPAIR_OPERATIONS)[number]['value'];
 
 export function NodeDetail() {
   const { nid } = useParams<{ nid: string }>();
@@ -68,20 +71,20 @@ export function NodeDetail() {
 
   const [snapshotDialogOpen, setSnapshotDialogOpen] = useState(false);
   const [repairDialogOpen, setRepairDialogOpen] = useState(false);
-  const [selectedRepairOp, setSelectedRepairOp] = useState('tables');
-  const [scrubCommand, setScrubCommand] = useState<'start' | 'pause' | 'resume' | 'cancel'>(
-    'start',
-  );
+  const [selectedRepairOp, setSelectedRepairOp] = useState<RepairOperationValue>('tables');
+  const [scrubCommand, setScrubCommand] = useState<ScrubCommand>('start');
 
   const { data: status, isLoading, error } = useNodes(clusterId);
-  const { data: nodeInfo, isLoading: infoLoading, error: infoError } = useNodeInfo(
-    clusterId,
-    nid || '',
-  );
-  const { data: stats, isLoading: statsLoading, error: statsError } = useNodeStatistics(
-    clusterId,
-    nid,
-  );
+  const {
+    data: nodeInfo,
+    isLoading: infoLoading,
+    error: infoError,
+  } = useNodeInfo(clusterId, nid || '');
+  const {
+    data: stats,
+    isLoading: statsLoading,
+    error: statsError,
+  } = useNodeStatistics(clusterId, nid);
   const snapshotMutation = useCreateMetadataSnapshot(clusterId);
   const repairMutation = useLaunchRepairOperation(clusterId);
 
@@ -126,7 +129,7 @@ export function NodeDetail() {
 
   const handleRepair = async () => {
     try {
-      const repairType =
+      const repairType: RepairType =
         selectedRepairOp === 'scrub' ? { scrub: scrubCommand } : selectedRepairOp;
       const repairLabel =
         REPAIR_OPERATIONS.find((op) => op.value === selectedRepairOp)?.label ?? selectedRepairOp;
@@ -471,7 +474,10 @@ export function NodeDetail() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Repair Type</Label>
-              <Select value={selectedRepairOp} onValueChange={setSelectedRepairOp}>
+              <Select
+                value={selectedRepairOp}
+                onValueChange={(value) => setSelectedRepairOp(value as RepairOperationValue)}
+              >
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
@@ -490,7 +496,10 @@ export function NodeDetail() {
             {selectedRepairOp === 'scrub' && (
               <div className="space-y-2">
                 <Label>Scrub Command</Label>
-                <Select value={scrubCommand} onValueChange={setScrubCommand}>
+                <Select
+                  value={scrubCommand}
+                  onValueChange={(value) => setScrubCommand(value as ScrubCommand)}
+                >
                   <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>

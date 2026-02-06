@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -86,12 +86,12 @@ export function LayoutManager({ clusterId }: LayoutManagerProps) {
   const [applyResult, setApplyResult] = useState<ApplyClusterLayoutResponse | null>(null);
   const [skipResult, setSkipResult] = useState<ClusterLayoutSkipDeadNodesResponse | null>(null);
 
-  const [applyVersion, setApplyVersion] = useState('');
-  const [skipVersion, setSkipVersion] = useState('');
+  const [applyVersionInput, setApplyVersionInput] = useState('');
+  const [skipVersionInput, setSkipVersionInput] = useState('');
   const [allowMissingData, setAllowMissingData] = useState(false);
 
-  const [zoneMode, setZoneMode] = useState<ZoneMode>('maximum');
-  const [zoneAtLeast, setZoneAtLeast] = useState('2');
+  const [zoneModeInput, setZoneModeInput] = useState<ZoneMode | null>(null);
+  const [zoneAtLeastInput, setZoneAtLeastInput] = useState('');
   const [paramError, setParamError] = useState('');
 
   const layoutQuery = useQuery<GetClusterLayoutResponse>({
@@ -141,27 +141,25 @@ export function LayoutManager({ clusterId }: LayoutManagerProps) {
   const stagedChanges = layout?.stagedRoleChanges ?? [];
   const stagedParams = layout?.stagedParameters ?? null;
   const hasStagedChanges = stagedChanges.length > 0 || Boolean(stagedParams);
+  const defaultApplyVersion = layout ? String(layout.version + 1) : '';
+  const defaultSkipVersion =
+    historyQuery.data?.currentVersion !== undefined
+      ? String(historyQuery.data.currentVersion)
+      : layout?.version !== undefined
+        ? String(layout.version)
+        : '';
+  const layoutRedundancy = layout?.parameters?.zoneRedundancy;
+  const defaultZoneMode: ZoneMode =
+    layoutRedundancy === 'maximum' || !layoutRedundancy ? 'maximum' : 'atLeast';
+  const defaultZoneAtLeast =
+    layoutRedundancy && layoutRedundancy !== 'maximum' && 'atLeast' in layoutRedundancy
+      ? String(layoutRedundancy.atLeast)
+      : '2';
 
-  useEffect(() => {
-    if (!layout) return;
-    setApplyVersion(String(layout.version + 1));
-    const redundancy = layout.parameters?.zoneRedundancy;
-    if (redundancy === 'maximum') {
-      setZoneMode('maximum');
-      setZoneAtLeast('2');
-    } else if (redundancy && 'atLeast' in redundancy) {
-      setZoneMode('atLeast');
-      setZoneAtLeast(String(redundancy.atLeast));
-    }
-  }, [layout]);
-
-  useEffect(() => {
-    if (historyQuery.data?.currentVersion !== undefined) {
-      setSkipVersion(String(historyQuery.data.currentVersion));
-    } else if (layout?.version !== undefined) {
-      setSkipVersion(String(layout.version));
-    }
-  }, [historyQuery.data, layout]);
+  const applyVersion = applyVersionInput || defaultApplyVersion;
+  const skipVersion = skipVersionInput || defaultSkipVersion;
+  const zoneMode = zoneModeInput ?? defaultZoneMode;
+  const zoneAtLeast = zoneAtLeastInput || defaultZoneAtLeast;
 
   const updateLayoutMutation = useMutation({
     mutationFn: async (payload: UpdateClusterLayoutRequest) => {
@@ -183,6 +181,8 @@ export function LayoutManager({ clusterId }: LayoutManagerProps) {
       setApplyResult(null);
       setApplyResultDialogOpen(false);
       setPreviewResult(null);
+      setZoneModeInput(null);
+      setZoneAtLeastInput('');
     },
     onError: (err) => {
       setActionError(getApiErrorMessage(err, 'Failed to stage layout changes.'));
@@ -206,6 +206,7 @@ export function LayoutManager({ clusterId }: LayoutManagerProps) {
       setPreviewResult(null);
       setApplyDialogOpen(false);
       setActionError('');
+      setApplyVersionInput('');
     },
     onError: (err) => {
       setActionError(getApiErrorMessage(err, 'Failed to apply layout changes.'));
@@ -224,6 +225,10 @@ export function LayoutManager({ clusterId }: LayoutManagerProps) {
       setApplyResultDialogOpen(false);
       setActionError('');
       setRevertConfirmOpen(false);
+      setApplyVersionInput('');
+      setSkipVersionInput('');
+      setZoneModeInput(null);
+      setZoneAtLeastInput('');
     },
     onError: (err) => {
       setActionError(getApiErrorMessage(err, 'Failed to revert layout changes.'));
@@ -259,6 +264,7 @@ export function LayoutManager({ clusterId }: LayoutManagerProps) {
       setSkipResult(data);
       setActionError('');
       toast({ title: 'Skip request submitted' });
+      setSkipVersionInput('');
     },
     onError: (err) => {
       setActionError(getApiErrorMessage(err, 'Failed to skip dead nodes.'));
@@ -448,8 +454,7 @@ export function LayoutManager({ clusterId }: LayoutManagerProps) {
                     const isRemoved = 'remove' in change && change.remove;
                     return (
                       <div key={change.id}>
-                        {formatShortId(change.id, 10)} —{' '}
-                        {isRemoved ? 'Remove node' : 'Update role'}
+                        {formatShortId(change.id, 10)} — {isRemoved ? 'Remove node' : 'Update role'}
                       </div>
                     );
                   })}
@@ -470,7 +475,10 @@ export function LayoutManager({ clusterId }: LayoutManagerProps) {
             <div className="space-y-2">
               <Label>Zone Redundancy</Label>
               <div className="flex flex-wrap items-center gap-2">
-                <Select value={zoneMode} onValueChange={(value) => setZoneMode(value as ZoneMode)}>
+                <Select
+                  value={zoneMode}
+                  onValueChange={(value) => setZoneModeInput(value as ZoneMode)}
+                >
                   <SelectTrigger className="w-[200px]">
                     <SelectValue placeholder="Select mode" />
                   </SelectTrigger>
@@ -484,7 +492,7 @@ export function LayoutManager({ clusterId }: LayoutManagerProps) {
                     type="number"
                     min={1}
                     value={zoneAtLeast}
-                    onChange={(e) => setZoneAtLeast(e.target.value)}
+                    onChange={(e) => setZoneAtLeastInput(e.target.value)}
                     className="w-[120px]"
                   />
                 )}
@@ -494,10 +502,7 @@ export function LayoutManager({ clusterId }: LayoutManagerProps) {
               </p>
               {paramError && <p className="text-xs text-destructive">{paramError}</p>}
             </div>
-            <Button
-              onClick={handleStageParameters}
-              disabled={updateLayoutMutation.isPending}
-            >
+            <Button onClick={handleStageParameters} disabled={updateLayoutMutation.isPending}>
               {updateLayoutMutation.isPending ? 'Staging...' : 'Stage Parameters'}
             </Button>
           </div>
@@ -706,9 +711,7 @@ export function LayoutManager({ clusterId }: LayoutManagerProps) {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
                     <div className="text-sm text-muted-foreground">Preview Version</div>
-                    <div className="text-lg font-semibold">
-                      {previewResult.newLayout.version}
-                    </div>
+                    <div className="text-lg font-semibold">{previewResult.newLayout.version}</div>
                   </div>
                   <div>
                     <div className="text-sm text-muted-foreground">Partition Size</div>
@@ -807,17 +810,17 @@ export function LayoutManager({ clusterId }: LayoutManagerProps) {
               <div className="space-y-1">
                 {Object.entries(historyQuery.data.updateTrackers).map(([nodeId, trackers]) => (
                   <div key={nodeId}>
-                    {formatShortId(nodeId, 10)} — ACK {trackers.ack}, SYNC {trackers.sync}, SYNC
-                    ACK {trackers.syncAck}
+                    {formatShortId(nodeId, 10)} — ACK {trackers.ack}, SYNC {trackers.sync}, SYNC ACK{' '}
+                    {trackers.syncAck}
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          <div className="rounded-md border border-amber-200 bg-amber-50 p-4 space-y-3">
-            <div className="font-medium text-amber-900">Skip Dead Nodes</div>
-            <p className="text-sm text-amber-800">
+          <div className="rounded-md border border-violet-200 bg-violet-50 p-4 space-y-3">
+            <div className="font-medium text-violet-900">Skip Dead Nodes</div>
+            <p className="text-sm text-violet-800">
               Force progress in layout update trackers. Use only if nodes are permanently lost.
             </p>
             <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
@@ -826,9 +829,9 @@ export function LayoutManager({ clusterId }: LayoutManagerProps) {
                 <Input
                   type="number"
                   value={skipVersion}
-                  onChange={(e) => setSkipVersion(e.target.value)}
+                  onChange={(e) => setSkipVersionInput(e.target.value)}
                 />
-                <label className="flex items-center gap-2 text-sm text-amber-900">
+                <label className="flex items-center gap-2 text-sm text-violet-900">
                   <input
                     type="checkbox"
                     checked={allowMissingData}
@@ -847,7 +850,7 @@ export function LayoutManager({ clusterId }: LayoutManagerProps) {
               </Button>
             </div>
             {skipResult && (
-              <div className="text-sm text-amber-900 space-y-1">
+              <div className="text-sm text-violet-900 space-y-1">
                 <div>ACK updated: {skipResult.ackUpdated.join(', ') || '-'}</div>
                 <div>SYNC updated: {skipResult.syncUpdated.join(', ') || '-'}</div>
               </div>
@@ -870,7 +873,7 @@ export function LayoutManager({ clusterId }: LayoutManagerProps) {
             <Input
               type="number"
               value={applyVersion}
-              onChange={(e) => setApplyVersion(e.target.value)}
+              onChange={(e) => setApplyVersionInput(e.target.value)}
             />
           </div>
           <DialogFooter>

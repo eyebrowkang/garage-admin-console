@@ -59,7 +59,12 @@ export function WorkerManager() {
   const [variableLookupInput, setVariableLookupInput] = useState('');
   const [variableLookupName, setVariableLookupName] = useState<string | undefined>(undefined);
 
-  const { data: workersData, isLoading, error, refetch } = useWorkers(clusterId, selectedNode, {
+  const {
+    data: workersData,
+    isLoading,
+    error,
+    refetch,
+  } = useWorkers(clusterId, selectedNode, {
     busyOnly,
     errorOnly,
   });
@@ -112,9 +117,7 @@ export function WorkerManager() {
   );
   const workerErrors = workersData?.error ? Object.entries(workersData.error) : [];
   const variableLookupErrors =
-    variableLookupName && variableLookupData?.error
-      ? Object.entries(variableLookupData.error)
-      : [];
+    variableLookupName && variableLookupData?.error ? Object.entries(variableLookupData.error) : [];
   const variableLookupRows =
     variableLookupName && variableLookupData?.success
       ? Object.entries(variableLookupData.success).map(([nodeId, variables]) => ({
@@ -122,9 +125,7 @@ export function WorkerManager() {
           value: variables?.[variableLookupName],
         }))
       : [];
-  const allVariablesErrors = allVariablesData?.error
-    ? Object.entries(allVariablesData.error)
-    : [];
+  const allVariablesErrors = allVariablesData?.error ? Object.entries(allVariablesData.error) : [];
   const targetNodeLabel =
     setVariableNode === '*'
       ? 'all nodes'
@@ -146,8 +147,8 @@ export function WorkerManager() {
         description: `${editVariable.name} has been set to ${editVariable.value}`,
       });
       setEditVariable(null);
-          setVariableDialogOpen(false);
-          setSetVariableNode(selectedNode);
+      setVariableDialogOpen(false);
+      setSetVariableNode(selectedNode);
     } catch (err) {
       toast({
         title: 'Failed to set variable',
@@ -173,8 +174,7 @@ export function WorkerManager() {
     if (state && typeof state === 'object' && 'throttled' in state) {
       const throttledState = state as { throttled: { durationSecs: number } };
       const duration = throttledState.throttled?.durationSecs;
-      const durationLabel =
-        typeof duration === 'number' ? ` (${duration.toFixed(1)}s)` : '';
+      const durationLabel = typeof duration === 'number' ? ` (${duration.toFixed(1)}s)` : '';
       return { label: `Throttled${durationLabel}`, variant: 'warning' as const };
     }
     return { label: 'Unknown', variant: 'outline' as const };
@@ -294,9 +294,7 @@ export function WorkerManager() {
                         </TableBody>
                       </Table>
                     ) : (
-                      <div className="text-sm text-muted-foreground">
-                        No variables returned.
-                      </div>
+                      <div className="text-sm text-muted-foreground">No variables returned.</div>
                     )}
                   </div>
                 );
@@ -368,9 +366,7 @@ export function WorkerManager() {
                 <TableBody>
                   {variableLookupRows.map((row) => (
                     <TableRow key={row.nodeId}>
-                      <TableCell className="text-xs">
-                        {formatShortId(row.nodeId, 12)}
-                      </TableCell>
+                      <TableCell className="text-xs">{formatShortId(row.nodeId, 12)}</TableCell>
                       <TableCell className="font-mono text-xs">
                         {row.value !== undefined ? row.value : '-'}
                       </TableCell>
@@ -454,13 +450,9 @@ export function WorkerManager() {
                           <div className="font-medium">{worker.name}</div>
                           <div className="text-xs text-muted-foreground">#{worker.id}</div>
                         </TableCell>
-                        <TableCell className="text-xs">
-                          {formatShortId(worker.nodeId, 8)}
-                        </TableCell>
+                        <TableCell className="text-xs">{formatShortId(worker.nodeId, 8)}</TableCell>
                         <TableCell>{getStateBadge(worker.state)}</TableCell>
-                        <TableCell className="tabular-nums">
-                          {worker.queueLength ?? '-'}
-                        </TableCell>
+                        <TableCell className="tabular-nums">{worker.queueLength ?? '-'}</TableCell>
                         <TableCell>
                           <div className="tabular-nums font-medium">{worker.errors}</div>
                           <div className="text-xs text-muted-foreground">
@@ -538,9 +530,7 @@ export function WorkerManager() {
                       </div>
                       <div>
                         <div className="text-sm text-muted-foreground">Queue length</div>
-                        <div className="font-medium tabular-nums">
-                          {info.queueLength ?? '-'}
-                        </div>
+                        <div className="font-medium tabular-nums">{info.queueLength ?? '-'}</div>
                       </div>
                       <div>
                         <div className="text-sm text-muted-foreground">Errors</div>
@@ -548,9 +538,7 @@ export function WorkerManager() {
                       </div>
                       <div>
                         <div className="text-sm text-muted-foreground">Consecutive errors</div>
-                        <div className="font-medium tabular-nums">
-                          {info.consecutiveErrors}
-                        </div>
+                        <div className="font-medium tabular-nums">{info.consecutiveErrors}</div>
                       </div>
                       <div>
                         <div className="text-sm text-muted-foreground">Persistent errors</div>
@@ -572,10 +560,10 @@ export function WorkerManager() {
                       </div>
                     </div>
                     {info.lastError && (
-                      <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                      <div className="rounded-md border border-violet-200 bg-violet-50 p-3 text-sm text-violet-900">
                         <div className="font-medium">Last error</div>
                         <div className="mt-1">{info.lastError.message}</div>
-                        <div className="text-xs text-amber-700 mt-1">
+                        <div className="text-xs text-violet-700 mt-1">
                           {formatRelativeSeconds(info.lastError.secsAgo)}
                         </div>
                       </div>
@@ -666,8 +654,8 @@ export function WorkerManager() {
             <Button
               variant="outline"
               onClick={() => {
-      setVariableDialogOpen(false);
-      setSetVariableNode(selectedNode);
+                setVariableDialogOpen(false);
+                setSetVariableNode(selectedNode);
                 setEditVariable(null);
               }}
             >

@@ -3,7 +3,6 @@ import { api, proxyPath } from '@/lib/api';
 import type {
   GetClusterStatusResponse,
   MultiNodeResponse,
-  NodeResp,
   NodeInfoResponse,
   NodeStatisticsResponse,
   ConnectClusterNodesRequest,

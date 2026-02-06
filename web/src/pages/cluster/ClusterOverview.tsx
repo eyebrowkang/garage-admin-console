@@ -111,9 +111,9 @@ export function ClusterOverview({ clusterId }: ClusterOverviewProps) {
       badge: 'success' as const,
     },
     degraded: {
-      color: 'text-amber-600',
-      bgColor: 'bg-amber-50',
-      borderColor: 'border-amber-200',
+      color: 'text-violet-700',
+      bgColor: 'bg-violet-50',
+      borderColor: 'border-violet-200',
       icon: AlertTriangle,
       label: 'Degraded',
       badge: 'warning' as const,
@@ -339,8 +339,7 @@ export function ClusterOverview({ clusterId }: ClusterOverviewProps) {
               <div className="text-sm text-muted-foreground">Staged Changes</div>
               <div className="text-xl font-semibold">
                 {hasLayout
-                  ? (layout?.stagedRoleChanges?.length ?? 0) +
-                    (layout?.stagedParameters ? 1 : 0)
+                  ? (layout?.stagedRoleChanges?.length ?? 0) + (layout?.stagedParameters ? 1 : 0)
                   : '-'}
               </div>
             </div>

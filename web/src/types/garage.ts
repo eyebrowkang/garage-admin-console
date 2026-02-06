@@ -151,7 +151,7 @@ export interface GetKeyInfoResponse {
   buckets?: KeyBucketPerm[];
 }
 
-export interface UpdateKeyRequest extends CreateKeyRequest {}
+export type UpdateKeyRequest = CreateKeyRequest;
 
 export interface ImportKeyRequest {
   accessKeyId: string;
