@@ -8,7 +8,7 @@
     "test": "prisma db push && vitest",
     "test:run": "prisma db push && vitest run",
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "start": "node dist/index.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

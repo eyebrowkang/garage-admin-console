@@ -15,10 +15,7 @@ async function main() {
   // Check if any clusters exist
   const existingClusters = await prisma.cluster.count();
   if (existingClusters > 0) {
-    logger.info(
-      { count: existingClusters },
-      'Database already has clusters. Skipping seed.',
-    );
+    logger.info({ count: existingClusters }, 'Database already has clusters. Skipping seed.');
     return;
   }
 

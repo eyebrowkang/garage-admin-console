@@ -10,7 +10,8 @@ import proxyRouter from './routes/proxy.js';
 import { authenticateToken } from './middleware/auth.middleware.js';
 
 export const app = express();
-const stripAnsi = (value: string) => value.replace(/\u001b\[[0-9;]*m/g, '');
+const ANSI_COLOR_PATTERN = new RegExp(String.raw`\u001B\[[0-9;]*m`, 'g');
+const stripAnsi = (value: string) => value.replace(ANSI_COLOR_PATTERN, '');
 
 if (env.httpLogFormat) {
   app.use(

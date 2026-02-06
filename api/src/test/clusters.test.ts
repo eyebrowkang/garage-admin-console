@@ -50,15 +50,12 @@ describe('clusters', () => {
   });
 
   it('supports clearing metricToken with null', async () => {
-    const createRes = await request(app)
-      .post('/clusters')
-      .set(authHeader())
-      .send({
-        name: 'Test Cluster',
-        endpoint: 'http://localhost:9999',
-        adminToken: 'admin-token',
-        metricToken: 'metric-token',
-      });
+    const createRes = await request(app).post('/clusters').set(authHeader()).send({
+      name: 'Test Cluster',
+      endpoint: 'http://localhost:9999',
+      adminToken: 'admin-token',
+      metricToken: 'metric-token',
+    });
 
     expect(createRes.status).toBe(201);
 

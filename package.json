@@ -4,7 +4,7 @@
   "packageManager": "pnpm@10.28.0",
   "scripts": {
     "build": "pnpm -C api build && pnpm -C web build",
-    "dev": "pnpm -C api dev & pnpm -C web dev",
+    "dev": "pnpm -r --parallel --filter api --filter web dev",
     "lint": "pnpm -C api lint && pnpm -C web lint",
     "lint:fix": "pnpm -C api lint:fix && pnpm -C web lint:fix",
     "format": "pnpm -C api format && pnpm -C web format",

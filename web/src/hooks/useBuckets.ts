@@ -22,7 +22,9 @@ function bucketInfoToListItem(
         accessKeyId: key.accessKeyId,
         alias,
       })),
-    ) ?? existing?.localAliases ?? [];
+    ) ??
+    existing?.localAliases ??
+    [];
 
   return {
     id: bucket.id,
@@ -157,15 +159,12 @@ export function useAddBucketAlias(clusterId: string) {
     },
     onSuccess: (bucketInfo, vars) => {
       queryClient.setQueryData(['bucket', clusterId, vars.bucketId], bucketInfo);
-      queryClient.setQueryData<ListBucketsResponseItem[]>(
-        ['buckets', clusterId],
-        (prev) => {
-          if (!prev) return prev;
-          return prev.map((item) =>
-            item.id === bucketInfo.id ? bucketInfoToListItem(bucketInfo, item) : item,
-          );
-        },
-      );
+      queryClient.setQueryData<ListBucketsResponseItem[]>(['buckets', clusterId], (prev) => {
+        if (!prev) return prev;
+        return prev.map((item) =>
+          item.id === bucketInfo.id ? bucketInfoToListItem(bucketInfo, item) : item,
+        );
+      });
     },
   });
 }
@@ -183,15 +182,12 @@ export function useRemoveBucketAlias(clusterId: string) {
     },
     onSuccess: (bucketInfo, vars) => {
       queryClient.setQueryData(['bucket', clusterId, vars.bucketId], bucketInfo);
-      queryClient.setQueryData<ListBucketsResponseItem[]>(
-        ['buckets', clusterId],
-        (prev) => {
-          if (!prev) return prev;
-          return prev.map((item) =>
-            item.id === bucketInfo.id ? bucketInfoToListItem(bucketInfo, item) : item,
-          );
-        },
-      );
+      queryClient.setQueryData<ListBucketsResponseItem[]>(['buckets', clusterId], (prev) => {
+        if (!prev) return prev;
+        return prev.map((item) =>
+          item.id === bucketInfo.id ? bucketInfoToListItem(bucketInfo, item) : item,
+        );
+      });
     },
   });
 }

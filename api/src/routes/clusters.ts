@@ -97,8 +97,7 @@ router.put('/:id', async (req, res) => {
     if (body.endpoint !== undefined) data.endpoint = body.endpoint;
     if (body.adminToken !== undefined) data.adminToken = encrypt(body.adminToken);
     if (body.metricToken !== undefined) {
-      data.metricToken =
-        body.metricToken === null ? null : encrypt(body.metricToken);
+      data.metricToken = body.metricToken === null ? null : encrypt(body.metricToken);
     }
 
     const cluster = await prisma.cluster.update({

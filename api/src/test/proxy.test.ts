@@ -64,7 +64,11 @@ describe('proxy', () => {
 
     expect(res.status).toBe(200);
     expect(axiosMock).toHaveBeenCalled();
-    expect(axiosMock.mock.calls[0]?.[0].data).toEqual([1, 2, 3]);
+    expect(axiosMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: [1, 2, 3],
+      }),
+    );
   });
 
   it('forwards string request bodies', async () => {
@@ -91,7 +95,11 @@ describe('proxy', () => {
 
     expect(res.status).toBe(200);
     expect(axiosMock).toHaveBeenCalled();
-    expect(axiosMock.mock.calls[0]?.[0].data).toBe('hello');
+    expect(axiosMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: 'hello',
+      }),
+    );
   });
 
   it('passes through response headers', async () => {
@@ -113,9 +121,7 @@ describe('proxy', () => {
       },
     });
 
-    const res = await request(app)
-      .get(`/proxy/${cluster.id}/v2/TestHeaders`)
-      .set(authHeader());
+    const res = await request(app).get(`/proxy/${cluster.id}/v2/TestHeaders`).set(authHeader());
 
     expect(res.status).toBe(200);
     expect(res.headers['content-disposition']).toBe('attachment; filename="report.txt"');

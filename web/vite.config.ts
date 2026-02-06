@@ -10,6 +10,35 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) {
+            return undefined;
+          }
+
+          if (id.includes('echarts')) {
+            return 'vendor-echarts';
+          }
+
+          if (id.includes('react-router')) {
+            return 'vendor-router';
+          }
+
+          if (id.includes('@tanstack/react-query')) {
+            return 'vendor-query';
+          }
+
+          if (id.includes('react') || id.includes('scheduler')) {
+            return 'vendor-react';
+          }
+
+          return 'vendor';
+        },
+      },
+    },
+  },
   server: {
     proxy: {
       '/api': {

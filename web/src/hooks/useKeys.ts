@@ -39,10 +39,7 @@ export function useCreateKey(clusterId: string) {
 
   return useMutation({
     mutationFn: async (data: CreateKeyRequest) => {
-      const res = await api.post<GetKeyInfoResponse>(
-        proxyPath(clusterId, '/v2/CreateKey'),
-        data,
-      );
+      const res = await api.post<GetKeyInfoResponse>(proxyPath(clusterId, '/v2/CreateKey'), data);
       return res.data;
     },
     onSuccess: () => {

@@ -27,9 +27,7 @@ if (!Number.isInteger(port) || port <= 0) {
 const logLevel = (process.env.LOG_LEVEL ?? 'info').toLowerCase();
 const allowedLogLevels = new Set(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']);
 if (!allowedLogLevels.has(logLevel)) {
-  throw new Error(
-    `LOG_LEVEL must be one of: ${Array.from(allowedLogLevels).sort().join(', ')}.`,
-  );
+  throw new Error(`LOG_LEVEL must be one of: ${Array.from(allowedLogLevels).sort().join(', ')}.`);
 }
 
 const nodeEnv = process.env.NODE_ENV ?? 'development';

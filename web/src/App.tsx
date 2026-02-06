@@ -80,7 +80,6 @@ function LayoutManagerWrapper() {
   return <LayoutManager clusterId={clusterId} />;
 }
 
-
 function App() {
   return (
     <QueryClientProvider client={queryClient}>

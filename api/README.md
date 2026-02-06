@@ -84,6 +84,7 @@ MORGAN_FORMAT="dev"
 ## Documentation
 
 See [DEVELOPMENT.md](../DEVELOPMENT.md) for detailed development guide including:
+
 - API routes
 - Database schema
 - Authentication

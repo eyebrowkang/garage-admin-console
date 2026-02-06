@@ -16,6 +16,7 @@ pnpm -C web lint       # Lint code
 ## Documentation
 
 See [DEVELOPMENT.md](../DEVELOPMENT.md) for detailed development guide including:
+
 - Project structure
 - Component organization
 - Custom hooks
