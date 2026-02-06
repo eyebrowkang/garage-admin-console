@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { HardDrive, Activity, Database, Wrench, Camera } from 'lucide-react';
+import { HardDrive, Activity, Database } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -33,6 +33,7 @@ import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { DetailPageHeader } from '@/components/cluster/DetailPageHeader';
 import { InlineLoadingState } from '@/components/cluster/InlineLoadingState';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
+import { RepairActionIcon, SnapshotActionIcon } from '@/lib/action-icons';
 import { NodeIcon } from '@/lib/entity-icons';
 import { formatBytes, formatRelativeSeconds } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
@@ -186,11 +187,11 @@ export function NodeDetail() {
         actions={
           <>
             <Button variant="outline" size="sm" onClick={() => setSnapshotDialogOpen(true)}>
-              <Camera className="h-4 w-4 mr-2" />
+              <SnapshotActionIcon className="h-4 w-4 mr-2" />
               Create Snapshot
             </Button>
             <Button variant="outline" size="sm" onClick={() => setRepairDialogOpen(true)}>
-              <Wrench className="h-4 w-4 mr-2" />
+              <RepairActionIcon className="h-4 w-4 mr-2" />
               Repair
             </Button>
           </>

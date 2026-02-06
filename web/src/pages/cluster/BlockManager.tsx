@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AlertTriangle, RefreshCw, Trash2, Info, Search } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -34,6 +34,12 @@ import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { InlineLoadingState } from '@/components/cluster/InlineLoadingState';
 import { JsonViewer } from '@/components/cluster/JsonViewer';
 import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
+import {
+  DeleteActionIcon,
+  InfoActionIcon,
+  RefreshActionIcon,
+  SearchActionIcon,
+} from '@/lib/action-icons';
 import { formatDateTime24h, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { BlockIcon } from '@/lib/entity-icons';
@@ -174,15 +180,15 @@ export function BlockManager() {
         actions={
           <>
             <Button variant="outline" size="sm" onClick={() => refetch()}>
-              <RefreshCw className="h-4 w-4 mr-2" />
+              <RefreshActionIcon className="h-4 w-4 mr-2" />
               Refresh
             </Button>
             <Button size="sm" onClick={() => setRetryAllDialogOpen(true)}>
-              <RefreshCw className="h-4 w-4 mr-2" />
+              <RefreshActionIcon className="h-4 w-4 mr-2" />
               Retry Resync
             </Button>
             <Button variant="destructive" size="sm" onClick={() => setPurgeDialogOpen(true)}>
-              <Trash2 className="h-4 w-4 mr-2" />
+              <DeleteActionIcon className="h-4 w-4 mr-2" />
               Purge Blocks
             </Button>
           </>
@@ -290,7 +296,7 @@ export function BlockManager() {
                             }}
                             title="View block info"
                           >
-                            <Info className="h-4 w-4" />
+                            <InfoActionIcon className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"
@@ -301,7 +307,7 @@ export function BlockManager() {
                             disabled={retryMutation.isPending}
                             title="Retry resync"
                           >
-                            <RefreshCw className="h-4 w-4" />
+                            <RefreshActionIcon className="h-4 w-4" />
                           </Button>
                         </div>
                       </TableCell>
@@ -326,7 +332,7 @@ export function BlockManager() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Search className="h-5 w-5" />
+            <SearchActionIcon className="h-5 w-5" />
             Block Lookup
           </CardTitle>
           <CardDescription>Look up detailed information about a specific block</CardDescription>
@@ -341,7 +347,7 @@ export function BlockManager() {
               }}
             />
             <Button variant="outline" disabled={!lookupHash.trim()} onClick={handleLookup}>
-              <Search className="h-4 w-4 mr-2" />
+              <SearchActionIcon className="h-4 w-4 mr-2" />
               Lookup
             </Button>
           </div>
@@ -391,7 +397,7 @@ export function BlockManager() {
                 onClick={() => handleRetryResync(blockInfoHash, blockInfoNode)}
                 disabled={retryMutation.isPending}
               >
-                <RefreshCw className="h-4 w-4 mr-2" />
+                <RefreshActionIcon className="h-4 w-4 mr-2" />
                 Retry Resync
               </Button>
             )}

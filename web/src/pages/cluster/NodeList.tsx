@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Link2, Camera, Wrench } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -37,6 +36,7 @@ import { getApiErrorMessage } from '@/lib/errors';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
+import { ConnectActionIcon, RepairActionIcon, SnapshotActionIcon } from '@/lib/action-icons';
 import { toast } from '@/hooks/use-toast';
 import { NodeIcon } from '@/lib/entity-icons';
 import {
@@ -216,7 +216,7 @@ export function ClusterNodeList({ clusterId }: NodeListProps) {
             >
               <DialogTrigger asChild>
                 <Button size="sm">
-                  <Link2 className="mr-2 h-4 w-4" />
+                  <ConnectActionIcon className="mr-2 h-4 w-4" />
                   Connect Nodes
                 </Button>
               </DialogTrigger>
@@ -261,11 +261,11 @@ node_id@address`}
             </Dialog>
 
             <Button variant="outline" size="sm" onClick={() => setSnapshotConfirmOpen(true)}>
-              <Camera className="mr-2 h-4 w-4" />
+              <SnapshotActionIcon className="mr-2 h-4 w-4" />
               Create Snapshot
             </Button>
             <Button variant="outline" size="sm" onClick={() => setRepairDialogOpen(true)}>
-              <Wrench className="mr-2 h-4 w-4" />
+              <RepairActionIcon className="mr-2 h-4 w-4" />
               Launch Repair
             </Button>
           </div>

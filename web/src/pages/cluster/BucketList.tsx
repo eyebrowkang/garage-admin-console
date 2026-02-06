@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Trash2, Plus } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -37,6 +36,7 @@ import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { InlineLoadingState } from '@/components/cluster/InlineLoadingState';
 import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
+import { AddActionIcon, DeleteActionIcon } from '@/lib/action-icons';
 import { toast } from '@/hooks/use-toast';
 import { useKeys } from '@/hooks/useKeys';
 import type { CreateBucketRequest, ListBucketsResponseItem } from '@/types/garage';
@@ -155,7 +155,7 @@ export function BucketList({ clusterId }: BucketListProps) {
           >
             <DialogTrigger asChild>
               <Button size="sm">
-                <Plus className="mr-2 h-4 w-4" /> Create Bucket
+                <AddActionIcon className="mr-2 h-4 w-4" /> Create Bucket
               </Button>
             </DialogTrigger>
             <DialogContent>
@@ -329,7 +329,7 @@ export function BucketList({ clusterId }: BucketListProps) {
                         })
                       }
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <DeleteActionIcon className="h-4 w-4" />
                     </Button>
                   </div>
                 </TableCell>

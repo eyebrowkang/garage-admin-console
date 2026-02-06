@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Globe, Trash2, Tags, Settings, RefreshCw } from 'lucide-react';
+import { Globe, Tags, Settings, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -44,6 +44,7 @@ import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { DetailPageHeader } from '@/components/cluster/DetailPageHeader';
 import { JsonViewer } from '@/components/cluster/JsonViewer';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
+import { DeleteActionIcon } from '@/lib/action-icons';
 import { KeyIcon } from '@/lib/entity-icons';
 import { formatBytes, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
@@ -311,7 +312,7 @@ export function BucketDetail() {
                         onClick={() => setRemoveAliasConfirm({ alias })}
                         className="ml-1 hover:text-destructive"
                       >
-                        <Trash2 className="h-3 w-3" />
+                        <DeleteActionIcon className="h-3 w-3" />
                       </button>
                     </Badge>
                   ))
@@ -343,7 +344,7 @@ export function BucketDetail() {
                         }
                         className="ml-1 hover:text-destructive"
                       >
-                        <Trash2 className="h-3 w-3" />
+                        <DeleteActionIcon className="h-3 w-3" />
                       </button>
                     </Badge>
                   ))

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Activity, Cog, RefreshCw, Settings } from 'lucide-react';
+import { Activity, Cog } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -40,6 +40,7 @@ import {
 import { NodeSelector } from '@/components/cluster/NodeSelector';
 import { InlineLoadingState } from '@/components/cluster/InlineLoadingState';
 import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
+import { RefreshActionIcon, SettingsActionIcon } from '@/lib/action-icons';
 import { formatRelativeSeconds, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { toast } from '@/hooks/use-toast';
@@ -196,11 +197,11 @@ export function WorkerManager() {
         actions={
           <>
             <Button variant="outline" size="sm" onClick={() => refetch()}>
-              <RefreshCw className="h-4 w-4 mr-2" />
+              <RefreshActionIcon className="h-4 w-4 mr-2" />
               Refresh
             </Button>
             <Button size="sm" onClick={() => openSetVariableDialog()}>
-              <Settings className="h-4 w-4 mr-2" />
+              <SettingsActionIcon className="h-4 w-4 mr-2" />
               Set Variable
             </Button>
           </>

@@ -1,6 +1,5 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Plus } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,6 +14,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AddActionIcon } from '@/lib/action-icons';
 import { api, proxyPath } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/errors';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
@@ -288,7 +288,7 @@ export default function Dashboard() {
               size="lg"
               className="shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all"
             >
-              <Plus className="mr-2 h-5 w-5" /> Connect Cluster
+              <AddActionIcon className="mr-2 h-5 w-5" /> Connect Cluster
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[500px]">
@@ -364,7 +364,7 @@ export default function Dashboard() {
         <Card className="border-dashed border-2 bg-muted/30">
           <CardContent className="h-64 flex flex-col items-center justify-center text-center p-8 space-y-4">
             <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
-              <Plus className="h-8 w-8 text-primary" />
+              <AddActionIcon className="h-8 w-8 text-primary" />
             </div>
             <div>
               <h3 className="text-lg font-semibold">No clusters connected</h3>

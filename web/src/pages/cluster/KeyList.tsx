@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Trash2, Plus, Copy } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -37,6 +36,7 @@ import { getApiErrorMessage } from '@/lib/errors';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
+import { AddActionIcon, CopyActionIcon, DeleteActionIcon } from '@/lib/action-icons';
 import { toast } from '@/hooks/use-toast';
 import { useImportKey } from '@/hooks/useKeys';
 import type { CreateKeyRequest, GetKeyInfoResponse, ListKeysResponseItem } from '@/types/garage';
@@ -280,7 +280,7 @@ export function KeyList({ clusterId }: KeyListProps) {
             >
               <DialogTrigger asChild>
                 <Button size="sm">
-                  <Plus className="mr-2 h-4 w-4" /> Create Key
+                  <AddActionIcon className="mr-2 h-4 w-4" /> Create Key
                 </Button>
               </DialogTrigger>
               <DialogContent>
@@ -470,7 +470,7 @@ export function KeyList({ clusterId }: KeyListProps) {
                       className="text-destructive"
                       onClick={() => setDeleteConfirm({ id: k.id, name: k.name || k.id })}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <DeleteActionIcon className="h-4 w-4" />
                     </Button>
                   </div>
                 </TableCell>
@@ -510,7 +510,7 @@ export function KeyList({ clusterId }: KeyListProps) {
                     size="icon"
                     onClick={() => handleCopy(createdKey.accessKeyId)}
                   >
-                    <Copy className="h-4 w-4" />
+                    <CopyActionIcon className="h-4 w-4" />
                   </Button>
                 </div>
                 {copiedValue === createdKey.accessKeyId && (
@@ -529,7 +529,7 @@ export function KeyList({ clusterId }: KeyListProps) {
                       size="icon"
                       onClick={() => handleCopy(createdKey.secretAccessKey || '')}
                     >
-                      <Copy className="h-4 w-4" />
+                      <CopyActionIcon className="h-4 w-4" />
                     </Button>
                   )}
                 </div>

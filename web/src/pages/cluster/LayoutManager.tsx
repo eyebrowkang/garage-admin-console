@@ -24,13 +24,20 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
-import { AlertCircle, CheckCircle2, Eye, Plus, RotateCcw, Save, Trash2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import { api, proxyPath } from '@/lib/api';
 import { formatBytes, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
+import {
+  AddActionIcon,
+  DeleteActionIcon,
+  InspectActionIcon,
+  RevertActionIcon,
+  SaveActionIcon,
+} from '@/lib/action-icons';
 import { toast } from '@/hooks/use-toast';
 import {
   Select,
@@ -388,7 +395,7 @@ export function LayoutManager({ clusterId }: LayoutManagerProps) {
                 onClick={() => previewMutation.mutate()}
                 disabled={!hasStagedChanges || previewMutation.isPending}
               >
-                <Eye className="mr-2 h-4 w-4" />
+                <InspectActionIcon className="mr-2 h-4 w-4" />
                 {previewMutation.isPending ? 'Previewing...' : 'Preview'}
               </Button>
               <Button
@@ -396,10 +403,10 @@ export function LayoutManager({ clusterId }: LayoutManagerProps) {
                 onClick={() => setRevertConfirmOpen(true)}
                 disabled={!hasStagedChanges}
               >
-                <RotateCcw className="mr-2 h-4 w-4" /> Revert
+                <RevertActionIcon className="mr-2 h-4 w-4" /> Revert
               </Button>
               <Button onClick={() => setApplyDialogOpen(true)} disabled={!hasStagedChanges}>
-                <Save className="mr-2 h-4 w-4" /> Apply
+                <SaveActionIcon className="mr-2 h-4 w-4" /> Apply
               </Button>
             </div>
           </div>
@@ -595,7 +602,7 @@ export function LayoutManager({ clusterId }: LayoutManagerProps) {
                                 size="sm"
                                 onClick={() => openDialogForNode(node)}
                               >
-                                <Plus className="h-4 w-4 mr-1" /> {role ? 'Edit' : 'Add'}
+                                <AddActionIcon className="h-4 w-4 mr-1" /> {role ? 'Edit' : 'Add'}
                               </Button>
                             </DialogTrigger>
                             <DialogContent>
@@ -664,7 +671,7 @@ export function LayoutManager({ clusterId }: LayoutManagerProps) {
                                 })
                               }
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <DeleteActionIcon className="h-4 w-4" />
                             </Button>
                           )}
                         </div>

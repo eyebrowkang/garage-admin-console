@@ -1,17 +1,9 @@
 import { Link } from 'react-router-dom';
-import {
-  Activity,
-  AlertTriangle,
-  ArrowRight,
-  CheckCircle2,
-  HardDrive,
-  Link2Off,
-  Pencil,
-  XCircle,
-} from 'lucide-react';
+import { Activity, AlertTriangle, CheckCircle2, HardDrive, XCircle } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { DisconnectActionIcon, EditActionIcon, OpenActionIcon } from '@/lib/action-icons';
 import { formatBytes } from '@/lib/format';
 import { NodeIcon } from '@/lib/entity-icons';
 import type {
@@ -291,11 +283,11 @@ export function ClusterStatusMonitor({
                   <Button asChild size="sm">
                     <Link to={`/clusters/${item.cluster.id}`}>
                       Open
-                      <ArrowRight className="h-3.5 w-3.5" />
+                      <OpenActionIcon className="h-3.5 w-3.5" />
                     </Link>
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => onEditCluster(item.cluster)}>
-                    <Pencil className="h-3.5 w-3.5" />
+                    <EditActionIcon className="h-3.5 w-3.5" />
                     Edit
                   </Button>
                   <Button
@@ -303,7 +295,7 @@ export function ClusterStatusMonitor({
                     size="sm"
                     onClick={() => onDeleteCluster(item.cluster)}
                   >
-                    <Link2Off className="h-3.5 w-3.5" />
+                    <DisconnectActionIcon className="h-3.5 w-3.5" />
                     Disconnect
                   </Button>
                 </div>

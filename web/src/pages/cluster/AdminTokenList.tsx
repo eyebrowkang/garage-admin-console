@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, ChevronRight, AlertTriangle } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -44,6 +44,7 @@ import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { SecretReveal } from '@/components/cluster/SecretReveal';
 import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
+import { AddActionIcon, DeleteActionIcon, OpenActionIcon } from '@/lib/action-icons';
 import { formatDateTime24h, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { TokenIcon } from '@/lib/entity-icons';
@@ -228,7 +229,7 @@ export function AdminTokenList() {
         description="Manage cluster admin tokens and inspect their scopes from a single control plane."
         actions={
           <Button size="sm" onClick={() => setCreateDialogOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
+            <AddActionIcon className="h-4 w-4 mr-2" />
             Create Token
           </Button>
         }
@@ -468,10 +469,10 @@ export function AdminTokenList() {
                               className="text-destructive"
                               onClick={() => setDeleteConfirm({ id: token.id!, name: token.name })}
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <DeleteActionIcon className="h-4 w-4" />
                             </Button>
                             <Button variant="ghost" size="icon">
-                              <ChevronRight className="h-4 w-4" />
+                              <OpenActionIcon className="h-4 w-4" />
                             </Button>
                           </>
                         )}
