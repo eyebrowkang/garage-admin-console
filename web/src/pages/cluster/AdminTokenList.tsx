@@ -15,6 +15,13 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Table,
   TableBody,
   TableCell,
@@ -29,13 +36,17 @@ import {
   useCurrentAdminToken,
   useCreateAdminToken,
   useDeleteAdminToken,
+  useAdminTokenLookup,
 } from '@/hooks/useAdminTokens';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { SecretReveal } from '@/components/cluster/SecretReveal';
-import { formatDateTime24h } from '@/lib/format';
+import { formatDateTime24h, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { toast } from '@/hooks/use-toast';
-import type { CreateAdminTokenResponse } from '@/types/garage';
+import type { AdminTokenInfo, CreateAdminTokenResponse } from '@/types/garage';
+
+const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+const MINUTE_OPTIONS = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
 
 export function AdminTokenList() {
   const { clusterId } = useClusterContext();
@@ -43,20 +54,92 @@ export function AdminTokenList() {
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [newTokenName, setNewTokenName] = useState('');
+  const [createScopeMode, setCreateScopeMode] = useState<'full' | 'custom'>('full');
+  const [createScopeInput, setCreateScopeInput] = useState('');
+  const [createNeverExpires, setCreateNeverExpires] = useState(true);
+  const [createExpirationDate, setCreateExpirationDate] = useState('');
+  const [createExpirationHour, setCreateExpirationHour] = useState('00');
+  const [createExpirationMinute, setCreateExpirationMinute] = useState('00');
+  const [createError, setCreateError] = useState('');
   const [createdToken, setCreatedToken] = useState<CreateAdminTokenResponse | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
+  const [lookupMode, setLookupMode] = useState<'search' | 'id'>('search');
+  const [lookupValue, setLookupValue] = useState('');
+  const [lookupResult, setLookupResult] = useState<AdminTokenInfo | null>(null);
+  const [lookupError, setLookupError] = useState('');
 
   const { data: tokens, isLoading, error } = useAdminTokens(clusterId);
   const { data: currentToken } = useCurrentAdminToken(clusterId);
   const createMutation = useCreateAdminToken(clusterId);
   const deleteMutation = useDeleteAdminToken(clusterId);
+  const lookupMutation = useAdminTokenLookup(clusterId);
+
+  const parseScopeInput = (value: string) =>
+    value
+      .split(/[,\n]+/)
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+
+  const resetCreateForm = () => {
+    setNewTokenName('');
+    setCreateScopeMode('full');
+    setCreateScopeInput('');
+    setCreateNeverExpires(true);
+    setCreateExpirationDate('');
+    setCreateExpirationHour('00');
+    setCreateExpirationMinute('00');
+    setCreateError('');
+  };
+
+  const createScope =
+    createScopeMode === 'full' ? ['*'] : parseScopeInput(createScopeInput);
+  const createScopeWarning =
+    createScopeMode === 'full' ||
+    createScope.some(
+      (scope) => scope === '*' || scope === 'CreateAdminToken' || scope === 'UpdateAdminToken',
+    );
+
+  const expirationDate = createExpirationDate
+    ? new Date(`${createExpirationDate}T${createExpirationHour}:${createExpirationMinute}:00`)
+    : null;
+  const expirationIso =
+    expirationDate && !Number.isNaN(expirationDate.getTime())
+      ? expirationDate.toISOString()
+      : null;
+  const expirationInvalid = Boolean(createExpirationDate) && !expirationIso;
 
   const handleCreate = async () => {
+    if (!newTokenName.trim()) {
+      setCreateError('Token name is required.');
+      return;
+    }
+    if (createScopeMode === 'custom' && createScope.length === 0) {
+      setCreateError('Provide at least one scope entry or select full access.');
+      return;
+    }
+    if (expirationInvalid) {
+      setCreateError('Expiration date/time is invalid.');
+      return;
+    }
+    if (!createNeverExpires && !expirationIso) {
+      setCreateError('Set an expiration date/time or enable never expires.');
+      return;
+    }
+
     try {
-      const result = await createMutation.mutateAsync({ name: newTokenName.trim() });
+      const payload = {
+        name: newTokenName.trim(),
+        scope: createScopeMode === 'full' ? ['*'] : createScope,
+        ...(createNeverExpires
+          ? { neverExpires: true, expiration: null }
+          : expirationIso
+            ? { expiration: expirationIso }
+            : {}),
+      };
+      const result = await createMutation.mutateAsync(payload);
       setCreatedToken(result);
       setCreateDialogOpen(false);
-      setNewTokenName('');
+      resetCreateForm();
       toast({
         title: 'Token created',
         description: `Admin token "${newTokenName}" has been created`,
@@ -68,6 +151,40 @@ export function AdminTokenList() {
         variant: 'destructive',
       });
     }
+  };
+
+  const handleLookup = async () => {
+    const trimmed = lookupValue.trim();
+    if (!trimmed) {
+      setLookupError('Enter a token ID or search term.');
+      setLookupResult(null);
+      return;
+    }
+    setLookupError('');
+    setLookupResult(null);
+    try {
+      const result = await lookupMutation.mutateAsync(
+        lookupMode === 'id' ? { id: trimmed } : { search: trimmed },
+      );
+      setLookupResult(result);
+    } catch (err) {
+      setLookupError(getApiErrorMessage(err));
+    }
+  };
+
+  const formatExpiration = (value?: string | null) =>
+    value ? formatDateTime24h(value) : 'Never';
+
+  const renderScopeSummary = (scope: string[]) => {
+    if (scope.includes('*')) {
+      return <span className="text-amber-700 font-medium">Full access (*)</span>;
+    }
+    if (scope.length === 0) {
+      return <span className="text-muted-foreground">No scope</span>;
+    }
+    const preview = scope.slice(0, 3).join(', ');
+    const suffix = scope.length > 3 ? ` +${scope.length - 3} more` : '';
+    return <span className="text-xs font-mono text-slate-700">{preview}{suffix}</span>;
   };
 
   const handleDelete = async () => {
@@ -120,24 +237,150 @@ export function AdminTokenList() {
             </CardTitle>
             <CardDescription>The token being used for this connection</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-3">
+          <CardContent className="space-y-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="secondary">Current</Badge>
+              {currentToken.expired ? (
+                <Badge variant="destructive">Expired</Badge>
+              ) : (
+                <Badge variant="success">Active</Badge>
+              )}
+            </div>
+            <div className="grid gap-4 md:grid-cols-4">
               <div>
                 <div className="text-sm text-muted-foreground">Name</div>
                 <div className="font-medium">{currentToken.name}</div>
               </div>
               <div>
+                <div className="text-sm text-muted-foreground">Token ID</div>
+                <div className="text-xs">
+                  {currentToken.id ? formatShortId(currentToken.id, 14) : 'Unavailable'}
+                </div>
+              </div>
+              <div>
                 <div className="text-sm text-muted-foreground">Created</div>
-                <div>{formatDateTime24h(currentToken.created)}</div>
+                <div>{formatDateTime24h(currentToken.created) || '-'}</div>
               </div>
               <div>
                 <div className="text-sm text-muted-foreground">Expires</div>
-                <div>{formatDateTime24h(currentToken.expiration) || 'Never'}</div>
+                <div>{formatExpiration(currentToken.expiration)}</div>
               </div>
             </div>
+            <div>
+              <div className="text-sm text-muted-foreground mb-2">Scope</div>
+              {renderScopeSummary(currentToken.scope)}
+            </div>
+            {currentToken.id && (
+              <Button variant="outline" onClick={() => navigate(`/clusters/${clusterId}/tokens/${currentToken.id}`)}>
+                View Details
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}
+
+      {/* Token Lookup */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Find a Token</CardTitle>
+          <CardDescription>Lookup a token by ID or search pattern.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-end">
+            <div className="space-y-2">
+              <Label>Lookup mode</Label>
+              <Select
+                value={lookupMode}
+                onValueChange={(value) => setLookupMode(value as 'search' | 'id')}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select mode" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="search">Search (partial name or ID)</SelectItem>
+                  <SelectItem value="id">Exact ID</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label>{lookupMode === 'id' ? 'Token ID' : 'Search term'}</Label>
+              <Input
+                value={lookupValue}
+                onChange={(e) => {
+                  setLookupValue(e.target.value);
+                  if (lookupError) setLookupError('');
+                }}
+                placeholder={lookupMode === 'id' ? 'token-id...' : 'name or partial id...'}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleLookup();
+                  }
+                }}
+              />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button onClick={handleLookup} disabled={lookupMutation.isPending}>
+              {lookupMutation.isPending ? 'Searching...' : 'Search'}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setLookupValue('');
+                setLookupResult(null);
+                setLookupError('');
+              }}
+            >
+              Clear
+            </Button>
+          </div>
+          {lookupError && (
+            <Alert variant="destructive">
+              <AlertTitle>Lookup failed</AlertTitle>
+              <AlertDescription>{lookupError}</AlertDescription>
+            </Alert>
+          )}
+          {lookupResult && (
+            <Card className="border-slate-200">
+              <CardContent className="pt-4 space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="font-medium">{lookupResult.name}</div>
+                  {lookupResult.expired ? (
+                    <Badge variant="destructive">Expired</Badge>
+                  ) : (
+                    <Badge variant="success">Active</Badge>
+                  )}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  ID: {lookupResult.id ? lookupResult.id : 'Unavailable'}
+                </div>
+                <div className="grid gap-3 md:grid-cols-3 text-sm">
+                  <div>
+                    <div className="text-muted-foreground">Created</div>
+                    <div>{formatDateTime24h(lookupResult.created) || '-'}</div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground">Expires</div>
+                    <div>{formatExpiration(lookupResult.expiration)}</div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground">Scope</div>
+                    <div>{renderScopeSummary(lookupResult.scope)}</div>
+                  </div>
+                </div>
+                {lookupResult.id && (
+                  <Button
+                    variant="outline"
+                    onClick={() => navigate(`/clusters/${clusterId}/tokens/${lookupResult.id}`)}
+                  >
+                    View Details
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Token List */}
       <Card>
@@ -158,7 +401,8 @@ export function AdminTokenList() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
+                  <TableHead>Token</TableHead>
+                  <TableHead>Scope</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead>Expires</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -172,20 +416,33 @@ export function AdminTokenList() {
                     onClick={() => token.id && navigate(`/clusters/${clusterId}/tokens/${token.id}`)}
                   >
                     <TableCell>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="font-medium">{token.name}</span>
+                        {token.expired ? (
+                          <Badge variant="destructive" className="text-xs">
+                            Expired
+                          </Badge>
+                        ) : (
+                          <Badge variant="success" className="text-xs">
+                            Active
+                          </Badge>
+                        )}
                         {currentToken?.id && currentToken.id === token.id && (
                           <Badge variant="secondary" className="text-xs">
                             Current
                           </Badge>
                         )}
                       </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        ID: {token.id ? formatShortId(token.id, 14) : 'Unavailable'}
+                      </div>
                     </TableCell>
+                    <TableCell>{renderScopeSummary(token.scope)}</TableCell>
                     <TableCell className="text-muted-foreground">
                       {formatDateTime24h(token.created) || '-'}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {formatDateTime24h(token.expiration) || 'Never'}
+                      {formatExpiration(token.expiration)}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
@@ -219,7 +476,13 @@ export function AdminTokenList() {
       </Card>
 
       {/* Create Token Dialog */}
-      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+      <Dialog
+        open={createDialogOpen}
+        onOpenChange={(open) => {
+          setCreateDialogOpen(open);
+          if (!open) resetCreateForm();
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create Admin Token</DialogTitle>
@@ -236,6 +499,103 @@ export function AdminTokenList() {
                 placeholder="my-admin-token"
               />
             </div>
+            <div className="space-y-2">
+              <Label>Scope</Label>
+              <Select
+                value={createScopeMode}
+                onValueChange={(value) => setCreateScopeMode(value as 'full' | 'custom')}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select scope" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="full">Full access (*)</SelectItem>
+                  <SelectItem value="custom">Custom scope</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {createScopeMode === 'custom' && (
+              <div className="space-y-2">
+                <Label>Allowed endpoints (one per line)</Label>
+                <textarea
+                  className="w-full min-h-[120px] p-3 border rounded-md text-xs resize-y"
+                  placeholder="e.g.\nGetClusterStatus\nListBuckets"
+                  value={createScopeInput}
+                  onChange={(e) => setCreateScopeInput(e.target.value)}
+                />
+              </div>
+            )}
+            {createScopeWarning && (
+              <Alert variant="warning">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>High privilege scope</AlertTitle>
+                <AlertDescription>
+                  Granting full access or `CreateAdminToken`/`UpdateAdminToken` effectively allows
+                  privilege escalation. Ensure this is intended.
+                </AlertDescription>
+              </Alert>
+            )}
+            <div className="space-y-2">
+              <Label>Expiration</Label>
+              <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-end">
+                <Input
+                  type="date"
+                  value={createExpirationDate}
+                  onChange={(e) => setCreateExpirationDate(e.target.value)}
+                  disabled={createNeverExpires}
+                />
+                <Select
+                  value={createExpirationHour}
+                  onValueChange={setCreateExpirationHour}
+                  disabled={createNeverExpires}
+                >
+                  <SelectTrigger className="w-[90px]">
+                    <SelectValue placeholder="HH" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {HOUR_OPTIONS.map((hour) => (
+                      <SelectItem key={hour} value={hour}>
+                        {hour}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={createExpirationMinute}
+                  onValueChange={setCreateExpirationMinute}
+                  disabled={createNeverExpires}
+                >
+                  <SelectTrigger className="w-[90px]">
+                    <SelectValue placeholder="MM" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MINUTE_OPTIONS.map((minute) => (
+                      <SelectItem key={minute} value={minute}>
+                        {minute}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={createNeverExpires}
+                  onChange={(e) => setCreateNeverExpires(e.target.checked)}
+                  className="h-4 w-4 cursor-pointer"
+                />
+                Never expires
+              </label>
+              {expirationInvalid && !createNeverExpires && (
+                <div className="text-xs text-destructive">Expiration date/time is invalid.</div>
+              )}
+            </div>
+            {createError && (
+              <Alert variant="destructive">
+                <AlertTitle>Cannot create token</AlertTitle>
+                <AlertDescription>{createError}</AlertDescription>
+              </Alert>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
@@ -263,6 +623,26 @@ export function AdminTokenList() {
           {createdToken && (
             <div className="space-y-4 py-4">
               <SecretReveal label="Secret Token" value={createdToken.secretToken} hidden={false} />
+              <div className="grid gap-3 md:grid-cols-2 text-sm">
+                <div>
+                  <div className="text-muted-foreground">Name</div>
+                  <div className="font-medium">{createdToken.name}</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground">Token ID</div>
+                  <div className="text-xs">
+                    {createdToken.id ? createdToken.id : 'Unavailable'}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground">Expires</div>
+                  <div>{formatExpiration(createdToken.expiration)}</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground">Scope</div>
+                  <div>{renderScopeSummary(createdToken.scope)}</div>
+                </div>
+              </div>
               <Alert variant="warning">
                 <AlertTriangle className="h-4 w-4" />
                 <AlertDescription>

@@ -90,3 +90,18 @@ export function useDeleteAdminToken(clusterId: string) {
     },
   });
 }
+
+export function useAdminTokenLookup(clusterId: string) {
+  return useMutation({
+    mutationFn: async ({ id, search }: { id?: string; search?: string }) => {
+      const params = new URLSearchParams();
+      if (id) params.set('id', id);
+      if (search) params.set('search', search);
+      const query = params.toString();
+      const res = await api.get<AdminTokenInfo>(
+        proxyPath(clusterId, `/v2/GetAdminTokenInfo${query ? `?${query}` : ''}`),
+      );
+      return res.data;
+    },
+  });
+}
