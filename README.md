@@ -53,7 +53,7 @@ docker run -d \
   -p 3001:3001 \
   -v garage-data:/data \
   -e JWT_SECRET=change-me-to-a-random-string \
-  -e ENCRYPTION_KEY=change-me-exactly-32-characters!! \
+  -e ENCRYPTION_KEY=change-me-exactly-32-characters! \
   -e ADMIN_PASSWORD=change-me-admin-password \
   garage-admin-console
 ```

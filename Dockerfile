@@ -1,5 +1,5 @@
 # ---- Build stage ----
-FROM node:24-alpine AS build
+FROM node:24-slim AS build
 
 RUN corepack enable
 
@@ -36,9 +36,10 @@ RUN cp -r /src/api/dist /deploy/dist && \
 RUN cd /deploy && npx prisma generate
 
 # ---- Production stage ----
-FROM node:24-alpine
+FROM node:24-slim
 
-RUN apk add --no-cache tini
+RUN apt-get update && apt-get install -y --no-install-recommends tini openssl && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -57,5 +58,5 @@ VOLUME /data
 EXPOSE 3001
 
 # Use tini as PID 1 for proper signal handling
-ENTRYPOINT ["/sbin/tini", "--"]
+ENTRYPOINT ["tini", "--"]
 CMD ["sh", "-c", "npx prisma migrate deploy && node dist/index.js"]

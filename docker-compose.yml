@@ -9,7 +9,7 @@ services:
     environment:
       # Required — change all three values before starting
       - JWT_SECRET=change-me-to-a-random-string
-      - ENCRYPTION_KEY=change-me-exactly-32-characters!!
+      - ENCRYPTION_KEY=change-me-exactly-32-characters!
       - ADMIN_PASSWORD=change-me-admin-password
       # Optional
       # - PORT=3001
