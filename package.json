@@ -12,7 +12,9 @@
     "lint": "pnpm -C api lint && pnpm -C web lint",
     "lint:fix": "pnpm -C api lint:fix && pnpm -C web lint:fix",
     "format": "pnpm -C api format && pnpm -C web format",
-    "format:check": "pnpm -C api format:check && pnpm -C web format:check"
+    "format:check": "pnpm -C api format:check && pnpm -C web format:check",
+    "test": "pnpm -C api test:run && pnpm -C web test:run",
+    "typecheck": "pnpm -C api typecheck"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.1",

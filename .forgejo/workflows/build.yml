@@ -8,9 +8,45 @@ on:
       - 'web/**'
       - 'api/**'
       - 'docker/**'
+      - 'package.json'
+      - 'pnpm-workspace.yaml'
+      - 'pnpm-lock.yaml'
 
 jobs:
+  check:
+    runs-on: docker
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck API
+        run: pnpm -C api typecheck
+
+      - name: Build web
+        run: pnpm -C web build
+
+      - name: Test API
+        run: pnpm -C api test:run
+
+      - name: Test web
+        run: pnpm -C web test:run
+
   build:
+    needs: check
     runs-on: docker
     steps:
       - name: Install docker cli
@@ -47,4 +83,3 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-
