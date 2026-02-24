@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/table';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useClusterContext } from '@/contexts/ClusterContext';
+import { api, proxyPath } from '@/lib/api';
 import { useKeyInfo, useUpdateKey, useDeleteKey } from '@/hooks/useKeys';
 import { useBuckets } from '@/hooks/useBuckets';
 import { useAllowBucketKey, useDenyBucketKey } from '@/hooks/usePermissions';
@@ -40,13 +41,12 @@ import { CopyButton } from '@/components/cluster/CopyButton';
 import { DetailPageHeader } from '@/components/cluster/DetailPageHeader';
 import { InlineLoadingState } from '@/components/cluster/InlineLoadingState';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
-import { Pencil } from 'lucide-react';
-import { DeleteActionIcon, EditActionIcon } from '@/lib/action-icons';
+import { AddActionIcon, DeleteActionIcon, EditActionIcon } from '@/lib/action-icons';
 import { BucketIcon, KeyIcon } from '@/lib/entity-icons';
 import { formatDateTime24h, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { toast } from '@/hooks/use-toast';
-import type { UpdateKeyRequest } from '@/types/garage';
+import type { GetKeyInfoResponse, UpdateKeyRequest } from '@/types/garage';
 
 const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 const MINUTE_OPTIONS = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
@@ -67,7 +67,7 @@ export function KeyDetail() {
   );
   const [editError, setEditError] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [showSecret, setShowSecret] = useState(false);
+  const [grantDialogOpen, setGrantDialogOpen] = useState(false);
   const [grantBucketId, setGrantBucketId] = useState('');
   const [grantRead, setGrantRead] = useState(true);
   const [grantWrite, setGrantWrite] = useState(false);
@@ -81,27 +81,32 @@ export function KeyDetail() {
     owner: boolean;
   } | null>(null);
 
-  const { data: keyInfo, isLoading, error, refetch } = useKeyInfo(clusterId, kid || '', showSecret);
+  const { data: keyInfo, isLoading, error } = useKeyInfo(clusterId, kid || '');
   const bucketsQuery = useBuckets(clusterId);
   const [secretKey, setSecretKey] = useState<string | null>(null);
   const [secretLoading, setSecretLoading] = useState(false);
 
   const handleRevealSecret = async () => {
-    setShowSecret(true);
     setSecretLoading(true);
     try {
-      const result = await refetch();
-      if (result.data?.secretAccessKey) {
-        setSecretKey(result.data.secretAccessKey);
+      const params = new URLSearchParams();
+      params.set('id', kid!);
+      params.set('showSecretKey', 'true');
+      const res = await api.get<GetKeyInfoResponse>(
+        proxyPath(clusterId, `/v2/GetKeyInfo?${params.toString()}`),
+      );
+      if (res.data?.secretAccessKey) {
+        setSecretKey(res.data.secretAccessKey);
       }
+    } catch (err) {
+      toast({
+        title: 'Failed to reveal secret',
+        description: getApiErrorMessage(err),
+        variant: 'destructive',
+      });
     } finally {
       setSecretLoading(false);
     }
-  };
-
-  const handleHideSecret = () => {
-    setSecretKey(null);
-    setShowSecret(false);
   };
 
   const handleCopySecret = async () => {
@@ -412,7 +417,7 @@ export function KeyDetail() {
               <Label>Secret Access Key</Label>
               {secretKey ? (
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={handleHideSecret}>
+                  <Button variant="outline" size="sm" onClick={() => setSecretKey(null)}>
                     Hide
                   </Button>
                   <Button variant="outline" size="sm" onClick={handleCopySecret}>
@@ -446,73 +451,31 @@ export function KeyDetail() {
       {/* Bucket Permissions */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BucketIcon className="h-5 w-5" />
-            Bucket Permissions
-          </CardTitle>
-          <CardDescription>Buckets this key has access to</CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <BucketIcon className="h-5 w-5" />
+                Bucket Permissions
+              </CardTitle>
+              <CardDescription>Buckets this key has access to</CardDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setGrantRead(true);
+                setGrantWrite(false);
+                setGrantOwner(false);
+                setGrantDialogOpen(true);
+              }}
+              disabled={bucketsLoading || availableBuckets.length === 0}
+            >
+              <AddActionIcon className="h-4 w-4 mr-2" />
+              Grant Access
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="rounded-md border p-4 space-y-3">
-            <div className="text-sm font-medium">Grant Access</div>
-            {bucketsLoading ? (
-              <InlineLoadingState label="Loading buckets..." />
-            ) : bucketsError ? (
-              <p className="text-sm text-destructive">
-                {getApiErrorMessage(bucketsError, 'Failed to load buckets.')}
-              </p>
-            ) : availableBuckets.length > 0 ? (
-              <>
-                <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
-                  <div className="space-y-2">
-                    <Label>Bucket</Label>
-                    <Select value={grantBucketId} onValueChange={setGrantBucketId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select bucket" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableBuckets.map((bucket) => {
-                          const alias = bucket.globalAliases[0];
-                          const label = alias
-                            ? `${alias} (${formatShortId(bucket.id, 10)})`
-                            : formatShortId(bucket.id, 12);
-                          return (
-                            <SelectItem key={bucket.id} value={bucket.id}>
-                              {label}
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Button
-                    onClick={handleGrantAccess}
-                    disabled={!grantBucketId || (!grantRead && !grantWrite && !grantOwner)}
-                  >
-                    Grant Access
-                  </Button>
-                </div>
-                <div className="flex flex-wrap gap-4">
-                  <label className="flex items-center gap-2 text-sm">
-                    <Checkbox checked={grantRead} onCheckedChange={setGrantRead} />
-                    Read
-                  </label>
-                  <label className="flex items-center gap-2 text-sm">
-                    <Checkbox checked={grantWrite} onCheckedChange={setGrantWrite} />
-                    Write
-                  </label>
-                  <label className="flex items-center gap-2 text-sm">
-                    <Checkbox checked={grantOwner} onCheckedChange={setGrantOwner} />
-                    Owner
-                  </label>
-                </div>
-              </>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                All buckets already have permissions for this key.
-              </p>
-            )}
-          </div>
           {keyInfo.buckets && keyInfo.buckets.length > 0 ? (
             <Table>
               <TableHeader>
@@ -569,7 +532,7 @@ export function KeyDetail() {
                     <TableCell className="text-right">
                       <Button
                         variant="ghost"
-                        size="icon"
+                        size="sm"
                         onClick={() => {
                           const bucketName =
                             bucket.globalAliases[0] ||
@@ -585,7 +548,8 @@ export function KeyDetail() {
                           setPermDialogOpen(true);
                         }}
                       >
-                        <Pencil className="h-3.5 w-3.5" />
+                        <EditActionIcon className="h-3.5 w-3.5 mr-1.5" />
+                        Edit
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -796,6 +760,96 @@ export function KeyDetail() {
               disabled={allowKeyMutation.isPending || denyKeyMutation.isPending}
             >
               {allowKeyMutation.isPending || denyKeyMutation.isPending ? 'Saving...' : 'Save'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Grant Access Dialog */}
+      <Dialog
+        open={grantDialogOpen}
+        onOpenChange={(open) => {
+          setGrantDialogOpen(open);
+          if (open) {
+            setGrantRead(true);
+            setGrantWrite(false);
+            setGrantOwner(false);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Grant Bucket Access</DialogTitle>
+            <DialogDescription>
+              Select a bucket and permissions to grant for this key.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {bucketsLoading ? (
+              <InlineLoadingState label="Loading buckets..." />
+            ) : bucketsError ? (
+              <p className="text-sm text-destructive">
+                {getApiErrorMessage(bucketsError, 'Failed to load buckets.')}
+              </p>
+            ) : availableBuckets.length > 0 ? (
+              <>
+                <div className="space-y-2">
+                  <Label>Bucket</Label>
+                  <Select value={grantBucketId} onValueChange={setGrantBucketId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select bucket" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableBuckets.map((bucket) => {
+                        const alias = bucket.globalAliases[0];
+                        const label = alias
+                          ? `${alias} (${formatShortId(bucket.id, 10)})`
+                          : formatShortId(bucket.id, 12);
+                        return (
+                          <SelectItem key={bucket.id} value={bucket.id}>
+                            {label}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Permissions</Label>
+                  <div className="flex flex-wrap gap-4">
+                    <label className="flex items-center gap-2 text-sm">
+                      <Checkbox checked={grantRead} onCheckedChange={setGrantRead} />
+                      Read
+                    </label>
+                    <label className="flex items-center gap-2 text-sm">
+                      <Checkbox checked={grantWrite} onCheckedChange={setGrantWrite} />
+                      Write
+                    </label>
+                    <label className="flex items-center gap-2 text-sm">
+                      <Checkbox checked={grantOwner} onCheckedChange={setGrantOwner} />
+                      Owner
+                    </label>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                All buckets already have permissions for this key.
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setGrantDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                await handleGrantAccess();
+                setGrantDialogOpen(false);
+              }}
+              disabled={!grantBucketId || (!grantRead && !grantWrite && !grantOwner)}
+            >
+              Grant Access
             </Button>
           </DialogFooter>
         </DialogContent>

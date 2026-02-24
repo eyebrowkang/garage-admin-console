@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, proxyPath } from '@/lib/api';
 import type {
   ListKeysResponseItem,
@@ -18,20 +18,16 @@ export function useKeys(clusterId: string) {
   });
 }
 
-export function useKeyInfo(clusterId: string, keyId: string, showSecretKey = false) {
+export function useKeyInfo(clusterId: string, keyId: string) {
   return useQuery<GetKeyInfoResponse>({
-    queryKey: ['key', clusterId, keyId, showSecretKey],
+    queryKey: ['key', clusterId, keyId],
     queryFn: async () => {
-      const params = new URLSearchParams();
-      params.set('id', keyId);
-      if (showSecretKey) params.set('showSecretKey', 'true');
       const res = await api.get<GetKeyInfoResponse>(
-        proxyPath(clusterId, `/v2/GetKeyInfo?${params.toString()}`),
+        proxyPath(clusterId, `/v2/GetKeyInfo?id=${encodeURIComponent(keyId)}`),
       );
       return res.data;
     },
     enabled: Boolean(keyId),
-    placeholderData: keepPreviousData,
   });
 }
 
