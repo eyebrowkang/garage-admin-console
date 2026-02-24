@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Search } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -38,7 +38,6 @@ import {
   useCurrentAdminToken,
   useCreateAdminToken,
   useDeleteAdminToken,
-  useAdminTokenLookup,
 } from '@/hooks/useAdminTokens';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { SecretReveal } from '@/components/cluster/SecretReveal';
@@ -49,7 +48,7 @@ import { formatDateTime24h, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { TokenIcon } from '@/lib/entity-icons';
 import { toast } from '@/hooks/use-toast';
-import type { AdminTokenInfo, CreateAdminTokenResponse } from '@/types/garage';
+import type { CreateAdminTokenResponse } from '@/types/garage';
 
 const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 const MINUTE_OPTIONS = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
@@ -69,16 +68,12 @@ export function AdminTokenList() {
   const [createError, setCreateError] = useState('');
   const [createdToken, setCreatedToken] = useState<CreateAdminTokenResponse | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
-  const [lookupMode, setLookupMode] = useState<'search' | 'id'>('search');
-  const [lookupValue, setLookupValue] = useState('');
-  const [lookupResult, setLookupResult] = useState<AdminTokenInfo | null>(null);
-  const [lookupError, setLookupError] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const { data: tokens, isLoading, error } = useAdminTokens(clusterId);
   const { data: currentToken } = useCurrentAdminToken(clusterId);
   const createMutation = useCreateAdminToken(clusterId);
   const deleteMutation = useDeleteAdminToken(clusterId);
-  const lookupMutation = useAdminTokenLookup(clusterId);
 
   const parseScopeInput = (value: string) =>
     value
@@ -156,24 +151,17 @@ export function AdminTokenList() {
     }
   };
 
-  const handleLookup = async () => {
-    const trimmed = lookupValue.trim();
-    if (!trimmed) {
-      setLookupError('Enter a token ID or search term.');
-      setLookupResult(null);
-      return;
-    }
-    setLookupError('');
-    setLookupResult(null);
-    try {
-      const result = await lookupMutation.mutateAsync(
-        lookupMode === 'id' ? { id: trimmed } : { search: trimmed },
-      );
-      setLookupResult(result);
-    } catch (err) {
-      setLookupError(getApiErrorMessage(err));
-    }
-  };
+  const filteredTokens = useMemo(() => {
+    if (!tokens) return [];
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return tokens;
+    return tokens.filter(
+      (t) =>
+        t.name.toLowerCase().includes(q) ||
+        (t.id && t.id.toLowerCase().includes(q)) ||
+        t.scope.some((s) => s.toLowerCase().includes(q)),
+    );
+  }, [tokens, searchQuery]);
 
   const formatExpiration = (value?: string | null) => (value ? formatDateTime24h(value) : 'Never');
 
@@ -300,117 +288,27 @@ export function AdminTokenList() {
         </Card>
       )}
 
-      {/* Token Lookup */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Find a Token</CardTitle>
-          <CardDescription>Lookup a token by ID or search pattern.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-end">
-            <div className="space-y-2">
-              <Label>Lookup mode</Label>
-              <Select
-                value={lookupMode}
-                onValueChange={(value) => setLookupMode(value as 'search' | 'id')}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select mode" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="search">Search (partial name or ID)</SelectItem>
-                  <SelectItem value="id">Exact ID</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label>{lookupMode === 'id' ? 'Token ID' : 'Search term'}</Label>
-              <Input
-                value={lookupValue}
-                onChange={(e) => {
-                  setLookupValue(e.target.value);
-                  if (lookupError) setLookupError('');
-                }}
-                placeholder={lookupMode === 'id' ? 'token-id...' : 'name or partial id...'}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleLookup();
-                  }
-                }}
-              />
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <Button onClick={handleLookup} disabled={lookupMutation.isPending}>
-              {lookupMutation.isPending ? 'Searching...' : 'Search'}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setLookupValue('');
-                setLookupResult(null);
-                setLookupError('');
-              }}
-            >
-              Clear
-            </Button>
-          </div>
-          {lookupError && (
-            <Alert variant="destructive">
-              <AlertTitle>Lookup failed</AlertTitle>
-              <AlertDescription>{lookupError}</AlertDescription>
-            </Alert>
-          )}
-          {lookupResult && (
-            <Card className="border-border">
-              <CardContent className="pt-4 space-y-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="font-medium">{lookupResult.name}</div>
-                  {lookupResult.expired ? (
-                    <Badge variant="destructive">Expired</Badge>
-                  ) : (
-                    <Badge variant="success">Active</Badge>
-                  )}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  ID: {lookupResult.id ? lookupResult.id : 'Unavailable'}
-                </div>
-                <div className="grid gap-3 md:grid-cols-3 text-sm">
-                  <div>
-                    <div className="text-muted-foreground">Created</div>
-                    <div>{formatDateTime24h(lookupResult.created) || '-'}</div>
-                  </div>
-                  <div>
-                    <div className="text-muted-foreground">Expires</div>
-                    <div>{formatExpiration(lookupResult.expiration)}</div>
-                  </div>
-                  <div>
-                    <div className="text-muted-foreground">Scope</div>
-                    <div>{renderScopeSummary(lookupResult.scope)}</div>
-                  </div>
-                </div>
-                {lookupResult.id && (
-                  <Button
-                    variant="outline"
-                    onClick={() => navigate(`/clusters/${clusterId}/tokens/${lookupResult.id}`)}
-                  >
-                    View Details
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          )}
-        </CardContent>
-      </Card>
-
       {/* Token List */}
       <Card>
         <CardHeader>
-          <CardTitle>Admin Tokens</CardTitle>
-          <CardDescription>Manage admin API tokens for this cluster</CardDescription>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <CardTitle>Admin Tokens</CardTitle>
+              <CardDescription>Manage admin API tokens for this cluster</CardDescription>
+            </div>
+          </div>
+          <div className="relative pt-2">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by name, ID, or scope..."
+              className="pl-9"
+            />
+          </div>
         </CardHeader>
         <CardContent>
-          {tokens && tokens.length > 0 ? (
+          {filteredTokens.length > 0 ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -422,7 +320,7 @@ export function AdminTokenList() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {tokens.map((token, index) => (
+                {filteredTokens.map((token, index) => (
                   <TableRow
                     key={token.id || index}
                     className={token.id ? 'cursor-pointer hover:bg-muted/50' : ''}
@@ -483,7 +381,9 @@ export function AdminTokenList() {
               </TableBody>
             </Table>
           ) : (
-            <p className="text-sm text-muted-foreground text-center py-8">No admin tokens found</p>
+            <p className="text-sm text-muted-foreground text-center py-8">
+              {searchQuery ? 'No tokens match your search' : 'No admin tokens found'}
+            </p>
           )}
         </CardContent>
       </Card>

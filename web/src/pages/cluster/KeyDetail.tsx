@@ -40,6 +40,7 @@ import { CopyButton } from '@/components/cluster/CopyButton';
 import { DetailPageHeader } from '@/components/cluster/DetailPageHeader';
 import { InlineLoadingState } from '@/components/cluster/InlineLoadingState';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
+import { Pencil } from 'lucide-react';
 import { DeleteActionIcon, EditActionIcon } from '@/lib/action-icons';
 import { BucketIcon, KeyIcon } from '@/lib/entity-icons';
 import { formatDateTime24h, formatShortId } from '@/lib/format';
@@ -71,6 +72,14 @@ export function KeyDetail() {
   const [grantRead, setGrantRead] = useState(true);
   const [grantWrite, setGrantWrite] = useState(false);
   const [grantOwner, setGrantOwner] = useState(false);
+  const [permDialogOpen, setPermDialogOpen] = useState(false);
+  const [editingBucketPerm, setEditingBucketPerm] = useState<{
+    bucketId: string;
+    bucketName: string;
+    read: boolean;
+    write: boolean;
+    owner: boolean;
+  } | null>(null);
 
   const { data: keyInfo, isLoading, error, refetch } = useKeyInfo(clusterId, kid || '', showSecret);
   const bucketsQuery = useBuckets(clusterId);
@@ -236,30 +245,45 @@ export function KeyDetail() {
     }
   };
 
-  const handleTogglePermission = async (
-    bucketId: string,
-    permission: 'read' | 'write' | 'owner',
-    currentValue: boolean,
-    currentPerms: { read: boolean; write: boolean; owner: boolean },
-  ) => {
+  const handleUpdateBucketPermissions = async () => {
+    if (!editingBucketPerm || !kid) return;
     try {
-      if (currentValue) {
-        await denyKeyMutation.mutateAsync({
-          bucketId,
-          accessKeyId: kid,
-          permissions: { read: false, write: false, owner: false, [permission]: true },
-        });
-      } else {
+      const currentPerms = keyInfo?.buckets?.find(
+        (b) => b.id === editingBucketPerm.bucketId,
+      )?.permissions;
+      if (!currentPerms) return;
+
+      const toAllow = {
+        read: editingBucketPerm.read && !currentPerms.read,
+        write: editingBucketPerm.write && !currentPerms.write,
+        owner: editingBucketPerm.owner && !currentPerms.owner,
+      };
+      const toDeny = {
+        read: !editingBucketPerm.read && currentPerms.read,
+        write: !editingBucketPerm.write && currentPerms.write,
+        owner: !editingBucketPerm.owner && currentPerms.owner,
+      };
+
+      if (toAllow.read || toAllow.write || toAllow.owner) {
         await allowKeyMutation.mutateAsync({
-          bucketId,
+          bucketId: editingBucketPerm.bucketId,
           accessKeyId: kid,
-          permissions: { ...currentPerms, [permission]: true },
+          permissions: toAllow,
         });
       }
-      toast({ title: 'Permission updated' });
+      if (toDeny.read || toDeny.write || toDeny.owner) {
+        await denyKeyMutation.mutateAsync({
+          bucketId: editingBucketPerm.bucketId,
+          accessKeyId: kid,
+          permissions: toDeny,
+        });
+      }
+      toast({ title: 'Permissions updated' });
+      setPermDialogOpen(false);
+      setEditingBucketPerm(null);
     } catch (err) {
       toast({
-        title: 'Failed to update permission',
+        title: 'Failed to update permissions',
         description: getApiErrorMessage(err),
         variant: 'destructive',
       });
@@ -498,6 +522,7 @@ export function KeyDetail() {
                   <TableHead className="text-center">Read</TableHead>
                   <TableHead className="text-center">Write</TableHead>
                   <TableHead className="text-center">Owner</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -515,46 +540,53 @@ export function KeyDetail() {
                       </div>
                     </TableCell>
                     <TableCell className="text-center">
-                      <Checkbox
-                        checked={bucket.permissions.read}
-                        onCheckedChange={() =>
-                          handleTogglePermission(
-                            bucket.id,
-                            'read',
-                            bucket.permissions.read,
-                            bucket.permissions,
-                          )
-                        }
-                        aria-label="Toggle read permission"
-                      />
+                      {bucket.permissions.read ? (
+                        <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
+                          Yes
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">No</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-center">
-                      <Checkbox
-                        checked={bucket.permissions.write}
-                        onCheckedChange={() =>
-                          handleTogglePermission(
-                            bucket.id,
-                            'write',
-                            bucket.permissions.write,
-                            bucket.permissions,
-                          )
-                        }
-                        aria-label="Toggle write permission"
-                      />
+                      {bucket.permissions.write ? (
+                        <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
+                          Yes
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">No</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-center">
-                      <Checkbox
-                        checked={bucket.permissions.owner}
-                        onCheckedChange={() =>
-                          handleTogglePermission(
-                            bucket.id,
-                            'owner',
-                            bucket.permissions.owner,
-                            bucket.permissions,
-                          )
-                        }
-                        aria-label="Toggle owner permission"
-                      />
+                      {bucket.permissions.owner ? (
+                        <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
+                          Yes
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">No</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          const bucketName =
+                            bucket.globalAliases[0] ||
+                            bucket.localAliases[0] ||
+                            formatShortId(bucket.id, 12);
+                          setEditingBucketPerm({
+                            bucketId: bucket.id,
+                            bucketName,
+                            read: bucket.permissions.read,
+                            write: bucket.permissions.write,
+                            owner: bucket.permissions.owner,
+                          });
+                          setPermDialogOpen(true);
+                        }}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -698,6 +730,72 @@ export function KeyDetail() {
               disabled={editExpirationInvalid || updateKeyMutation.isPending}
             >
               {updateKeyMutation.isPending ? 'Saving...' : 'Save'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Bucket Permissions Dialog */}
+      <Dialog
+        open={permDialogOpen}
+        onOpenChange={(open) => {
+          setPermDialogOpen(open);
+          if (!open) setEditingBucketPerm(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Bucket Permissions</DialogTitle>
+            <DialogDescription>
+              Update permissions for bucket {editingBucketPerm?.bucketName || ''}
+            </DialogDescription>
+          </DialogHeader>
+          {editingBucketPerm && (
+            <div className="space-y-4 py-4">
+              <label className="flex items-center gap-3">
+                <Checkbox
+                  checked={editingBucketPerm.read}
+                  onCheckedChange={(checked) =>
+                    setEditingBucketPerm((prev) =>
+                      prev ? { ...prev, read: !!checked } : prev,
+                    )
+                  }
+                />
+                <span className="text-sm font-medium">Read</span>
+              </label>
+              <label className="flex items-center gap-3">
+                <Checkbox
+                  checked={editingBucketPerm.write}
+                  onCheckedChange={(checked) =>
+                    setEditingBucketPerm((prev) =>
+                      prev ? { ...prev, write: !!checked } : prev,
+                    )
+                  }
+                />
+                <span className="text-sm font-medium">Write</span>
+              </label>
+              <label className="flex items-center gap-3">
+                <Checkbox
+                  checked={editingBucketPerm.owner}
+                  onCheckedChange={(checked) =>
+                    setEditingBucketPerm((prev) =>
+                      prev ? { ...prev, owner: !!checked } : prev,
+                    )
+                  }
+                />
+                <span className="text-sm font-medium">Owner</span>
+              </label>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPermDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpdateBucketPermissions}
+              disabled={allowKeyMutation.isPending || denyKeyMutation.isPending}
+            >
+              {allowKeyMutation.isPending || denyKeyMutation.isPending ? 'Saving...' : 'Save'}
             </Button>
           </DialogFooter>
         </DialogContent>

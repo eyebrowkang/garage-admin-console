@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Globe, Tags, Settings, RefreshCw } from 'lucide-react';
+import { Globe, Tags, Settings, RefreshCw, Pencil } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -40,6 +40,7 @@ import {
   useRemoveBucketAlias,
   useInspectObject,
 } from '@/hooks/useBuckets';
+import { useAllowBucketKey, useDenyBucketKey } from '@/hooks/usePermissions';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { CopyButton } from '@/components/cluster/CopyButton';
 import { DetailPageHeader } from '@/components/cluster/DetailPageHeader';
@@ -74,6 +75,14 @@ export function BucketDetail() {
     alias: string;
     accessKeyId?: string;
   } | null>(null);
+  const [permDialogOpen, setPermDialogOpen] = useState(false);
+  const [permKey, setPermKey] = useState<{
+    accessKeyId: string;
+    name: string;
+    read: boolean;
+    write: boolean;
+    owner: boolean;
+  } | null>(null);
 
   const { data: bucket, isLoading, error } = useBucketInfo(clusterId, bid || '');
   const updateBucketMutation = useUpdateBucket(clusterId, bid || '');
@@ -81,6 +90,8 @@ export function BucketDetail() {
   const addAliasMutation = useAddBucketAlias(clusterId);
   const removeAliasMutation = useRemoveBucketAlias(clusterId);
   const inspectMutation = useInspectObject(clusterId, bid || '');
+  const allowKeyMutation = useAllowBucketKey(clusterId);
+  const denyKeyMutation = useDenyBucketKey(clusterId);
 
   if (!bid) {
     return (
@@ -246,6 +257,53 @@ export function BucketDetail() {
     }
   };
 
+  const handleUpdatePermissions = async () => {
+    if (!permKey) return;
+    try {
+      const currentPerms = bucket?.keys.find(
+        (k) => k.accessKeyId === permKey.accessKeyId,
+      )?.permissions;
+      if (!currentPerms) return;
+
+      // Allow permissions that are newly enabled
+      const toAllow = {
+        read: permKey.read && !currentPerms.read,
+        write: permKey.write && !currentPerms.write,
+        owner: permKey.owner && !currentPerms.owner,
+      };
+      // Deny permissions that are newly disabled
+      const toDeny = {
+        read: !permKey.read && currentPerms.read,
+        write: !permKey.write && currentPerms.write,
+        owner: !permKey.owner && currentPerms.owner,
+      };
+
+      if (toAllow.read || toAllow.write || toAllow.owner) {
+        await allowKeyMutation.mutateAsync({
+          bucketId: bid,
+          accessKeyId: permKey.accessKeyId,
+          permissions: toAllow,
+        });
+      }
+      if (toDeny.read || toDeny.write || toDeny.owner) {
+        await denyKeyMutation.mutateAsync({
+          bucketId: bid,
+          accessKeyId: permKey.accessKeyId,
+          permissions: toDeny,
+        });
+      }
+      toast({ title: 'Permissions updated' });
+      setPermDialogOpen(false);
+      setPermKey(null);
+    } catch (err) {
+      toast({
+        title: 'Failed to update permissions',
+        description: getApiErrorMessage(err),
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <DetailPageHeader
@@ -385,14 +443,14 @@ export function BucketDetail() {
         </CardContent>
       </Card>
 
-      {/* Key Permissions (Read-only) */}
+      {/* Key Permissions */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <KeyIcon className="h-5 w-5" />
             Key Permissions
           </CardTitle>
-          <CardDescription>Access keys with permissions on this bucket (read-only)</CardDescription>
+          <CardDescription>Access keys with permissions on this bucket</CardDescription>
         </CardHeader>
         <CardContent>
           {bucket.keys.length > 0 ? (
@@ -404,6 +462,7 @@ export function BucketDetail() {
                   <TableHead className="text-center">Read</TableHead>
                   <TableHead className="text-center">Write</TableHead>
                   <TableHead className="text-center">Owner</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -442,6 +501,24 @@ export function BucketDetail() {
                       ) : (
                         <span className="text-xs text-muted-foreground">No</span>
                       )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          setPermKey({
+                            accessKeyId: key.accessKeyId,
+                            name: key.name || key.accessKeyId,
+                            read: key.permissions.read,
+                            write: key.permissions.write,
+                            owner: key.permissions.owner,
+                          });
+                          setPermDialogOpen(true);
+                        }}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -794,6 +871,66 @@ export function BucketDetail() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setInspectDialogOpen(false)}>
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Key Permissions Dialog */}
+      <Dialog
+        open={permDialogOpen}
+        onOpenChange={(open) => {
+          setPermDialogOpen(open);
+          if (!open) setPermKey(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Key Permissions</DialogTitle>
+            <DialogDescription>
+              Update permissions for key {permKey?.name || ''}
+            </DialogDescription>
+          </DialogHeader>
+          {permKey && (
+            <div className="space-y-4 py-4">
+              <label className="flex items-center gap-3">
+                <Checkbox
+                  checked={permKey.read}
+                  onCheckedChange={(checked) =>
+                    setPermKey((prev) => (prev ? { ...prev, read: !!checked } : prev))
+                  }
+                />
+                <span className="text-sm font-medium">Read</span>
+              </label>
+              <label className="flex items-center gap-3">
+                <Checkbox
+                  checked={permKey.write}
+                  onCheckedChange={(checked) =>
+                    setPermKey((prev) => (prev ? { ...prev, write: !!checked } : prev))
+                  }
+                />
+                <span className="text-sm font-medium">Write</span>
+              </label>
+              <label className="flex items-center gap-3">
+                <Checkbox
+                  checked={permKey.owner}
+                  onCheckedChange={(checked) =>
+                    setPermKey((prev) => (prev ? { ...prev, owner: !!checked } : prev))
+                  }
+                />
+                <span className="text-sm font-medium">Owner</span>
+              </label>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPermDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpdatePermissions}
+              disabled={allowKeyMutation.isPending || denyKeyMutation.isPending}
+            >
+              {allowKeyMutation.isPending || denyKeyMutation.isPending ? 'Saving...' : 'Save'}
             </Button>
           </DialogFooter>
         </DialogContent>

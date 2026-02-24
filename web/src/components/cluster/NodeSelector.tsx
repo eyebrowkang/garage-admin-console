@@ -13,7 +13,6 @@ interface NodeSelectorProps {
   value: string;
   onChange: (value: string) => void;
   includeAll?: boolean;
-  includeSelf?: boolean;
 }
 
 export function NodeSelector({
@@ -21,7 +20,6 @@ export function NodeSelector({
   value,
   onChange,
   includeAll = true,
-  includeSelf = true,
 }: NodeSelectorProps) {
   const { data: status, isLoading } = useNodes(clusterId);
   const nodes = status?.nodes ?? [];
@@ -29,9 +27,6 @@ export function NodeSelector({
 
   if (includeAll) {
     options.push({ value: '*', label: 'All Nodes' });
-  }
-  if (includeSelf) {
-    options.push({ value: 'self', label: 'Self' });
   }
   options.push(
     ...nodes.map((node) => ({

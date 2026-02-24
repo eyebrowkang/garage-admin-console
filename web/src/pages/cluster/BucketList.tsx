@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ArrowUpDown, ArrowUp, ArrowDown, Search } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -50,6 +51,9 @@ export function BucketList({ clusterId }: BucketListProps) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortField, setSortField] = useState<'id' | 'globalAliases' | 'created'>('globalAliases');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [aliasType, setAliasType] = useState<'none' | 'global' | 'local' | 'both'>('global');
   const [globalAlias, setGlobalAlias] = useState('');
   const [localAlias, setLocalAlias] = useState('');
@@ -131,6 +135,54 @@ export function BucketList({ clusterId }: BucketListProps) {
       });
     },
   });
+
+  const toggleSort = (field: typeof sortField) => {
+    if (sortField === field) {
+      setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortIcon = (field: typeof sortField) => {
+    if (sortField !== field)
+      return <ArrowUpDown className="ml-1 inline h-3 w-3 text-muted-foreground/50" />;
+    return sortDirection === 'asc' ? (
+      <ArrowUp className="ml-1 inline h-3 w-3" />
+    ) : (
+      <ArrowDown className="ml-1 inline h-3 w-3" />
+    );
+  };
+
+  const filteredAndSorted = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    let result = buckets;
+    if (q) {
+      result = result.filter(
+        (b) =>
+          b.id.toLowerCase().includes(q) ||
+          b.globalAliases.some((a) => a.toLowerCase().includes(q)) ||
+          b.localAliases.some((a) => a.alias.toLowerCase().includes(q)),
+      );
+    }
+    return [...result].sort((a, b) => {
+      const dir = sortDirection === 'asc' ? 1 : -1;
+      switch (sortField) {
+        case 'id':
+          return dir * a.id.localeCompare(b.id);
+        case 'globalAliases': {
+          const aName = a.globalAliases[0] || '';
+          const bName = b.globalAliases[0] || '';
+          return dir * aName.localeCompare(bName);
+        }
+        case 'created':
+          return dir * ((a.created || '').localeCompare(b.created || ''));
+        default:
+          return 0;
+      }
+    });
+  }, [buckets, searchQuery, sortField, sortDirection]);
 
   if (isLoading) return <PageLoadingState label="Loading buckets..." />;
 
@@ -269,19 +321,47 @@ export function BucketList({ clusterId }: BucketListProps) {
         </Alert>
       )}
 
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search by ID or alias..."
+          className="pl-9"
+        />
+      </div>
+
       <div className="overflow-hidden rounded-lg border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Bucket ID</TableHead>
-              <TableHead>Global Aliases</TableHead>
+              <TableHead
+                className="cursor-pointer select-none"
+                onClick={() => toggleSort('id')}
+              >
+                Bucket ID
+                {sortIcon('id')}
+              </TableHead>
+              <TableHead
+                className="cursor-pointer select-none"
+                onClick={() => toggleSort('globalAliases')}
+              >
+                Global Aliases
+                {sortIcon('globalAliases')}
+              </TableHead>
               <TableHead>Local Aliases</TableHead>
-              <TableHead>Created</TableHead>
+              <TableHead
+                className="cursor-pointer select-none"
+                onClick={() => toggleSort('created')}
+              >
+                Created
+                {sortIcon('created')}
+              </TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {buckets.map((bucket) => (
+            {filteredAndSorted.map((bucket) => (
               <TableRow
                 key={bucket.id}
                 className="cursor-pointer hover:bg-muted/50"
@@ -341,10 +421,10 @@ export function BucketList({ clusterId }: BucketListProps) {
                 </TableCell>
               </TableRow>
             ))}
-            {buckets.length === 0 && (
+            {filteredAndSorted.length === 0 && (
               <TableRow>
                 <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
-                  No buckets found
+                  {searchQuery ? 'No buckets match your search' : 'No buckets found'}
                 </TableCell>
               </TableRow>
             )}

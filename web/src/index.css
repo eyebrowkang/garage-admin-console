@@ -91,6 +91,17 @@
     margin: 0;
   }
 
+  button,
+  [role='button'],
+  a,
+  select,
+  [type='checkbox'],
+  [type='radio'],
+  label[for],
+  summary {
+    cursor: pointer;
+  }
+
   input[type='checkbox'] {
     accent-color: rgb(255 148 41);
   }

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ArrowUpDown, ArrowUp, ArrowDown, Search } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -54,6 +55,9 @@ export function KeyList({ clusterId }: KeyListProps) {
   const navigate = useNavigate();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortField, setSortField] = useState<'id' | 'name' | 'created' | 'expiration'>('name');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [newKeyName, setNewKeyName] = useState('');
   const [createExpirationDate, setCreateExpirationDate] = useState('');
   const [createExpirationHour, setCreateExpirationHour] = useState('00');
@@ -192,6 +196,50 @@ export function KeyList({ clusterId }: KeyListProps) {
       setImportError(getApiErrorMessage(err, 'Failed to import key.'));
     }
   };
+
+  const toggleSort = (field: typeof sortField) => {
+    if (sortField === field) {
+      setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortIcon = (field: typeof sortField) => {
+    if (sortField !== field)
+      return <ArrowUpDown className="ml-1 inline h-3 w-3 text-muted-foreground/50" />;
+    return sortDirection === 'asc' ? (
+      <ArrowUp className="ml-1 inline h-3 w-3" />
+    ) : (
+      <ArrowDown className="ml-1 inline h-3 w-3" />
+    );
+  };
+
+  const filteredAndSorted = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    let result = keys;
+    if (q) {
+      result = result.filter(
+        (k) => k.id.toLowerCase().includes(q) || k.name.toLowerCase().includes(q),
+      );
+    }
+    return [...result].sort((a, b) => {
+      const dir = sortDirection === 'asc' ? 1 : -1;
+      switch (sortField) {
+        case 'id':
+          return dir * a.id.localeCompare(b.id);
+        case 'name':
+          return dir * (a.name || '').localeCompare(b.name || '');
+        case 'created':
+          return dir * ((a.created || '').localeCompare(b.created || ''));
+        case 'expiration':
+          return dir * ((a.expiration || '').localeCompare(b.expiration || ''));
+        default:
+          return 0;
+      }
+    });
+  }, [keys, searchQuery, sortField, sortDirection]);
 
   if (isLoading) return <PageLoadingState label="Loading access keys..." />;
 
@@ -429,20 +477,54 @@ export function KeyList({ clusterId }: KeyListProps) {
         </Alert>
       )}
 
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search by ID or name..."
+          className="pl-9"
+        />
+      </div>
+
       <div className="overflow-hidden rounded-lg border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Access Key ID</TableHead>
-              <TableHead>Name</TableHead>
+              <TableHead
+                className="cursor-pointer select-none"
+                onClick={() => toggleSort('id')}
+              >
+                Access Key ID
+                {sortIcon('id')}
+              </TableHead>
+              <TableHead
+                className="cursor-pointer select-none"
+                onClick={() => toggleSort('name')}
+              >
+                Name
+                {sortIcon('name')}
+              </TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Created</TableHead>
-              <TableHead>Expires</TableHead>
+              <TableHead
+                className="cursor-pointer select-none"
+                onClick={() => toggleSort('created')}
+              >
+                Created
+                {sortIcon('created')}
+              </TableHead>
+              <TableHead
+                className="cursor-pointer select-none"
+                onClick={() => toggleSort('expiration')}
+              >
+                Expires
+                {sortIcon('expiration')}
+              </TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {keys.map((k) => (
+            {filteredAndSorted.map((k) => (
               <TableRow
                 key={k.id}
                 className="cursor-pointer hover:bg-muted/50"
@@ -482,10 +564,10 @@ export function KeyList({ clusterId }: KeyListProps) {
                 </TableCell>
               </TableRow>
             ))}
-            {keys.length === 0 && (
+            {filteredAndSorted.length === 0 && (
               <TableRow>
                 <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
-                  No keys found
+                  {searchQuery ? 'No keys match your search' : 'No keys found'}
                 </TableCell>
               </TableRow>
             )}

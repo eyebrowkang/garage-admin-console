@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Activity, Cog } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Activity, Cog, Pencil, Search } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -60,8 +60,7 @@ export function WorkerManager() {
   const [setVariableNode, setSetVariableNode] = useState<string>('*');
   const [variableDialogOpen, setVariableDialogOpen] = useState(false);
   const [editVariable, setEditVariable] = useState<{ name: string; value: string } | null>(null);
-  const [variableLookupInput, setVariableLookupInput] = useState('');
-  const [variableLookupName, setVariableLookupName] = useState<string | undefined>(undefined);
+  const [variableSearch, setVariableSearch] = useState('');
 
   const {
     data: workersData,
@@ -78,11 +77,6 @@ export function WorkerManager() {
     selectedWorker?.id ?? -1,
   );
   const {
-    data: variableLookupData,
-    isLoading: variableLookupLoading,
-    error: variableLookupError,
-  } = useWorkerVariable(clusterId, selectedNode, variableLookupName);
-  const {
     data: allVariablesData,
     isLoading: allVariablesLoading,
     error: allVariablesError,
@@ -93,16 +87,6 @@ export function WorkerManager() {
     setEditVariable({ name, value });
     setSetVariableNode(selectedNode);
     setVariableDialogOpen(true);
-  };
-
-  const handleVariableLookup = () => {
-    const trimmed = variableLookupInput.trim();
-    setVariableLookupName(trimmed ? trimmed : undefined);
-  };
-
-  const handleClearVariableLookup = () => {
-    setVariableLookupInput('');
-    setVariableLookupName(undefined);
   };
 
   // Collect all workers from the multi-node response
@@ -120,22 +104,34 @@ export function WorkerManager() {
     (a, b) => a.name.localeCompare(b.name) || a.nodeId.localeCompare(b.nodeId) || a.id - b.id,
   );
   const workerErrors = workersData?.error ? Object.entries(workersData.error) : [];
-  const variableLookupErrors =
-    variableLookupName && variableLookupData?.error ? Object.entries(variableLookupData.error) : [];
-  const variableLookupRows =
-    variableLookupName && variableLookupData?.success
-      ? Object.entries(variableLookupData.success).map(([nodeId, variables]) => ({
-          nodeId,
-          value: variables?.[variableLookupName],
-        }))
-      : [];
   const allVariablesErrors = allVariablesData?.error ? Object.entries(allVariablesData.error) : [];
-  const targetNodeLabel =
-    setVariableNode === '*'
-      ? 'all nodes'
-      : setVariableNode === 'self'
-        ? 'the current node'
-        : 'the selected node';
+
+  // Build a unified variable table: rows = variable names, columns = nodes
+  const { nodeIds, variableRows } = useMemo(() => {
+    if (!allVariablesData?.success) return { nodeIds: [] as string[], variableRows: [] as Array<{ name: string; values: Record<string, string | undefined> }> };
+    const nodeIdSet = Object.keys(allVariablesData.success);
+    const varMap = new Map<string, Record<string, string | undefined>>();
+    for (const [nodeId, variables] of Object.entries(allVariablesData.success)) {
+      for (const [name, value] of Object.entries(variables ?? {})) {
+        if (!varMap.has(name)) varMap.set(name, {});
+        varMap.get(name)![nodeId] = value;
+      }
+    }
+    const q = variableSearch.toLowerCase().trim();
+    let rows = Array.from(varMap.entries())
+      .map(([name, values]) => ({ name, values }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    if (q) {
+      rows = rows.filter(
+        (r) =>
+          r.name.toLowerCase().includes(q) ||
+          Object.values(r.values).some((v) => v?.toLowerCase().includes(q)),
+      );
+    }
+    return { nodeIds: nodeIdSet, variableRows: rows };
+  }, [allVariablesData, variableSearch]);
+
+  const targetNodeLabel = setVariableNode === '*' ? 'all nodes' : 'the selected node';
 
   const handleSetVariable = async () => {
     if (!editVariable) return;
@@ -242,11 +238,24 @@ export function WorkerManager() {
       {/* Key Variables */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Cog className="h-5 w-5" />
-            Key Variables
-          </CardTitle>
-          <CardDescription>Worker configuration variables for the selected node(s)</CardDescription>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Cog className="h-5 w-5" />
+                Key Variables
+              </CardTitle>
+              <CardDescription>Worker configuration variables for the selected node(s)</CardDescription>
+            </div>
+          </div>
+          <div className="relative pt-2">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={variableSearch}
+              onChange={(e) => setVariableSearch(e.target.value)}
+              placeholder="Search variables..."
+              className="pl-9"
+            />
+          </div>
         </CardHeader>
         <CardContent>
           {allVariablesLoading ? (
@@ -256,40 +265,50 @@ export function WorkerManager() {
               <AlertTitle>Unable to load variables</AlertTitle>
               <AlertDescription>{getApiErrorMessage(allVariablesError)}</AlertDescription>
             </Alert>
-          ) : allVariablesData?.success ? (
-            <div className="space-y-6">
-              {Object.entries(allVariablesData.success).map(([nodeId, variables]) => {
-                const entries = Object.entries(variables ?? {}).sort(([a], [b]) =>
-                  a.localeCompare(b),
-                );
-                return (
-                  <div key={nodeId} className="space-y-3">
-                    <div className="text-xs text-muted-foreground">
-                      Node {formatShortId(nodeId, 12)}
-                    </div>
-                    {entries.length > 0 ? (
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Variable</TableHead>
-                            <TableHead>Value</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {entries.map(([name, value]) => (
-                            <TableRow key={`${nodeId}-${name}`}>
-                              <TableCell className="font-medium">{name}</TableCell>
-                              <TableCell className="font-mono text-xs">{value}</TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    ) : (
-                      <div className="text-sm text-muted-foreground">No variables returned.</div>
-                    )}
-                  </div>
-                );
-              })}
+          ) : variableRows.length > 0 ? (
+            <div className="space-y-4">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Variable</TableHead>
+                    {nodeIds.map((nodeId) => (
+                      <TableHead key={nodeId}>
+                        {formatShortId(nodeId, 10)}
+                      </TableHead>
+                    ))}
+                    <TableHead className="w-10" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {variableRows.map((row) => (
+                    <TableRow key={row.name}>
+                      <TableCell className="font-medium text-sm">{row.name}</TableCell>
+                      {nodeIds.map((nodeId) => (
+                        <TableCell key={nodeId} className="font-mono text-xs">
+                          {row.values[nodeId] !== undefined ? row.values[nodeId] : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                      ))}
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() =>
+                            openSetVariableDialog(
+                              row.name,
+                              Object.values(row.values).find((v) => v !== undefined) || '',
+                            )
+                          }
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
               {allVariablesErrors.length > 0 && (
                 <Alert variant="warning">
                   <AlertTitle>Partial results</AlertTitle>
@@ -304,87 +323,9 @@ export function WorkerManager() {
               )}
             </div>
           ) : (
-            <div className="text-sm text-muted-foreground">No variables returned.</div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Variable Lookup */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Variable Lookup</CardTitle>
-          <CardDescription>Fetch the current value of any worker variable.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-end">
-            <div className="space-y-2">
-              <Label>Variable name</Label>
-              <Input
-                value={variableLookupInput}
-                onChange={(e) => setVariableLookupInput(e.target.value)}
-                placeholder="e.g., resync-tranquility"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleVariableLookup();
-                  }
-                }}
-              />
+            <div className="text-sm text-muted-foreground text-center py-6">
+              {variableSearch ? 'No variables match your search' : 'No variables returned.'}
             </div>
-            <Button onClick={handleVariableLookup} disabled={!variableLookupInput.trim()}>
-              Fetch
-            </Button>
-            <Button variant="outline" onClick={handleClearVariableLookup}>
-              Clear
-            </Button>
-          </div>
-
-          {variableLookupName ? (
-            variableLookupLoading ? (
-              <InlineLoadingState label="Loading variable..." />
-            ) : variableLookupError ? (
-              <Alert variant="destructive">
-                <AlertTitle>Failed to fetch variable</AlertTitle>
-                <AlertDescription>{getApiErrorMessage(variableLookupError)}</AlertDescription>
-              </Alert>
-            ) : variableLookupRows.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Node</TableHead>
-                    <TableHead>Value</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {variableLookupRows.map((row) => (
-                    <TableRow key={row.nodeId}>
-                      <TableCell className="text-xs">{formatShortId(row.nodeId, 12)}</TableCell>
-                      <TableCell className="font-mono text-xs">
-                        {row.value !== undefined ? row.value : '-'}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            ) : (
-              <div className="text-sm text-muted-foreground">No values returned.</div>
-            )
-          ) : (
-            <div className="text-sm text-muted-foreground">
-              Enter a variable name to fetch values for the selected node(s).
-            </div>
-          )}
-
-          {variableLookupErrors.length > 0 && (
-            <Alert variant="warning">
-              <AlertTitle>Partial results</AlertTitle>
-              <AlertDescription>
-                {variableLookupErrors.map(([nodeId, message]) => (
-                  <div key={nodeId} className="text-xs">
-                    {formatShortId(nodeId, 8)}: {message}
-                  </div>
-                ))}
-              </AlertDescription>
-            </Alert>
           )}
         </CardContent>
       </Card>
@@ -617,7 +558,6 @@ export function WorkerManager() {
                 value={setVariableNode}
                 onChange={setSetVariableNode}
                 includeAll
-                includeSelf
               />
             </div>
             <div className="space-y-2">
