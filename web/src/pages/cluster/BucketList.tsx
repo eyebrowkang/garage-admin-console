@@ -197,7 +197,7 @@ export function BucketList() {
           >
             <DialogTrigger asChild>
               <Button size="sm">
-                <AddActionIcon className="mr-2 h-4 w-4" /> Create Bucket
+                <AddActionIcon className="h-4 w-4" /> Create Bucket
               </Button>
             </DialogTrigger>
             <DialogContent>
@@ -346,7 +346,7 @@ export function BucketList() {
                 Created
                 {sortIcon('created')}
               </TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -391,8 +391,8 @@ export function BucketList() {
                 <TableCell className="text-xs text-muted-foreground">
                   {formatDateTime24h(bucket.created)}
                 </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                <TableCell>
+                  <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -404,7 +404,7 @@ export function BucketList() {
                         })
                       }
                     >
-                      <DeleteActionIcon className="h-3.5 w-3.5 mr-1.5" />
+                      <DeleteActionIcon className="h-3.5 w-3.5" />
                       Delete
                     </Button>
                   </div>

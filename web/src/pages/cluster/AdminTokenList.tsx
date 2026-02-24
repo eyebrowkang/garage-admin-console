@@ -217,7 +217,7 @@ export function AdminTokenList() {
         description="Manage cluster admin tokens and inspect their scopes from a single control plane."
         actions={
           <Button size="sm" onClick={() => setCreateDialogOpen(true)}>
-            <AddActionIcon className="h-4 w-4 mr-2" />
+            <AddActionIcon className="h-4 w-4" />
             Create Token
           </Button>
         }
@@ -316,7 +316,7 @@ export function AdminTokenList() {
                   <TableHead>Scope</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead>Expires</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -357,8 +357,8 @@ export function AdminTokenList() {
                     <TableCell className="text-muted-foreground">
                       {formatExpiration(token.expiration)}
                     </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                    <TableCell>
+                      <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                         {token.id && (
                           <Button
                             variant="ghost"
@@ -366,7 +366,7 @@ export function AdminTokenList() {
                             className="text-destructive"
                             onClick={() => setDeleteConfirm({ id: token.id!, name: token.name })}
                           >
-                            <DeleteActionIcon className="h-3.5 w-3.5 mr-1.5" />
+                            <DeleteActionIcon className="h-3.5 w-3.5" />
                             Delete
                           </Button>
                         )}

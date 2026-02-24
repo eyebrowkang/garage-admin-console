@@ -393,7 +393,7 @@ export function LayoutManager() {
                 onClick={() => previewMutation.mutate()}
                 disabled={!hasStagedChanges || previewMutation.isPending}
               >
-                <InspectActionIcon className="mr-2 h-4 w-4" />
+                <InspectActionIcon className="h-4 w-4" />
                 {previewMutation.isPending ? 'Previewing...' : 'Preview'}
               </Button>
               <Button
@@ -401,10 +401,10 @@ export function LayoutManager() {
                 onClick={() => setRevertConfirmOpen(true)}
                 disabled={!hasStagedChanges}
               >
-                <RevertActionIcon className="mr-2 h-4 w-4" /> Revert
+                <RevertActionIcon className="h-4 w-4" /> Revert
               </Button>
               <Button onClick={() => setApplyDialogOpen(true)} disabled={!hasStagedChanges}>
-                <SaveActionIcon className="mr-2 h-4 w-4" /> Apply
+                <SaveActionIcon className="h-4 w-4" /> Apply
               </Button>
             </div>
           </div>
@@ -539,7 +539,7 @@ export function LayoutManager() {
                   <TableHead>Capacity</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Staged</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -585,8 +585,8 @@ export function LayoutManager() {
                           <span className="text-xs text-muted-foreground">-</span>
                         )}
                       </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
+                      <TableCell>
+                        <div className="flex gap-2">
                           <Dialog
                             open={nodeDialogOpen && selectedNode?.id === node.id}
                             onOpenChange={(open) => {
@@ -600,7 +600,7 @@ export function LayoutManager() {
                                 size="sm"
                                 onClick={() => openDialogForNode(node)}
                               >
-                                <AddActionIcon className="h-4 w-4 mr-1" /> {role ? 'Edit' : 'Add'}
+                                <AddActionIcon className="h-4 w-4" /> {role ? 'Edit' : 'Add'}
                               </Button>
                             </DialogTrigger>
                             <DialogContent>
@@ -669,7 +669,7 @@ export function LayoutManager() {
                                 })
                               }
                             >
-                              <DeleteActionIcon className="h-3.5 w-3.5 mr-1.5" />
+                              <DeleteActionIcon className="h-3.5 w-3.5" />
                               Remove
                             </Button>
                           )}

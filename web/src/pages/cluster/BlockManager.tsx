@@ -180,15 +180,15 @@ export function BlockManager() {
         actions={
           <>
             <Button variant="outline" size="sm" onClick={() => refetch()}>
-              <RefreshActionIcon className="h-4 w-4 mr-2" />
+              <RefreshActionIcon className="h-4 w-4" />
               Refresh
             </Button>
             <Button size="sm" onClick={() => setRetryAllDialogOpen(true)}>
-              <RefreshActionIcon className="h-4 w-4 mr-2" />
+              <RefreshActionIcon className="h-4 w-4" />
               Retry Resync
             </Button>
             <Button variant="destructive" size="sm" onClick={() => setPurgeDialogOpen(true)}>
-              <DeleteActionIcon className="h-4 w-4 mr-2" />
+              <DeleteActionIcon className="h-4 w-4" />
               Purge Blocks
             </Button>
           </>
@@ -253,7 +253,7 @@ export function BlockManager() {
                     <TableHead>Error Count</TableHead>
                     <TableHead>Last Try</TableHead>
                     <TableHead>Next Retry</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -286,8 +286,8 @@ export function BlockManager() {
                       <TableCell className="text-xs text-muted-foreground">
                         {blockError.nextTry ? formatDateTime24h(blockError.nextTry) : '-'}
                       </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
+                      <TableCell>
+                        <div className="flex gap-1">
                           <Button
                             variant="ghost"
                             size="sm"
@@ -295,7 +295,7 @@ export function BlockManager() {
                               openBlockInfo(blockError.blockHash, blockError.nodeId);
                             }}
                           >
-                            <InfoActionIcon className="h-3.5 w-3.5 mr-1.5" />
+                            <InfoActionIcon className="h-3.5 w-3.5" />
                             Info
                           </Button>
                           <Button
@@ -306,7 +306,7 @@ export function BlockManager() {
                             }
                             disabled={retryMutation.isPending}
                           >
-                            <RefreshActionIcon className="h-3.5 w-3.5 mr-1.5" />
+                            <RefreshActionIcon className="h-3.5 w-3.5" />
                             Retry
                           </Button>
                         </div>
@@ -347,7 +347,7 @@ export function BlockManager() {
               }}
             />
             <Button variant="outline" disabled={!lookupHash.trim()} onClick={handleLookup}>
-              <SearchActionIcon className="h-4 w-4 mr-2" />
+              <SearchActionIcon className="h-4 w-4" />
               Lookup
             </Button>
           </div>
@@ -397,7 +397,7 @@ export function BlockManager() {
                 onClick={() => handleRetryResync(blockInfoHash, blockInfoNode)}
                 disabled={retryMutation.isPending}
               >
-                <RefreshActionIcon className="h-4 w-4 mr-2" />
+                <RefreshActionIcon className="h-4 w-4" />
                 Retry Resync
               </Button>
             )}

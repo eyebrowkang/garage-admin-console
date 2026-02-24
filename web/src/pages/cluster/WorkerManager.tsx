@@ -198,11 +198,11 @@ export function WorkerManager() {
         actions={
           <>
             <Button variant="outline" size="sm" onClick={() => refetch()}>
-              <RefreshActionIcon className="h-4 w-4 mr-2" />
+              <RefreshActionIcon className="h-4 w-4" />
               Refresh
             </Button>
             <Button size="sm" onClick={() => openSetVariableDialog()}>
-              <SettingsActionIcon className="h-4 w-4 mr-2" />
+              <SettingsActionIcon className="h-4 w-4" />
               Set Variable
             </Button>
           </>
@@ -279,7 +279,7 @@ export function WorkerManager() {
                         {formatShortId(nodeId, 10)}
                       </TableHead>
                     ))}
-                    <TableHead className="text-right" />
+                    <TableHead />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -293,7 +293,7 @@ export function WorkerManager() {
                           )}
                         </TableCell>
                       ))}
-                      <TableCell className="text-right">
+                      <TableCell>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -304,7 +304,7 @@ export function WorkerManager() {
                             )
                           }
                         >
-                          <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                          <Pencil className="h-3.5 w-3.5" />
                           Edit
                         </Button>
                       </TableCell>
@@ -375,7 +375,7 @@ export function WorkerManager() {
                       <TableHead>Errors</TableHead>
                       <TableHead>Progress</TableHead>
                       <TableHead>Tranquility</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -406,7 +406,7 @@ export function WorkerManager() {
                             ? `${worker.tranquility}ms`
                             : '-'}
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell>
                           <Button
                             variant="ghost"
                             size="sm"

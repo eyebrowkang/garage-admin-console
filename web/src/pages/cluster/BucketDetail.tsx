@@ -462,7 +462,7 @@ export function BucketDetail() {
                   <TableHead className="text-center">Read</TableHead>
                   <TableHead className="text-center">Write</TableHead>
                   <TableHead className="text-center">Owner</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -502,7 +502,7 @@ export function BucketDetail() {
                         <span className="text-xs text-muted-foreground">No</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -517,7 +517,7 @@ export function BucketDetail() {
                           setPermDialogOpen(true);
                         }}
                       >
-                        <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                        <Pencil className="h-3.5 w-3.5" />
                         Edit
                       </Button>
                     </TableCell>
@@ -790,10 +790,10 @@ export function BucketDetail() {
             <DialogDescription>Configure static website hosting for this bucket</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="flex items-center gap-2">
+            <label className="flex items-center gap-2 cursor-pointer">
               <Checkbox checked={websiteEnabled} onCheckedChange={setWebsiteEnabled} />
-              <Label>Enable website access</Label>
-            </div>
+              <span className="text-sm font-medium">Enable website access</span>
+            </label>
             <div className="space-y-2">
               <Label>Index Document</Label>
               <Input

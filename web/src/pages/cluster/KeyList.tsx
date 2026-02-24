@@ -317,7 +317,7 @@ export function KeyList() {
             >
               <DialogTrigger asChild>
                 <Button size="sm">
-                  <AddActionIcon className="mr-2 h-4 w-4" /> Create Key
+                  <AddActionIcon className="h-4 w-4" /> Create Key
                 </Button>
               </DialogTrigger>
               <DialogContent>
@@ -508,7 +508,7 @@ export function KeyList() {
                 Expires
                 {sortIcon('expiration')}
               </TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -538,15 +538,15 @@ export function KeyList() {
                 <TableCell className="text-xs text-muted-foreground">
                   {formatDateTime24h(k.expiration)}
                 </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                <TableCell>
+                  <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                     <Button
                       variant="ghost"
                       size="sm"
                       className="text-destructive"
                       onClick={() => setDeleteConfirm({ id: k.id, name: k.name || k.id })}
                     >
-                      <DeleteActionIcon className="h-3.5 w-3.5 mr-1.5" />
+                      <DeleteActionIcon className="h-3.5 w-3.5" />
                       Delete
                     </Button>
                   </div>

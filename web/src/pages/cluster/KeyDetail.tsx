@@ -359,11 +359,11 @@ export function KeyDetail() {
                 setEditDialogOpen(true);
               }}
             >
-              <EditActionIcon className="h-4 w-4 mr-2" />
+              <EditActionIcon className="h-4 w-4" />
               Edit
             </Button>
             <Button variant="destructive" size="sm" onClick={() => setDeleteDialogOpen(true)}>
-              <DeleteActionIcon className="h-4 w-4 mr-2" />
+              <DeleteActionIcon className="h-4 w-4" />
               Delete
             </Button>
           </>
@@ -470,7 +470,7 @@ export function KeyDetail() {
               }}
               disabled={bucketsLoading || availableBuckets.length === 0}
             >
-              <AddActionIcon className="h-4 w-4 mr-2" />
+              <AddActionIcon className="h-4 w-4" />
               Grant Access
             </Button>
           </div>
@@ -485,7 +485,7 @@ export function KeyDetail() {
                   <TableHead className="text-center">Read</TableHead>
                   <TableHead className="text-center">Write</TableHead>
                   <TableHead className="text-center">Owner</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -529,7 +529,7 @@ export function KeyDetail() {
                         <span className="text-xs text-muted-foreground">No</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -548,7 +548,7 @@ export function KeyDetail() {
                           setPermDialogOpen(true);
                         }}
                       >
-                        <EditActionIcon className="h-3.5 w-3.5 mr-1.5" />
+                        <EditActionIcon className="h-3.5 w-3.5" />
                         Edit
                       </Button>
                     </TableCell>
