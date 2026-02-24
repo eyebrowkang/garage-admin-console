@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { api, proxyPath } from '@/lib/api';
 import type {
   ListKeysResponseItem,
@@ -31,6 +31,7 @@ export function useKeyInfo(clusterId: string, keyId: string, showSecretKey = fal
       return res.data;
     },
     enabled: Boolean(keyId),
+    placeholderData: keepPreviousData,
   });
 }
 

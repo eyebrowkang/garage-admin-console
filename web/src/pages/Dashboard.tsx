@@ -1,4 +1,4 @@
-import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,7 @@ import { getApiErrorMessage } from '@/lib/errors';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { ClusterStatusMonitor } from '@/components/dashboard/ClusterStatusMonitor';
 import { toast } from '@/hooks/use-toast';
+import { useClusters } from '@/hooks/useClusters';
 import type {
   ClusterSummary,
   GetClusterHealthResponse,
@@ -53,17 +54,7 @@ export default function Dashboard() {
   const [formError, setFormError] = useState('');
   const [editError, setEditError] = useState('');
 
-  const {
-    data: clusters = [],
-    isLoading,
-    error,
-  } = useQuery<ClusterSummary[]>({
-    queryKey: ['clusters'],
-    queryFn: async () => {
-      const res = await api.get<ClusterSummary[]>('/clusters');
-      return res.data;
-    },
-  });
+  const { data: clusters = [], isLoading, error } = useClusters();
 
   // Fetch health for all clusters with auto-refresh
   const healthQueries = useQueries({
@@ -265,10 +256,10 @@ export default function Dashboard() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-sm text-muted-foreground mt-0.5 sm:mt-1">
             Cluster-level overview first. Open a cluster for deeper operations and diagnostics.
           </p>
         </div>

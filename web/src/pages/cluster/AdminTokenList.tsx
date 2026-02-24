@@ -43,7 +43,7 @@ import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { SecretReveal } from '@/components/cluster/SecretReveal';
 import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
-import { AddActionIcon, DeleteActionIcon, OpenActionIcon } from '@/lib/action-icons';
+import { AddActionIcon, DeleteActionIcon } from '@/lib/action-icons';
 import { formatDateTime24h, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { TokenIcon } from '@/lib/entity-icons';
@@ -360,19 +360,14 @@ export function AdminTokenList() {
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                         {token.id && (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-destructive"
-                              onClick={() => setDeleteConfirm({ id: token.id!, name: token.name })}
-                            >
-                              <DeleteActionIcon className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon">
-                              <OpenActionIcon className="h-4 w-4" />
-                            </Button>
-                          </>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-destructive"
+                            onClick={() => setDeleteConfirm({ id: token.id!, name: token.name })}
+                          >
+                            <DeleteActionIcon className="h-4 w-4" />
+                          </Button>
                         )}
                       </div>
                     </TableCell>

@@ -205,35 +205,27 @@ export function WorkerManager() {
       />
 
       {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Filters</CardTitle>
-          <CardDescription>Limit results by node and worker state.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
-            <div className="space-y-2">
-              <Label>Node</Label>
-              <NodeSelector
-                clusterId={clusterId}
-                value={selectedNode}
-                onChange={setSelectedNode}
-                includeAll
-              />
-            </div>
-            <div className="flex flex-col gap-2 text-sm text-muted-foreground">
-              <label className="flex items-center gap-2 text-foreground">
-                <Checkbox checked={busyOnly} onCheckedChange={setBusyOnly} />
-                Busy only
-              </label>
-              <label className="flex items-center gap-2 text-foreground">
-                <Checkbox checked={errorOnly} onCheckedChange={setErrorOnly} />
-                Error only
-              </label>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="flex flex-wrap items-end gap-4">
+        <div className="space-y-1.5 min-w-[200px] flex-1 max-w-xs">
+          <Label className="text-xs text-muted-foreground">Node</Label>
+          <NodeSelector
+            clusterId={clusterId}
+            value={selectedNode}
+            onChange={setSelectedNode}
+            includeAll
+          />
+        </div>
+        <div className="flex items-center gap-4 text-sm">
+          <label className="flex items-center gap-2">
+            <Checkbox checked={busyOnly} onCheckedChange={setBusyOnly} />
+            Busy only
+          </label>
+          <label className="flex items-center gap-2">
+            <Checkbox checked={errorOnly} onCheckedChange={setErrorOnly} />
+            Error only
+          </label>
+        </div>
+      </div>
 
       {/* Key Variables */}
       <Card>
