@@ -8,6 +8,7 @@ import {
   LayoutGrid,
   Layers,
   ShieldCheck,
+  RefreshCw,
   XCircle,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -344,11 +345,24 @@ export function ClusterOverview() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BarChart2 className="h-4 w-4 text-muted-foreground" />
-            Cluster Statistics
-          </CardTitle>
-          <CardDescription>Raw statistics from the cluster</CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart2 className="h-4 w-4 text-muted-foreground" />
+                Cluster Statistics
+              </CardTitle>
+              <CardDescription>Raw statistics from the cluster</CardDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => statsQuery.refetch()}
+              disabled={statsQuery.isFetching}
+            >
+              <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${statsQuery.isFetching ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {statsQuery.isLoading ? (

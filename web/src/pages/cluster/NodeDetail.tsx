@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { HardDrive, Activity, Database } from 'lucide-react';
+import { HardDrive, Activity, Database, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -90,6 +90,8 @@ export function NodeDetail() {
     data: stats,
     isLoading: statsLoading,
     error: statsError,
+    refetch: refetchStats,
+    isFetching: statsFetching,
   } = useNodeStatistics(clusterId, nid);
   const snapshotMutation = useCreateMetadataSnapshot(clusterId);
   const repairMutation = useLaunchRepairOperation(clusterId);
@@ -453,8 +455,21 @@ export function NodeDetail() {
       {/* Node Statistics */}
       <Card>
         <CardHeader>
-          <CardTitle>Node Statistics</CardTitle>
-          <CardDescription>Detailed statistics from this node</CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Node Statistics</CardTitle>
+              <CardDescription>Detailed statistics from this node</CardDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => refetchStats()}
+              disabled={statsFetching}
+            >
+              <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${statsFetching ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {statsLoading ? (
