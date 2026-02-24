@@ -21,12 +21,12 @@ export function MainLayout() {
           </Link>
 
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
-            className="text-muted-foreground hover:text-destructive h-9 px-2.5 sm:px-3"
+            className="h-9 px-3 text-muted-foreground hover:text-foreground transition-colors"
             onClick={handleLogout}
           >
-            <LogOut className="h-4 w-4" />
+            <LogOut className="h-4 w-4 mr-2" />
             <span className="hidden sm:inline">Sign Out</span>
           </Button>
         </div>

@@ -113,7 +113,11 @@ export function WorkerManager() {
 
   // Build a unified variable table: rows = variable names, columns = nodes
   const { nodeIds, variableRows } = useMemo(() => {
-    if (!allVariablesData?.success) return { nodeIds: [] as string[], variableRows: [] as Array<{ name: string; values: Record<string, string | undefined> }> };
+    if (!allVariablesData?.success)
+      return {
+        nodeIds: [] as string[],
+        variableRows: [] as Array<{ name: string; values: Record<string, string | undefined> }>,
+      };
     const nodeIdSet = Object.keys(allVariablesData.success);
     const varMap = new Map<string, Record<string, string | undefined>>();
     for (const [nodeId, variables] of Object.entries(allVariablesData.success)) {
@@ -247,7 +251,9 @@ export function WorkerManager() {
                 <Cog className="h-5 w-5" />
                 Key Variables
               </CardTitle>
-              <CardDescription>Worker configuration variables for the selected node(s)</CardDescription>
+              <CardDescription>
+                Worker configuration variables for the selected node(s)
+              </CardDescription>
             </div>
           </div>
           <div className="relative pt-2">
@@ -275,9 +281,7 @@ export function WorkerManager() {
                   <TableRow>
                     <TableHead>Variable</TableHead>
                     {nodeIds.map((nodeId) => (
-                      <TableHead key={nodeId}>
-                        {formatShortId(nodeId, 10)}
-                      </TableHead>
+                      <TableHead key={nodeId}>{formatShortId(nodeId, 10)}</TableHead>
                     ))}
                     <TableHead />
                   </TableRow>
@@ -288,7 +292,9 @@ export function WorkerManager() {
                       <TableCell className="font-medium text-sm">{row.name}</TableCell>
                       {nodeIds.map((nodeId) => (
                         <TableCell key={nodeId} className="font-mono text-xs">
-                          {row.values[nodeId] !== undefined ? row.values[nodeId] : (
+                          {row.values[nodeId] !== undefined ? (
+                            row.values[nodeId]
+                          ) : (
                             <span className="text-muted-foreground">-</span>
                           )}
                         </TableCell>

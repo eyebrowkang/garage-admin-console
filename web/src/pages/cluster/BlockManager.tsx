@@ -221,7 +221,6 @@ export function BlockManager() {
             value={selectedNode}
             onChange={setSelectedNode}
             includeAll
-
           />
         </CardContent>
       </Card>
@@ -457,7 +456,6 @@ export function BlockManager() {
                 value={purgeNode}
                 onChange={setPurgeNode}
                 includeAll
-    
               />
             </div>
           </div>
@@ -518,7 +516,6 @@ export function BlockManager() {
               value={retryAllNode}
               onChange={setRetryAllNode}
               includeAll
-  
             />
             <p className="text-xs text-muted-foreground">
               This operation targets all missing blocks on the selected node(s).

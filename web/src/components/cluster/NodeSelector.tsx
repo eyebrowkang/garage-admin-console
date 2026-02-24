@@ -15,12 +15,7 @@ interface NodeSelectorProps {
   includeAll?: boolean;
 }
 
-export function NodeSelector({
-  clusterId,
-  value,
-  onChange,
-  includeAll = true,
-}: NodeSelectorProps) {
+export function NodeSelector({ clusterId, value, onChange, includeAll = true }: NodeSelectorProps) {
   const { data: status, isLoading } = useNodes(clusterId);
   const nodes = status?.nodes ?? [];
   const options: Array<{ value: string; label: string }> = [];

@@ -1,4 +1,4 @@
-import { Loader2 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface PageLoadingStateProps {
   label?: string;
@@ -6,11 +6,16 @@ interface PageLoadingStateProps {
 
 export function PageLoadingState({ label = 'Loading...' }: PageLoadingStateProps) {
   return (
-    <div className="flex min-h-[220px] items-center justify-center">
-      <div className="flex items-center gap-2 rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" />
-        {label}
+    <div className="space-y-6 pt-2">
+      <div className="space-y-2">
+        <Skeleton className="h-5 w-[160px]" />
+        <Skeleton className="h-4 w-[260px]" />
       </div>
+      <div className="space-y-3">
+        <Skeleton className="h-24 w-full rounded-lg" />
+        <Skeleton className="h-24 w-full rounded-lg" />
+      </div>
+      <span className="sr-only">{label}</span>
     </div>
   );
 }

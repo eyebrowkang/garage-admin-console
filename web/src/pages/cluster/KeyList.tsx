@@ -36,10 +36,12 @@ import { formatDateTime24h, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { CopyButton } from '@/components/cluster/CopyButton';
+import { TableEmptyState } from '@/components/cluster/TableEmptyState';
 import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
-import { PageLoadingState } from '@/components/cluster/PageLoadingState';
+import { TableLoadingState } from '@/components/cluster/TableLoadingState';
 import { useClusterContext } from '@/contexts/ClusterContext';
 import { AddActionIcon, CopyActionIcon, DeleteActionIcon } from '@/lib/action-icons';
+import { KeyIcon } from '@/lib/entity-icons';
 import { toast } from '@/hooks/use-toast';
 import { useKeys, useImportKey } from '@/hooks/useKeys';
 import type { CreateKeyRequest, GetKeyInfoResponse } from '@/types/garage';
@@ -220,16 +222,16 @@ export function KeyList() {
         case 'name':
           return dir * (a.name || '').localeCompare(b.name || '');
         case 'created':
-          return dir * ((a.created || '').localeCompare(b.created || ''));
+          return dir * (a.created || '').localeCompare(b.created || '');
         case 'expiration':
-          return dir * ((a.expiration || '').localeCompare(b.expiration || ''));
+          return dir * (a.expiration || '').localeCompare(b.expiration || '');
         default:
           return 0;
       }
     });
   }, [keys, searchQuery, sortField, sortDirection]);
 
-  if (isLoading) return <PageLoadingState label="Loading access keys..." />;
+  if (isLoading) return <TableLoadingState label="Loading access keys..." />;
 
   return (
     <div className="space-y-6">
@@ -479,17 +481,11 @@ export function KeyList() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead
-                className="cursor-pointer select-none"
-                onClick={() => toggleSort('id')}
-              >
+              <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('id')}>
                 Access Key ID
                 {sortIcon('id')}
               </TableHead>
-              <TableHead
-                className="cursor-pointer select-none"
-                onClick={() => toggleSort('name')}
-              >
+              <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('name')}>
                 Name
                 {sortIcon('name')}
               </TableHead>
@@ -554,11 +550,23 @@ export function KeyList() {
               </TableRow>
             ))}
             {filteredAndSorted.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
-                  {searchQuery ? 'No keys match your search' : 'No keys found'}
-                </TableCell>
-              </TableRow>
+              <TableEmptyState
+                icon={KeyIcon}
+                title={searchQuery ? 'No keys match search' : 'No keys found'}
+                description={
+                  searchQuery
+                    ? `No results for "${searchQuery}". Try a different term.`
+                    : 'Create or import an access key to get started.'
+                }
+                colSpan={6}
+                action={
+                  !searchQuery && (
+                    <Button variant="outline" size="sm" onClick={() => setIsDialogOpen(true)}>
+                      <AddActionIcon className="h-4 w-4 mr-2" /> Create Key
+                    </Button>
+                  )
+                }
+              />
             )}
           </TableBody>
         </Table>

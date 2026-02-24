@@ -275,11 +275,8 @@ export default function Dashboard() {
           }}
         >
           <DialogTrigger asChild>
-            <Button
-              size="lg"
-              className="shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all"
-            >
-              <AddActionIcon className="h-5 w-5" /> Connect Cluster
+            <Button size="lg" className="shadow-sm hover:shadow-md transition-shadow">
+              <AddActionIcon className="mr-2 h-5 w-5" /> Connect Cluster
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[500px]">

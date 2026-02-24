@@ -720,9 +720,7 @@ export function KeyDetail() {
                 <Checkbox
                   checked={editingBucketPerm.read}
                   onCheckedChange={(checked) =>
-                    setEditingBucketPerm((prev) =>
-                      prev ? { ...prev, read: !!checked } : prev,
-                    )
+                    setEditingBucketPerm((prev) => (prev ? { ...prev, read: !!checked } : prev))
                   }
                 />
                 <span className="text-sm font-medium">Read</span>
@@ -731,9 +729,7 @@ export function KeyDetail() {
                 <Checkbox
                   checked={editingBucketPerm.write}
                   onCheckedChange={(checked) =>
-                    setEditingBucketPerm((prev) =>
-                      prev ? { ...prev, write: !!checked } : prev,
-                    )
+                    setEditingBucketPerm((prev) => (prev ? { ...prev, write: !!checked } : prev))
                   }
                 />
                 <span className="text-sm font-medium">Write</span>
@@ -742,9 +738,7 @@ export function KeyDetail() {
                 <Checkbox
                   checked={editingBucketPerm.owner}
                   onCheckedChange={(checked) =>
-                    setEditingBucketPerm((prev) =>
-                      prev ? { ...prev, owner: !!checked } : prev,
-                    )
+                    setEditingBucketPerm((prev) => (prev ? { ...prev, owner: !!checked } : prev))
                   }
                 />
                 <span className="text-sm font-medium">Owner</span>

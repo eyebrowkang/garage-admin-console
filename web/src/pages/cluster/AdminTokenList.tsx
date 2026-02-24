@@ -42,7 +42,7 @@ import {
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { SecretReveal } from '@/components/cluster/SecretReveal';
 import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
-import { PageLoadingState } from '@/components/cluster/PageLoadingState';
+import { TableLoadingState } from '@/components/cluster/TableLoadingState';
 import { AddActionIcon, DeleteActionIcon } from '@/lib/action-icons';
 import { formatDateTime24h, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
@@ -198,7 +198,7 @@ export function AdminTokenList() {
   };
 
   if (isLoading) {
-    return <PageLoadingState label="Loading admin tokens..." />;
+    return <TableLoadingState label="Loading admin tokens..." />;
   }
 
   if (error) {

@@ -33,8 +33,9 @@ import { formatBytes, formatRelativeSeconds, formatShortId } from '@/lib/format'
 import { getApiErrorMessage } from '@/lib/errors';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { CopyButton } from '@/components/cluster/CopyButton';
+import { TableEmptyState } from '@/components/cluster/TableEmptyState';
 import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
-import { PageLoadingState } from '@/components/cluster/PageLoadingState';
+import { TableLoadingState } from '@/components/cluster/TableLoadingState';
 import { ConnectActionIcon, RepairActionIcon, SnapshotActionIcon } from '@/lib/action-icons';
 import { toast } from '@/hooks/use-toast';
 import { NodeIcon } from '@/lib/entity-icons';
@@ -93,7 +94,7 @@ export function ClusterNodeList() {
   const repairMutation = useLaunchRepairOperation(clusterId);
   const { data, isLoading, error } = useNodes(clusterId);
 
-  if (isLoading) return <PageLoadingState label="Loading nodes..." />;
+  if (isLoading) return <TableLoadingState label="Loading nodes..." />;
 
   if (error) {
     return (
@@ -356,11 +357,17 @@ node_id@address`}
               </TableRow>
             ))}
             {nodes.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={8} className="text-center h-24 text-muted-foreground">
-                  No nodes information available
-                </TableCell>
-              </TableRow>
+              <TableEmptyState
+                icon={NodeIcon}
+                title="No nodes connected"
+                description="Cluster nodes are not communicating or none have been connected."
+                colSpan={8}
+                action={
+                  <Button variant="outline" size="sm" onClick={() => setConnectDialogOpen(true)}>
+                    <ConnectActionIcon className="h-4 w-4 mr-2" /> Connect Nodes
+                  </Button>
+                }
+              />
             )}
           </TableBody>
         </Table>

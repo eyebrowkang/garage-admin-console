@@ -888,9 +888,7 @@ export function BucketDetail() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit Key Permissions</DialogTitle>
-            <DialogDescription>
-              Update permissions for key {permKey?.name || ''}
-            </DialogDescription>
+            <DialogDescription>Update permissions for key {permKey?.name || ''}</DialogDescription>
           </DialogHeader>
           {permKey && (
             <div className="space-y-4 py-4">

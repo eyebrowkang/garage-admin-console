@@ -35,11 +35,13 @@ import { getApiErrorMessage } from '@/lib/errors';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { AliasMiniChip } from '@/components/cluster/AliasMiniChip';
 import { CopyButton } from '@/components/cluster/CopyButton';
+import { TableEmptyState } from '@/components/cluster/TableEmptyState';
 import { InlineLoadingState } from '@/components/cluster/InlineLoadingState';
 import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
-import { PageLoadingState } from '@/components/cluster/PageLoadingState';
+import { TableLoadingState } from '@/components/cluster/TableLoadingState';
 import { useClusterContext } from '@/contexts/ClusterContext';
 import { AddActionIcon, DeleteActionIcon } from '@/lib/action-icons';
+import { BucketIcon } from '@/lib/entity-icons';
 import { toast } from '@/hooks/use-toast';
 import { useBuckets } from '@/hooks/useBuckets';
 import { useKeys } from '@/hooks/useKeys';
@@ -166,14 +168,14 @@ export function BucketList() {
           return dir * aName.localeCompare(bName);
         }
         case 'created':
-          return dir * ((a.created || '').localeCompare(b.created || ''));
+          return dir * (a.created || '').localeCompare(b.created || '');
         default:
           return 0;
       }
     });
   }, [buckets, searchQuery, sortField, sortDirection]);
 
-  if (isLoading) return <PageLoadingState label="Loading buckets..." />;
+  if (isLoading) return <TableLoadingState label="Loading buckets..." />;
 
   return (
     <div className="space-y-6">
@@ -324,10 +326,7 @@ export function BucketList() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead
-                className="cursor-pointer select-none"
-                onClick={() => toggleSort('id')}
-              >
+              <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('id')}>
                 Bucket ID
                 {sortIcon('id')}
               </TableHead>
@@ -412,11 +411,23 @@ export function BucketList() {
               </TableRow>
             ))}
             {filteredAndSorted.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
-                  {searchQuery ? 'No buckets match your search' : 'No buckets found'}
-                </TableCell>
-              </TableRow>
+              <TableEmptyState
+                icon={BucketIcon}
+                title={searchQuery ? 'No buckets match search' : 'No buckets found'}
+                description={
+                  searchQuery
+                    ? `No results for "${searchQuery}". Try a different term.`
+                    : 'Create a bucket to get started.'
+                }
+                colSpan={5}
+                action={
+                  !searchQuery && (
+                    <Button variant="outline" size="sm" onClick={() => setIsDialogOpen(true)}>
+                      <AddActionIcon className="h-4 w-4 mr-2" /> Create Bucket
+                    </Button>
+                  )
+                }
+              />
             )}
           </TableBody>
         </Table>

@@ -7,6 +7,7 @@ import { useBlockErrors } from '@/hooks/useBlocks';
 import { ClusterContext } from '@/contexts/ClusterContext';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
 import { BlockIcon, BucketIcon, KeyIcon, NodeIcon, TokenIcon } from '@/lib/entity-icons';
+import { Button } from '@/components/ui/button';
 
 const navItems = [
   { to: '', icon: Activity, label: 'Overview', shortLabel: 'Overview', exact: true },
@@ -46,8 +47,8 @@ function MobileNavItem({
       className={cn(
         'relative flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all',
         isActive
-          ? 'bg-primary text-primary-foreground shadow-sm'
-          : 'text-muted-foreground active:scale-95',
+          ? 'bg-primary/15 text-primary shadow-sm'
+          : 'text-muted-foreground hover:bg-muted/50 active:scale-95',
       )}
     >
       <Icon className="h-3.5 w-3.5" />
@@ -136,16 +137,19 @@ export function ClusterLayout() {
         {/* Mobile: cluster header + sticky horizontal nav */}
         <div className="lg:hidden">
           <div className="flex items-center gap-3 mb-3">
-            <Link
-              to="/"
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border bg-card text-muted-foreground transition-colors hover:text-foreground active:scale-95"
+            <Button
+              variant="outline"
+              size="sm"
+              asChild
+              className="h-8 gap-1.5 shrink-0 text-muted-foreground transition-colors hover:text-foreground"
             >
-              <ChevronLeft className="h-4 w-4" />
-            </Link>
+              <Link to="/">
+                <ChevronLeft className="h-4 w-4" />
+                <span className="hidden sm:inline text-xs">Back</span>
+              </Link>
+            </Button>
             <div className="min-w-0">
-              <h2 className="font-semibold text-base truncate">
-                {cluster?.name || 'Loading...'}
-              </h2>
+              <h2 className="font-semibold text-base truncate">{cluster?.name || 'Loading...'}</h2>
               <p className="text-xs text-muted-foreground truncate">{cluster?.endpoint}</p>
             </div>
           </div>
@@ -175,9 +179,7 @@ export function ClusterLayout() {
                 <NodeIcon className="h-4 w-4" />
               </div>
               <div className="overflow-hidden">
-                <h2 className="font-semibold text-sm truncate">
-                  {cluster?.name || 'Loading...'}
-                </h2>
+                <h2 className="font-semibold text-sm truncate">{cluster?.name || 'Loading...'}</h2>
                 <p className="text-[11px] text-muted-foreground truncate">{cluster?.endpoint}</p>
               </div>
             </div>

@@ -49,8 +49,8 @@ export function CopyButton({
       size="icon"
       className={cn(
         compact
-          ? 'h-4 w-4 p-0 text-muted-foreground hover:text-foreground'
-          : 'h-7 w-7 text-muted-foreground hover:text-foreground',
+          ? 'h-6 w-6 p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted'
+          : 'h-8 w-8 p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted',
         className,
       )}
       onClick={(e) => {
@@ -62,9 +62,9 @@ export function CopyButton({
       title={buttonLabel}
     >
       {copied ? (
-        <Check className={compact ? 'h-3 w-3' : 'h-3.5 w-3.5'} />
+        <Check className={compact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
       ) : (
-        <CopyActionIcon className={compact ? 'h-3 w-3' : 'h-3.5 w-3.5'} />
+        <CopyActionIcon className={compact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
       )}
     </Button>
   );
