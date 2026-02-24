@@ -206,7 +206,7 @@ export function ClusterNodeList() {
             >
               <DialogTrigger asChild>
                 <Button size="sm">
-                  <ConnectActionIcon className="mr-2 h-4 w-4" />
+                  <ConnectActionIcon className="h-4 w-4" />
                   Connect Nodes
                 </Button>
               </DialogTrigger>
@@ -251,11 +251,11 @@ node_id@address`}
             </Dialog>
 
             <Button variant="outline" size="sm" onClick={() => setSnapshotConfirmOpen(true)}>
-              <SnapshotActionIcon className="mr-2 h-4 w-4" />
+              <SnapshotActionIcon className="h-4 w-4" />
               Create Snapshot
             </Button>
             <Button variant="outline" size="sm" onClick={() => setRepairDialogOpen(true)}>
-              <RepairActionIcon className="mr-2 h-4 w-4" />
+              <RepairActionIcon className="h-4 w-4" />
               Launch Repair
             </Button>
           </div>

@@ -287,7 +287,7 @@ export function ClusterStatusMonitor({
                 <div className="flex items-center gap-2 pt-0.5">
                   <Button asChild size="sm" className="h-8">
                     <Link to={`/clusters/${item.cluster.id}`}>
-                      <OpenActionIcon className="h-3.5 w-3.5 mr-1.5" />
+                      <OpenActionIcon className="h-3.5 w-3.5" />
                       Open
                     </Link>
                   </Button>
@@ -297,7 +297,7 @@ export function ClusterStatusMonitor({
                     className="h-8"
                     onClick={() => onEditCluster(item.cluster)}
                   >
-                    <EditActionIcon className="h-3.5 w-3.5 sm:mr-1.5" />
+                    <EditActionIcon className="h-3.5 w-3.5" />
                     <span className="hidden sm:inline">Edit</span>
                   </Button>
                   <div className="flex-1" />
@@ -307,7 +307,7 @@ export function ClusterStatusMonitor({
                     className="h-8 text-muted-foreground hover:text-destructive"
                     onClick={() => onDeleteCluster(item.cluster)}
                   >
-                    <DisconnectActionIcon className="h-3.5 w-3.5 sm:mr-1.5" />
+                    <DisconnectActionIcon className="h-3.5 w-3.5" />
                     <span className="hidden sm:inline">Disconnect</span>
                   </Button>
                 </div>

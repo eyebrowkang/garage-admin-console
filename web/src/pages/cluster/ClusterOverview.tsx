@@ -359,7 +359,7 @@ export function ClusterOverview() {
               onClick={() => statsQuery.refetch()}
               disabled={statsQuery.isFetching}
             >
-              <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${statsQuery.isFetching ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`h-3.5 w-3.5 ${statsQuery.isFetching ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
           </div>

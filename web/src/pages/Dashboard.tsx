@@ -279,7 +279,7 @@ export default function Dashboard() {
               size="lg"
               className="shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all"
             >
-              <AddActionIcon className="mr-2 h-5 w-5" /> Connect Cluster
+              <AddActionIcon className="h-5 w-5" /> Connect Cluster
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[500px]">

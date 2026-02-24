@@ -228,11 +228,11 @@ export function AdminTokenDetail() {
                 setEditDialogOpen(true);
               }}
             >
-              <EditActionIcon className="h-4 w-4 mr-2" />
+              <EditActionIcon className="h-4 w-4" />
               Edit
             </Button>
             <Button variant="destructive" size="sm" onClick={() => setDeleteDialogOpen(true)}>
-              <DeleteActionIcon className="h-4 w-4 mr-2" />
+              <DeleteActionIcon className="h-4 w-4" />
               Delete
             </Button>
           </>

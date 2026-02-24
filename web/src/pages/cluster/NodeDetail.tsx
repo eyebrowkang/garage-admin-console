@@ -190,11 +190,11 @@ export function NodeDetail() {
         actions={
           <>
             <Button variant="outline" size="sm" onClick={() => setSnapshotDialogOpen(true)}>
-              <SnapshotActionIcon className="h-4 w-4 mr-2" />
+              <SnapshotActionIcon className="h-4 w-4" />
               Create Snapshot
             </Button>
             <Button variant="outline" size="sm" onClick={() => setRepairDialogOpen(true)}>
-              <RepairActionIcon className="h-4 w-4 mr-2" />
+              <RepairActionIcon className="h-4 w-4" />
               Repair
             </Button>
           </>
@@ -466,7 +466,7 @@ export function NodeDetail() {
               onClick={() => refetchStats()}
               disabled={statsFetching}
             >
-              <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${statsFetching ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`h-3.5 w-3.5 ${statsFetching ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
           </div>
