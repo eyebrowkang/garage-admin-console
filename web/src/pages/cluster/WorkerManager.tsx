@@ -3,9 +3,15 @@ import { Activity, Cog, Pencil, Search } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -50,8 +56,7 @@ export function WorkerManager() {
   const { clusterId } = useClusterContext();
 
   const [selectedNode, setSelectedNode] = useState<string>('*');
-  const [busyOnly, setBusyOnly] = useState(false);
-  const [errorOnly, setErrorOnly] = useState(false);
+  const [stateFilter, setStateFilter] = useState<'all' | 'busy' | 'error'>('all');
   const [selectedWorker, setSelectedWorker] = useState<{
     nodeId: string;
     id: number;
@@ -68,8 +73,8 @@ export function WorkerManager() {
     error,
     refetch,
   } = useWorkers(clusterId, selectedNode, {
-    busyOnly,
-    errorOnly,
+    busyOnly: stateFilter === 'busy',
+    errorOnly: stateFilter === 'error',
   });
   const { data: workerInfo, isLoading: workerInfoLoading } = useWorkerInfo(
     clusterId,
@@ -215,15 +220,21 @@ export function WorkerManager() {
             includeAll
           />
         </div>
-        <div className="flex items-center gap-4 text-sm">
-          <label className="flex items-center gap-2">
-            <Checkbox checked={busyOnly} onCheckedChange={setBusyOnly} />
-            Busy only
-          </label>
-          <label className="flex items-center gap-2">
-            <Checkbox checked={errorOnly} onCheckedChange={setErrorOnly} />
-            Error only
-          </label>
+        <div className="space-y-1.5 min-w-[160px]">
+          <Label className="text-xs text-muted-foreground">State</Label>
+          <Select
+            value={stateFilter}
+            onValueChange={(v) => setStateFilter(v as 'all' | 'busy' | 'error')}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All states</SelectItem>
+              <SelectItem value="busy">Busy</SelectItem>
+              <SelectItem value="error">Errors</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -268,7 +279,7 @@ export function WorkerManager() {
                         {formatShortId(nodeId, 10)}
                       </TableHead>
                     ))}
-                    <TableHead className="w-10" />
+                    <TableHead className="text-right" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -282,11 +293,10 @@ export function WorkerManager() {
                           )}
                         </TableCell>
                       ))}
-                      <TableCell>
+                      <TableCell className="text-right">
                         <Button
                           variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
+                          size="sm"
                           onClick={() =>
                             openSetVariableDialog(
                               row.name,
@@ -294,7 +304,8 @@ export function WorkerManager() {
                             )
                           }
                         >
-                          <Pencil className="h-3.5 w-3.5" />
+                          <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                          Edit
                         </Button>
                       </TableCell>
                     </TableRow>

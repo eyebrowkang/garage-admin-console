@@ -395,7 +395,7 @@ export function BucketList() {
                   <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                     <Button
                       variant="ghost"
-                      size="icon"
+                      size="sm"
                       className="text-destructive"
                       onClick={() =>
                         setDeleteConfirm({
@@ -404,7 +404,8 @@ export function BucketList() {
                         })
                       }
                     >
-                      <DeleteActionIcon className="h-4 w-4" />
+                      <DeleteActionIcon className="h-3.5 w-3.5 mr-1.5" />
+                      Delete
                     </Button>
                   </div>
                 </TableCell>

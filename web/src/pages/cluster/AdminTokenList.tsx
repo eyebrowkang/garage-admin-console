@@ -362,11 +362,12 @@ export function AdminTokenList() {
                         {token.id && (
                           <Button
                             variant="ghost"
-                            size="icon"
+                            size="sm"
                             className="text-destructive"
                             onClick={() => setDeleteConfirm({ id: token.id!, name: token.name })}
                           >
-                            <DeleteActionIcon className="h-4 w-4" />
+                            <DeleteActionIcon className="h-3.5 w-3.5 mr-1.5" />
+                            Delete
                           </Button>
                         )}
                       </div>

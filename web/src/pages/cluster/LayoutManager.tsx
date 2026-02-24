@@ -669,7 +669,8 @@ export function LayoutManager() {
                                 })
                               }
                             >
-                              <DeleteActionIcon className="h-4 w-4" />
+                              <DeleteActionIcon className="h-3.5 w-3.5 mr-1.5" />
+                              Remove
                             </Button>
                           )}
                         </div>

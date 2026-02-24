@@ -505,7 +505,7 @@ export function BucketDetail() {
                     <TableCell className="text-right">
                       <Button
                         variant="ghost"
-                        size="icon"
+                        size="sm"
                         onClick={() => {
                           setPermKey({
                             accessKeyId: key.accessKeyId,
@@ -517,7 +517,8 @@ export function BucketDetail() {
                           setPermDialogOpen(true);
                         }}
                       >
-                        <Pencil className="h-3.5 w-3.5" />
+                        <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                        Edit
                       </Button>
                     </TableCell>
                   </TableRow>

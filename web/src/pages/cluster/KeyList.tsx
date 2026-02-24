@@ -542,11 +542,12 @@ export function KeyList() {
                   <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                     <Button
                       variant="ghost"
-                      size="icon"
+                      size="sm"
                       className="text-destructive"
                       onClick={() => setDeleteConfirm({ id: k.id, name: k.name || k.id })}
                     >
-                      <DeleteActionIcon className="h-4 w-4" />
+                      <DeleteActionIcon className="h-3.5 w-3.5 mr-1.5" />
+                      Delete
                     </Button>
                   </div>
                 </TableCell>

@@ -290,24 +290,24 @@ export function BlockManager() {
                         <div className="flex justify-end gap-1">
                           <Button
                             variant="ghost"
-                            size="icon"
+                            size="sm"
                             onClick={() => {
                               openBlockInfo(blockError.blockHash, blockError.nodeId);
                             }}
-                            title="View block info"
                           >
-                            <InfoActionIcon className="h-4 w-4" />
+                            <InfoActionIcon className="h-3.5 w-3.5 mr-1.5" />
+                            Info
                           </Button>
                           <Button
                             variant="ghost"
-                            size="icon"
+                            size="sm"
                             onClick={() =>
                               handleRetryResync(blockError.blockHash, blockError.nodeId)
                             }
                             disabled={retryMutation.isPending}
-                            title="Retry resync"
                           >
-                            <RefreshActionIcon className="h-4 w-4" />
+                            <RefreshActionIcon className="h-3.5 w-3.5 mr-1.5" />
+                            Retry
                           </Button>
                         </div>
                       </TableCell>
