@@ -123,15 +123,15 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const existing = await prisma.cluster.findUnique({ where: { id } });
-    if (!existing) {
-      return res.status(404).json({ error: 'Cluster not found' });
-    }
     await prisma.cluster.delete({ where: { id } });
     res.status(204).send();
   } catch (error) {
-    logger.error({ err: error }, 'Error deleting cluster');
-    res.status(500).json({ error: 'Internal Server Error' });
+    if (isNotFoundError(error)) {
+      res.status(404).json({ error: 'Cluster not found' });
+    } else {
+      logger.error({ err: error }, 'Error deleting cluster');
+      res.status(500).json({ error: 'Internal Server Error' });
+    }
   }
 });
 

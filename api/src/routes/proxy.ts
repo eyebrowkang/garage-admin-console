@@ -50,6 +50,7 @@ router.all('/:clusterId/*splat', async (req: Request, res: Response) => {
       },
       data: req.body,
       params: req.query,
+      timeout: 30000,
       validateStatus: () => true, // Pass all statuses back
     });
 

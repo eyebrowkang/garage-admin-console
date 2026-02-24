@@ -1,4 +1,3 @@
-import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -30,7 +29,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { api, proxyPath } from '@/lib/api';
 import { formatBytes, formatRelativeSeconds, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
@@ -40,16 +38,14 @@ import { PageLoadingState } from '@/components/cluster/PageLoadingState';
 import { ConnectActionIcon, RepairActionIcon, SnapshotActionIcon } from '@/lib/action-icons';
 import { toast } from '@/hooks/use-toast';
 import { NodeIcon } from '@/lib/entity-icons';
+import { useClusterContext } from '@/contexts/ClusterContext';
 import {
   useConnectNodes,
   useCreateMetadataSnapshot,
   useLaunchRepairOperation,
+  useNodes,
 } from '@/hooks/useNodes';
-import type { GetClusterStatusResponse, NodeResp, RepairType, ScrubCommand } from '@/types/garage';
-
-interface NodeListProps {
-  clusterId: string;
-}
+import type { NodeResp, RepairType, ScrubCommand } from '@/types/garage';
 
 const REPAIR_OPERATIONS = [
   { value: 'tables', label: 'Tables', description: 'Verify and repair all metadata tables' },
@@ -81,7 +77,8 @@ const SCRUB_COMMANDS = [
 
 type RepairOperationValue = (typeof REPAIR_OPERATIONS)[number]['value'];
 
-export function ClusterNodeList({ clusterId }: NodeListProps) {
+export function ClusterNodeList() {
+  const { clusterId } = useClusterContext();
   const navigate = useNavigate();
   const [connectDialogOpen, setConnectDialogOpen] = useState(false);
   const [connectNodesInput, setConnectNodesInput] = useState('');
@@ -94,15 +91,7 @@ export function ClusterNodeList({ clusterId }: NodeListProps) {
   const connectMutation = useConnectNodes(clusterId);
   const snapshotMutation = useCreateMetadataSnapshot(clusterId);
   const repairMutation = useLaunchRepairOperation(clusterId);
-  const { data, isLoading, error } = useQuery<GetClusterStatusResponse>({
-    queryKey: ['clusterStatus', clusterId],
-    queryFn: async () => {
-      const res = await api.get<GetClusterStatusResponse>(
-        proxyPath(clusterId, '/v2/GetClusterStatus'),
-      );
-      return res.data;
-    },
-  });
+  const { data, isLoading, error } = useNodes(clusterId);
 
   if (isLoading) return <PageLoadingState label="Loading nodes..." />;
 

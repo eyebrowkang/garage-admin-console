@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowUpDown, ArrowUp, ArrowDown, Search } from 'lucide-react';
@@ -38,16 +38,15 @@ import { CopyButton } from '@/components/cluster/CopyButton';
 import { InlineLoadingState } from '@/components/cluster/InlineLoadingState';
 import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
+import { useClusterContext } from '@/contexts/ClusterContext';
 import { AddActionIcon, DeleteActionIcon } from '@/lib/action-icons';
 import { toast } from '@/hooks/use-toast';
+import { useBuckets } from '@/hooks/useBuckets';
 import { useKeys } from '@/hooks/useKeys';
-import type { CreateBucketRequest, ListBucketsResponseItem } from '@/types/garage';
+import type { CreateBucketRequest } from '@/types/garage';
 
-interface BucketListProps {
-  clusterId: string;
-}
-
-export function BucketList({ clusterId }: BucketListProps) {
+export function BucketList() {
+  const { clusterId } = useClusterContext();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -63,17 +62,7 @@ export function BucketList({ clusterId }: BucketListProps) {
   const keysQuery = useKeys(clusterId);
   const keys = keysQuery.data ?? [];
 
-  const {
-    data: buckets = [],
-    isLoading,
-    error,
-  } = useQuery<ListBucketsResponseItem[]>({
-    queryKey: ['buckets', clusterId],
-    queryFn: async () => {
-      const res = await api.get<ListBucketsResponseItem[]>(proxyPath(clusterId, '/v2/ListBuckets'));
-      return res.data;
-    },
-  });
+  const { data: buckets = [], isLoading, error } = useBuckets(clusterId);
 
   const createMutation = useMutation({
     mutationFn: async (payload: CreateBucketRequest) => {

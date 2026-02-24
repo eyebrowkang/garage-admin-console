@@ -46,6 +46,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useClusterContext } from '@/contexts/ClusterContext';
 import type {
   ApplyClusterLayoutResponse,
   ClusterLayoutSkipDeadNodesResponse,
@@ -58,10 +59,6 @@ import type {
   PreviewClusterLayoutChangesResponse,
   UpdateClusterLayoutRequest,
 } from '@/types/garage';
-
-interface LayoutManagerProps {
-  clusterId: string;
-}
 
 type EditableNode = {
   id: string;
@@ -79,7 +76,8 @@ const formatZoneRedundancy = (value?: GetClusterLayoutResponse['parameters']['zo
   return '-';
 };
 
-export function LayoutManager({ clusterId }: LayoutManagerProps) {
+export function LayoutManager() {
+  const { clusterId } = useClusterContext();
   const queryClient = useQueryClient();
   const [nodeDialogOpen, setNodeDialogOpen] = useState(false);
   const [selectedNode, setSelectedNode] = useState<EditableNode | null>(null);

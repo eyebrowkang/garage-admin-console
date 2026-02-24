@@ -16,6 +16,8 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { InlineLoadingState } from '@/components/cluster/InlineLoadingState';
 import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
+import { useClusterContext } from '@/contexts/ClusterContext';
+import { useNodes } from '@/hooks/useNodes';
 import { api, proxyPath } from '@/lib/api';
 import { formatBytes } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
@@ -24,16 +26,12 @@ import type {
   GetClusterHealthResponse,
   GetClusterLayoutResponse,
   GetClusterStatisticsResponse,
-  GetClusterStatusResponse,
   MultiNodeResponse,
   BlockErrorsResponse,
 } from '@/types/garage';
 
-interface ClusterOverviewProps {
-  clusterId: string;
-}
-
-export function ClusterOverview({ clusterId }: ClusterOverviewProps) {
+export function ClusterOverview() {
+  const { clusterId } = useClusterContext();
   const healthQuery = useQuery<GetClusterHealthResponse>({
     queryKey: ['clusterHealth', clusterId],
     queryFn: async () => {
@@ -66,17 +64,7 @@ export function ClusterOverview({ clusterId }: ClusterOverviewProps) {
     },
   });
 
-  const statusQuery = useQuery<GetClusterStatusResponse>({
-    queryKey: ['clusterStatus', clusterId],
-    queryFn: async () => {
-      const res = await api.get<GetClusterStatusResponse>(
-        proxyPath(clusterId, '/v2/GetClusterStatus'),
-      );
-      return res.data;
-    },
-    staleTime: 30000,
-    refetchInterval: 30000,
-  });
+  const statusQuery = useNodes(clusterId);
 
   // Fetch block errors to show alert if any exist
   const blockErrorsQuery = useQuery<MultiNodeResponse<BlockErrorsResponse>>({

@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowUpDown, ArrowUp, ArrowDown, Search } from 'lucide-react';
@@ -38,19 +38,17 @@ import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { CopyButton } from '@/components/cluster/CopyButton';
 import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
+import { useClusterContext } from '@/contexts/ClusterContext';
 import { AddActionIcon, CopyActionIcon, DeleteActionIcon } from '@/lib/action-icons';
 import { toast } from '@/hooks/use-toast';
-import { useImportKey } from '@/hooks/useKeys';
-import type { CreateKeyRequest, GetKeyInfoResponse, ListKeysResponseItem } from '@/types/garage';
-
-interface KeyListProps {
-  clusterId: string;
-}
+import { useKeys, useImportKey } from '@/hooks/useKeys';
+import type { CreateKeyRequest, GetKeyInfoResponse } from '@/types/garage';
 
 const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 const MINUTE_OPTIONS = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
 
-export function KeyList({ clusterId }: KeyListProps) {
+export function KeyList() {
+  const { clusterId } = useClusterContext();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -99,17 +97,7 @@ export function KeyList({ clusterId }: KeyListProps) {
     expirationDate && !Number.isNaN(expirationDate.getTime()) ? expirationDate.toISOString() : null;
   const expirationInvalid = Boolean(createExpirationDate) && !expirationIso;
 
-  const {
-    data: keys = [],
-    isLoading,
-    error,
-  } = useQuery<ListKeysResponseItem[]>({
-    queryKey: ['keys', clusterId],
-    queryFn: async () => {
-      const res = await api.get<ListKeysResponseItem[]>(proxyPath(clusterId, '/v2/ListKeys'));
-      return res.data;
-    },
-  });
+  const { data: keys = [], isLoading, error } = useKeys(clusterId);
 
   const createMutation = useMutation({
     mutationFn: async (payload: CreateKeyRequest) => {
