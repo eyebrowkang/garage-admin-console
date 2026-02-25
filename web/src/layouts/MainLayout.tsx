@@ -11,7 +11,7 @@ export function MainLayout() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-background/50">
+    <div className="flex min-h-screen w-full flex-col bg-background/50">
       {/* Header */}
       <header className="sticky top-0 z-50 border-b bg-card/80 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 lg:px-8 h-14 flex items-center justify-between">
@@ -36,6 +36,22 @@ export function MainLayout() {
       <main className="max-w-7xl mx-auto px-4 lg:px-8 py-5 sm:py-6">
         <Outlet />
       </main>
+
+      {/* Footer */}
+      <footer className="border-t mt-auto">
+        <div className="max-w-7xl mx-auto px-4 lg:px-8 py-4 flex items-center justify-center text-xs text-muted-foreground">
+          <a
+            href="https://github.com/eyebrowkang/garage-admin-console"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-2 hover:text-foreground transition-colors"
+          >
+            Source Code
+          </a>
+          <span className="mx-1.5">&middot;</span>
+          AGPL-3.0 Licensed
+        </div>
+      </footer>
     </div>
   );
 }

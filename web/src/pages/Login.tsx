@@ -84,6 +84,19 @@ export default function Login() {
           </form>
         </CardContent>
       </Card>
+
+      <p className="relative mt-6 text-center text-xs text-muted-foreground">
+        <a
+          href="https://github.com/eyebrowkang/garage-admin-console"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline underline-offset-2 hover:text-foreground transition-colors"
+        >
+          Source Code
+        </a>
+        <span className="mx-1.5">&middot;</span>
+        AGPL-3.0 Licensed
+      </p>
     </div>
   );
 }
