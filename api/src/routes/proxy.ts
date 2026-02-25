@@ -1,10 +1,10 @@
-import { Router, type Request, type Response } from 'express';
+import { Router, type Request, type Response, type Router as ExpressRouter } from 'express';
 import prisma from '../db.js';
 import { decrypt } from '../encryption.js';
 import axios from 'axios';
 import { logger } from '../logger.js';
 
-const router = Router();
+const router: ExpressRouter = Router();
 
 // Proxy middleware to forward to Garage
 // Path format: /proxy/:clusterId/path/to/resource

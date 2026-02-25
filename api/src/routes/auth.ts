@@ -1,9 +1,9 @@
-import { Router } from 'express';
+import { Router, type Router as ExpressRouter } from 'express';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import { env } from '../config/env.js';
 
-const router = Router();
+const router: ExpressRouter = Router();
 
 const LoginSchema = z.object({
   password: z.string(),

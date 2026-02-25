@@ -1,11 +1,11 @@
-import { Router } from 'express';
+import { Router, type Router as ExpressRouter } from 'express';
 import { Prisma } from '@prisma/client';
 import prisma from '../db.js';
 import { encrypt } from '../encryption.js';
 import { z } from 'zod';
 import { logger } from '../logger.js';
 
-const router = Router();
+const router: ExpressRouter = Router();
 
 // Validation schemas
 const CreateClusterSchema = z.object({

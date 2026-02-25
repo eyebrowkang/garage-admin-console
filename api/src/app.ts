@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { type Express } from 'express';
 import morgan from 'morgan';
 
 import { env } from './config/env.js';
@@ -9,7 +9,7 @@ import authRouter from './routes/auth.js';
 import proxyRouter from './routes/proxy.js';
 import { authenticateToken } from './middleware/auth.middleware.js';
 
-export const app = express();
+export const app: Express = express();
 const ANSI_COLOR_PATTERN = new RegExp(String.raw`\u001B\[[0-9;]*m`, 'g');
 const stripAnsi = (value: string) => value.replace(ANSI_COLOR_PATTERN, '');
 
