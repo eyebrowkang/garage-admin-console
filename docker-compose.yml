@@ -1,7 +1,10 @@
 services:
   garage-admin-console:
-    build: .
-    # image: garage-admin-console:latest  # use this instead of build when using a pre-built image
+    image: ghcr.io/eyebrowkang/garage-admin-console:latest
+    # Alternative registries:
+    #   image: eyebrowkang/garage-admin-console:latest        # Docker Hub
+    # To build locally instead of using a pre-built image:
+    #   build: .
     ports:
       - '3001:3001'
     volumes:
