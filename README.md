@@ -5,6 +5,8 @@
 A modern web-based administration interface for managing [Garage](https://garagehq.deuxfleurs.fr/) distributed object storage clusters. Monitor cluster health, manage buckets and access keys, configure layouts, and more — all from a single dashboard.
 
 > Compatible with Garage Admin API v2.
+>
+> **Versioning**: The major version of this project tracks the Garage Admin API version. v2.x corresponds to Admin API v2. There is no v1.0 or v0.x — Admin API v1 and v0 were already deprecated when this project was created.
 
 ## Features
 

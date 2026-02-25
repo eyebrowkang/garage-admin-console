@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.0.0 — Initial Release
+## v2.0.0 — Initial Release
 
 First stable release of Garage Admin Console.
 

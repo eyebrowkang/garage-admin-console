@@ -1,8 +1,7 @@
 {
   "packages": {
     ".": {
-      "release-type": "node",
-      "extra-files": ["api/package.json", "web/package.json"]
+      "release-type": "simple"
     }
   }
 }

@@ -5,6 +5,8 @@
 一个现代化的 Web 管理界面，用于管理 [Garage](https://garagehq.deuxfleurs.fr/) 分布式对象存储集群。通过统一的仪表盘监控集群健康状态、管理存储桶和访问密钥、配置布局等。
 
 > 兼容 Garage Admin API v2。
+>
+> **版本说明**：本项目的主版本号与 Garage Admin API 版本保持同步。v2.x 对应 Admin API v2。没有 v1.0 或 v0.x — 本项目创建时 Admin API v1 和 v0 均已废弃，因此不做支持。
 
 ## 功能特性
 
