@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm -C api db:generate
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck API
+        run: pnpm -C api typecheck
+
+      - name: Build web
+        run: pnpm -C web build
+
+      - name: Test API
+        run: pnpm -C api test:run
+
+      - name: Test web
+        run: pnpm -C web test:run
