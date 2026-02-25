@@ -60,7 +60,7 @@ pnpm -C api npx prisma generate
 
 Copy `.env.example` to `.env` and configure. See `.env.example` for all available variables. `JWT_SECRET`, `ENCRYPTION_KEY`, and `ADMIN_PASSWORD` are required.
 
-The database file is fixed to `data.db` and is not configurable.
+In development, the database is stored at `api/data.db`. In production (Docker), the `DATA_DIR` environment variable controls the database directory (defaults to `/data`).
 
 ## Documentation
 

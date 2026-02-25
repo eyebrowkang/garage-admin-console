@@ -304,6 +304,14 @@ Garage API type definitions are in `web/src/types/garage.ts`.
 
 ## Testing
 
+### API Tests
+
+```bash
+pnpm -C api test:run      # Run once
+```
+
+API tests are located in `api/src/test/`.
+
 ### Unit Tests (Vitest)
 
 ```bash
@@ -438,8 +446,8 @@ For custom cluster components: create in `web/src/components/cluster/`.
 
 The `Dockerfile` uses a multi-stage build to produce a single image containing both the API and frontend:
 
-1. **Build stage** (`node:24-alpine`) — installs dependencies, compiles TypeScript, builds the Vite frontend, and creates a standalone production deployment using `pnpm deploy --legacy`
-2. **Production stage** (`node:24-alpine`) — copies the deployed API (with production-only `node_modules`) and the built frontend static files
+1. **Build stage** (`node:24-slim`) — installs dependencies, compiles TypeScript, builds the Vite frontend, and creates a standalone production deployment using `pnpm deploy --legacy`
+2. **Production stage** (`node:24-slim`) — copies the deployed API (with production-only `node_modules`) and the built frontend static files
 
 In production, the Express server serves the frontend from `/app/static/` with SPA fallback (see `api/src/index.ts`). The frontend is built with `VITE_API_BASE_URL=/` so API requests go directly to the same origin — no separate reverse proxy is needed.
 

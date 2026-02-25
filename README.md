@@ -1,6 +1,10 @@
 # Garage Admin Console
 
-A modern web-based administration interface for managing [Garage](https://garagehq.deuxfleurs.fr/) distributed object storage clusters.
+[English](./README.md) | [中文](./README.zh.md)
+
+A modern web-based administration interface for managing [Garage](https://garagehq.deuxfleurs.fr/) distributed object storage clusters. Monitor cluster health, manage buckets and access keys, configure layouts, and more — all from a single dashboard.
+
+> Compatible with Garage Admin API v2.
 
 ## Features
 
@@ -24,7 +28,7 @@ The easiest way to run the console is with Docker. A single image bundles both t
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/garage-admin-console.git
+git clone <repository-url>
 cd garage-admin-console
 
 # Edit docker-compose.yml — change the three required environment variables
@@ -68,7 +72,7 @@ docker run -d \
 ### Installation
 
 ```bash
-git clone https://github.com/your-org/garage-admin-console.git
+git clone <repository-url>
 cd garage-admin-console
 
 pnpm install
