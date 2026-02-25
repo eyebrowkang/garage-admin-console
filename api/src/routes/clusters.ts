@@ -36,7 +36,15 @@ const safeSelect = {
 } as const;
 
 function isNotFoundError(error: unknown) {
-  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025';
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    return error.code === 'P2025';
+  }
+
+  if (typeof error === 'object' && error !== null && 'code' in error) {
+    return error.code === 'P2025';
+  }
+
+  return false;
 }
 
 // GET /clusters

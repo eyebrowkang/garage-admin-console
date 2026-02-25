@@ -28,7 +28,9 @@ if (env.httpLogFormat) {
   );
 }
 
-app.use(express.json());
+// The proxy needs to forward valid JSON primitives (e.g. top-level strings),
+// so use a non-strict JSON parser.
+app.use(express.json({ strict: false }));
 
 // Public routes
 app.use('/auth', authRouter);
