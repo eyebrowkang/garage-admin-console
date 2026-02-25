@@ -17,7 +17,7 @@ const libsql = createClient({
   url: dbUrl,
 }) as LibSqlClientWithUrl;
 
-// Hack: PrismaLibSql might read .url from client
+// PrismaLibSql reads .url from the client instance
 libsql.url = dbUrl;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

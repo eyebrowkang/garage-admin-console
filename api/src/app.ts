@@ -4,6 +4,7 @@ import morgan from 'morgan';
 import { env } from './config/env.js';
 import { httpLogger } from './logger.js';
 
+import prisma from './db.js';
 import clusterRouter from './routes/clusters.js';
 import authRouter from './routes/auth.js';
 import proxyRouter from './routes/proxy.js';
@@ -34,8 +35,13 @@ app.use(express.json({ strict: false }));
 
 // Public routes
 app.use('/auth', authRouter);
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date() });
+app.get('/health', async (_req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ status: 'ok', timestamp: new Date() });
+  } catch {
+    res.status(503).json({ status: 'error', timestamp: new Date() });
+  }
 });
 
 // Protected routes

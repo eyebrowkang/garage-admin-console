@@ -19,7 +19,7 @@ router.all('/:clusterId/*splat', async (req: Request, res: Response) => {
 
   try {
     const cluster = await prisma.cluster.findUnique({
-      where: { id: clusterId as string },
+      where: { id: String(clusterId) },
     });
 
     if (!cluster) {
@@ -70,9 +70,8 @@ router.all('/:clusterId/*splat', async (req: Request, res: Response) => {
     }
     res.status(response.status).send(response.data);
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    logger.error({ err: error, message }, 'Proxy error');
-    res.status(502).json({ error: 'Bad Gateway', details: message });
+    logger.error({ err: error }, 'Proxy error');
+    res.status(502).json({ error: 'Bad Gateway' });
   }
 });
 

@@ -11,7 +11,7 @@ export function authenticateToken(req: Request, res: Response, next: NextFunctio
   if (!token) return res.sendStatus(401);
 
   jwt.verify(token, env.jwtSecret, (err, user) => {
-    if (err || !user) return res.sendStatus(403);
+    if (err || !user) return res.sendStatus(401);
     (req as AuthenticatedRequest).user = user;
     next();
   });

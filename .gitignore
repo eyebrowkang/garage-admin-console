@@ -3,6 +3,9 @@
 *.local
 *.db
 *.db-journal
+.env
+.env.*
+!.env.example
 coverage
 node_modules
 dist

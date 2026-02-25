@@ -1,10 +1,10 @@
 import { test as base } from '@playwright/test';
 
-// Test credentials for Garage cluster
+// Test credentials — override via environment variables
 export const TEST_GARAGE_CLUSTER = {
   name: 'Test Cluster',
-  endpoint: 'http://192.168.88.60:3903',
-  adminToken: 'W7z2s/jx/vubvFqbC3yWJTkAWbi4LmoonHAY+9quYlg=',
+  endpoint: process.env.TEST_GARAGE_ENDPOINT || 'http://localhost:3903',
+  adminToken: process.env.TEST_GARAGE_ADMIN_TOKEN || 'test-admin-token',
   region: 'test-region',
 };
 
