@@ -28,7 +28,7 @@ The easiest way to run the console is with Docker. A single image bundles both t
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/eyebrowkang/garage-admin-console.git
 cd garage-admin-console
 
 # Edit docker-compose.yml — change the three required environment variables
@@ -72,7 +72,7 @@ docker run -d \
 ### Installation
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/eyebrowkang/garage-admin-console.git
 cd garage-admin-console
 
 pnpm install
@@ -141,7 +141,8 @@ Browser → Frontend → BFF API → Garage Cluster
 
 ## Documentation
 
-- **[DEVELOPMENT.md](./DEVELOPMENT.md)** - Developer guide with architecture details, testing, and contribution guidelines
+- **[CONTRIBUTING.md](./CONTRIBUTING.md)** - How to contribute
+- **[DEVELOPMENT.md](./DEVELOPMENT.md)** - Developer guide with architecture details and testing
 
 ## Scripts
 

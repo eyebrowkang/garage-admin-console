@@ -82,7 +82,7 @@ The Garage Admin Console follows a **Backend-For-Frontend (BFF)** proxy pattern:
 
 ```bash
 # 1. Clone the repository
-git clone <repository-url>
+git clone https://github.com/eyebrowkang/garage-admin-console.git
 cd garage-admin-console
 
 # 2. Install dependencies
@@ -539,18 +539,4 @@ DEBUG=vite:* pnpm -C web dev
 
 ## Contributing
 
-1. Create a feature branch from `main`
-2. Make your changes following the code style guidelines
-3. Add tests for new functionality
-4. Ensure all checks pass: `pnpm lint && pnpm -C web test:run && npx playwright test`
-5. Create a pull request with a clear description
-
-### Commit Messages
-
-Use conventional commit format:
-- `feat:` New features
-- `fix:` Bug fixes
-- `docs:` Documentation changes
-- `refactor:` Code refactoring
-- `test:` Test additions/changes
-- `chore:` Maintenance tasks
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for the full contribution guide, including commit conventions and PR process.

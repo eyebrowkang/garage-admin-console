@@ -28,7 +28,7 @@
 
 ```bash
 # 克隆仓库
-git clone <repository-url>
+git clone https://github.com/eyebrowkang/garage-admin-console.git
 cd garage-admin-console
 
 # 编辑 docker-compose.yml — 修改三个必需的环境变量
@@ -72,7 +72,7 @@ docker run -d \
 ### 安装
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/eyebrowkang/garage-admin-console.git
 cd garage-admin-console
 
 pnpm install
@@ -141,7 +141,8 @@ garage-admin-console/
 
 ## 文档
 
-- **[DEVELOPMENT.md](./DEVELOPMENT.md)** - 开发者指南，包含架构详情、测试和贡献指南
+- **[CONTRIBUTING.md](./CONTRIBUTING.md)** - 贡献指南
+- **[DEVELOPMENT.md](./DEVELOPMENT.md)** - 开发者指南，包含架构详情和测试
 
 ## 常用脚本
 
