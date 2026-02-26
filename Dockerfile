@@ -25,7 +25,7 @@ RUN pnpm -C api build
 RUN VITE_API_BASE_URL=/ pnpm -C web build
 
 # Deploy API package with production dependencies only
-RUN pnpm --filter api deploy --legacy /deploy
+RUN pnpm --filter api deploy --prod --legacy /deploy
 
 # Copy build artifacts into the deployed package
 RUN cp -r /src/api/dist /deploy/dist && \
@@ -34,6 +34,12 @@ RUN cp -r /src/api/dist /deploy/dist && \
 
 # Generate Prisma client in the deploy context
 RUN cd /deploy && npx prisma generate
+
+# Remove files unnecessary in production
+RUN cd /deploy/node_modules && \
+    # Debian uses glibc — remove musl-only native binaries
+    find . -path '*linux-x64-musl*' -prune -exec rm -rf {} + && \
+    find . -path '*linux-arm64-musl*' -prune -exec rm -rf {} +
 
 # ---- Production stage ----
 FROM node:24-slim
