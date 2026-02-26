@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.1](https://github.com/eyebrowkang/garage-admin-console/compare/v2.0.0...v2.0.1) (2026-02-26)
+
+
+### Bug Fixes
+
+* resolve UI issues and clarify Conventional Commits requirement ([#2](https://github.com/eyebrowkang/garage-admin-console/issues/2)) ([5dbd463](https://github.com/eyebrowkang/garage-admin-console/commit/5dbd46345587c29432d5085282f7957a4b77dc94))
+
 ## v2.0.0 — Initial Release
 
 First stable release of Garage Admin Console.
