@@ -39,7 +39,14 @@ RUN cd /deploy && npx prisma generate
 RUN cd /deploy/node_modules && \
     # Debian uses glibc — remove musl-only native binaries
     find . -path '*linux-x64-musl*' -prune -exec rm -rf {} + && \
-    find . -path '*linux-arm64-musl*' -prune -exec rm -rf {} +
+    find . -path '*linux-arm64-musl*' -prune -exec rm -rf {} + && \
+    # This project only uses SQLite — remove query compiler WASM for other databases
+    find . -name 'query_compiler_*' \
+      ! -name '*sqlite*' \
+      \( -name '*.wasm' -o -name '*.wasm-base64.js' -o -name '*.wasm-base64.mjs' \) \
+      -delete && \
+    # Remove source maps and TypeScript declarations (not needed at runtime)
+    find . -name '*.js.map' -o -name '*.mjs.map' -o -name '*.d.ts' -o -name '*.d.mts' | xargs rm -f
 
 # ---- Production stage ----
 FROM node:24-slim
