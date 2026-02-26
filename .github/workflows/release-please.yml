@@ -36,7 +36,7 @@ jobs:
     steps:
       - name: Set CI status on release PR
         run: |
-          HEAD_SHA=$(gh pr list --head release-please--branches--main --json headRefOid --jq '.[0].headRefOid // empty')
+          HEAD_SHA=$(gh pr list --repo ${{ github.repository }} --head release-please--branches--main --json headRefOid --jq '.[0].headRefOid // empty')
           if [ -n "$HEAD_SHA" ]; then
             gh api repos/${{ github.repository }}/statuses/$HEAD_SHA \
               -f state=success \
