@@ -1,5 +1,5 @@
 # ---- Build stage ----
-FROM node:24-slim AS build
+FROM node:24-alpine AS build
 
 RUN corepack enable
 
@@ -28,19 +28,10 @@ RUN pnpm --filter api deploy --prod --legacy /deploy
 RUN cp -r /src/api/dist /deploy/dist && \
     cp -r /src/api/drizzle /deploy/drizzle
 
-# Remove files unnecessary in production
-RUN cd /deploy/node_modules && \
-    # Debian uses glibc — remove musl-only native binaries
-    find . -path '*linux-x64-musl*' -prune -exec rm -rf {} + && \
-    find . -path '*linux-arm64-musl*' -prune -exec rm -rf {} + && \
-    # Remove TypeScript type declarations (not needed at runtime)
-    find . -name '*.d.ts' -o -name '*.d.mts' | xargs rm -f
-
 # ---- Production stage ----
-FROM node:24-slim
+FROM node:24-alpine
 
-RUN apt-get update && apt-get install -y --no-install-recommends tini && \
-    rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache tini
 
 WORKDIR /app
 
