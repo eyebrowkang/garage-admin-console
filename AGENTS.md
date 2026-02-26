@@ -34,7 +34,7 @@ npx playwright test       # Run E2E tests (Playwright)
 
 **Monorepo** (pnpm workspace) with two packages:
 
-- **`api/`** — Backend-For-Frontend (BFF) service: Express 5, Prisma (SQLite via LibSQL), TypeScript
+- **`api/`** — Backend-For-Frontend (BFF) service: Express 5, Drizzle ORM (SQLite via LibSQL), TypeScript
 - **`web/`** — Frontend SPA: React 19, Vite, TanStack React Query, Tailwind CSS, TypeScript
 
 ### Data Flow (BFF Proxy Pattern)
@@ -67,9 +67,9 @@ Routes are registered in `api/src/app.ts`.
 - **UI**: shadcn/ui components (`components/ui/`) built on Radix UI primitives, styled with Tailwind
 - **Path alias**: `@` → `web/src/`
 
-### Database Schema (`api/prisma/schema.prisma`)
+### Database Schema (`api/src/db/schema.ts`)
 
-Two models: `Cluster` (id, name, endpoint, adminToken encrypted, metricToken encrypted optional, timestamps) and `AppSettings` (key-value).
+Two tables defined with Drizzle ORM: `Cluster` (id, name, endpoint, adminToken encrypted, metricToken encrypted optional, timestamps) and `AppSettings` (key-value). Migrations are in `api/drizzle/` and run automatically on startup.
 
 ## Frontend UX/UI design principles and approach
 
@@ -105,7 +105,9 @@ Pages at different hierarchy levels should have slight differences.
 - `api/src/app.ts` — Express app setup and route registration
 - `api/src/encryption.ts` — AES-256-GCM encrypt/decrypt for Garage tokens
 - `api/src/middleware/auth.middleware.ts` — JWT verification middleware
-- `api/src/db.ts` — Prisma client initialization with LibSQL adapter
+- `api/src/db/index.ts` — Drizzle client initialization with LibSQL
+- `api/src/db/schema.ts` — Drizzle table definitions
+- `api/src/db/migrate.ts` — Programmatic migration runner
 - `web/src/types/garage.ts` — TypeScript interfaces for Garage API responses
 - `web/src/lib/api.ts` — Axios instance, interceptors, `proxyPath()` helper
 

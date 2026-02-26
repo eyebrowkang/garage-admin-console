@@ -20,5 +20,14 @@
   "devDependencies": {
     "@playwright/test": "^1.58.1",
     "playwright": "^1.58.1"
+  },
+  "pnpm": {
+    "overrides": {
+      "@prisma/client": "-",
+      "prisma": "-",
+      "@electric-sql/pglite": "-",
+      "mysql2": "-",
+      "postgres": "-"
+    }
   }
 }

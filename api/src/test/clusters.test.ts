@@ -1,9 +1,12 @@
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { eq } from 'drizzle-orm';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { runMigrations } from '../db/migrate.js';
 import { app } from '../app.js';
-import prisma from '../db.js';
+import db from '../db/index.js';
+import { clusters } from '../db/schema.js';
 
 const authHeader = () => {
   const token = jwt.sign({ role: 'admin' }, process.env.JWT_SECRET as string, {
@@ -12,25 +15,12 @@ const authHeader = () => {
   return { Authorization: `Bearer ${token}` };
 };
 
-async function clearClusters() {
-  const delays = [25, 50, 100];
-  for (let attempt = 0; attempt <= delays.length; attempt += 1) {
-    try {
-      await prisma.cluster.deleteMany();
-      return;
-    } catch (error) {
-      if (attempt === delays.length) throw error;
-      await new Promise((resolve) => setTimeout(resolve, delays[attempt]));
-    }
-  }
-}
-
-beforeEach(async () => {
-  await clearClusters();
+beforeAll(async () => {
+  await runMigrations();
 });
 
-afterAll(async () => {
-  await prisma.$disconnect();
+beforeEach(async () => {
+  await db.delete(clusters);
 });
 
 describe('clusters', () => {
@@ -68,7 +58,7 @@ describe('clusters', () => {
 
     expect(updateRes.status).toBe(200);
 
-    const cluster = await prisma.cluster.findUnique({ where: { id: clusterId } });
+    const [cluster] = await db.select().from(clusters).where(eq(clusters.id, clusterId)).limit(1);
     expect(cluster?.metricToken).toBeNull();
   });
 });

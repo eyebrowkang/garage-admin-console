@@ -2,7 +2,12 @@ import path from 'path';
 import express from 'express';
 import { env } from './config/env.js';
 import { logger } from './logger.js';
+import { runMigrations } from './db/migrate.js';
 import { app } from './app.js';
+
+// Run database migrations before starting the server
+await runMigrations();
+logger.info('Database migrations applied');
 
 // Serve static frontend files when STATIC_DIR is configured (Docker / production)
 const staticDir = process.env.STATIC_DIR;

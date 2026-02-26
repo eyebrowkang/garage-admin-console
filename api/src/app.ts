@@ -1,10 +1,11 @@
 import express, { type Express } from 'express';
 import morgan from 'morgan';
+import { sql } from 'drizzle-orm';
 
 import { env } from './config/env.js';
 import { httpLogger } from './logger.js';
 
-import prisma from './db.js';
+import db from './db/index.js';
 import clusterRouter from './routes/clusters.js';
 import authRouter from './routes/auth.js';
 import proxyRouter from './routes/proxy.js';
@@ -37,7 +38,7 @@ app.use(express.json({ strict: false }));
 app.use('/auth', authRouter);
 app.get('/health', async (_req, res) => {
   try {
-    await prisma.$queryRaw`SELECT 1`;
+    await db.run(sql`SELECT 1`);
     res.json({ status: 'ok', timestamp: new Date() });
   } catch {
     res.status(503).json({ status: 'error', timestamp: new Date() });

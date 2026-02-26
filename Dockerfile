@@ -1,5 +1,5 @@
 # ---- Build stage ----
-FROM node:24-slim AS build
+FROM node:24-alpine AS build
 
 RUN corepack enable
 
@@ -15,9 +15,6 @@ RUN pnpm install --frozen-lockfile
 COPY api/ api/
 COPY web/ web/
 
-# Generate Prisma client
-RUN cd api && npx prisma generate
-
 # Build API (TypeScript → JavaScript)
 RUN pnpm -C api build
 
@@ -25,21 +22,16 @@ RUN pnpm -C api build
 RUN VITE_API_BASE_URL=/ pnpm -C web build
 
 # Deploy API package with production dependencies only
-RUN pnpm --filter api deploy --legacy /deploy
+RUN pnpm --filter api deploy --prod --legacy /deploy
 
 # Copy build artifacts into the deployed package
 RUN cp -r /src/api/dist /deploy/dist && \
-    cp -r /src/api/prisma /deploy/prisma && \
-    cp    /src/api/prisma.config.ts /deploy/prisma.config.ts
-
-# Generate Prisma client in the deploy context
-RUN cd /deploy && npx prisma generate
+    cp -r /src/api/drizzle /deploy/drizzle
 
 # ---- Production stage ----
-FROM node:24-slim
+FROM node:24-alpine
 
-RUN apt-get update && apt-get install -y --no-install-recommends tini openssl && \
-    rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache tini
 
 WORKDIR /app
 
@@ -59,4 +51,4 @@ EXPOSE 3001
 
 # Use tini as PID 1 for proper signal handling
 ENTRYPOINT ["tini", "--"]
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/index.js"]
+CMD ["node", "dist/index.js"]

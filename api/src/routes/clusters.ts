@@ -1,6 +1,7 @@
 import { Router, type Router as ExpressRouter } from 'express';
-import { Prisma } from '@prisma/client';
-import prisma from '../db.js';
+import { eq } from 'drizzle-orm';
+import db from '../db/index.js';
+import { clusters } from '../db/schema.js';
 import { encrypt } from '../encryption.js';
 import { z } from 'zod';
 import { logger } from '../logger.js';
@@ -27,33 +28,19 @@ const UpdateClusterSchema = z
   });
 
 // Safe fields to return (no tokens)
-const safeSelect = {
-  id: true,
-  name: true,
-  endpoint: true,
-  createdAt: true,
-  updatedAt: true,
+const safeColumns = {
+  id: clusters.id,
+  name: clusters.name,
+  endpoint: clusters.endpoint,
+  createdAt: clusters.createdAt,
+  updatedAt: clusters.updatedAt,
 } as const;
-
-function isNotFoundError(error: unknown) {
-  if (error instanceof Prisma.PrismaClientKnownRequestError) {
-    return error.code === 'P2025';
-  }
-
-  if (typeof error === 'object' && error !== null && 'code' in error) {
-    return error.code === 'P2025';
-  }
-
-  return false;
-}
 
 // GET /clusters
 router.get('/', async (req, res) => {
   try {
-    const clusters = await prisma.cluster.findMany({
-      select: safeSelect,
-    });
-    res.json(clusters);
+    const result = await db.select(safeColumns).from(clusters);
+    res.json(result);
   } catch (error) {
     logger.error({ err: error }, 'Error fetching clusters');
     res.status(500).json({ error: 'Internal Server Error' });
@@ -72,15 +59,15 @@ router.post('/', async (req, res) => {
         ? null
         : encrypt(body.metricToken);
 
-    const cluster = await prisma.cluster.create({
-      data: {
+    const [cluster] = await db
+      .insert(clusters)
+      .values({
         name: body.name,
         endpoint: body.endpoint,
         adminToken: encryptedAdminToken,
         metricToken: encryptedMetricToken,
-      },
-      select: safeSelect,
-    });
+      })
+      .returning(safeColumns);
 
     res.status(201).json(cluster);
   } catch (error) {
@@ -99,7 +86,9 @@ router.put('/:id', async (req, res) => {
     const { id } = req.params;
     const body = UpdateClusterSchema.parse(req.body);
 
-    const data: Record<string, unknown> = {};
+    const data: Record<string, unknown> = {
+      updatedAt: new Date().toISOString(),
+    };
 
     if (body.name !== undefined) data.name = body.name;
     if (body.endpoint !== undefined) data.endpoint = body.endpoint;
@@ -108,18 +97,21 @@ router.put('/:id', async (req, res) => {
       data.metricToken = body.metricToken === null ? null : encrypt(body.metricToken);
     }
 
-    const cluster = await prisma.cluster.update({
-      where: { id },
-      data,
-      select: safeSelect,
-    });
+    const [cluster] = await db
+      .update(clusters)
+      .set(data)
+      .where(eq(clusters.id, id))
+      .returning(safeColumns);
+
+    if (!cluster) {
+      res.status(404).json({ error: 'Cluster not found' });
+      return;
+    }
 
     res.json(cluster);
   } catch (error) {
     if (error instanceof z.ZodError) {
       res.status(400).json({ error: error.issues });
-    } else if (isNotFoundError(error)) {
-      res.status(404).json({ error: 'Cluster not found' });
     } else {
       logger.error({ err: error }, 'Error updating cluster');
       res.status(500).json({ error: 'Internal Server Error' });
@@ -131,15 +123,20 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    await prisma.cluster.delete({ where: { id } });
+    const deleted = await db
+      .delete(clusters)
+      .where(eq(clusters.id, id))
+      .returning({ id: clusters.id });
+
+    if (deleted.length === 0) {
+      res.status(404).json({ error: 'Cluster not found' });
+      return;
+    }
+
     res.status(204).send();
   } catch (error) {
-    if (isNotFoundError(error)) {
-      res.status(404).json({ error: 'Cluster not found' });
-    } else {
-      logger.error({ err: error }, 'Error deleting cluster');
-      res.status(500).json({ error: 'Internal Server Error' });
-    }
+    logger.error({ err: error }, 'Error deleting cluster');
+    res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 

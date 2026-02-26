@@ -2,7 +2,7 @@
 
 Backend-For-Frontend (BFF) service for Garage Admin Console.
 
-**Tech Stack**: Express 5, TypeScript, Prisma, SQLite/LibSQL, Zod, Axios, Pino, Morgan
+**Tech Stack**: Express 5, TypeScript, Drizzle ORM, SQLite/LibSQL, Zod, Axios, Pino, Morgan
 
 ## Architecture (API Only)
 
@@ -16,7 +16,7 @@ flowchart LR
     Routes[Express Routes]
     Auth[JWT Auth Middleware]
     Proxy[Proxy Route]
-    DB[(SQLite via Prisma + LibSQL)]
+    DB[(SQLite via Drizzle + LibSQL)]
     Crypto[AES-256-GCM Encryption]
   end
 
@@ -45,16 +45,13 @@ pnpm -C api lint       # Lint code
 ## Database
 
 ```bash
-pnpm -C api db:push    # Push schema to database
-pnpm -C api db:studio  # Open Prisma Studio
-pnpm -C api db:seed    # Run seed script
+pnpm -C api db:generate  # Generate migration SQL from schema changes
+pnpm -C api db:push      # Push schema directly (development only)
+pnpm -C api db:seed      # Run seed script
+pnpm -C api db:studio    # Open Drizzle Studio
 ```
 
-After schema changes, regenerate the Prisma client:
-
-```bash
-pnpm -C api npx prisma generate
-```
+Schema is defined in `src/db/schema.ts`. Migrations are in `drizzle/` and run automatically on startup.
 
 ## Configuration
 

@@ -27,5 +27,5 @@ First stable release of Garage Admin Console.
 
 - Monorepo with pnpm workspaces (API + Web)
 - Single Docker image for production deployment
-- Prisma with SQLite/LibSQL for data persistence
+- Drizzle ORM with SQLite/LibSQL for data persistence
 - Compatible with Garage Admin API v2

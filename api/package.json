@@ -5,8 +5,8 @@
   "main": "dist/index.js",
   "type": "module",
   "scripts": {
-    "test": "prisma migrate deploy && vitest",
-    "test:run": "prisma migrate deploy && vitest run",
+    "test": "vitest",
+    "test:run": "vitest run",
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/index.js",
@@ -15,29 +15,24 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
-    "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate deploy",
-    "db:push": "prisma db push",
-    "db:seed": "tsx prisma/seed.ts",
-    "db:studio": "prisma studio"
-  },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:seed": "tsx src/db/seed.ts",
+    "db:studio": "drizzle-kit studio"
   },
   "keywords": [],
   "author": "",
   "license": "AGPL-3.0-only",
   "dependencies": {
     "@libsql/client": "^0.17.0",
-    "@prisma/adapter-libsql": "^7.3.0",
-    "@prisma/client": "^7.3.0",
     "axios": "^1.13.4",
     "dotenv": "^17.2.4",
+    "drizzle-orm": "^0.44.0",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.10.1",
     "pino": "^10.3.0",
-    "prisma": "^7.3.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
@@ -47,6 +42,7 @@
     "@types/morgan": "^1.9.10",
     "@types/node": "^25.2.1",
     "@types/supertest": "^6.0.3",
+    "drizzle-kit": "^0.31.0",
     "eslint": "^9.39.2",
     "eslint-config-prettier": "^10.1.8",
     "globals": "^17.3.0",

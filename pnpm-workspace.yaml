@@ -3,8 +3,6 @@ packages:
   - web
 
 onlyBuiltDependencies:
-  - '@prisma/engines'
   - bcrypt
   - esbuild
-  - prisma
   - sqlite3
