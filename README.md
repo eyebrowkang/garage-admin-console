@@ -79,7 +79,7 @@ cd garage-admin-console
 
 pnpm install
 
-# If pnpm blocks native builds (Prisma)
+# If pnpm blocks native builds
 pnpm approve-builds
 ```
 
@@ -123,7 +123,7 @@ Serve `web/dist/` with your preferred web server (Nginx, Caddy, etc.) and config
 
 ```
 garage-admin-console/
-├── api/                 # Backend-For-Frontend (Express + Prisma)
+├── api/                 # Backend-For-Frontend (Express + Drizzle ORM)
 ├── web/                 # Frontend SPA (React + Vite)
 ├── e2e/                 # End-to-end tests (Playwright)
 └── web/public/garage-admin-v2.json  # Garage Admin API OpenAPI specification
@@ -157,7 +157,7 @@ Browser → Frontend → BFF API → Garage Cluster
 | `pnpm -C web test` | Run unit tests |
 | `npx playwright test` | Run E2E tests |
 | `pnpm -C api db:push` | Push schema to database |
-| `pnpm -C api db:studio` | Open Prisma Studio GUI |
+| `pnpm -C api db:studio` | Open Drizzle Studio GUI |
 
 ## Security Notes
 

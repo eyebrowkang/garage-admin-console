@@ -79,7 +79,7 @@ cd garage-admin-console
 
 pnpm install
 
-# 如果 pnpm 阻止原生构建（Prisma）
+# 如果 pnpm 阻止原生构建
 pnpm approve-builds
 ```
 
@@ -123,7 +123,7 @@ pnpm -C api start
 
 ```
 garage-admin-console/
-├── api/                 # Backend-For-Frontend 服务（Express + Prisma）
+├── api/                 # Backend-For-Frontend 服务（Express + Drizzle ORM）
 ├── web/                 # 前端单页应用（React + Vite）
 ├── e2e/                 # 端到端测试（Playwright）
 └── web/public/garage-admin-v2.json  # Garage Admin API OpenAPI 规范
@@ -157,7 +157,7 @@ garage-admin-console/
 | `pnpm -C web test` | 运行单元测试 |
 | `npx playwright test` | 运行端到端测试 |
 | `pnpm -C api db:push` | 推送数据库架构 |
-| `pnpm -C api db:studio` | 打开 Prisma Studio GUI |
+| `pnpm -C api db:studio` | 打开 Drizzle Studio GUI |
 
 ## 安全注意事项
 
