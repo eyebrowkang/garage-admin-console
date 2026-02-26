@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.1.1](https://github.com/eyebrowkang/garage-admin-console/compare/v2.1.0...v2.1.1) (2026-02-26)
+
+
+### Bug Fixes
+
+* **ci:** add --repo flag to gh pr list in ci-status job ([#9](https://github.com/eyebrowkang/garage-admin-console/issues/9)) ([f219035](https://github.com/eyebrowkang/garage-admin-console/commit/f219035ca6d7d3e97e0c0f59fa25af6eba013705))
+* **ci:** chain release workflow from release-please via workflow_call ([#5](https://github.com/eyebrowkang/garage-admin-console/issues/5)) ([6acdd30](https://github.com/eyebrowkang/garage-admin-console/commit/6acdd300b9b747ef06c380bd59296fcd02436057))
+* **ci:** pass tag_name to release workflow for Docker tag generation ([#6](https://github.com/eyebrowkang/garage-admin-console/issues/6)) ([0af1c54](https://github.com/eyebrowkang/garage-admin-console/commit/0af1c54ae5361390d72230e02116cf0e9bac2b69))
+* **ci:** post CI status on release PRs to satisfy branch protection ([#8](https://github.com/eyebrowkang/garage-admin-console/issues/8)) ([3ca0362](https://github.com/eyebrowkang/garage-admin-console/commit/3ca0362185d887f6a655cf208e9fb62306785a3f))
+* **ci:** revert to commit status API for release PR checks ([ae5787d](https://github.com/eyebrowkang/garage-admin-console/commit/ae5787db47ccb0f3207218b2feec40498a9a6e9f))
+
 ## [2.1.0](https://github.com/eyebrowkang/garage-admin-console/compare/v2.0.0...v2.1.0) (2026-02-26)
 
 
