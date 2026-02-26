@@ -44,7 +44,7 @@ The Garage Admin Console follows a **Backend-For-Frontend (BFF)** proxy pattern:
 │                     BFF API (Express)                        │
 │  - Express 5 + TypeScript                                    │
 │  - JWT authentication                                        │
-│  - Prisma ORM (SQLite/LibSQL)                                │
+│  - Drizzle ORM (SQLite/LibSQL)                                │
 │  - AES-256-GCM credential encryption                         │
 └─────────────────────────────┬────────────────────────────────┘
                               │ /proxy/:clusterId/*
@@ -95,10 +95,7 @@ pnpm approve-builds
 cp api/.env.example api/.env
 # Edit api/.env with your settings
 
-# 5. Initialize the database
-pnpm -C api db:push
-
-# 6. Start development servers
+# 5. Start development servers (database is auto-migrated on startup)
 pnpm dev
 ```
 
@@ -140,7 +137,11 @@ garage-admin-console/
 │   ├── src/
 │   │   ├── index.ts              # Server entry point
 │   │   ├── app.ts                # Express app setup and route registration
-│   │   ├── db.ts                 # Prisma client initialization
+│   │   ├── db/
+│   │   │   ├── index.ts          # Drizzle client initialization
+│   │   │   ├── schema.ts         # Drizzle table definitions
+│   │   │   ├── migrate.ts        # Programmatic migration runner
+│   │   │   └── seed.ts           # Database seed script
 │   │   ├── encryption.ts         # AES-256-GCM utilities
 │   │   ├── logger.ts             # Pino logger configuration
 │   │   ├── config/
@@ -151,8 +152,8 @@ garage-admin-console/
 │   │       ├── auth.ts           # POST /auth/login
 │   │       ├── clusters.ts       # CRUD /clusters
 │   │       └── proxy.ts          # ALL /proxy/:clusterId/*
-│   ├── prisma/
-│   │   └── schema.prisma         # Database schema
+│   ├── drizzle/                  # Migration SQL files
+│   ├── drizzle.config.ts         # Drizzle Kit configuration
 │   └── package.json
 │
 ├── web/                          # Frontend SPA
@@ -212,7 +213,7 @@ Routes are registered in `api/src/app.ts`.
 
 ### Database Schema
 
-Defined in `api/prisma/schema.prisma`. Two models:
+Defined in `api/src/db/schema.ts` using Drizzle ORM. Two tables:
 
 - **Cluster** — `id`, `name`, `endpoint`, `adminToken` (AES-256-GCM encrypted), `metricToken` (encrypted, optional), `createdAt`, `updatedAt`
 - **AppSettings** — Key-value store (`key`, `value`)
@@ -221,7 +222,9 @@ Defined in `api/prisma/schema.prisma`. Two models:
 
 - `api/src/app.ts` — Express app setup, middleware, and route registration
 - `api/src/index.ts` — Server entry point
-- `api/src/db.ts` — Prisma client with LibSQL adapter
+- `api/src/db/index.ts` — Drizzle client with LibSQL
+- `api/src/db/schema.ts` — Drizzle table definitions
+- `api/src/db/migrate.ts` — Programmatic migration runner
 - `api/src/encryption.ts` — AES-256-GCM encrypt/decrypt functions
 - `api/src/middleware/auth.middleware.ts` — JWT verification middleware
 - `api/src/routes/proxy.ts` — Garage API proxy with credential decryption
@@ -342,31 +345,23 @@ Test fixtures (`e2e/fixtures.ts`) provide pre-authenticated page setup. Shared n
 ### Quick Commands
 
 ```bash
-pnpm -C api db:migrate   # Apply pending migrations (safe for production)
+pnpm -C api db:generate  # Generate migration SQL from schema changes
 pnpm -C api db:push      # Push schema directly (development only)
 pnpm -C api db:seed      # Run seed script
-pnpm -C api db:studio    # Open Prisma Studio GUI
+pnpm -C api db:studio    # Open Drizzle Studio GUI
 ```
 
 ### Schema Changes
 
-This project uses Prisma Migrate for schema management. The workflow:
+This project uses Drizzle Kit for schema management. The workflow:
 
-1. Edit `api/prisma/schema.prisma`
-2. Generate a migration: `pnpm -C api npx prisma migrate dev --name <description>`
-3. The migration SQL is saved to `api/prisma/migrations/` and committed to version control
+1. Edit `api/src/db/schema.ts`
+2. Generate a migration: `pnpm -C api db:generate --name=<description>`
+3. The migration SQL is saved to `api/drizzle/` and committed to version control
 
-In production (Docker), `prisma migrate deploy` runs automatically on container startup, applying any pending migrations safely without data loss.
+Migrations are applied automatically on application startup via `runMigrations()` in `api/src/db/migrate.ts`. No separate migration step is needed in Docker or CI.
 
 `db:push` is available for development convenience (e.g., rapid prototyping) but should not be used for production databases.
-
-### Regenerate Client
-
-After schema changes, regenerate the Prisma client:
-
-```bash
-pnpm -C api npx prisma generate
-```
 
 ---
 
@@ -447,9 +442,9 @@ For custom cluster components: create in `web/src/components/cluster/`.
 The `Dockerfile` uses a multi-stage build to produce a single image containing both the API and frontend:
 
 1. **Build stage** (`node:24-slim`) — installs dependencies, compiles TypeScript, builds the Vite frontend, and creates a standalone production deployment using `pnpm deploy --legacy`
-2. **Production stage** (`node:24-slim`) — copies the deployed API (with production-only `node_modules`) and the built frontend static files
+2. **Production stage** (`node:24-slim`) — copies the deployed API (with production-only `node_modules`), Drizzle migration files, and the built frontend static files
 
-In production, the Express server serves the frontend from `/app/static/` with SPA fallback (see `api/src/index.ts`). The frontend is built with `VITE_API_BASE_URL=/` so API requests go directly to the same origin — no separate reverse proxy is needed.
+In production, the Express server serves the frontend from `/app/static/` with SPA fallback (see `api/src/index.ts`). Database migrations run automatically on startup. The frontend is built with `VITE_API_BASE_URL=/` so API requests go directly to the same origin — no separate reverse proxy is needed.
 
 ### Key Files
 
@@ -500,11 +495,6 @@ pnpm approve-builds
 pnpm install
 ```
 
-**Prisma client not found**
-```bash
-pnpm -C api npx prisma generate
-```
-
 **Database connection errors**
 ```bash
 # Ensure api/data.db is readable/writable
@@ -521,7 +511,7 @@ lsof -ti:5173 | xargs kill -9   # Kill process on port 5173
 
 **TypeScript errors after pulling changes**
 ```bash
-pnpm -C api npx prisma generate
+pnpm install
 pnpm -C web build
 ```
 

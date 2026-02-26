@@ -1,5 +1,7 @@
 import { Router, type Request, type Response, type Router as ExpressRouter } from 'express';
-import prisma from '../db.js';
+import { eq } from 'drizzle-orm';
+import db from '../db/index.js';
+import { clusters } from '../db/schema.js';
 import { decrypt } from '../encryption.js';
 import axios from 'axios';
 import { logger } from '../logger.js';
@@ -18,9 +20,11 @@ router.all('/:clusterId/*splat', async (req: Request, res: Response) => {
   const pathPart = Array.isArray(splat) ? splat.join('/') : splat;
 
   try {
-    const cluster = await prisma.cluster.findUnique({
-      where: { id: String(clusterId) },
-    });
+    const [cluster] = await db
+      .select()
+      .from(clusters)
+      .where(eq(clusters.id, String(clusterId)))
+      .limit(1);
 
     if (!cluster) {
       return res.status(404).json({ error: 'Cluster not found' });

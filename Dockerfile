@@ -15,9 +15,6 @@ RUN pnpm install --frozen-lockfile
 COPY api/ api/
 COPY web/ web/
 
-# Generate Prisma client
-RUN cd api && npx prisma generate
-
 # Build API (TypeScript → JavaScript)
 RUN pnpm -C api build
 
@@ -29,29 +26,12 @@ RUN pnpm --filter api deploy --prod --legacy /deploy
 
 # Copy build artifacts into the deployed package
 RUN cp -r /src/api/dist /deploy/dist && \
-    cp -r /src/api/prisma /deploy/prisma && \
-    cp    /src/api/prisma.config.ts /deploy/prisma.config.ts
-
-# Generate Prisma client in the deploy context
-RUN cd /deploy && npx prisma generate
-
-# Remove files unnecessary in production
-RUN cd /deploy/node_modules && \
-    # Debian uses glibc — remove musl-only native binaries
-    find . -path '*linux-x64-musl*' -prune -exec rm -rf {} + && \
-    find . -path '*linux-arm64-musl*' -prune -exec rm -rf {} + && \
-    # This project only uses SQLite — remove query compiler WASM for other databases
-    find . -name 'query_compiler_*' \
-      ! -name '*sqlite*' \
-      \( -name '*.wasm' -o -name '*.wasm-base64.js' -o -name '*.wasm-base64.mjs' \) \
-      -delete && \
-    # Remove source maps and TypeScript declarations (not needed at runtime)
-    find . -name '*.js.map' -o -name '*.mjs.map' -o -name '*.d.ts' -o -name '*.d.mts' | xargs rm -f
+    cp -r /src/api/drizzle /deploy/drizzle
 
 # ---- Production stage ----
 FROM node:24-slim
 
-RUN apt-get update && apt-get install -y --no-install-recommends tini openssl && \
+RUN apt-get update && apt-get install -y --no-install-recommends tini && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -72,4 +52,4 @@ EXPOSE 3001
 
 # Use tini as PID 1 for proper signal handling
 ENTRYPOINT ["tini", "--"]
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/index.js"]
+CMD ["node", "dist/index.js"]

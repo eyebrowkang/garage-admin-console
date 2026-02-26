@@ -1,5 +1,9 @@
-import { PrismaClient } from '@prisma/client';
+import { count } from 'drizzle-orm';
 import pino from 'pino';
+
+import db from './index.js';
+import { clusters } from './schema.js';
+import { runMigrations } from './migrate.js';
 
 const logger = pino({
   level: 'info',
@@ -7,15 +11,16 @@ const logger = pino({
   timestamp: pino.stdTimeFunctions.isoTime,
 });
 
-const prisma = new PrismaClient();
-
 async function main() {
+  logger.info('Running migrations...');
+  await runMigrations();
+
   logger.info('Seeding database...');
 
   // Check if any clusters exist
-  const existingClusters = await prisma.cluster.count();
-  if (existingClusters > 0) {
-    logger.info({ count: existingClusters }, 'Database already has clusters. Skipping seed.');
+  const [result] = await db.select({ value: count() }).from(clusters);
+  if (result && result.value > 0) {
+    logger.info({ count: result.value }, 'Database already has clusters. Skipping seed.');
     return;
   }
 
@@ -30,11 +35,7 @@ async function main() {
   logger.info('  4. Click "Connect Cluster" to add a Garage cluster');
 }
 
-main()
-  .catch((e) => {
-    logger.error({ err: e }, 'Seed error');
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+main().catch((e) => {
+  logger.error({ err: e }, 'Seed error');
+  process.exit(1);
+});
