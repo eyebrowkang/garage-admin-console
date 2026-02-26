@@ -1,6 +1,11 @@
 # Changelog
 
-## [2.0.1](https://github.com/eyebrowkang/garage-admin-console/compare/v2.0.0...v2.0.1) (2026-02-26)
+## [2.1.0](https://github.com/eyebrowkang/garage-admin-console/compare/v2.0.0...v2.1.0) (2026-02-26)
+
+
+### Refactors
+
+* migrate from Prisma to Drizzle ORM ([#1](https://github.com/eyebrowkang/garage-admin-console/issues/1)) ([58e9cfb](https://github.com/eyebrowkang/garage-admin-console/commit/58e9cfb924efefda5a125ce144e7edd37407734f))
 
 
 ### Bug Fixes
@@ -10,7 +15,7 @@
 
 ### Miscellaneous
 
-* optimize docker image ([#1](https://github.com/eyebrowkang/garage-admin-console/issues/1)) ([58e9cfb](https://github.com/eyebrowkang/garage-admin-console/commit/58e9cfb924efefda5a125ce144e7edd37407734f))
+* optimize Docker image — switch to Alpine, reduce size from ~438MB to ~215MB ([#1](https://github.com/eyebrowkang/garage-admin-console/issues/1)) ([58e9cfb](https://github.com/eyebrowkang/garage-admin-console/commit/58e9cfb924efefda5a125ce144e7edd37407734f))
 
 ## v2.0.0 — Initial Release
 
