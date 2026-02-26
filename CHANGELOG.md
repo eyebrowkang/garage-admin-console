@@ -7,6 +7,11 @@
 
 * resolve UI issues and clarify Conventional Commits requirement ([#2](https://github.com/eyebrowkang/garage-admin-console/issues/2)) ([5dbd463](https://github.com/eyebrowkang/garage-admin-console/commit/5dbd46345587c29432d5085282f7957a4b77dc94))
 
+
+### Miscellaneous
+
+* optimize docker image ([#1](https://github.com/eyebrowkang/garage-admin-console/issues/1)) ([58e9cfb](https://github.com/eyebrowkang/garage-admin-console/commit/58e9cfb924efefda5a125ce144e7edd37407734f))
+
 ## v2.0.0 — Initial Release
 
 First stable release of Garage Admin Console.
