@@ -33,7 +33,7 @@ export function MainLayout() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 lg:px-8 py-5 sm:py-6">
+      <main className="w-full max-w-7xl mx-auto px-4 lg:px-8 py-5 sm:py-6">
         <Outlet />
       </main>
 
