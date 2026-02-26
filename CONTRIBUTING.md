@@ -48,7 +48,9 @@ pnpm test
 
 ## Commit Messages
 
-This project uses [Conventional Commits](https://www.conventionalcommits.org/). Each commit message should have the format:
+This project uses [Conventional Commits](https://www.conventionalcommits.org/) and is **required** for [Release Please](https://github.com/googleapis/release-please) to automatically generate changelogs and create release PRs. Non-conventional commits will be ignored by Release Please.
+
+Each commit message (and PR title for squash merges) should have the format:
 
 ```
 <type>: <description>
