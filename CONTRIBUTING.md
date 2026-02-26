@@ -32,6 +32,8 @@ See [DEVELOPMENT.md](./DEVELOPMENT.md) for full architecture details and advance
 
 ## Development Workflow
 
+**Never commit directly to `main`.** All changes — features, fixes, docs — must go through a feature branch and pull request.
+
 1. Fork the repository and create a feature branch from `main`.
 2. Make your changes.
 3. Run the checks:
