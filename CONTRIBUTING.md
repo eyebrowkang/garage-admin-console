@@ -75,6 +75,15 @@ fix: correct JWT expiry check on proxy routes
 docs: update Docker deployment instructions
 ```
 
+## Versioning
+
+This project's **major version tracks the upstream [Garage Admin API](https://garagehq.deuxfleurs.fr/) version**. For example, when the project targets Garage Admin API v2, the major version is `2.x.x`. A major version bump only happens when migrating to a new Garage API version — it does **not** follow traditional semver where any breaking change triggers a major bump.
+
+Within a major version, minor and patch bumps follow the usual conventions:
+
+- `fix:` commits → **patch** bump (e.g. `2.0.0` → `2.0.1`)
+- `feat:` / significant `refactor:` commits → **minor** bump (e.g. `2.0.1` → `2.1.0`)
+
 ## Code Style
 
 - **Prettier**: 100-char width, single quotes, trailing commas, semicolons, 2-space indent
