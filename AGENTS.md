@@ -119,6 +119,15 @@ The project builds as a single Docker image (see `Dockerfile`). The image serves
 
 See `api/.env.example` for all variables. Validation logic is in `api/src/config/env.ts`.
 
+## Git Workflow
+
+- **Never commit directly to `main`.** Always create a feature branch and open a pull request.
+- All commit messages and PR titles (for squash merges) must follow [Conventional Commits](https://www.conventionalcommits.org/) format (`type: description`). This is required for Release Please to generate changelogs and release PRs.
+
+## Versioning
+
+The major version tracks the upstream Garage Admin API version (e.g. API v2 → project `2.x.x`). Major bumps only happen when migrating to a new Garage API version. Within a major version: `fix:` → patch, `feat:` / significant `refactor:` → minor.
+
 ## Code Style
 
 - Prettier: 100-char width, single quotes, trailing commas, semicolons, 2-space indent
