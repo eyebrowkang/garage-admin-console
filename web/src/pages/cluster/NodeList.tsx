@@ -125,7 +125,7 @@ export function ClusterNodeList() {
     }
     setConnectError('');
     try {
-      await connectMutation.mutateAsync({ nodes: entries });
+      await connectMutation.mutateAsync(entries);
       toast({ title: 'Connect request sent' });
       setConnectDialogOpen(false);
       setConnectNodesInput('');
