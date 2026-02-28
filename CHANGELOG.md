@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.2](https://github.com/eyebrowkang/garage-admin-console/compare/v2.1.1...v2.1.2) (2026-02-28)
+
+
+### Bug Fixes
+
+* correct connect-cluster-nodes payload and refresh README docs ([#10](https://github.com/eyebrowkang/garage-admin-console/issues/10)) ([6b5a8a8](https://github.com/eyebrowkang/garage-admin-console/commit/6b5a8a81439a5736094271c15ed9af8d33234a1b))
+
 ## [2.1.1](https://github.com/eyebrowkang/garage-admin-console/compare/v2.1.0...v2.1.1) (2026-02-26)
 
 
