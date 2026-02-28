@@ -42,11 +42,11 @@ The console is available at **http://localhost:3001**.
 
 See `docker-compose.yml` for all available options. At minimum you must set:
 
-| Variable | Description |
-|----------|-------------|
-| `JWT_SECRET` | Random string for JWT signing |
+| Variable         | Description                                  |
+| ---------------- | -------------------------------------------- |
+| `JWT_SECRET`     | Random string for JWT signing                |
 | `ENCRYPTION_KEY` | Exactly 32 characters for AES-256 encryption |
-| `ADMIN_PASSWORD` | Console login password |
+| `ADMIN_PASSWORD` | Console login password                       |
 
 Data is persisted in the `/data` volume (SQLite database).
 
@@ -148,16 +148,16 @@ Browser → Frontend → BFF API → Garage Cluster
 
 ## Scripts
 
-| Command | Description |
-|---------|-------------|
-| `pnpm dev` | Start development servers |
-| `pnpm build` | Build for production |
-| `pnpm lint` | Run ESLint |
-| `pnpm format` | Format code with Prettier |
-| `pnpm -C web test` | Run unit tests |
-| `npx playwright test` | Run E2E tests |
-| `pnpm -C api db:push` | Push schema to database |
-| `pnpm -C api db:studio` | Open Drizzle Studio GUI |
+| Command                 | Description               |
+| ----------------------- | ------------------------- |
+| `pnpm dev`              | Start development servers |
+| `pnpm build`            | Build for production      |
+| `pnpm lint`             | Run ESLint                |
+| `pnpm format`           | Format code with Prettier |
+| `pnpm -C web test`      | Run unit tests            |
+| `npx playwright test`   | Run E2E tests             |
+| `pnpm -C api db:push`   | Push schema to database   |
+| `pnpm -C api db:studio` | Open Drizzle Studio GUI   |
 
 ## Security Notes
 
@@ -171,7 +171,7 @@ Browser → Frontend → BFF API → Garage Cluster
 This project is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0),
 consistent with the Garage project. See `LICENSE` for the full text.
 
-The following assets are sourced from the Garage project repository and are governed by
+The following assets are sourced from the [Garage project repository](https://git.deuxfleurs.fr/Deuxfleurs/garage) and are governed by
 Garage's own license terms:
 
 - Logo assets in `web/public/garage.svg`, `web/public/garage.png`,

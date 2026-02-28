@@ -232,9 +232,7 @@ export interface GetClusterStatisticsResponse {
   freeform: string;
 }
 
-export interface ConnectClusterNodesRequest {
-  nodes: string[]; // Format: node_id@address
-}
+export type ConnectClusterNodesRequest = string[]; // Format: node_id@address
 
 export type ScrubCommand = 'start' | 'pause' | 'resume' | 'cancel';
 
