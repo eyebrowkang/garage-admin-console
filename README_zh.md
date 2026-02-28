@@ -42,11 +42,11 @@ docker compose up -d
 
 查看 `docker-compose.yml` 了解所有可用选项。至少需要设置以下变量：
 
-| 变量 | 说明 |
-|------|------|
-| `JWT_SECRET` | 用于 JWT 签名的随机字符串 |
+| 变量             | 说明                              |
+| ---------------- | --------------------------------- |
+| `JWT_SECRET`     | 用于 JWT 签名的随机字符串         |
 | `ENCRYPTION_KEY` | 恰好 32 个字符，用于 AES-256 加密 |
-| `ADMIN_PASSWORD` | 控制台登录密码 |
+| `ADMIN_PASSWORD` | 控制台登录密码                    |
 
 数据持久化在 `/data` 卷中（SQLite 数据库）。
 
@@ -148,16 +148,16 @@ garage-admin-console/
 
 ## 常用脚本
 
-| 命令 | 说明 |
-|------|------|
-| `pnpm dev` | 启动开发服务器 |
-| `pnpm build` | 生产构建 |
-| `pnpm lint` | 运行 ESLint |
-| `pnpm format` | 使用 Prettier 格式化代码 |
-| `pnpm -C web test` | 运行单元测试 |
-| `npx playwright test` | 运行端到端测试 |
-| `pnpm -C api db:push` | 推送数据库架构 |
-| `pnpm -C api db:studio` | 打开 Drizzle Studio GUI |
+| 命令                    | 说明                     |
+| ----------------------- | ------------------------ |
+| `pnpm dev`              | 启动开发服务器           |
+| `pnpm build`            | 生产构建                 |
+| `pnpm lint`             | 运行 ESLint              |
+| `pnpm format`           | 使用 Prettier 格式化代码 |
+| `pnpm -C web test`      | 运行单元测试             |
+| `npx playwright test`   | 运行端到端测试           |
+| `pnpm -C api db:push`   | 推送数据库架构           |
+| `pnpm -C api db:studio` | 打开 Drizzle Studio GUI  |
 
 ## 安全注意事项
 
@@ -171,7 +171,7 @@ garage-admin-console/
 本项目采用 GNU Affero 通用公共许可证 v3.0（AGPL-3.0）授权，
 与 Garage 项目保持一致。完整条款请参阅 `LICENSE` 文件。
 
-以下资源来源于 Garage 项目仓库，受 Garage 自身许可条款约束：
+以下资源来源于 [Garage 项目仓库](https://git.deuxfleurs.fr/Deuxfleurs/garage)，受 Garage 自身许可条款约束：
 
 - `web/public/garage.svg`、`web/public/garage.png`、`web/public/garage-notext.svg` 和 `web/public/garage-notext.png` 中的 Logo 资源
 - `web/public/garage-admin-v2.json` 中的 OpenAPI 规范
