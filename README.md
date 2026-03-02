@@ -22,6 +22,12 @@ A modern web-based administration interface for managing [Garage](https://garage
 - **Admin Token Management** - Manage API tokens with scoped permissions
 - **Secure Credential Storage** - AES-256-GCM encrypted storage for Garage admin tokens
 
+## Screenshots
+
+![Cluster Overview](./screenshots/overview.png)
+
+See all screenshots in **[screenshots/README.md](./screenshots/README.md)**.
+
 ## Quick Start (Docker)
 
 The easiest way to run the console is with Docker. A single image bundles both the frontend and API.
