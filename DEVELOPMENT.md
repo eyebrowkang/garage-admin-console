@@ -444,7 +444,7 @@ The `Dockerfile` uses a multi-stage build to produce a single image containing b
 1. **Build stage** (`node:24-alpine`) — installs dependencies, compiles TypeScript, builds the Vite frontend, and creates a standalone production deployment using `pnpm deploy --legacy`
 2. **Production stage** (`node:24-alpine`) — copies the deployed API (with production-only `node_modules`), Drizzle migration files, and the built frontend static files
 
-In production, the Express server serves the frontend from `/app/static/` with SPA fallback (see `api/src/index.ts`). Database migrations run automatically on startup. The frontend is built with `VITE_API_BASE_URL=/` so API requests go directly to the same origin — no separate reverse proxy is needed.
+In production, the Express server serves the frontend from `/app/static/` with SPA fallback (see `api/src/index.ts`). Database migrations run automatically on startup. All API routes are mounted under the `/api` prefix (matching the frontend's default `VITE_API_BASE_URL=/api`), which avoids collisions between SPA client-side routes and server API routes.
 
 ### Key Files
 

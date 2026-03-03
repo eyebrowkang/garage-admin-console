@@ -48,7 +48,7 @@ describe('proxy', () => {
     });
 
     const res = await request(app)
-      .post(`/proxy/${cluster!.id}/v2/TestArray`)
+      .post(`/api/proxy/${cluster!.id}/v2/TestArray`)
       .set(authHeader())
       .send([1, 2, 3]);
 
@@ -79,7 +79,7 @@ describe('proxy', () => {
     });
 
     const res = await request(app)
-      .post(`/proxy/${cluster!.id}/v2/TestString`)
+      .post(`/api/proxy/${cluster!.id}/v2/TestString`)
       .set(authHeader())
       .set('Content-Type', 'application/json')
       .send('"hello"');
@@ -114,7 +114,7 @@ describe('proxy', () => {
     });
 
     const res = await request(app)
-      .get(`/proxy/${cluster!.id}/v2/TestHeaders`)
+      .get(`/api/proxy/${cluster!.id}/v2/TestHeaders`)
       .set(authHeader());
 
     expect(res.status).toBe(200);

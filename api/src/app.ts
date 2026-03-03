@@ -35,8 +35,8 @@ if (env.httpLogFormat) {
 app.use(express.json({ strict: false }));
 
 // Public routes
-app.use('/auth', authRouter);
-app.get('/health', async (_req, res) => {
+app.use('/api/auth', authRouter);
+app.get('/api/health', async (_req, res) => {
   try {
     await db.run(sql`SELECT 1`);
     res.json({ status: 'ok', timestamp: new Date() });
@@ -46,5 +46,5 @@ app.get('/health', async (_req, res) => {
 });
 
 // Protected routes
-app.use('/clusters', authenticateToken, clusterRouter);
-app.use('/proxy', authenticateToken, proxyRouter);
+app.use('/api/clusters', authenticateToken, clusterRouter);
+app.use('/api/proxy', authenticateToken, proxyRouter);

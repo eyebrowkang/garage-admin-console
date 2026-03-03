@@ -18,8 +18,8 @@ COPY web/ web/
 # Build API (TypeScript → JavaScript)
 RUN pnpm -C api build
 
-# Build frontend with empty API prefix (served from same origin in production)
-RUN VITE_API_BASE_URL=/ pnpm -C web build
+# Build frontend (uses default /api prefix, matching the Express route mount)
+RUN pnpm -C web build
 
 # Deploy API package with production dependencies only
 RUN pnpm --filter api deploy --prod --legacy /deploy
