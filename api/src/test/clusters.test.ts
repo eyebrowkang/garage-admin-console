@@ -26,7 +26,7 @@ beforeEach(async () => {
 describe('clusters', () => {
   it('returns 404 when updating missing cluster', async () => {
     const res = await request(app)
-      .put('/clusters/missing-id')
+      .put('/api/clusters/missing-id')
       .set(authHeader())
       .send({ name: 'Missing' });
 
@@ -34,13 +34,13 @@ describe('clusters', () => {
   });
 
   it('returns 404 when deleting missing cluster', async () => {
-    const res = await request(app).delete('/clusters/missing-id').set(authHeader());
+    const res = await request(app).delete('/api/clusters/missing-id').set(authHeader());
 
     expect(res.status).toBe(404);
   });
 
   it('supports clearing metricToken with null', async () => {
-    const createRes = await request(app).post('/clusters').set(authHeader()).send({
+    const createRes = await request(app).post('/api/clusters').set(authHeader()).send({
       name: 'Test Cluster',
       endpoint: 'http://localhost:9999',
       adminToken: 'admin-token',
@@ -52,7 +52,7 @@ describe('clusters', () => {
     const clusterId = createRes.body.id as string;
 
     const updateRes = await request(app)
-      .put(`/clusters/${clusterId}`)
+      .put(`/api/clusters/${clusterId}`)
       .set(authHeader())
       .send({ metricToken: null });
 
