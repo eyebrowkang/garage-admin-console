@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.3](https://github.com/eyebrowkang/garage-admin-console/compare/v2.1.2...v2.1.3) (2026-03-03)
+
+
+### Bug Fixes
+
+* add /api prefix to Express routes to prevent SPA route collisions ([#13](https://github.com/eyebrowkang/garage-admin-console/issues/13)) ([decf3b9](https://github.com/eyebrowkang/garage-admin-console/commit/decf3b9642ff32358564ed3b12cc0b7ecda3abfa))
+
 ## [2.1.2](https://github.com/eyebrowkang/garage-admin-console/compare/v2.1.1...v2.1.2) (2026-02-28)
 
 
