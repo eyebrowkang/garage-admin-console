@@ -5,6 +5,7 @@ import db from './db/index.js';
 import healthRouter from './routes/health.js';
 import authRouter from './routes/auth.js';
 import connectionRouter from './routes/connections.js';
+import s3Router from './routes/s3.js';
 import { authenticateToken } from './middleware/auth.middleware.js';
 
 export const app: Express = express();
@@ -25,3 +26,4 @@ app.get('/api/health/db', async (_req, res) => {
 
 // Protected routes
 app.use('/api/connections', authenticateToken, connectionRouter);
+app.use('/api/s3', authenticateToken, s3Router);
