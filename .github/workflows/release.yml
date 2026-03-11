@@ -46,6 +46,15 @@ jobs:
       - name: Test web
         run: pnpm -C apps/admin/web test:run
 
+      - name: Typecheck S3 API
+        run: pnpm -C apps/s3-browser/api typecheck
+
+      - name: Build S3 web
+        run: pnpm -C apps/s3-browser/web build
+
+      - name: Test S3 web
+        run: pnpm -C apps/s3-browser/web test:run
+
   build-and-push:
     needs: check
     runs-on: ubuntu-latest

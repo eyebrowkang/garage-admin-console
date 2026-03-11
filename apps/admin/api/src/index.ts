@@ -15,6 +15,12 @@ if (staticDir) {
   const resolved = path.resolve(staticDir);
   app.use(express.static(resolved));
 
+  // TODO: Serve S3 Browser remote assets in combined deployment
+  // const s3BrowserDir = process.env.S3_BROWSER_STATIC_DIR;
+  // if (s3BrowserDir) {
+  //   app.use('/s3-browser', express.static(path.resolve(s3BrowserDir)));
+  // }
+
   // SPA fallback: serve index.html for unmatched GET requests that accept HTML
   app.use((req, res, next) => {
     if (req.method === 'GET' && req.accepts('html')) {
