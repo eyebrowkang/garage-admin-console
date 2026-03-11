@@ -3,8 +3,10 @@ import { createContext, useContext, type ReactNode } from 'react';
 
 export interface S3EmbedConfig {
   apiBase: string;
+  connectionId: string;
   bucket?: string;
   readonly?: boolean;
+  token?: string;
 }
 
 const S3EmbedContext = createContext<S3EmbedConfig | null>(null);
