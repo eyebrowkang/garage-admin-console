@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import React, { Suspense, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Globe, Tags, Settings, RefreshCw, Pencil } from 'lucide-react';
+import { Globe, Tags, Settings, RefreshCw, Pencil, FolderOpen } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -50,7 +50,15 @@ import { DeleteActionIcon } from '@/lib/action-icons';
 import { KeyIcon } from '@/lib/entity-icons';
 import { formatBytes, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
+import { api } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
+
+const RemoteS3EmbedProvider = React.lazy(() =>
+  import('s3_browser/S3EmbedProvider').then((m) => ({ default: m.S3EmbedProvider })),
+);
+const RemoteObjectBrowser = React.lazy(() =>
+  import('s3_browser/ObjectBrowser').then((m) => ({ default: m.ObjectBrowser })),
+);
 
 export function BucketDetail() {
   const { bid } = useParams<{ bid: string }>();
@@ -83,6 +91,18 @@ export function BucketDetail() {
     write: boolean;
     owner: boolean;
   } | null>(null);
+
+  // Object Browser state
+  const [browseConfig, setBrowseConfig] = useState<{
+    connectionId: string;
+    token: string;
+    apiBase: string;
+    bucketName: string;
+    readonly: boolean;
+  } | null>(null);
+  const [browseKeyId, setBrowseKeyId] = useState('');
+  const [browseConnecting, setBrowseConnecting] = useState(false);
+  const [browseError, setBrowseError] = useState('');
 
   const { data: bucket, isLoading, error } = useBucketInfo(clusterId, bid || '');
   const updateBucketMutation = useUpdateBucket(clusterId, bid || '');
@@ -304,6 +324,29 @@ export function BucketDetail() {
     }
   };
 
+  const readableKeys = bucket?.keys.filter((k) => k.permissions.read) ?? [];
+
+  const handleBrowseConnect = async () => {
+    if (!browseKeyId || !bucket) return;
+    setBrowseConnecting(true);
+    setBrowseError('');
+    try {
+      const selectedKey = bucket.keys.find((k) => k.accessKeyId === browseKeyId);
+      const res = await api.post(`/s3-bridge/${clusterId}/connect`, {
+        bucketId: bid,
+        accessKeyId: browseKeyId,
+      });
+      setBrowseConfig({
+        ...res.data,
+        readonly: !selectedKey?.permissions.write,
+      });
+    } catch (err) {
+      setBrowseError(getApiErrorMessage(err));
+    } finally {
+      setBrowseConnecting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <DetailPageHeader
@@ -339,6 +382,88 @@ export function BucketDetail() {
               </div>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Object Browser Section */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <FolderOpen className="h-5 w-5" />
+                Object Browser
+              </CardTitle>
+              <CardDescription>
+                Browse and manage objects in this bucket via S3 Browser
+              </CardDescription>
+            </div>
+            {browseConfig && (
+              <Button variant="outline" size="sm" onClick={() => setBrowseConfig(null)}>
+                Disconnect
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          {!browseConfig ? (
+            <div className="space-y-4">
+              {readableKeys.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No access keys with read permission on this bucket. Add a key with read access in
+                  the Key Permissions section below.
+                </p>
+              ) : (
+                <>
+                  <div className="flex items-end gap-3">
+                    <div className="flex-1 space-y-2">
+                      <Label>Access Key</Label>
+                      <Select value={browseKeyId} onValueChange={setBrowseKeyId}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select an access key" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {readableKeys.map((key) => (
+                            <SelectItem key={key.accessKeyId} value={key.accessKeyId}>
+                              {key.name || formatShortId(key.accessKeyId, 12)}
+                              {key.permissions.write ? ' (read + write)' : ' (read only)'}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button
+                      onClick={handleBrowseConnect}
+                      disabled={!browseKeyId || browseConnecting}
+                    >
+                      <FolderOpen className="mr-2 h-4 w-4" />
+                      {browseConnecting ? 'Connecting...' : 'Browse Objects'}
+                    </Button>
+                  </div>
+                  {browseError && (
+                    <Alert variant="destructive">
+                      <AlertTitle>Connection failed</AlertTitle>
+                      <AlertDescription>{browseError}</AlertDescription>
+                    </Alert>
+                  )}
+                </>
+              )}
+            </div>
+          ) : (
+            <Suspense fallback={<PageLoadingState label="Loading Object Browser..." />}>
+              <RemoteS3EmbedProvider
+                config={{
+                  apiBase: browseConfig.apiBase,
+                  connectionId: browseConfig.connectionId,
+                  bucket: browseConfig.bucketName,
+                  readonly: browseConfig.readonly,
+                  token: browseConfig.token,
+                }}
+              >
+                <RemoteObjectBrowser bucket={browseConfig.bucketName} />
+              </RemoteS3EmbedProvider>
+            </Suspense>
+          )}
         </CardContent>
       </Card>
 

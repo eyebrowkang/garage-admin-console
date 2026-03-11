@@ -62,6 +62,9 @@ if (morganFormatRaw) {
   httpLogFormat = nodeEnv === 'production' ? null : 'dev';
 }
 
+const s3BrowserApiUrl = process.env.S3_BROWSER_API_URL?.replace(/\/$/, '') || '';
+const s3BrowserAdminPassword = process.env.S3_BROWSER_ADMIN_PASSWORD || '';
+
 export const env = {
   nodeEnv,
   port,
@@ -71,4 +74,6 @@ export const env = {
   logLevel,
   logPretty,
   httpLogFormat,
+  s3BrowserApiUrl,
+  s3BrowserAdminPassword,
 };

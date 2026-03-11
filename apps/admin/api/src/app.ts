@@ -9,6 +9,7 @@ import db from './db/index.js';
 import clusterRouter from './routes/clusters.js';
 import authRouter from './routes/auth.js';
 import proxyRouter from './routes/proxy.js';
+import s3BridgeRouter from './routes/s3-bridge.js';
 import { authenticateToken } from './middleware/auth.middleware.js';
 
 export const app: Express = express();
@@ -48,3 +49,4 @@ app.get('/api/health', async (_req, res) => {
 // Protected routes
 app.use('/api/clusters', authenticateToken, clusterRouter);
 app.use('/api/proxy', authenticateToken, proxyRouter);
+app.use('/api/s3-bridge', authenticateToken, s3BridgeRouter);
