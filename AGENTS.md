@@ -4,38 +4,53 @@ Always use Context7 MCP when I need library/API documentation, code generation, 
 
 ## Project Overview
 
-Garage Admin Console — a web-based administration interface for managing [Garage](https://garagehq.deuxfleurs.fr/) object storage clusters.
+Garage Admin Console — a web-based administration interface for managing [Garage](https://garagehq.deuxfleurs.fr/) object storage clusters. Includes a companion S3 Browser app for managing objects in S3-compatible storage buckets.
 
 ## Commands
 
 ```bash
 pnpm install              # Install dependencies (run pnpm approve-builds if native builds are blocked)
-pnpm dev                  # Start both API (port 3001) and web (Vite dev server) concurrently
-pnpm build                # Build both packages (api then web)
-pnpm lint                 # Lint both packages
+pnpm dev                  # Start all apps (admin + s3-browser) concurrently
+pnpm dev:admin            # Start admin API (port 3001) and web (port 5173) only
+pnpm dev:s3               # Start s3-browser API (port 3002) and web (port 5174) only
+pnpm build                # Build all packages
+pnpm lint                 # Lint all packages
 pnpm lint:fix             # Auto-fix lint issues
 pnpm format               # Format all code with Prettier
 pnpm format:check         # Check formatting without writing
+pnpm typecheck            # Type-check all packages
+pnpm test                 # Run all tests
 
 # Run commands for a single package:
-pnpm -C api <script>      # e.g. pnpm -C api dev, pnpm -C api typecheck
-pnpm -C web <script>      # e.g. pnpm -C web dev, pnpm -C web build
-
-# Type checking (api only):
-pnpm -C api typecheck     # tsc --noEmit
+pnpm -C apps/admin/api <script>       # e.g. pnpm -C apps/admin/api dev
+pnpm -C apps/admin/web <script>       # e.g. pnpm -C apps/admin/web build
+pnpm -C apps/s3-browser/api <script>  # e.g. pnpm -C apps/s3-browser/api dev
+pnpm -C apps/s3-browser/web <script>  # e.g. pnpm -C apps/s3-browser/web build
 
 # Testing:
-pnpm -C web test          # Run unit tests in watch mode (Vitest)
-pnpm -C web test:run      # Run unit tests once
 npx playwright test       # Run E2E tests (Playwright)
 ```
 
 ## Architecture
 
-**Monorepo** (pnpm workspace) with two packages:
+**Monorepo** (pnpm workspace) with apps and shared packages:
 
-- **`api/`** — Backend-For-Frontend (BFF) service: Express 5, Drizzle ORM (SQLite via LibSQL), TypeScript
-- **`web/`** — Frontend SPA: React 19, Vite, TanStack React Query, Tailwind CSS, TypeScript
+### Apps
+
+- **`apps/admin/api/`** — Admin BFF service: Express 5, Drizzle ORM (SQLite via LibSQL), TypeScript
+- **`apps/admin/web/`** — Admin frontend SPA: React 19, Vite, TanStack React Query, Tailwind CSS, TypeScript (MF host)
+- **`apps/s3-browser/api/`** — S3 Browser BFF service: Express 5, TypeScript
+- **`apps/s3-browser/web/`** — S3 Browser frontend SPA: React 19, Vite, Tailwind CSS, TypeScript (MF remote)
+
+### Shared Packages
+
+- **`packages/tsconfig/`** — Shared TypeScript configs (base, react, node)
+- **`packages/ui/`** — Shared UI components (cn(), Button, Card) with shadcn/ui
+- **`packages/auth/`** — Shared JWT auth middleware factory
+
+### Module Federation
+
+Admin web (host) loads components from s3-browser web (remote) via `@module-federation/vite`. Shared singletons: react, react-dom, react-router-dom, @tanstack/react-query. The s3-browser exposes `ObjectBrowser`, `BucketExplorer`, and `S3EmbedProvider` components.
 
 ### Data Flow (BFF Proxy Pattern)
 
@@ -45,9 +60,9 @@ The frontend never talks to Garage clusters directly. All Garage API calls go th
 Browser → /proxy/:clusterId/* → BFF decrypts stored admin token → forwards to Garage cluster endpoint
 ```
 
-### API Routes (`api/src/routes/`)
+### Admin API Routes (`apps/admin/api/src/routes/`)
 
-Routes are registered in `api/src/app.ts`.
+Routes are registered in `apps/admin/api/src/app.ts`.
 
 | Route                     | Auth | Purpose                         |
 | ------------------------- | ---- | ------------------------------- |
@@ -59,17 +74,17 @@ Routes are registered in `api/src/app.ts`.
 | `DELETE /clusters/:id`    | JWT  | Remove cluster                  |
 | `ALL /proxy/:clusterId/*` | JWT  | Proxy to Garage admin API       |
 
-### Frontend Structure (`web/src/`)
+### Frontend Structure (`apps/admin/web/src/`)
 
-- **Routing** (React Router v7, defined in `App.tsx`): `/login`, `/` (Dashboard), `/clusters/:id` (ClusterDetail with sidebar navigation)
+- **Routing** (React Router v7, defined in `App.tsx`): `/login`, `/` (Dashboard), `/clusters/:id` (ClusterDetail with sidebar navigation), `/s3-test` (MF test route)
 - **Pages**: `Login`, `Dashboard` (cluster list/management), Cluster pages (Overview, Buckets, Keys, Nodes, Layout, Admin Tokens, Workers, Blocks, Metrics)
 - **API client** (`lib/api.ts`): Axios instance with JWT interceptor; 401/403 → redirect to login
 - **UI**: shadcn/ui components (`components/ui/`) built on Radix UI primitives, styled with Tailwind
-- **Path alias**: `@` → `web/src/`
+- **Path alias**: `@` → `apps/admin/web/src/`
 
-### Database Schema (`api/src/db/schema.ts`)
+### Database Schema (`apps/admin/api/src/db/schema.ts`)
 
-Two tables defined with Drizzle ORM: `Cluster` (id, name, endpoint, adminToken encrypted, metricToken encrypted optional, timestamps) and `AppSettings` (key-value). Migrations are in `api/drizzle/` and run automatically on startup.
+Two tables defined with Drizzle ORM: `Cluster` (id, name, endpoint, adminToken encrypted, metricToken encrypted optional, timestamps) and `AppSettings` (key-value). Migrations are in `apps/admin/api/drizzle/` and run automatically on startup.
 
 ## Frontend UX/UI design principles and approach
 
@@ -91,7 +106,7 @@ After clicking on a bucket, you enter the detail page, where you can see more in
 
 ### UI
 
-The theme color is orange `rgb(255, 148, 41)`. The logo comes from Garage official assets and is located in the `web/public` directory.
+The theme color is orange `rgb(255, 148, 41)`. The logo comes from Garage official assets and is located in the `apps/admin/web/public` directory.
 The overall style is light-themed, and switching to a dark theme is not supported for now.
 The page should not use too many colors; keep the style simple.
 Red represents errors, green represents health, purple represents warnings.
@@ -101,23 +116,32 @@ Pages at different hierarchy levels should have slight differences.
 
 ## Key Files
 
-- `web/public/garage-admin-v2.json` — Garage OpenAPI spec (reference for all admin API endpoints)
-- `api/src/app.ts` — Express app setup and route registration
-- `api/src/encryption.ts` — AES-256-GCM encrypt/decrypt for Garage tokens
-- `api/src/middleware/auth.middleware.ts` — JWT verification middleware
-- `api/src/db/index.ts` — Drizzle client initialization with LibSQL
-- `api/src/db/schema.ts` — Drizzle table definitions
-- `api/src/db/migrate.ts` — Programmatic migration runner
-- `web/src/types/garage.ts` — TypeScript interfaces for Garage API responses
-- `web/src/lib/api.ts` — Axios instance, interceptors, `proxyPath()` helper
+- `apps/admin/web/public/garage-admin-v2.json` — Garage OpenAPI spec (reference for all admin API endpoints)
+- `apps/admin/api/src/app.ts` — Express app setup and route registration
+- `apps/admin/api/src/encryption.ts` — AES-256-GCM encrypt/decrypt for Garage tokens
+- `apps/admin/api/src/middleware/auth.middleware.ts` — JWT verification middleware
+- `apps/admin/api/src/db/index.ts` — Drizzle client initialization with LibSQL
+- `apps/admin/api/src/db/schema.ts` — Drizzle table definitions
+- `apps/admin/api/src/db/migrate.ts` — Programmatic migration runner
+- `apps/admin/web/src/types/garage.ts` — TypeScript interfaces for Garage API responses
+- `apps/admin/web/src/lib/api.ts` — Axios instance, interceptors, `proxyPath()` helper
+- `packages/auth/src/middleware.ts` — Configurable JWT auth middleware factory
+- `packages/ui/src/index.ts` — Shared UI components barrel export
 
 ## Docker
 
-The project builds as a single Docker image (see `Dockerfile`). The image serves both the API and frontend from one Express process. Key production environment variables: `DATA_DIR` (database directory, default `/data`), `STATIC_DIR` (frontend files, default `/app/static`). See `docker-compose.yml` for a complete example.
+Three deployment modes via Dockerfiles in the `docker/` directory:
 
-## Environment Variables (api/.env)
+- **`docker/admin.Dockerfile`** — Standalone admin console
+- **`docker/s3-browser.Dockerfile`** — Standalone S3 browser
+- **`docker/combined.Dockerfile`** — Both apps in one image
 
-See `api/.env.example` for all variables. Validation logic is in `api/src/config/env.ts`.
+Key production environment variables: `DATA_DIR` (database directory, default `/data`), `STATIC_DIR` (frontend files, default `/app/static`). See `docker-compose.yml` for a complete example.
+
+## Environment Variables
+
+- Admin API: see `apps/admin/api/.env.example`. Validation in `apps/admin/api/src/config/env.ts`.
+- S3 Browser API: see `apps/s3-browser/api/.env.example`. Validation in `apps/s3-browser/api/src/config/env.ts`.
 
 ## Git Workflow
 
@@ -132,4 +156,4 @@ The major version tracks the upstream Garage Admin API version (e.g. API v2 → 
 
 - Prettier: 100-char width, single quotes, trailing commas, semicolons, 2-space indent
 - ESLint 9 flat config with TypeScript rules; React Hooks + React Refresh plugins on frontend
-- Both packages use ES modules and strict TypeScript
+- All packages use ES modules and strict TypeScript
