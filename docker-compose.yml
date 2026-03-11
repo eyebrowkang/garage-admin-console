@@ -4,7 +4,9 @@ services:
     # Alternative registries:
     #   image: eyebrowkang/garage-admin-console:latest        # Docker Hub
     # To build locally instead of using a pre-built image:
-    #   build: .
+    #   build:
+    #     context: .
+    #     dockerfile: docker/admin.Dockerfile
     ports:
       - '3001:3001'
     volumes:

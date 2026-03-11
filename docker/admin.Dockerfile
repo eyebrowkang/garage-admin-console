@@ -7,26 +7,26 @@ WORKDIR /src
 
 # Install dependencies (cached layer)
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY api/package.json api/
-COPY web/package.json web/
+COPY apps/admin/api/package.json apps/admin/api/
+COPY apps/admin/web/package.json apps/admin/web/
 RUN pnpm install --frozen-lockfile
 
 # Copy source
-COPY api/ api/
-COPY web/ web/
+COPY apps/admin/api/ apps/admin/api/
+COPY apps/admin/web/ apps/admin/web/
 
 # Build API (TypeScript → JavaScript)
-RUN pnpm -C api build
+RUN pnpm -C apps/admin/api build
 
 # Build frontend (uses default /api prefix, matching the Express route mount)
-RUN pnpm -C web build
+RUN pnpm -C apps/admin/web build
 
 # Deploy API package with production dependencies only
-RUN pnpm --filter api deploy --prod --legacy /deploy
+RUN pnpm --filter @garage-admin/admin-api deploy --prod --legacy /deploy
 
 # Copy build artifacts into the deployed package
-RUN cp -r /src/api/dist /deploy/dist && \
-    cp -r /src/api/drizzle /deploy/drizzle
+RUN cp -r /src/apps/admin/api/dist /deploy/dist && \
+    cp -r /src/apps/admin/api/drizzle /deploy/drizzle
 
 # ---- Production stage ----
 FROM node:24-alpine
@@ -39,7 +39,7 @@ WORKDIR /app
 COPY --from=build /deploy/ .
 
 # Copy frontend build
-COPY --from=build /src/web/dist/ /app/static/
+COPY --from=build /src/apps/admin/web/dist/ /app/static/
 
 ENV NODE_ENV=production
 ENV DATA_DIR=/data
