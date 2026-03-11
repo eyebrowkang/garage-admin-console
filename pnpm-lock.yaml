@@ -239,6 +239,9 @@ importers:
       '@garage-admin/auth':
         specifier: workspace:*
         version: link:../../../packages/auth
+      dotenv:
+        specifier: ^17.2.4
+        version: 17.3.1
       express:
         specifier: ^5.2.1
         version: 5.2.1
