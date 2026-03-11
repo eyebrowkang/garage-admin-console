@@ -102,10 +102,17 @@ router.post('/:clusterId/connect', async (req, res) => {
       });
       s3Token = loginRes.data.token;
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      logger.error({ err }, 'Failed to login to S3 Browser API');
+      const status =
+        typeof err === 'object' && err !== null && 'response' in err
+          ? (err as { response?: { status?: number } }).response?.status
+          : undefined;
+
+      logger.error({ err, status }, 'Failed to login to S3 Browser API');
       return res.status(502).json({
-        error: `Cannot connect to S3 Browser API: ${message}`,
+        error:
+          status === 401 || status === 403
+            ? 'Failed to authenticate with S3 Browser API'
+            : 'Cannot connect to S3 Browser API',
       });
     }
 
