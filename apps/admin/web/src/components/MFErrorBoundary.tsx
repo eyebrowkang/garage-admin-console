@@ -4,6 +4,7 @@ import { Alert, AlertDescription, AlertTitle } from '@garage-admin/ui';
 interface Props {
   children: ReactNode;
   fallback?: ReactNode;
+  resetKey?: string | number | boolean | null;
 }
 
 interface State {
@@ -22,6 +23,12 @@ export class MFErrorBoundary extends Component<Props, State> {
     return { hasError: true };
   }
 
+  componentDidUpdate(prevProps: Props) {
+    if (this.state.hasError && prevProps.resetKey !== this.props.resetKey) {
+      this.setState({ hasError: false });
+    }
+  }
+
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.warn('Module Federation component failed to load:', error.message, info.componentStack);
   }
@@ -33,8 +40,8 @@ export class MFErrorBoundary extends Component<Props, State> {
           <Alert>
             <AlertTitle>S3 Browser not available</AlertTitle>
             <AlertDescription>
-              The S3 Browser module could not be loaded. This feature requires the S3 Browser
-              service to be deployed alongside the admin console.
+              The S3 Browser module could not be loaded. Bucket management still works here, and
+              embedded object browsing requires a reachable S3 Browser deployment.
             </AlertDescription>
           </Alert>
         )

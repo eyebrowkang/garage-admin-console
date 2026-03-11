@@ -21,6 +21,7 @@ import { AddActionIcon } from '@/lib/action-icons';
 import { api, proxyPath } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/errors';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
+import { PageLoadingState } from '@/components/cluster/PageLoadingState';
 import { ClusterStatusMonitor } from '@/components/dashboard/ClusterStatusMonitor';
 import { toast } from '@/hooks/use-toast';
 import { useClusters } from '@/hooks/useClusters';
@@ -249,12 +250,9 @@ export default function Dashboard() {
     updateMutation.mutate({ id: editCluster.id, data: payload });
   };
 
-  if (isLoading)
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
+  if (isLoading) {
+    return <PageLoadingState label="Loading dashboard..." />;
+  }
 
   return (
     <div className="space-y-8">
@@ -352,19 +350,19 @@ export default function Dashboard() {
 
       {/* Empty State */}
       {clusters.length === 0 && (
-        <Card className="border-dashed border-2 bg-muted/30">
-          <CardContent className="h-64 flex flex-col items-center justify-center text-center p-8 space-y-4">
-            <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+        <Card className="border-2 border-dashed bg-muted/20 shadow-none">
+          <CardContent className="flex min-h-[18rem] flex-col items-center justify-center gap-5 p-10 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
               <AddActionIcon className="h-8 w-8 text-primary" />
             </div>
-            <div>
-              <h3 className="text-lg font-semibold">No clusters connected</h3>
-              <p className="text-muted-foreground">
-                Start by connecting your first Garage cluster.
+            <div className="max-w-md space-y-2">
+              <h3 className="text-xl font-semibold">No clusters configured yet</h3>
+              <p className="text-sm text-muted-foreground">
+                Connect a Garage cluster to see health, capacity, and operations here.
               </p>
             </div>
             <Button variant="outline" onClick={() => setIsCreateDialogOpen(true)}>
-              Connect Now
+              Connect your first cluster
             </Button>
           </CardContent>
         </Card>
