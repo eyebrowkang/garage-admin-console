@@ -1,4 +1,4 @@
-import { Router, type Router as ExpressRouter, type Request } from 'express';
+import { Router, type Router as ExpressRouter } from 'express';
 import {
   ListBucketsCommand,
   ListObjectsV2Command,
@@ -7,13 +7,13 @@ import {
   DeleteObjectCommand,
   HeadObjectCommand,
 } from '@aws-sdk/client-s3';
-import multer from 'multer';
+import { Upload } from '@aws-sdk/lib-storage';
+import busboy from 'busboy';
 import { Readable } from 'stream';
 import { getConnectionWithCredentials } from './connections.js';
 import { createS3Client } from '../lib/s3-client.js';
 
 const router: ExpressRouter = Router();
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 500 * 1024 * 1024 } });
 
 // Helper to get S3 client from connection ID
 async function getClientAndConnection(connectionId: string) {
@@ -169,46 +169,108 @@ router.get('/:connectionId/objects/info', async (req, res) => {
   }
 });
 
-// POST /api/s3/:connectionId/objects/upload — Upload a file
-router.post(
-  '/:connectionId/objects/upload',
-  upload.single('file'),
-  async (req: Request, res) => {
-    try {
-      const connectionId = req.params.connectionId as string;
-      const bucket = req.body.bucket as string;
-      const key = req.body.key as string;
+// POST /api/s3/:connectionId/objects/upload — Upload a file (streaming multipart)
+router.post('/:connectionId/objects/upload', async (req, res) => {
+  try {
+    const connectionId = req.params.connectionId as string;
 
-      if (!bucket || !key) {
-        return res.status(400).json({ error: 'bucket and key are required' });
-      }
-
-      if (!req.file) {
-        return res.status(400).json({ error: 'file is required' });
-      }
-
-      const result = await getClientAndConnection(connectionId);
-      if (!result) {
-        return res.status(404).json({ error: 'Connection not found' });
-      }
-
-      await result.client.send(
-        new PutObjectCommand({
-          Bucket: bucket,
-          Key: key,
-          Body: req.file.buffer,
-          ContentType: req.file.mimetype,
-        }),
-      );
-
-      res.json({ success: true, key, bucket });
-    } catch (error) {
-      console.error('Failed to upload object:', error);
-      const message = error instanceof Error ? error.message : 'Failed to upload object';
-      res.status(502).json({ error: message });
+    const result = await getClientAndConnection(connectionId);
+    if (!result) {
+      return res.status(404).json({ error: 'Connection not found' });
     }
-  },
-);
+
+    const bb = busboy({
+      headers: req.headers,
+      limits: { fileSize: 5 * 1024 * 1024 * 1024 }, // 5 GB
+    });
+
+    let bucket = '';
+    let key = '';
+    let uploadStarted = false;
+    let uploadResult: { success: boolean; key: string; bucket: string } | null = null;
+    let uploadError: Error | null = null;
+
+    bb.on('field', (name: string, val: string) => {
+      if (name === 'bucket') bucket = val;
+      if (name === 'key') key = val;
+    });
+
+    bb.on('file', (_name: string, fileStream: Readable, info: { mimeType: string }) => {
+      if (uploadStarted) {
+        fileStream.resume(); // drain extra files
+        return;
+      }
+      uploadStarted = true;
+
+      // Defer upload start to allow fields to be parsed first
+      // busboy emits fields before files in order, but we use a microtask to be safe
+      const doUpload = async () => {
+        if (!bucket || !key) {
+          uploadError = new Error('bucket and key fields are required');
+          fileStream.resume();
+          return;
+        }
+
+        try {
+          const upload = new Upload({
+            client: result.client,
+            params: {
+              Bucket: bucket,
+              Key: key,
+              Body: fileStream,
+              ContentType: info.mimeType || 'application/octet-stream',
+            },
+            queueSize: 4,
+            partSize: 10 * 1024 * 1024, // 10 MB parts
+            leavePartsOnError: false,
+          });
+
+          await upload.done();
+          uploadResult = { success: true, key, bucket };
+        } catch (err) {
+          uploadError = err instanceof Error ? err : new Error(String(err));
+        }
+      };
+
+      doUpload();
+    });
+
+    bb.on('finish', async () => {
+      // Wait for upload to complete
+      const waitForUpload = async () => {
+        // Simple poll — upload is async, wait for it
+        for (let i = 0; i < 6000; i++) {
+          if (uploadResult || uploadError) break;
+          await new Promise((r) => setTimeout(r, 100));
+        }
+      };
+
+      await waitForUpload();
+
+      if (uploadError) {
+        console.error('Failed to upload object:', uploadError);
+        res.status(502).json({ error: uploadError.message });
+      } else if (uploadResult) {
+        res.json(uploadResult);
+      } else if (!uploadStarted) {
+        res.status(400).json({ error: 'No file provided' });
+      } else {
+        res.status(504).json({ error: 'Upload timed out' });
+      }
+    });
+
+    bb.on('error', (err: Error) => {
+      console.error('Busboy error:', err);
+      res.status(400).json({ error: err.message });
+    });
+
+    req.pipe(bb);
+  } catch (error) {
+    console.error('Failed to upload object:', error);
+    const message = error instanceof Error ? error.message : 'Failed to upload object';
+    res.status(502).json({ error: message });
+  }
+});
 
 // POST /api/s3/:connectionId/objects/folder — Create a folder (empty object with trailing /)
 router.post('/:connectionId/objects/folder', async (req, res) => {
