@@ -114,6 +114,9 @@ It is “one Admin product shell with embedded S3 capability”.
 - Admin Console is the only user-facing application shell.
 - Bucket detail object browsing works through the existing embedded S3 flow.
 - Users are not expected to know about or navigate into an independent S3 Browser SPA.
+- Direct combined-mode requests for S3 Browser SPA entrypoints or SPA-style routes must not expose a
+  second product shell. Combined mode may serve remote assets under `/s3-browser/*` for MF loading,
+  but it must not serve a standalone S3 Browser application route tree.
 
 ## Recommended Technical Approach
 
@@ -208,8 +211,9 @@ Focus areas:
 - auth screens
 - main layouts
 - key dashboard/list/detail pages
-- loading, error, and empty states
-- migrated shared component usage
+- loading, error, and empty states required to restore baseline functional correctness
+- migrated shared component usage only where it directly causes broken rendering, broken interaction,
+  or clear standalone regression
 
 ### Workstream 2: Combined Deployment Repair
 
@@ -230,10 +234,16 @@ Normalize obvious migration scars without changing scope.
 
 Focus areas:
 
-- repeated page-state patterns
-- shared primitives usage
+- repeated page-state patterns after baseline functionality is restored
+- shared primitives usage where existing pages visibly diverge in spacing, hierarchy, or control
+  treatment after migration
 - embedded object browser integration surface
 - consistency between standalone and embedded presentation where appropriate
+
+For this workstream, an in-scope migration inconsistency means an existing UI that is already
+supposed to behave the same as its peers but now visibly differs because of the shared component
+migration, layout drift, or incomplete state normalization. It does not include redesigning healthy
+pages to make them “nicer”.
 
 ### Workstream 4: Verification And Documentation
 
