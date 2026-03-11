@@ -24,7 +24,8 @@ api.interceptors.response.use(
       (error.response?.status === 401 || error.response?.status === 403)
     ) {
       localStorage.removeItem('token');
-      window.location.href = '/login';
+      const base = import.meta.env.BASE_URL.replace(/\/+$/, '');
+      window.location.href = `${base}/login`;
     }
     return Promise.reject(error);
   },
