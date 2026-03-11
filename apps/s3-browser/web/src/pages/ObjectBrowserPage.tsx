@@ -16,7 +16,7 @@ import {
 import { api } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/errors';
 import { cn } from '@/lib/utils';
-import { useConnectionContext } from '@/layouts/ConnectionLayout';
+import { useConnectionContext } from '@/hooks/use-connection-context';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';

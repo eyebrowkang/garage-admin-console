@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Loader2, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,33 +44,13 @@ export function ConnectionFormDialog({
   initialData,
 }: ConnectionFormDialogProps) {
   const isEdit = !!initialData;
-  const [name, setName] = useState('');
-  const [endpoint, setEndpoint] = useState('');
-  const [region, setRegion] = useState('');
+  const [name, setName] = useState(initialData?.name ?? '');
+  const [endpoint, setEndpoint] = useState(initialData?.endpoint ?? '');
+  const [region, setRegion] = useState(initialData?.region ?? '');
   const [accessKeyId, setAccessKeyId] = useState('');
   const [secretAccessKey, setSecretAccessKey] = useState('');
-  const [bucket, setBucket] = useState('');
-  const [pathStyle, setPathStyle] = useState(true);
-
-  useEffect(() => {
-    if (open && initialData) {
-      setName(initialData.name);
-      setEndpoint(initialData.endpoint);
-      setRegion(initialData.region ?? '');
-      setBucket(initialData.bucket ?? '');
-      setPathStyle(initialData.pathStyle);
-      setAccessKeyId('');
-      setSecretAccessKey('');
-    } else if (open && !initialData) {
-      setName('');
-      setEndpoint('');
-      setRegion('');
-      setAccessKeyId('');
-      setSecretAccessKey('');
-      setBucket('');
-      setPathStyle(true);
-    }
-  }, [open, initialData]);
+  const [bucket, setBucket] = useState(initialData?.bucket ?? '');
+  const [pathStyle, setPathStyle] = useState(initialData?.pathStyle ?? true);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

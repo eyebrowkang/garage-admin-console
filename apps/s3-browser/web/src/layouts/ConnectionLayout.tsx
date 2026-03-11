@@ -1,4 +1,3 @@
-import { createContext, useContext } from 'react';
 import { Outlet, useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Globe, HardDrive, Loader2, AlertCircle } from 'lucide-react';
@@ -6,28 +5,7 @@ import { api } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/errors';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-
-interface Connection {
-  id: string;
-  name: string;
-  endpoint: string;
-  region: string | null;
-  bucket: string | null;
-  pathStyle: boolean;
-}
-
-interface ConnectionContextValue {
-  connectionId: string;
-  connection: Connection;
-}
-
-const ConnectionContext = createContext<ConnectionContextValue | null>(null);
-
-export function useConnectionContext() {
-  const ctx = useContext(ConnectionContext);
-  if (!ctx) throw new Error('useConnectionContext must be used within ConnectionLayout');
-  return ctx;
-}
+import { ConnectionContext, type Connection } from '@/hooks/use-connection-context';
 
 export function ConnectionLayout() {
   const { id } = useParams<{ id: string }>();

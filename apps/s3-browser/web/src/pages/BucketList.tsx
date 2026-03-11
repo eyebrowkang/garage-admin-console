@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Loader2, AlertCircle, FolderOpen, Calendar } from 'lucide-react';
 import { api } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/errors';
-import { useConnectionContext } from '@/layouts/ConnectionLayout';
+import { useConnectionContext } from '@/hooks/use-connection-context';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent } from '@/components/ui/card';
 import { useEffect } from 'react';
