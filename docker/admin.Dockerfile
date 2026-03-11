@@ -9,11 +9,15 @@ WORKDIR /src
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/admin/api/package.json apps/admin/api/
 COPY apps/admin/web/package.json apps/admin/web/
+COPY packages/tsconfig/package.json packages/tsconfig/
+COPY packages/ui/package.json packages/ui/
+COPY packages/auth/package.json packages/auth/
 RUN pnpm install --frozen-lockfile
 
 # Copy source
 COPY apps/admin/api/ apps/admin/api/
 COPY apps/admin/web/ apps/admin/web/
+COPY packages/ packages/
 
 # Build API (TypeScript → JavaScript)
 RUN pnpm -C apps/admin/api build
