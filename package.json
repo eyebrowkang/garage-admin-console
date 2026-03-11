@@ -8,15 +8,16 @@
     "node": ">=24.0.0"
   },
   "scripts": {
-    "build": "pnpm -C apps/admin/api build && pnpm -C apps/admin/web build",
-    "dev": "pnpm -r --parallel --filter @garage-admin/admin-api --filter @garage-admin/admin-web dev",
+    "build": "pnpm -C apps/admin/api build && pnpm -C apps/admin/web build && pnpm -C apps/s3-browser/api build && pnpm -C apps/s3-browser/web build",
+    "dev": "pnpm -r --parallel dev",
     "dev:admin": "pnpm -r --parallel --filter @garage-admin/admin-api --filter @garage-admin/admin-web dev",
-    "lint": "pnpm -C apps/admin/api lint && pnpm -C apps/admin/web lint",
-    "lint:fix": "pnpm -C apps/admin/api lint:fix && pnpm -C apps/admin/web lint:fix",
-    "format": "pnpm -C apps/admin/api format && pnpm -C apps/admin/web format",
-    "format:check": "pnpm -C apps/admin/api format:check && pnpm -C apps/admin/web format:check",
-    "test": "pnpm -C apps/admin/api test:run && pnpm -C apps/admin/web test:run",
-    "typecheck": "pnpm -C apps/admin/api typecheck"
+    "dev:s3": "pnpm -r --parallel --filter @garage-admin/s3-api --filter @garage-admin/s3-web dev",
+    "lint": "pnpm -r lint",
+    "lint:fix": "pnpm -r lint:fix",
+    "format": "pnpm -r format",
+    "format:check": "pnpm -r format:check",
+    "test": "pnpm -r test:run",
+    "typecheck": "pnpm -r typecheck"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.1",

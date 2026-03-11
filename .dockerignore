@@ -3,6 +3,10 @@ apps/admin/api/node_modules
 apps/admin/web/node_modules
 apps/admin/api/dist
 apps/admin/web/dist
+apps/s3-browser/api/node_modules
+apps/s3-browser/web/node_modules
+apps/s3-browser/api/dist
+apps/s3-browser/web/dist
 *.db
 *.db-journal
 *.log

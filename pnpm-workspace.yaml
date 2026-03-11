@@ -5,6 +5,7 @@ packages:
   - packages/ui
   - packages/auth
   - apps/s3-browser/api
+  - apps/s3-browser/web
 
 onlyBuiltDependencies:
   - bcrypt
