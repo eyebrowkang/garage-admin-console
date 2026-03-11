@@ -73,6 +73,7 @@ Routes are registered in `apps/admin/api/src/app.ts`.
 | `PUT /clusters/:id`       | JWT  | Update cluster                  |
 | `DELETE /clusters/:id`    | JWT  | Remove cluster                  |
 | `ALL /proxy/:clusterId/*` | JWT  | Proxy to Garage admin API       |
+| `POST /s3-bridge/:clusterId/connect` | JWT | Bridge to S3 Browser for object browsing |
 
 ### Frontend Structure (`apps/admin/web/src/`)
 
@@ -127,6 +128,7 @@ Pages at different hierarchy levels should have slight differences.
 - `apps/admin/web/src/lib/api.ts` — Axios instance, interceptors, `proxyPath()` helper
 - `packages/auth/src/middleware.ts` — Configurable JWT auth middleware factory
 - `packages/ui/src/index.ts` — Shared UI components barrel export
+- `apps/admin/api/src/routes/s3-bridge.ts` — Bridge route for S3 Browser integration (object browsing from bucket detail)
 
 ## Docker
 

@@ -191,6 +191,45 @@ The Admin Console includes a test page at `/s3-test` that lets you:
 
 This loads `BucketExplorer` via Module Federation and renders it in the Admin Console.
 
+### Integrated Object Browsing
+
+The Admin Console's **Bucket Detail** page includes a built-in Object Browser section that provides seamless integration between the two apps:
+
+1. Open a bucket detail page in the Admin Console
+2. In the **Object Browser** card, select an access key with read permission
+3. Click **Browse Objects** — the system automatically:
+   - Retrieves the key's secret via the Garage Admin API
+   - Creates (or reuses) an S3 Browser connection
+   - Embeds the `ObjectBrowser` component via Module Federation
+4. If the key has write permission, upload/delete operations are enabled
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant AdminWeb as Admin Console
+    participant AdminAPI as Admin API
+    participant GarageAPI as Garage Admin API
+    participant S3API as S3 Browser API
+
+    User->>AdminWeb: Click "Browse Objects"
+    AdminWeb->>AdminAPI: POST /api/s3-bridge/:clusterId/connect
+    AdminAPI->>GarageAPI: GET /v2/GetKeyInfo?showSecretKey=true
+    GarageAPI-->>AdminAPI: Access key + secret
+    AdminAPI->>S3API: POST /api/auth/login
+    S3API-->>AdminAPI: JWT token
+    AdminAPI->>S3API: POST /api/connections
+    S3API-->>AdminAPI: Connection ID
+    AdminAPI-->>AdminWeb: { connectionId, token, apiBase }
+    AdminWeb->>AdminWeb: Render ObjectBrowser (MF)
+```
+
+**Required environment variables** (Admin API):
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `S3_BROWSER_API_URL` | S3 Browser API URL (e.g. `http://localhost:3002/api`) | — |
+| `S3_BROWSER_ADMIN_PASSWORD` | S3 Browser login password | Falls back to `ADMIN_PASSWORD` |
+
 ## Production Deployment
 
 ### Combined Image (Recommended)

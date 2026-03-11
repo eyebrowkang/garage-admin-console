@@ -35,6 +35,17 @@ Three Docker deployment modes are available, each with its own Dockerfile in the
 |----------|---------|-------------|
 | `S3_BROWSER_STATIC_DIR` | `/app/static/s3-browser` | S3 Browser remote assets directory |
 
+### S3 Browser Bridge (Admin + Combined)
+
+For the integrated Object Browser in bucket detail pages, set these on the Admin API:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `S3_BROWSER_API_URL` | — | S3 Browser API URL (e.g. `http://localhost:3002/api`) |
+| `S3_BROWSER_ADMIN_PASSWORD` | `ADMIN_PASSWORD` | Password for S3 Browser login |
+
+In the **combined** Docker image, set `S3_BROWSER_API_URL` to `http://localhost:3002/api` (internal). In **side-by-side** deployments, point to the S3 Browser container's API URL.
+
 ## Docker Compose Examples
 
 ### Admin Console Only
@@ -109,6 +120,7 @@ services:
       - JWT_SECRET=change-me-to-a-random-string
       - ENCRYPTION_KEY=change-me-exactly-32-characters!
       - ADMIN_PASSWORD=change-me-admin-password
+      - S3_BROWSER_API_URL=http://localhost:3002/api
     restart: unless-stopped
 
 volumes:
@@ -135,6 +147,8 @@ services:
       - JWT_SECRET=change-me-jwt-secret-for-admin
       - ENCRYPTION_KEY=change-me-exactly-32-characters!
       - ADMIN_PASSWORD=change-me-admin-password
+      - S3_BROWSER_API_URL=http://s3-browser:3002/api
+      - S3_BROWSER_ADMIN_PASSWORD=change-me-s3-browser-password
     restart: unless-stopped
 
   s3-browser:
@@ -156,7 +170,7 @@ volumes:
   s3-data:
 ```
 
-> **Note:** Each app has its own database, JWT secret, and login password. They operate independently.
+> **Note:** Each app has its own database, JWT secret, and login password. For the Object Browser bridge, the admin console needs the S3 Browser's API URL and password.
 
 ## Data Persistence
 
