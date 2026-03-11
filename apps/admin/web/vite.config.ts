@@ -60,11 +60,11 @@ export default defineConfig({
         target: 'http://localhost:3001',
         changeOrigin: true,
       },
-      // Proxy S3 Browser MF remote modules through admin dev server to avoid CORS
+      // Proxy S3 Browser MF remote modules through admin dev server to avoid CORS.
+      // No rewrite — s3-browser uses base='/@mf-s3/' so it expects the prefix.
       '/@mf-s3': {
         target: 'http://localhost:5174',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/@mf-s3/, ''),
       },
       // Proxy S3 Browser API so embedded ObjectBrowser calls stay same-origin
       '/s3-api': {
