@@ -2,6 +2,7 @@ packages:
   - apps/admin/api
   - apps/admin/web
   - packages/tsconfig
+  - packages/ui
 
 onlyBuiltDependencies:
   - bcrypt

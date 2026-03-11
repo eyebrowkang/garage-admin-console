@@ -1,0 +1,7 @@
+{
+  "extends": "@garage-admin/tsconfig/react.json",
+  "compilerOptions": {
+    "types": []
+  },
+  "include": ["src"]
+}
