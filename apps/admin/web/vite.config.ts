@@ -13,7 +13,7 @@ export default defineConfig({
         s3_browser: {
           type: 'module',
           name: 's3_browser',
-          entry: '/@mf-s3/remoteEntry.js',
+          entry: '/s3-browser/remoteEntry.js',
           entryGlobalName: 's3_browser',
           shareScope: 'default',
         },
@@ -60,9 +60,9 @@ export default defineConfig({
         target: 'http://localhost:3001',
         changeOrigin: true,
       },
-      // Proxy S3 Browser MF remote modules through admin dev server to avoid CORS.
-      // No rewrite — s3-browser uses base='/@mf-s3/' so it expects the prefix.
-      '/@mf-s3': {
+      // Proxy S3 Browser MF remote assets through admin dev server to avoid CORS.
+      // No rewrite — s3-browser uses base='/s3-browser/' so it expects the prefix.
+      '/s3-browser': {
         target: 'http://localhost:5174',
         changeOrigin: true,
       },

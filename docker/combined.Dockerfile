@@ -22,7 +22,8 @@ COPY apps/ apps/
 
 # Build s3-browser first (remote assets needed by host)
 RUN pnpm -C apps/s3-browser/api build
-RUN pnpm -C apps/s3-browser/web build
+# Set base path so MF assets reference /s3-browser/ prefix (matches static serving path)
+RUN MF_PROXY_BASE=/s3-browser/ pnpm -C apps/s3-browser/web build
 
 # Build admin
 RUN pnpm -C apps/admin/api build
