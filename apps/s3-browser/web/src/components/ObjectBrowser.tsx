@@ -14,6 +14,8 @@ import {
   Home,
   Trash2,
   Download,
+  Upload,
+  FolderPlus,
   ArrowUpDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -33,6 +35,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { EmbedUploadDialog } from '@/components/embed/EmbedUploadDialog';
+import { EmbedCreateFolderDialog } from '@/components/embed/EmbedCreateFolderDialog';
+import { EmbedDeleteDialog } from '@/components/embed/EmbedDeleteDialog';
 
 interface S3Object {
   key: string;
@@ -92,6 +97,11 @@ function ObjectBrowserInner({ config, bucket }: ObjectBrowserInnerProps) {
   const [prefix, setPrefix] = useState('');
   const [sortField, setSortField] = useState<'name' | 'size' | 'date'>('name');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [showUpload, setShowUpload] = useState(false);
+  const [showCreateFolder, setShowCreateFolder] = useState(false);
+  const [deletingObject, setDeletingObject] = useState<{ key: string; isFolder: boolean } | null>(
+    null,
+  );
 
   const { data, isLoading, error } = useQuery<ListObjectsResponse>({
     queryKey: ['embed-objects', config.connectionId, bucket, prefix],
@@ -185,15 +195,20 @@ function ObjectBrowserInner({ config, bucket }: ObjectBrowserInnerProps) {
     [api, config.connectionId, bucket, toast],
   );
 
+  const invalidateObjects = useCallback(() => {
+    queryClient.invalidateQueries({
+      queryKey: ['embed-objects', config.connectionId, bucket, prefix],
+    });
+  }, [queryClient, config.connectionId, bucket, prefix]);
+
   const deleteMutation = useMutation({
     mutationFn: async (key: string) => {
       const params = new URLSearchParams({ bucket, key });
       await api.delete(`/s3/${config.connectionId}/objects?${params}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ['embed-objects', config.connectionId, bucket, prefix],
-      });
+      invalidateObjects();
+      setDeletingObject(null);
       toast({ title: 'Deleted' });
     },
     onError: () => {
@@ -251,6 +266,20 @@ function ObjectBrowserInner({ config, bucket }: ObjectBrowserInnerProps) {
           </span>
         ))}
       </div>
+
+      {/* Toolbar (write mode only) */}
+      {!config.readonly && (
+        <div className="flex items-center gap-2">
+          <Button size="sm" onClick={() => setShowUpload(true)}>
+            <Upload className="mr-2 h-4 w-4" />
+            Upload
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setShowCreateFolder(true)}>
+            <FolderPlus className="mr-2 h-4 w-4" />
+            New Folder
+          </Button>
+        </div>
+      )}
 
       {items.length === 0 ? (
         <Card>
@@ -333,8 +362,8 @@ function ObjectBrowserInner({ config, bucket }: ObjectBrowserInnerProps) {
                     {item.lastModified ? formatDate(item.lastModified) : '—'}
                   </TableCell>
                   <TableCell>
-                    {item.type === 'file' && !config.readonly && (
-                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                      {item.type === 'file' && (
                         <Button
                           variant="ghost"
                           size="sm"
@@ -344,36 +373,65 @@ function ObjectBrowserInner({ config, bucket }: ObjectBrowserInnerProps) {
                         >
                           <Download className="h-3.5 w-3.5" />
                         </Button>
+                      )}
+                      {!config.readonly && (
                         <Button
                           variant="ghost"
                           size="sm"
                           className="h-7 w-7 p-0 text-destructive hover:text-destructive"
                           title="Delete"
-                          onClick={() => deleteMutation.mutate(item.key)}
+                          onClick={() =>
+                            setDeletingObject({
+                              key: item.key,
+                              isFolder: item.type === 'folder',
+                            })
+                          }
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
-                      </div>
-                    )}
-                    {item.type === 'file' && config.readonly && (
-                      <div onClick={(e) => e.stopPropagation()}>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0"
-                          title="Download"
-                          onClick={() => handleDownload(item.key)}
-                        >
-                          <Download className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </Card>
+      )}
+
+      {/* Dialogs */}
+      {!config.readonly && (
+        <>
+          <EmbedUploadDialog
+            open={showUpload}
+            onOpenChange={setShowUpload}
+            apiBase={config.apiBase}
+            token={config.token}
+            connectionId={config.connectionId}
+            bucket={bucket}
+            prefix={prefix}
+            onUploadComplete={invalidateObjects}
+          />
+          <EmbedCreateFolderDialog
+            open={showCreateFolder}
+            onOpenChange={setShowCreateFolder}
+            api={api}
+            connectionId={config.connectionId}
+            bucket={bucket}
+            prefix={prefix}
+            onCreated={invalidateObjects}
+          />
+        </>
+      )}
+      {deletingObject && (
+        <EmbedDeleteDialog
+          open={!!deletingObject}
+          onOpenChange={(open) => !open && setDeletingObject(null)}
+          onConfirm={() => deleteMutation.mutate(deletingObject.key)}
+          isLoading={deleteMutation.isPending}
+          objectKey={deletingObject.key}
+          isFolder={deletingObject.isFolder}
+        />
       )}
     </div>
   );
