@@ -1,0 +1,22 @@
+{
+  "name": "@garage-admin/auth",
+  "version": "0.0.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "jsonwebtoken": "^9.0.3"
+  },
+  "devDependencies": {
+    "@garage-admin/tsconfig": "workspace:*",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "typescript": "~5.9.3"
+  },
+  "peerDependencies": {
+    "express": "^5.0.0"
+  }
+}

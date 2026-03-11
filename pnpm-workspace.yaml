@@ -3,6 +3,7 @@ packages:
   - apps/admin/web
   - packages/tsconfig
   - packages/ui
+  - packages/auth
 
 onlyBuiltDependencies:
   - bcrypt

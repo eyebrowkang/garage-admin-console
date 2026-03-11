@@ -231,6 +231,28 @@ importers:
         specifier: ^4.0.18
         version: 4.0.18(@types/node@25.3.1)(jiti@2.6.1)(jsdom@28.1.0(@noble/hashes@1.8.0))(lightningcss@1.31.1)(tsx@4.21.0)
 
+  packages/auth:
+    dependencies:
+      express:
+        specifier: ^5.0.0
+        version: 5.2.1
+      jsonwebtoken:
+        specifier: ^9.0.3
+        version: 9.0.3
+    devDependencies:
+      '@garage-admin/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@types/express':
+        specifier: ^5.0.6
+        version: 5.0.6
+      '@types/jsonwebtoken':
+        specifier: ^9.0.10
+        version: 9.0.10
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
+
   packages/tsconfig: {}
 
   packages/ui:
