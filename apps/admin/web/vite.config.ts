@@ -3,6 +3,9 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { federation } from '@module-federation/vite';
 import path from 'path';
+import { resolveS3BrowserRemoteEntry } from './src/lib/mf-config';
+
+const s3BrowserRemoteEntry = resolveS3BrowserRemoteEntry(process.env);
 
 export default defineConfig({
   plugins: [
@@ -13,7 +16,7 @@ export default defineConfig({
         s3_browser: {
           type: 'module',
           name: 's3_browser',
-          entry: '/s3-browser/remoteEntry.js',
+          entry: s3BrowserRemoteEntry,
           entryGlobalName: 's3_browser',
           shareScope: 'default',
         },

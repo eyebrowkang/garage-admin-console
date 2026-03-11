@@ -19,10 +19,13 @@ COPY apps/admin/api/ apps/admin/api/
 COPY apps/admin/web/ apps/admin/web/
 COPY packages/ packages/
 
+ARG VITE_S3_BROWSER_REMOTE_ENTRY
+
 # Build API (TypeScript → JavaScript)
 RUN pnpm -C apps/admin/api build
 
 # Build frontend (uses default /api prefix, matching the Express route mount)
+ENV VITE_S3_BROWSER_REMOTE_ENTRY=${VITE_S3_BROWSER_REMOTE_ENTRY}
 RUN pnpm -C apps/admin/web build
 
 # Deploy API package with production dependencies only

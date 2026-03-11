@@ -20,6 +20,8 @@ RUN pnpm install --frozen-lockfile
 COPY packages/ packages/
 COPY apps/ apps/
 
+ARG VITE_S3_BROWSER_REMOTE_ENTRY
+
 # Build s3-browser first (remote assets needed by host)
 RUN pnpm -C apps/s3-browser/api build
 # Set base path so MF assets reference /s3-browser/ prefix (matches static serving path)
@@ -27,6 +29,7 @@ RUN MF_PROXY_BASE=/s3-browser/ pnpm -C apps/s3-browser/web build
 
 # Build admin
 RUN pnpm -C apps/admin/api build
+ENV VITE_S3_BROWSER_REMOTE_ENTRY=${VITE_S3_BROWSER_REMOTE_ENTRY}
 RUN pnpm -C apps/admin/web build
 
 # Deploy admin API with production deps
