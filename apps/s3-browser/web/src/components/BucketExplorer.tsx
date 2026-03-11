@@ -4,7 +4,14 @@ import { FolderOpen, Calendar, Loader2, AlertCircle } from 'lucide-react';
 import { useS3EmbedContext, type S3EmbedConfig } from '../providers/S3EmbedProvider';
 import { createEmbedApi } from '@/lib/embed-api';
 import { Toaster } from '@/components/ui/toaster';
-import { Alert, AlertDescription, AlertTitle, Card, CardContent } from '@garage-admin/ui';
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Button,
+  Card,
+  CardContent,
+} from '@garage-admin/ui';
 import { ObjectBrowser } from './ObjectBrowser';
 
 interface Bucket {
@@ -14,7 +21,7 @@ interface Bucket {
 
 const embeddedQueryClient = new QueryClient({
   defaultOptions: {
-    queries: { staleTime: 30_000, refetchOnWindowFocus: false },
+    queries: { staleTime: 30_000, refetchOnWindowFocus: false, retry: false },
   },
 });
 
@@ -36,12 +43,14 @@ function BucketExplorerInner({ config }: { config: S3EmbedConfig }) {
     return (
       <div className="space-y-3">
         {!config.bucket && (
-          <button
-            className="text-sm text-primary hover:underline"
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-fit px-0 text-primary hover:text-primary"
             onClick={() => setSelectedBucket(null)}
           >
-            ← Back to buckets
-          </button>
+            Back to buckets
+          </Button>
         )}
         <ObjectBrowser bucket={selectedBucket} />
       </div>
@@ -50,9 +59,17 @@ function BucketExplorerInner({ config }: { config: S3EmbedConfig }) {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-      </div>
+      <Card>
+        <CardContent className="flex flex-col items-center justify-center gap-3 py-12 text-center">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <div className="space-y-1">
+            <h3 className="text-base font-semibold">Loading buckets...</h3>
+            <p className="text-sm text-muted-foreground">
+              Fetching buckets from this connection.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -60,7 +77,7 @@ function BucketExplorerInner({ config }: { config: S3EmbedConfig }) {
     return (
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Failed to list buckets</AlertTitle>
+        <AlertTitle>Unable to load buckets</AlertTitle>
         <AlertDescription>
           {error instanceof Error ? error.message : 'Connection error'}
         </AlertDescription>
@@ -75,7 +92,10 @@ function BucketExplorerInner({ config }: { config: S3EmbedConfig }) {
       <Card>
         <CardContent className="flex flex-col items-center justify-center py-12">
           <FolderOpen className="h-8 w-8 text-muted-foreground" />
-          <p className="mt-2 text-sm text-muted-foreground">No buckets found</p>
+          <h3 className="mt-3 text-base font-semibold">No buckets available</h3>
+          <p className="mt-1 max-w-sm text-center text-sm text-muted-foreground">
+            This connection does not currently expose any buckets.
+          </p>
         </CardContent>
       </Card>
     );

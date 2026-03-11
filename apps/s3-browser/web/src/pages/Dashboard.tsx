@@ -117,8 +117,25 @@ export function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Connections</h1>
+          <p className="text-sm text-muted-foreground">
+            Manage your S3-compatible storage connections.
+          </p>
+        </div>
+
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <div className="space-y-1">
+              <h2 className="text-lg font-semibold">Loading connections...</h2>
+              <p className="text-sm text-muted-foreground">
+                Fetching your saved S3-compatible endpoints.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -127,7 +144,7 @@ export function Dashboard() {
     return (
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Error</AlertTitle>
+        <AlertTitle>Unable to load connections</AlertTitle>
         <AlertDescription>
           {getApiErrorMessage(error, 'Failed to load connections')}
         </AlertDescription>
@@ -158,9 +175,9 @@ export function Dashboard() {
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
               <HardDrive className="h-8 w-8 text-primary" />
             </div>
-            <h3 className="mt-4 text-lg font-semibold">No connections yet</h3>
+            <h3 className="mt-4 text-lg font-semibold">No connections configured yet</h3>
             <p className="mt-1 max-w-sm text-center text-sm text-muted-foreground">
-              Add an S3-compatible storage connection to start browsing your buckets and objects.
+              Add an S3-compatible storage connection to start browsing buckets and objects here.
             </p>
             <Button className="mt-6" onClick={() => setShowCreateDialog(true)}>
               <Plus className="mr-2 h-4 w-4" />

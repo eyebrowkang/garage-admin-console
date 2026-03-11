@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { S3EmbedProvider, type S3EmbedConfig } from '../providers/S3EmbedProvider';
 import { BucketExplorer } from './BucketExplorer';
 
@@ -45,6 +46,15 @@ describe('BucketExplorer', () => {
     mockApi.delete.mockReset();
   });
 
+  it('renders a loading state with clear copy while buckets are being fetched', () => {
+    mockApi.get.mockReturnValue(new Promise(() => {}));
+
+    renderBucketExplorer({ connectionId: 'conn-loading' });
+
+    expect(screen.getByText(/Loading buckets/i)).toBeInTheDocument();
+    expect(screen.getByText(/Fetching buckets from this connection/i)).toBeInTheDocument();
+  });
+
   it('shows the bucket list when no bucket is preselected', async () => {
     mockApi.get.mockResolvedValue({
       data: {
@@ -69,5 +79,50 @@ describe('BucketExplorer', () => {
       'Object browser for archive',
     );
     expect(mockApi.get).not.toHaveBeenCalled();
+  });
+
+  it('allows returning from object browsing back to the bucket list', async () => {
+    mockApi.get.mockResolvedValue({
+      data: {
+        buckets: [{ name: 'photos', creationDate: '2026-03-11T00:00:00.000Z' }],
+      },
+    });
+    const user = userEvent.setup();
+
+    renderBucketExplorer({ connectionId: 'conn-back' });
+
+    await user.click(await screen.findByText('photos'));
+    expect(await screen.findByTestId('object-browser')).toHaveTextContent(
+      'Object browser for photos',
+    );
+
+    await user.click(screen.getByRole('button', { name: /Back to buckets/i }));
+
+    expect(await screen.findByText('photos')).toBeInTheDocument();
+    expect(screen.queryByTestId('object-browser')).not.toBeInTheDocument();
+  });
+
+  it('renders a clean empty state when the connection has no visible buckets', async () => {
+    mockApi.get.mockResolvedValue({
+      data: {
+        buckets: [],
+      },
+    });
+
+    renderBucketExplorer({ connectionId: 'conn-empty' });
+
+    expect(await screen.findByRole('heading', { name: /No buckets available/i })).toBeInTheDocument();
+    expect(
+      screen.getByText(/This connection does not currently expose any buckets/i),
+    ).toBeInTheDocument();
+  });
+
+  it('renders an error state with the upstream message when bucket loading fails', async () => {
+    mockApi.get.mockRejectedValue(new Error('S3 endpoint timed out'));
+
+    renderBucketExplorer({ connectionId: 'conn-error' });
+
+    expect(await screen.findByText(/Unable to load buckets/i)).toBeInTheDocument();
+    expect(screen.getByText(/S3 endpoint timed out/i)).toBeInTheDocument();
   });
 });

@@ -1,11 +1,16 @@
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, AlertCircle, FolderOpen, Calendar } from 'lucide-react';
 import { api } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/errors';
 import { useConnectionContext } from '@/hooks/use-connection-context';
-import { Alert, AlertDescription, AlertTitle, Card, CardContent } from '@garage-admin/ui';
-import { useEffect } from 'react';
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Card,
+  CardContent,
+} from '@garage-admin/ui';
 
 interface Bucket {
   name: string;
@@ -16,31 +21,37 @@ export function BucketList() {
   const { connectionId, connection } = useConnectionContext();
   const navigate = useNavigate();
 
-  // If connection has a specific bucket, redirect directly to object browser
-  useEffect(() => {
-    if (connection.bucket) {
-      navigate(
-        `/connections/${connectionId}/browse?bucket=${encodeURIComponent(connection.bucket)}`,
-        {
-          replace: true,
-        },
-      );
-    }
-  }, [connection.bucket, connectionId, navigate]);
-
   const { data, isLoading, error } = useQuery<{ buckets: Bucket[] }>({
     queryKey: ['buckets', connectionId],
     queryFn: async () => {
       const res = await api.get(`/s3/${connectionId}/buckets`);
       return res.data;
     },
+    enabled: !connection.bucket,
   });
+
+  if (connection.bucket) {
+    return (
+      <Navigate
+        replace
+        to={`/connections/${connectionId}/browse?bucket=${encodeURIComponent(connection.bucket)}`}
+      />
+    );
+  }
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-16">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <Card>
+        <CardContent className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div className="space-y-1">
+            <h3 className="text-lg font-semibold">Loading buckets...</h3>
+            <p className="text-sm text-muted-foreground">
+              Fetching the buckets available through this connection.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -48,7 +59,7 @@ export function BucketList() {
     return (
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Failed to list buckets</AlertTitle>
+        <AlertTitle>Unable to load buckets</AlertTitle>
         <AlertDescription>
           {getApiErrorMessage(error, 'Could not connect to S3 endpoint')}
         </AlertDescription>
@@ -65,10 +76,10 @@ export function BucketList() {
           <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
             <FolderOpen className="h-8 w-8 text-primary" />
           </div>
-          <h3 className="mt-4 text-lg font-semibold">No buckets found</h3>
+          <h3 className="mt-4 text-lg font-semibold">No buckets available</h3>
           <p className="mt-1 max-w-sm text-center text-sm text-muted-foreground">
-            No buckets are accessible with the credentials for this connection. Create buckets using
-            your S3 admin tools first.
+            This connection is working, but the current credentials cannot see any buckets.
+            Create one or adjust the access policy, then refresh this view.
           </p>
         </CardContent>
       </Card>

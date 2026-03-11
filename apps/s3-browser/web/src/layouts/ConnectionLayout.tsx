@@ -1,14 +1,20 @@
-import { Outlet, useParams, useNavigate, Link } from 'react-router-dom';
+import { Outlet, useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Globe, HardDrive, Loader2, AlertCircle } from 'lucide-react';
 import { api } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/errors';
-import { Alert, AlertDescription, AlertTitle, Button } from '@garage-admin/ui';
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Button,
+  Card,
+  CardContent,
+} from '@garage-admin/ui';
 import { ConnectionContext, type Connection } from '@/hooks/use-connection-context';
 
 export function ConnectionLayout() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
 
   const {
     data: connection,
@@ -25,22 +31,32 @@ export function ConnectionLayout() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <Card>
+        <CardContent className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div className="space-y-1">
+            <h2 className="text-lg font-semibold">Loading connection...</h2>
+            <p className="text-sm text-muted-foreground">
+              Fetching connection details and permissions.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
   if (error || !connection) {
     return (
       <div className="space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Connections
+        <Button variant="ghost" size="sm" asChild>
+          <Link to="/">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Connections
+          </Link>
         </Button>
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error</AlertTitle>
+          <AlertTitle>Connection unavailable</AlertTitle>
           <AlertDescription>{getApiErrorMessage(error, 'Connection not found')}</AlertDescription>
         </Alert>
       </div>

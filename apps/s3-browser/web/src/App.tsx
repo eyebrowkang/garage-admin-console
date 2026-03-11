@@ -28,8 +28,11 @@ function ProtectedRoute() {
   return <Outlet />;
 }
 
-// Strip trailing slash from Vite's BASE_URL for React Router basename
-const basename = import.meta.env.BASE_URL.replace(/\/+$/, '') || '/';
+function resolveBasename(baseUrl: string | undefined) {
+  return baseUrl?.replace(/\/+$/, '') || '/';
+}
+
+const basename = resolveBasename(import.meta.env.BASE_URL);
 
 function App() {
   return (

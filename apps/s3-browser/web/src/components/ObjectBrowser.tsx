@@ -83,7 +83,7 @@ function getFileName(key: string, prefix: string): string {
 // QueryClient for embedded mode (host might not provide one)
 const embeddedQueryClient = new QueryClient({
   defaultOptions: {
-    queries: { staleTime: 30_000, refetchOnWindowFocus: false },
+    queries: { staleTime: 30_000, refetchOnWindowFocus: false, retry: false },
   },
 });
 
@@ -222,8 +222,12 @@ function ObjectBrowserInner({ config, bucket }: ObjectBrowserInnerProps) {
   if (isLoading) {
     return (
       <Card>
-        <CardContent className="space-y-3 p-4">
-          {Array.from({ length: 5 }).map((_, i) => (
+        <CardContent className="space-y-4 p-5">
+          <div className="space-y-1">
+            <h3 className="text-lg font-semibold">Loading objects...</h3>
+            <p className="text-sm text-muted-foreground">Fetching contents for {bucket}.</p>
+          </div>
+          {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-10 w-full" />
           ))}
         </CardContent>
@@ -235,7 +239,7 @@ function ObjectBrowserInner({ config, bucket }: ObjectBrowserInnerProps) {
     return (
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Failed to list objects</AlertTitle>
+        <AlertTitle>Unable to load objects</AlertTitle>
         <AlertDescription>
           {error instanceof Error ? error.message : 'Connection error'}
         </AlertDescription>
@@ -288,8 +292,13 @@ function ObjectBrowserInner({ config, bucket }: ObjectBrowserInnerProps) {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <File className="h-8 w-8 text-muted-foreground" />
-            <p className="mt-2 text-sm text-muted-foreground">
-              {prefix ? 'Empty folder' : 'Empty bucket'}
+            <h3 className="mt-3 text-base font-semibold">
+              {prefix ? 'This folder is empty' : 'This bucket is empty'}
+            </h3>
+            <p className="mt-1 max-w-sm text-center text-sm text-muted-foreground">
+              {prefix
+                ? `Upload files or create another folder inside ${prefix.replace(/\/$/, '')}.`
+                : 'Upload files or create folders to start organizing this bucket.'}
             </p>
           </CardContent>
         </Card>

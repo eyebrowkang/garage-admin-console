@@ -239,7 +239,7 @@ export function ObjectBrowserPage() {
             className="h-auto p-0"
             onClick={() => navigate(`/connections/${connectionId}`)}
           >
-            Go back and select a bucket
+            Back to buckets
           </Button>
         </AlertDescription>
       </Alert>
@@ -278,23 +278,17 @@ export function ObjectBrowserPage() {
         ))}
       </div>
 
-      {/* Toolbar */}
-      <div className="flex items-center gap-2">
-        <Button size="sm" onClick={() => setShowUpload(true)}>
-          <Upload className="mr-2 h-4 w-4" />
-          Upload
-        </Button>
-        <Button size="sm" variant="outline" onClick={() => setShowCreateFolder(true)}>
-          <FolderPlus className="mr-2 h-4 w-4" />
-          New Folder
-        </Button>
-      </div>
-
       {/* Object table */}
       {isLoading ? (
         <Card>
-          <CardContent className="space-y-3 p-4">
-            {Array.from({ length: 5 }).map((_, i) => (
+          <CardContent className="space-y-4 p-5">
+            <div className="space-y-1">
+              <h3 className="text-lg font-semibold">Loading objects...</h3>
+              <p className="text-sm text-muted-foreground">
+                Fetching contents for {bucket}.
+              </p>
+            </div>
+            {Array.from({ length: 4 }).map((_, i) => (
               <Skeleton key={i} className="h-10 w-full" />
             ))}
           </CardContent>
@@ -302,7 +296,7 @@ export function ObjectBrowserPage() {
       ) : error ? (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Failed to list objects</AlertTitle>
+          <AlertTitle>Unable to load objects</AlertTitle>
           <AlertDescription>{getApiErrorMessage(error)}</AlertDescription>
         </Alert>
       ) : items.length === 0 ? (
@@ -312,12 +306,12 @@ export function ObjectBrowserPage() {
               <File className="h-8 w-8 text-primary" />
             </div>
             <h3 className="mt-4 text-lg font-semibold">
-              {prefix ? 'Empty folder' : 'Empty bucket'}
+              {prefix ? 'This folder is empty' : 'This bucket is empty'}
             </h3>
             <p className="mt-1 max-w-sm text-center text-sm text-muted-foreground">
               {prefix
-                ? 'This folder has no objects. Upload files or create a subfolder.'
-                : 'This bucket is empty. Upload your first file to get started.'}
+                ? `Upload files or create a folder to start organizing ${prefix.replace(/\/$/, '')}.`
+                : 'Upload your first file or create a folder to start organizing this bucket.'}
             </p>
             <div className="mt-4 flex gap-2">
               <Button size="sm" onClick={() => setShowUpload(true)}>
@@ -332,118 +326,131 @@ export function ObjectBrowserPage() {
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[50%]">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 gap-1 px-1"
-                    onClick={() => handleSort('name')}
-                  >
-                    Name
-                    <ArrowUpDown className="h-3 w-3" />
-                  </Button>
-                </TableHead>
-                <TableHead className="w-[20%]">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 gap-1 px-1"
-                    onClick={() => handleSort('size')}
-                  >
-                    Size
-                    <ArrowUpDown className="h-3 w-3" />
-                  </Button>
-                </TableHead>
-                <TableHead className="w-[20%]">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 gap-1 px-1"
-                    onClick={() => handleSort('date')}
-                  >
-                    Last Modified
-                    <ArrowUpDown className="h-3 w-3" />
-                  </Button>
-                </TableHead>
-                <TableHead className="w-[10%]"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {items.map((item) => (
-                <TableRow
-                  key={item.key}
-                  className={cn(item.type === 'folder' && 'cursor-pointer')}
-                  onClick={item.type === 'folder' ? () => navigateToPrefix(item.key) : undefined}
-                >
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      {item.type === 'folder' ? (
-                        <Folder className="h-4 w-4 text-primary" />
-                      ) : (
-                        <File className="h-4 w-4 text-muted-foreground" />
-                      )}
-                      <span
-                        className={cn(
-                          'truncate',
-                          item.type === 'folder' && 'font-medium text-primary',
-                        )}
-                      >
-                        {item.name}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {item.type === 'file' ? formatBytes(item.size) : '—'}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {item.lastModified ? formatDate(item.lastModified) : '—'}
-                  </TableCell>
-                  <TableCell>
-                    {item.type === 'file' && (
-                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0"
-                          title="Download"
-                          onClick={() => handleDownload(item.key)}
-                        >
-                          <Download className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                          title="Delete"
-                          onClick={() => setDeletingObject({ key: item.key, isFolder: false })}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    )}
-                    {item.type === 'folder' && (
-                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                          title="Delete folder"
-                          onClick={() => setDeletingObject({ key: item.key, isFolder: true })}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    )}
-                  </TableCell>
+        <>
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={() => setShowUpload(true)}>
+              <Upload className="mr-2 h-4 w-4" />
+              Upload
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setShowCreateFolder(true)}>
+              <FolderPlus className="mr-2 h-4 w-4" />
+              New Folder
+            </Button>
+          </div>
+
+          <Card>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[50%]">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 gap-1 px-1"
+                      onClick={() => handleSort('name')}
+                    >
+                      Name
+                      <ArrowUpDown className="h-3 w-3" />
+                    </Button>
+                  </TableHead>
+                  <TableHead className="w-[20%]">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 gap-1 px-1"
+                      onClick={() => handleSort('size')}
+                    >
+                      Size
+                      <ArrowUpDown className="h-3 w-3" />
+                    </Button>
+                  </TableHead>
+                  <TableHead className="w-[20%]">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 gap-1 px-1"
+                      onClick={() => handleSort('date')}
+                    >
+                      Last Modified
+                      <ArrowUpDown className="h-3 w-3" />
+                    </Button>
+                  </TableHead>
+                  <TableHead className="w-[10%]"></TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Card>
+              </TableHeader>
+              <TableBody>
+                {items.map((item) => (
+                  <TableRow
+                    key={item.key}
+                    className={cn(item.type === 'folder' && 'cursor-pointer')}
+                    onClick={item.type === 'folder' ? () => navigateToPrefix(item.key) : undefined}
+                  >
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {item.type === 'folder' ? (
+                          <Folder className="h-4 w-4 text-primary" />
+                        ) : (
+                          <File className="h-4 w-4 text-muted-foreground" />
+                        )}
+                        <span
+                          className={cn(
+                            'truncate',
+                            item.type === 'folder' && 'font-medium text-primary',
+                          )}
+                        >
+                          {item.name}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {item.type === 'file' ? formatBytes(item.size) : '—'}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {item.lastModified ? formatDate(item.lastModified) : '—'}
+                    </TableCell>
+                    <TableCell>
+                      {item.type === 'file' && (
+                        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0"
+                            title="Download"
+                            onClick={() => handleDownload(item.key)}
+                          >
+                            <Download className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                            title="Delete"
+                            onClick={() => setDeletingObject({ key: item.key, isFolder: false })}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      )}
+                      {item.type === 'folder' && (
+                        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                            title="Delete folder"
+                            onClick={() => setDeletingObject({ key: item.key, isFolder: true })}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+        </>
       )}
 
       {/* Dialogs */}
