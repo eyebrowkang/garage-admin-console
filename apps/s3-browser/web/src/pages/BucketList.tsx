@@ -4,8 +4,7 @@ import { Loader2, AlertCircle, FolderOpen, Calendar } from 'lucide-react';
 import { api } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/errors';
 import { useConnectionContext } from '@/hooks/use-connection-context';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Card, CardContent } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle, Card, CardContent } from '@garage-admin/ui';
 import { useEffect } from 'react';
 
 interface Bucket {

@@ -7,7 +7,7 @@ import { useBlockErrors } from '@/hooks/useBlocks';
 import { ClusterContext } from '@/contexts/ClusterContext';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
 import { BlockIcon, BucketIcon, KeyIcon, NodeIcon, TokenIcon } from '@/lib/entity-icons';
-import { Button } from '@/components/ui/button';
+import { Button } from '@garage-admin/ui';
 
 const navItems = [
   { to: '', icon: Activity, label: 'Overview', shortLabel: 'Overview', exact: true },

@@ -14,9 +14,17 @@ import {
 import { api } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/errors';
 import { useToast } from '@/hooks/use-toast';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@garage-admin/ui';
 import { ConnectionFormDialog, type ConnectionFormData } from '@/components/ConnectionFormDialog';
 import { DeleteConnectionDialog } from '@/components/DeleteConnectionDialog';
 

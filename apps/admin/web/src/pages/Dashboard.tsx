@@ -1,8 +1,12 @@
 import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Button,
+  Card,
+  CardContent,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -10,10 +14,9 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+  Input,
+  Label,
+} from '@garage-admin/ui';
 import { AddActionIcon } from '@/lib/action-icons';
 import { api, proxyPath } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/errors';

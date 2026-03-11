@@ -3,11 +3,19 @@ import { useNavigate } from 'react-router-dom';
 import { Loader2, HardDrive } from 'lucide-react';
 import { api } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/errors';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Input,
+  Label,
+} from '@garage-admin/ui';
 
 export default function Login() {
   const [password, setPassword] = useState('');

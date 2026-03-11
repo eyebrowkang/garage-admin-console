@@ -18,18 +18,21 @@ import { getApiErrorMessage } from '@/lib/errors';
 import { cn } from '@/lib/utils';
 import { useConnectionContext } from '@/hooks/use-connection-context';
 import { useToast } from '@/hooks/use-toast';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Button,
+  Card,
+  CardContent,
+  Skeleton,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from '@garage-admin/ui';
 import { UploadDialog } from '@/components/UploadDialog';
 import { CreateFolderDialog } from '@/components/CreateFolderDialog';
 import { DeleteObjectDialog } from '@/components/DeleteObjectDialog';

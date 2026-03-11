@@ -3,8 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Globe, HardDrive, Loader2, AlertCircle } from 'lucide-react';
 import { api } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/errors';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle, Button } from '@garage-admin/ui';
 import { ConnectionContext, type Connection } from '@/hooks/use-connection-context';
 
 export function ConnectionLayout() {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Copy, ChevronDown, ChevronRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@garage-admin/ui';
 
 interface JsonViewerProps {
   data: unknown;

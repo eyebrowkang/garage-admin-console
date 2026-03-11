@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Copy, Eye, EyeOff } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@garage-admin/ui';
 
 interface SecretRevealProps {
   label: string;

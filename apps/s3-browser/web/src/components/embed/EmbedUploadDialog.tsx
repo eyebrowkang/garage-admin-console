@@ -2,15 +2,15 @@ import { useState, useRef, useCallback } from 'react';
 import { Upload, X, File, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { Button } from '@/components/ui/button';
 import {
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
+} from '@garage-admin/ui';
 
 interface EmbedUploadDialogProps {
   open: boolean;

@@ -1,6 +1,6 @@
 import { Outlet, useNavigate, Link } from 'react-router-dom';
 import { LogOut, HardDrive } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@garage-admin/ui';
 
 export function MainLayout() {
   const navigate = useNavigate();

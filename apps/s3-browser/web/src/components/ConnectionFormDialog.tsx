@@ -1,16 +1,16 @@
 import { useState } from 'react';
 import { Loader2, Info } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
+  Input,
+  Label,
+} from '@garage-admin/ui';
 
 export interface ConnectionFormData {
   name: string;

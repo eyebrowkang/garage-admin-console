@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { TableRow, TableCell } from '@/components/ui/table';
+import { TableRow, TableCell } from '@garage-admin/ui';
 
 interface TableEmptyStateProps {
   icon: LucideIcon;

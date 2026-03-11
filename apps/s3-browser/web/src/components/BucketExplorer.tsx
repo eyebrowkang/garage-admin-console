@@ -4,8 +4,7 @@ import { FolderOpen, Calendar, Loader2, AlertCircle } from 'lucide-react';
 import { useS3EmbedContext, type S3EmbedConfig } from '../providers/S3EmbedProvider';
 import { createEmbedApi } from '@/lib/embed-api';
 import { Toaster } from '@/components/ui/toaster';
-import { Card, CardContent } from '@/components/ui/card';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle, Card, CardContent } from '@garage-admin/ui';
 import { ObjectBrowser } from './ObjectBrowser';
 
 interface Bucket {

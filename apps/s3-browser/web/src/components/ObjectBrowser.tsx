@@ -23,18 +23,21 @@ import { useS3EmbedContext, type S3EmbedConfig } from '../providers/S3EmbedProvi
 import { createEmbedApi } from '@/lib/embed-api';
 import { useToast } from '@/hooks/use-toast';
 import { Toaster } from '@/components/ui/toaster';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Button,
+  Card,
+  CardContent,
+  Skeleton,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from '@garage-admin/ui';
 import { EmbedUploadDialog } from '@/components/embed/EmbedUploadDialog';
 import { EmbedCreateFolderDialog } from '@/components/embed/EmbedCreateFolderDialog';
 import { EmbedDeleteDialog } from '@/components/embed/EmbedDeleteDialog';

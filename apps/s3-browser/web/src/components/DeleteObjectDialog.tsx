@@ -1,13 +1,13 @@
 import { Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import {
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
+} from '@garage-admin/ui';
 
 interface DeleteObjectDialogProps {
   open: boolean;
