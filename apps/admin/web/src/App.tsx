@@ -48,6 +48,9 @@ const WorkerManager = React.lazy(() =>
 const MetricsPage = React.lazy(() =>
   import('./pages/cluster/MetricsPage').then((m) => ({ default: m.MetricsPage })),
 );
+const S3BrowserTest = React.lazy(() =>
+  import('./pages/S3BrowserTest').then((m) => ({ default: m.S3BrowserTest })),
+);
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -113,6 +116,7 @@ function App() {
           >
             <Route index element={<Dashboard />} />
             <Route path="clusters" element={<Dashboard />} />
+            <Route path="s3-test" element={<S3BrowserTest />} />
             <Route path="clusters/:id" element={<ClusterLayout />}>
               <Route index element={<ClusterOverview />} />
               <Route path="buckets" element={<BucketList />} />
