@@ -231,6 +231,8 @@ importers:
         specifier: ^4.0.18
         version: 4.0.18(@types/node@25.3.1)(jiti@2.6.1)(jsdom@28.1.0(@noble/hashes@1.8.0))(lightningcss@1.31.1)(tsx@4.21.0)
 
+  packages/tsconfig: {}
+
 packages:
 
   '@acemir/cssom@0.9.31':

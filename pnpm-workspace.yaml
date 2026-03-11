@@ -1,6 +1,7 @@
 packages:
   - apps/admin/api
   - apps/admin/web
+  - packages/tsconfig
 
 onlyBuiltDependencies:
   - bcrypt
