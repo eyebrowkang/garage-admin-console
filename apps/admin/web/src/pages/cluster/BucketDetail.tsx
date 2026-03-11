@@ -338,6 +338,9 @@ export function BucketDetail() {
       });
       setBrowseConfig({
         ...res.data,
+        // Use the dev proxy path (/s3-api) to avoid cross-origin issues.
+        // In production, the bridge route returns the correct apiBase.
+        apiBase: import.meta.env.DEV ? '/s3-api' : res.data.apiBase,
         readonly: !selectedKey?.permissions.write,
       });
     } catch (err) {

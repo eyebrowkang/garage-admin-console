@@ -13,7 +13,7 @@ export default defineConfig({
         s3_browser: {
           type: 'module',
           name: 's3_browser',
-          entry: 'http://localhost:5174/remoteEntry.js',
+          entry: '/@mf-s3/remoteEntry.js',
           entryGlobalName: 's3_browser',
           shareScope: 'default',
         },
@@ -59,6 +59,18 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:3001',
         changeOrigin: true,
+      },
+      // Proxy S3 Browser MF remote modules through admin dev server to avoid CORS
+      '/@mf-s3': {
+        target: 'http://localhost:5174',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/@mf-s3/, ''),
+      },
+      // Proxy S3 Browser API so embedded ObjectBrowser calls stay same-origin
+      '/s3-api': {
+        target: 'http://localhost:3002',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/s3-api/, '/api'),
       },
     },
   },

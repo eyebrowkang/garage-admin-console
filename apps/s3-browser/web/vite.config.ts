@@ -35,7 +35,10 @@ export default defineConfig({
   },
   server: {
     port: 5174,
-    origin: 'http://localhost:5174',
+    // When running behind admin dev proxy (pnpm dev), MF_PROXY_ORIGIN is set
+    // so module URLs resolve through the admin server, avoiding cross-origin issues.
+    // Standalone mode (pnpm dev:s3) uses the default origin.
+    origin: process.env.MF_PROXY_ORIGIN || 'http://localhost:5174',
     proxy: {
       '/api': {
         target: 'http://localhost:3002',

@@ -9,7 +9,7 @@
   },
   "scripts": {
     "build": "pnpm -C apps/admin/api build && pnpm -C apps/admin/web build && pnpm -C apps/s3-browser/api build && pnpm -C apps/s3-browser/web build",
-    "dev": "pnpm -r --parallel dev",
+    "dev": "MF_PROXY_ORIGIN=http://localhost:5173/@mf-s3 pnpm -r --parallel dev",
     "dev:admin": "pnpm -r --parallel --filter @garage-admin/admin-api --filter @garage-admin/admin-web dev",
     "dev:s3": "pnpm -r --parallel --filter @garage-admin/s3-api --filter @garage-admin/s3-web dev",
     "lint": "pnpm -r lint",
