@@ -9,6 +9,7 @@ export default defineConfig({
     federation({
       name: 's3_browser',
       filename: 'remoteEntry.js',
+      dts: false,
       exposes: {
         './ObjectBrowser': './src/components/ObjectBrowser.tsx',
         './BucketExplorer': './src/components/BucketExplorer.tsx',

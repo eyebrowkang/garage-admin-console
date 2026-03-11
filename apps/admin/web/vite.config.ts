@@ -8,6 +8,7 @@ export default defineConfig({
   plugins: [
     federation({
       name: 'admin_console',
+      dts: false,
       remotes: {
         s3_browser: {
           type: 'module',
