@@ -52,6 +52,7 @@ import { formatBytes, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { api } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
+import { MFErrorBoundary } from '@/components/MFErrorBoundary';
 
 const RemoteS3EmbedProvider = React.lazy(() =>
   import('s3_browser/S3EmbedProvider').then((m) => ({ default: m.S3EmbedProvider })),
@@ -338,9 +339,8 @@ export function BucketDetail() {
       });
       setBrowseConfig({
         ...res.data,
-        // Use the dev proxy path (/s3-api) to avoid cross-origin issues.
-        // In production, the bridge route returns the correct apiBase.
-        apiBase: import.meta.env.DEV ? '/s3-api' : res.data.apiBase,
+        // Always use /s3-api — admin API proxies to S3 Browser API in all environments.
+        apiBase: '/s3-api',
         readonly: !selectedKey?.permissions.write,
       });
     } catch (err) {
@@ -453,19 +453,21 @@ export function BucketDetail() {
               )}
             </div>
           ) : (
-            <Suspense fallback={<PageLoadingState label="Loading Object Browser..." />}>
-              <RemoteS3EmbedProvider
-                config={{
-                  apiBase: browseConfig.apiBase,
-                  connectionId: browseConfig.connectionId,
-                  bucket: browseConfig.bucketName,
-                  readonly: browseConfig.readonly,
-                  token: browseConfig.token,
-                }}
-              >
-                <RemoteObjectBrowser bucket={browseConfig.bucketName} />
-              </RemoteS3EmbedProvider>
-            </Suspense>
+            <MFErrorBoundary>
+              <Suspense fallback={<PageLoadingState label="Loading Object Browser..." />}>
+                <RemoteS3EmbedProvider
+                  config={{
+                    apiBase: browseConfig.apiBase,
+                    connectionId: browseConfig.connectionId,
+                    bucket: browseConfig.bucketName,
+                    readonly: browseConfig.readonly,
+                    token: browseConfig.token,
+                  }}
+                >
+                  <RemoteObjectBrowser bucket={browseConfig.bucketName} />
+                </RemoteS3EmbedProvider>
+              </Suspense>
+            </MFErrorBoundary>
           )}
         </CardContent>
       </Card>

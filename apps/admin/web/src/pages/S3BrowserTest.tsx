@@ -1,5 +1,6 @@
 import React, { Suspense, useState } from 'react';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
+import { MFErrorBoundary } from '@/components/MFErrorBoundary';
 
 const RemoteS3EmbedProvider = React.lazy(() =>
   import('s3_browser/S3EmbedProvider').then((m) => ({ default: m.S3EmbedProvider })),
@@ -112,18 +113,20 @@ export function S3BrowserTest() {
         </button>
       </div>
 
-      <Suspense fallback={<PageLoadingState label="Loading S3 Browser components..." />}>
-        <RemoteS3EmbedProvider
-          config={{
-            apiBase,
-            connectionId,
-            bucket: bucket || undefined,
-            token,
-          }}
-        >
-          <RemoteBucketExplorer />
-        </RemoteS3EmbedProvider>
-      </Suspense>
+      <MFErrorBoundary>
+        <Suspense fallback={<PageLoadingState label="Loading S3 Browser components..." />}>
+          <RemoteS3EmbedProvider
+            config={{
+              apiBase,
+              connectionId,
+              bucket: bucket || undefined,
+              token,
+            }}
+          >
+            <RemoteBucketExplorer />
+          </RemoteS3EmbedProvider>
+        </Suspense>
+      </MFErrorBoundary>
     </div>
   );
 }
