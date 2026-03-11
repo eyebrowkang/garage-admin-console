@@ -1,14 +1,16 @@
 # Development Guide
 
-This document provides comprehensive guidance for developers working on the Garage Admin Console.
+Comprehensive guide for developers working on the Garage Admin Console monorepo.
 
 ## Table of Contents
 
+- [Quick Start](#quick-start)
 - [Architecture Overview](#architecture-overview)
-- [Development Setup](#development-setup)
 - [Project Structure](#project-structure)
-- [API Package](#api-package)
-- [Web Package](#web-package)
+- [Admin Console](#admin-console)
+- [S3 Browser](#s3-browser)
+- [Shared Packages](#shared-packages)
+- [Module Federation](#module-federation)
 - [Testing](#testing)
 - [Database Management](#database-management)
 - [Code Style](#code-style)
@@ -18,114 +20,61 @@ This document provides comprehensive guidance for developers working on the Gara
 
 ---
 
-## Architecture Overview
-
-### System Design
-
-The Garage Admin Console follows a **Backend-For-Frontend (BFF)** proxy pattern:
-
-```
-┌──────────────────────────────────────────────────────────────┐
-│                         Browser                              │
-└─────────────────────────────┬────────────────────────────────┘
-                              │ HTTP
-                              ▼
-┌──────────────────────────────────────────────────────────────┐
-│                    Frontend (React SPA)                       │
-│  - React 19 + TypeScript                                     │
-│  - TanStack React Query (data fetching)                      │
-│  - React Router v7 (routing)                                 │
-│  - Tailwind CSS + shadcn/ui (styling)                        │
-│  - ECharts (visualizations)                                  │
-└─────────────────────────────┬────────────────────────────────┘
-                              │ /api/* (proxied in dev)
-                              ▼
-┌──────────────────────────────────────────────────────────────┐
-│                     BFF API (Express)                        │
-│  - Express 5 + TypeScript                                    │
-│  - JWT authentication                                        │
-│  - Drizzle ORM (SQLite/LibSQL)                                │
-│  - AES-256-GCM credential encryption                         │
-└─────────────────────────────┬────────────────────────────────┘
-                              │ /proxy/:clusterId/*
-                              ▼
-┌──────────────────────────────────────────────────────────────┐
-│                    Garage Clusters                            │
-│  - Admin API v2 endpoints                                    │
-│  - Multiple clusters supported                               │
-└──────────────────────────────────────────────────────────────┘
-```
-
-### Key Design Decisions
-
-1. **BFF Proxy Pattern**: The frontend never communicates directly with Garage clusters. All API calls are proxied through the BFF, which:
-   - Manages encrypted credential storage
-   - Handles authentication
-   - Provides a unified API surface
-
-2. **Single Admin Password**: Simple authentication model using a single admin password. JWT tokens are issued with 24-hour expiry.
-
-3. **Encrypted Credentials**: Garage admin tokens are stored encrypted using AES-256-GCM (see `api/src/encryption.ts`). They are only decrypted in memory when proxying requests.
-
-4. **Monorepo Structure**: Both API and frontend live in a single repository using pnpm workspaces.
-
----
-
-## Development Setup
-
-### Prerequisites
-
-- **Node.js** 24.x or later
-- **pnpm** 10.x or later
-
-### Initial Setup
+## Quick Start
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/eyebrowkang/garage-admin-console.git
-cd garage-admin-console
-
-# 2. Install dependencies
+# 1. Install dependencies
 pnpm install
+pnpm approve-builds    # if prompted
 
-# 3. Approve native builds if prompted
-pnpm approve-builds
+# 2. Configure environment
+cp apps/admin/api/.env.example apps/admin/api/.env
+cp apps/s3-browser/api/.env.example apps/s3-browser/api/.env
+# Edit both .env files
 
-# 4. Create environment file
-cp api/.env.example api/.env
-# Edit api/.env with your settings
-
-# 5. Start development servers (database is auto-migrated on startup)
+# 3. Start development (databases auto-migrate on startup)
 pnpm dev
+```
+
+| App | API | Web |
+|-----|-----|-----|
+| Admin Console | http://localhost:3001 | http://localhost:5173 |
+| S3 Browser | http://localhost:3002 | http://localhost:5174 |
+
+### Selective Startup
+
+```bash
+pnpm dev:admin    # Admin API (3001) + Web (5173) only
+pnpm dev:s3       # S3 Browser API (3002) + Web (5174) only
 ```
 
 ### Environment Variables
 
-Create `api/.env` from `api/.env.example`. Available variables:
+Each API app has its own `.env` file. See `.env.example` in each API directory for all options.
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `JWT_SECRET` | Yes | Secret for JWT signing (random 32+ char string) |
-| `ENCRYPTION_KEY` | Yes | AES-256 key (exactly 32 bytes) |
-| `ADMIN_PASSWORD` | Yes | Console login password |
-| `PORT` | No | API server port (default: `3001`) |
-| `LOG_LEVEL` | No | System log level: fatal, error, warn, info, debug, trace, silent (default: `info`) |
-| `MORGAN_FORMAT` | No | HTTP log format for morgan, or `off` to disable (default: `dev` in development) |
+**Required** (both apps):
 
-Environment validation is handled in `api/src/config/env.ts`. In development, the database is stored at `api/data.db`. In Docker, the `DATA_DIR` environment variable controls the database location (defaults to `/data`).
+| Variable | Description |
+|----------|-------------|
+| `JWT_SECRET` | Secret for JWT signing (random 32+ char string) |
+| `ENCRYPTION_KEY` | AES-256 key (exactly 32 ASCII characters) |
+| `ADMIN_PASSWORD` | Console login password |
 
-### Development Servers
+**Optional** (both apps):
 
-```bash
-# Start both API and frontend
-pnpm dev
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `3001` / `3002` | API server port |
+| `LOG_LEVEL` | `info` | Log level: fatal, error, warn, info, debug, trace, silent |
+| `MORGAN_FORMAT` | `dev` (development) | HTTP log format for morgan, or `off` to disable |
 
-# Or start individually
-pnpm -C api dev    # API on http://localhost:3001
-pnpm -C web dev    # Frontend on http://localhost:5173
-```
+---
 
-The frontend dev server proxies `/api/*` requests to the backend automatically (configured in `web/vite.config.ts`).
+## Architecture Overview
+
+See [docs/architecture.md](./docs/architecture.md) for detailed diagrams.
+
+Both apps follow a **Backend-For-Frontend (BFF) proxy pattern** — the browser never communicates directly with storage services. Credentials are encrypted at rest and only decrypted in-memory when proxying requests.
 
 ---
 
@@ -133,400 +82,355 @@ The frontend dev server proxies `/api/*` requests to the backend automatically (
 
 ```
 garage-admin-console/
-├── api/                          # Backend-For-Frontend service
-│   ├── src/
-│   │   ├── index.ts              # Server entry point
-│   │   ├── app.ts                # Express app setup and route registration
-│   │   ├── db/
-│   │   │   ├── index.ts          # Drizzle client initialization
-│   │   │   ├── schema.ts         # Drizzle table definitions
-│   │   │   ├── migrate.ts        # Programmatic migration runner
-│   │   │   └── seed.ts           # Database seed script
-│   │   ├── encryption.ts         # AES-256-GCM utilities
-│   │   ├── logger.ts             # Pino logger configuration
-│   │   ├── config/
-│   │   │   └── env.ts            # Environment variable validation
-│   │   ├── middleware/
-│   │   │   └── auth.middleware.ts # JWT verification
-│   │   └── routes/
-│   │       ├── auth.ts           # POST /auth/login
-│   │       ├── clusters.ts       # CRUD /clusters
-│   │       └── proxy.ts          # ALL /proxy/:clusterId/*
-│   ├── drizzle/                  # Migration SQL files
-│   ├── drizzle.config.ts         # Drizzle Kit configuration
-│   └── package.json
+├── apps/
+│   ├── admin/
+│   │   ├── api/                        # Admin BFF service
+│   │   │   ├── src/
+│   │   │   │   ├── index.ts            # Server entry point
+│   │   │   │   ├── app.ts              # Express app setup and route registration
+│   │   │   │   ├── config/env.ts       # Environment variable validation
+│   │   │   │   ├── db/                 # Drizzle ORM (schema, migrations, client)
+│   │   │   │   ├── encryption.ts       # AES-256-GCM utilities
+│   │   │   │   ├── middleware/         # JWT auth middleware
+│   │   │   │   └── routes/             # auth, clusters, proxy
+│   │   │   └── drizzle/                # Migration SQL files
+│   │   └── web/                        # Admin SPA (MF Host)
+│   │       └── src/
+│   │           ├── App.tsx             # Root component with routing
+│   │           ├── pages/              # Page components
+│   │           ├── layouts/            # MainLayout, ClusterLayout
+│   │           ├── components/         # ui/, cluster/, dashboard/
+│   │           ├── hooks/              # React Query hooks
+│   │           ├── lib/api.ts          # Axios client with JWT interceptors
+│   │           └── types/garage.ts     # Garage API type definitions
+│   │
+│   └── s3-browser/
+│       ├── api/                        # S3 Browser BFF service
+│       │   └── src/
+│       │       ├── app.ts              # Express app setup
+│       │       ├── config/env.ts       # Environment validation
+│       │       ├── db/                 # Drizzle ORM (connections table)
+│       │       ├── encryption.ts       # AES-256-GCM utilities
+│       │       ├── lib/s3-client.ts    # S3Client factory
+│       │       └── routes/             # auth, connections, s3 operations
+│       └── web/                        # S3 Browser SPA (MF Remote)
+│           └── src/
+│               ├── App.tsx             # Routes and QueryClient
+│               ├── pages/              # Dashboard, BucketList, ObjectBrowserPage, Login
+│               ├── layouts/            # MainLayout, ConnectionLayout
+│               ├── components/         # ObjectBrowser, BucketExplorer, UploadDialog, etc.
+│               ├── providers/          # S3EmbedProvider (MF context)
+│               ├── hooks/              # Connection context hook
+│               └── lib/                # api.ts, embed-api.ts
 │
-├── web/                          # Frontend SPA
-│   ├── src/
-│   │   ├── main.tsx              # React entry point
-│   │   ├── App.tsx               # Root component with routing
-│   │   ├── pages/                # Page components
-│   │   │   ├── Login.tsx
-│   │   │   ├── Dashboard.tsx
-│   │   │   └── cluster/          # Cluster detail pages
-│   │   ├── layouts/
-│   │   │   ├── MainLayout.tsx    # Top-level header layout
-│   │   │   └── ClusterLayout.tsx # Sidebar navigation layout
-│   │   ├── components/
-│   │   │   ├── ui/               # shadcn/ui primitives
-│   │   │   ├── cluster/          # Reusable cluster components
-│   │   │   └── dashboard/        # Dashboard components
-│   │   ├── hooks/                # Custom React hooks
-│   │   ├── contexts/             # React contexts
-│   │   ├── lib/                  # Utility functions
-│   │   └── types/                # TypeScript types
-│   ├── public/
-│   │   └── garage-admin-v2.json  # Garage OpenAPI spec
-│   ├── vite.config.ts
-│   └── package.json
+├── packages/
+│   ├── auth/                           # @garage-admin/auth — JWT middleware factory
+│   ├── ui/                             # @garage-admin/ui — Shared shadcn/ui components
+│   └── tsconfig/                       # @garage-admin/tsconfig — Shared TS configs
 │
-├── e2e/                          # End-to-end tests (Playwright)
-│   ├── fixtures.ts               # Test fixtures
-│   ├── helpers.ts                # Shared test helpers
-│   ├── auth.spec.ts
-│   ├── cluster.spec.ts
-│   ├── buckets.spec.ts
-│   └── keys.spec.ts
-│
-├── package.json                  # Workspace configuration
-├── pnpm-workspace.yaml
-└── playwright.config.ts
+├── docker/                             # Dockerfiles (admin, s3-browser, combined)
+├── docs/                               # Architecture, deployment, MF, S3 Browser guides
+├── e2e/                                # Playwright E2E tests
+└── [config files]                      # pnpm-workspace.yaml, prettier, eslint, etc.
 ```
 
 ---
 
-## API Package
+## Admin Console
 
-### Routes
+### API Routes
 
-Routes are registered in `api/src/app.ts`.
+Routes are registered in `apps/admin/api/src/app.ts`.
 
 | Endpoint | Method | Auth | Description |
 |----------|--------|------|-------------|
-| `/auth/login` | POST | No | Authenticate and receive JWT |
-| `/health` | GET | No | Health check |
-| `/clusters` | GET | JWT | List all clusters |
-| `/clusters` | POST | JWT | Add a new cluster |
-| `/clusters/:id` | PUT | JWT | Update a cluster |
-| `/clusters/:id` | DELETE | JWT | Remove a cluster |
-| `/proxy/:clusterId/*` | ALL | JWT | Proxy to Garage cluster |
+| `/api/auth/login` | POST | No | Authenticate and receive JWT |
+| `/api/health` | GET | No | Health check |
+| `/api/clusters` | GET | JWT | List all clusters |
+| `/api/clusters` | POST | JWT | Add a new cluster |
+| `/api/clusters/:id` | PUT | JWT | Update a cluster |
+| `/api/clusters/:id` | DELETE | JWT | Remove a cluster |
+| `/api/proxy/:clusterId/*` | ALL | JWT | Proxy to Garage cluster |
 
 ### Database Schema
 
-Defined in `api/src/db/schema.ts` using Drizzle ORM. Two tables:
+Defined in `apps/admin/api/src/db/schema.ts` using Drizzle ORM:
 
-- **Cluster** — `id`, `name`, `endpoint`, `adminToken` (AES-256-GCM encrypted), `metricToken` (encrypted, optional), `createdAt`, `updatedAt`
+- **Cluster** — `id`, `name`, `endpoint`, `adminToken` (encrypted), `metricToken` (encrypted, optional), `createdAt`, `updatedAt`
 - **AppSettings** — Key-value store (`key`, `value`)
 
-### Key Files
+### Frontend Routing
 
-- `api/src/app.ts` — Express app setup, middleware, and route registration
-- `api/src/index.ts` — Server entry point
-- `api/src/db/index.ts` — Drizzle client with LibSQL
-- `api/src/db/schema.ts` — Drizzle table definitions
-- `api/src/db/migrate.ts` — Programmatic migration runner
-- `api/src/encryption.ts` — AES-256-GCM encrypt/decrypt functions
-- `api/src/middleware/auth.middleware.ts` — JWT verification middleware
-- `api/src/routes/proxy.ts` — Garage API proxy with credential decryption
-
----
-
-## Web Package
-
-### Routing Structure
-
-Defined in `web/src/App.tsx`:
+Defined in `apps/admin/web/src/App.tsx`:
 
 ```
-/login                        → Login page
-/                             → Dashboard (cluster list)
-/clusters/:id                 → Cluster detail (sidebar layout)
-  /clusters/:id/              → Overview
-  /clusters/:id/buckets       → Bucket list
-  /clusters/:id/buckets/:bid  → Bucket detail
-  /clusters/:id/keys          → Key list
-  /clusters/:id/keys/:kid     → Key detail
-  /clusters/:id/nodes         → Node list
-  /clusters/:id/nodes/:nid    → Node detail
-  /clusters/:id/layout        → Layout manager
-  /clusters/:id/tokens        → Admin token list
-  /clusters/:id/tokens/:tid   → Admin token detail
-  /clusters/:id/blocks        → Block manager
-  /clusters/:id/workers       → Worker manager
-/clusters/:id/metrics         → Prometheus metrics (standalone)
+/login                          → Login page
+/                               → Dashboard (cluster list)
+/clusters/:id                   → Cluster detail (sidebar layout)
+  /clusters/:id/                → Overview
+  /clusters/:id/buckets         → Bucket list
+  /clusters/:id/buckets/:bid    → Bucket detail
+  /clusters/:id/keys            → Key list
+  /clusters/:id/keys/:kid       → Key detail
+  /clusters/:id/nodes           → Node list
+  /clusters/:id/nodes/:nid      → Node detail
+  /clusters/:id/layout          → Layout manager
+  /clusters/:id/tokens          → Admin token list
+  /clusters/:id/tokens/:tid     → Admin token detail
+  /clusters/:id/blocks          → Block manager
+  /clusters/:id/workers         → Worker manager
+/clusters/:id/metrics           → Prometheus metrics
+/s3-test                        → S3 Browser MF test page
 ```
-
-### Component Organization
-
-Reusable cluster components live in `web/src/components/cluster/`:
-
-| Component | Purpose |
-|-----------|---------|
-| `ConfirmDialog.tsx` | 3-tier confirmation dialog (simple / danger / type-to-confirm) |
-| `ModulePageHeader.tsx` | Consistent page header for module list pages |
-| `DetailPageHeader.tsx` | Page header for detail pages with back navigation |
-| `SecretReveal.tsx` | One-time secret display |
-| `NodeSelector.tsx` | Node selection dropdown |
-| `JsonViewer.tsx` | JSON display component |
-| `CopyButton.tsx` | Click-to-copy button |
-| `AliasMiniChip.tsx` | Compact alias badge |
-| `PageLoadingState.tsx` | Full-page loading spinner |
-| `InlineLoadingState.tsx` | Inline loading indicator |
-
-Dashboard components live in `web/src/components/dashboard/` (e.g., `ClusterStatusMonitor.tsx`).
-
-UI primitives (button, dialog, table, etc.) are in `web/src/components/ui/`, built on shadcn/ui and Radix UI.
 
 ### Custom Hooks
 
-Located in `web/src/hooks/`:
+Located in `apps/admin/web/src/hooks/`:
 
 | Hook | Purpose |
 |------|---------|
 | `useClusters` | Cluster CRUD operations |
 | `useBuckets` | Bucket operations |
 | `useKeys` | Access key operations |
-| `useNodes` | Node info and cluster status queries |
+| `useNodes` | Node info and cluster status |
 | `useBlocks` | Block error management |
 | `useWorkers` | Worker management |
 | `useAdminTokens` | Admin token CRUD |
-| `usePermissions` | Bucket-key permission grants (allow/deny) |
+| `usePermissions` | Bucket-key permission grants |
 
-### API Client
+---
 
-The API client is defined in `web/src/lib/api.ts`. It provides:
+## S3 Browser
 
-- Axios instance with base URL configuration
-- JWT token injection via request interceptor
-- Automatic redirect to login on 401/403 responses
-- `proxyPath(clusterId, path)` helper for constructing Garage API proxy URLs
+See [docs/s3-browser.md](./docs/s3-browser.md) for the full feature guide and API reference.
 
-Garage API type definitions are in `web/src/types/garage.ts`.
+### API Routes
+
+Routes are registered in `apps/s3-browser/api/src/app.ts`.
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/auth/login` | POST | No | Authenticate and receive JWT |
+| `/api/health` | GET | No | Health check |
+| `/api/connections` | GET/POST | JWT | List/create connections |
+| `/api/connections/:id` | PUT/DELETE | JWT | Update/delete connection |
+| `/api/s3/:connectionId/buckets` | GET | JWT | List buckets |
+| `/api/s3/:connectionId/objects` | GET/DELETE | JWT | List/delete objects |
+| `/api/s3/:connectionId/objects/download` | GET | JWT | Download object |
+| `/api/s3/:connectionId/objects/upload` | POST | JWT | Upload file(s) |
+| `/api/s3/:connectionId/objects/folder` | POST | JWT | Create folder |
+
+### Frontend Routing
+
+Defined in `apps/s3-browser/web/src/App.tsx`:
+
+```
+/login                          → Login page
+/                               → Dashboard (connection list)
+/connections/:id                → Connection detail (bucket list or auto-redirect)
+/connections/:id/browse         → Object browser (?bucket=X&prefix=Y)
+```
+
+---
+
+## Shared Packages
+
+### @garage-admin/auth
+
+JWT auth middleware factory used by both apps:
+
+```ts
+import { createAuthMiddleware } from '@garage-admin/auth';
+const authenticateToken = createAuthMiddleware({ secret: env.jwtSecret });
+app.use('/api/clusters', authenticateToken, clusterRoutes);
+```
+
+### @garage-admin/ui
+
+Shared shadcn/ui components: `Button`, `Card`, `cn()` utility. Built on Radix UI primitives.
+
+```ts
+import { Button, cn } from '@garage-admin/ui';
+```
+
+### @garage-admin/tsconfig
+
+Base TypeScript configs: `base.json`, `react.json`, `node.json`.
+
+---
+
+## Module Federation
+
+See [docs/module-federation.md](./docs/module-federation.md) for the full integration guide.
+
+The S3 Browser web app (remote) exposes components that the Admin Console web app (host) can load dynamically. During development, both apps must be running for MF to work.
 
 ---
 
 ## Testing
 
-### API Tests
-
-```bash
-pnpm -C api test:run      # Run once
-```
-
-API tests are located in `api/src/test/`.
-
-### Unit Tests (Vitest)
-
-```bash
-pnpm -C web test          # Run in watch mode
-pnpm -C web test:run      # Run once
-pnpm -C web test:coverage # Run with coverage
-```
-
-Unit tests are located alongside source files with `.test.ts` or `.test.tsx` extension. Test setup is in `web/src/test/setup.ts`.
-
 ### E2E Tests (Playwright)
 
 ```bash
-npx playwright test                    # Run all E2E tests
-npx playwright test --ui               # Run with UI
-npx playwright test e2e/auth.spec.ts   # Run specific test file
+npx playwright test                    # Run all
+npx playwright test --ui               # Interactive UI
+npx playwright test e2e/auth.spec.ts   # Specific file
 npx playwright show-report             # View report
 ```
 
-Configuration is in `playwright.config.ts`. Tests run against Chromium with base URL `http://localhost:5173`, and auto-start the dev server if not running.
+Configuration in `playwright.config.ts`. Tests run against Chromium with auto-started dev server.
 
-Test fixtures (`e2e/fixtures.ts`) provide pre-authenticated page setup. Shared navigation helpers are in `e2e/helpers.ts`.
+### Unit Tests
+
+```bash
+pnpm test                              # Run all tests across workspace
+pnpm -C apps/admin/web test            # Admin web tests only
+```
 
 ---
 
 ## Database Management
 
-### Quick Commands
+Both apps use Drizzle ORM with LibSQL (SQLite). Migrations run automatically on startup.
+
+### Admin Console
 
 ```bash
-pnpm -C api db:generate  # Generate migration SQL from schema changes
-pnpm -C api db:push      # Push schema directly (development only)
-pnpm -C api db:seed      # Run seed script
-pnpm -C api db:studio    # Open Drizzle Studio GUI
+pnpm -C apps/admin/api db:generate     # Generate migration from schema changes
+pnpm -C apps/admin/api db:push         # Push schema directly (dev only)
+pnpm -C apps/admin/api db:seed         # Run seed script
+pnpm -C apps/admin/api db:studio       # Open Drizzle Studio GUI
 ```
 
-### Schema Changes
+Schema: `apps/admin/api/src/db/schema.ts` | Migrations: `apps/admin/api/drizzle/`
 
-This project uses Drizzle Kit for schema management. The workflow:
+### S3 Browser
 
-1. Edit `api/src/db/schema.ts`
-2. Generate a migration: `pnpm -C api db:generate --name=<description>`
-3. The migration SQL is saved to `api/drizzle/` and committed to version control
+The S3 Browser uses the same Drizzle pattern. Schema in `apps/s3-browser/api/src/db/schema.ts`.
 
-Migrations are applied automatically on application startup via `runMigrations()` in `api/src/db/migrate.ts`. No separate migration step is needed in Docker or CI.
+### Schema Change Workflow
 
-`db:push` is available for development convenience (e.g., rapid prototyping) but should not be used for production databases.
+1. Edit the relevant `schema.ts`
+2. Generate migration: `pnpm -C apps/<app>/api db:generate --name=<description>`
+3. Migration SQL is saved to `<app>/api/drizzle/` and committed to version control
+4. Migrations auto-apply on next startup
 
 ---
 
 ## Code Style
 
-### Formatting
-
-- **Prettier** with 100-char line width, single quotes, trailing commas, semicolons, 2-space indent
-- Configuration in `prettier.config.cjs`
+### Formatting & Linting
 
 ```bash
-pnpm format        # Format all files
+pnpm format        # Auto-format all files (Prettier)
 pnpm format:check  # Check formatting
-```
-
-### Linting
-
-- **ESLint 9** flat config with TypeScript support
-- React Hooks and React Refresh plugins for frontend
-
-```bash
-pnpm lint      # Lint all files
-pnpm lint:fix  # Auto-fix issues
-```
-
-### Type Checking
-
-```bash
-pnpm -C api typecheck  # Check API types (tsc --noEmit)
-pnpm -C web build      # Web types are checked during build
+pnpm lint          # Lint all packages (ESLint)
+pnpm lint:fix      # Auto-fix lint issues
+pnpm typecheck     # Type-check all packages
 ```
 
 ### Conventions
 
-- TypeScript strict mode in both packages
-- ES modules throughout
-- `@/` path alias for imports in web package (configured in `web/vite.config.ts`)
-- Business logic extracted into custom hooks
-- TanStack Query for all data fetching
+- **Prettier**: 100-char width, single quotes, trailing commas, semicolons, 2-space indent
+- **ESLint 9**: Flat config with TypeScript rules; React Hooks + React Refresh plugins on frontend
+- **TypeScript**: Strict mode, ES modules throughout
+- **Path alias**: `@/` → `src/` in all web packages
+- **Data fetching**: TanStack React Query for all API calls
+- **Commit messages**: [Conventional Commits](https://www.conventionalcommits.org/) required
 
 ---
 
 ## Common Tasks
 
-### Adding a New Page
+### Adding a New Page (Admin)
 
-1. Create page component in `web/src/pages/` (or `web/src/pages/cluster/` for cluster pages)
-2. Add route in `web/src/App.tsx`
-3. Create any necessary hooks in `web/src/hooks/`
-4. Add types in `web/src/types/garage.ts` if needed
+1. Create component in `apps/admin/web/src/pages/`
+2. Add route in `apps/admin/web/src/App.tsx`
+3. Create hooks in `apps/admin/web/src/hooks/` if needed
+4. Add types in `apps/admin/web/src/types/garage.ts`
 
-### Adding a New API Endpoint
+### Adding a New Page (S3 Browser)
 
-1. Create or update route handler in `api/src/routes/`
-2. Register route in `api/src/app.ts`
-3. Add Zod schema for request validation
-4. Update frontend API calls as needed
+1. Create component in `apps/s3-browser/web/src/pages/`
+2. Add route in `apps/s3-browser/web/src/App.tsx`
+3. Add API routes in `apps/s3-browser/api/src/routes/` if needed
 
 ### Adding a UI Component
 
-For shadcn/ui components: `npx shadcn-ui@latest add <component>` (installs to `web/src/components/ui/`).
+For shadcn/ui primitives shared across apps: add to `packages/ui/`.
 
-For custom cluster components: create in `web/src/components/cluster/`.
+For app-specific components: add to the app's `components/` directory.
 
-### Adding a New Garage API Integration
+### Adding a New API Endpoint
 
-1. Check `web/public/garage-admin-v2.json` for endpoint specification
-2. Add TypeScript types to `web/src/types/garage.ts`
-3. Create or update hook in `web/src/hooks/`
-4. Update relevant page components
+1. Create or update route handler in `apps/<app>/api/src/routes/`
+2. Register route in the app's `app.ts`
+3. Add Zod schema for request validation
+4. Update frontend API calls
 
 ---
 
 ## Docker Build
 
-### How It Works
+Three Dockerfiles in `docker/`:
 
-The `Dockerfile` uses a multi-stage build to produce a single image containing both the API and frontend:
-
-1. **Build stage** (`node:24-alpine`) — installs dependencies, compiles TypeScript, builds the Vite frontend, and creates a standalone production deployment using `pnpm deploy --legacy`
-2. **Production stage** (`node:24-alpine`) — copies the deployed API (with production-only `node_modules`), Drizzle migration files, and the built frontend static files
-
-In production, the Express server serves the frontend from `/app/static/` with SPA fallback (see `api/src/index.ts`). Database migrations run automatically on startup. All API routes are mounted under the `/api` prefix (matching the frontend's default `VITE_API_BASE_URL=/api`), which avoids collisions between SPA client-side routes and server API routes.
-
-### Key Files
-
-| File | Purpose |
-|------|---------|
-| `Dockerfile` | Multi-stage build definition |
-| `docker-compose.yml` | Example Compose configuration |
-| `.dockerignore` | Files excluded from build context |
-
-### Building
+| File | Purpose | Port |
+|------|---------|------|
+| `admin.Dockerfile` | Standalone admin console | 3001 |
+| `s3-browser.Dockerfile` | Standalone S3 browser | 3002 |
+| `combined.Dockerfile` | Both apps in one image | 3001 |
 
 ```bash
-docker build -t garage-admin-console .
+docker build -t garage-admin -f docker/admin.Dockerfile .
+docker build -t s3-browser -f docker/s3-browser.Dockerfile .
+docker build -t garage-combined -f docker/combined.Dockerfile .
 ```
 
-### Environment Variables (Production)
-
-These variables are set in `docker-compose.yml` or passed via `docker run -e`:
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `JWT_SECRET` | Yes | — | Secret for JWT signing |
-| `ENCRYPTION_KEY` | Yes | — | AES-256 key (exactly 32 characters) |
-| `ADMIN_PASSWORD` | Yes | — | Console login password |
-| `PORT` | No | `3001` | Server port |
-| `LOG_LEVEL` | No | `info` | Log level |
-| `DATA_DIR` | No | `/data` | Directory for SQLite database |
-| `STATIC_DIR` | No | `/app/static` | Directory for frontend files |
-
-### Data Persistence
-
-The SQLite database is stored in the `DATA_DIR` directory (`/data` by default). Mount a volume to this path to persist data across container restarts:
-
-```yaml
-volumes:
-  - garage-data:/data
-```
+All use multi-stage builds with `node:24-alpine`. See [docs/deployment.md](./docs/deployment.md) for Compose examples and production configuration.
 
 ---
 
 ## Troubleshooting
 
-### Common Issues
+### pnpm install fails with native module errors
 
-**pnpm install fails with native module errors**
 ```bash
 pnpm approve-builds
 pnpm install
 ```
 
-**Database connection errors**
+### Database errors
+
 ```bash
-# Ensure api/data.db is readable/writable
-# Reset database if corrupted
-rm -f api/data.db
-pnpm -C api db:push
+# Reset admin database
+rm -f apps/admin/api/data.db
+# Restart — migrations auto-run
+
+# Reset S3 Browser database
+rm -f apps/s3-browser/api/s3-browser.db
 ```
 
-**Port already in use**
-```bash
-lsof -ti:3001 | xargs kill -9   # Kill process on port 3001
-lsof -ti:5173 | xargs kill -9   # Kill process on port 5173
-```
+### Port already in use
 
-**TypeScript errors after pulling changes**
+Check which process is using the port and stop it manually.
+
+### TypeScript errors after pulling changes
+
 ```bash
 pnpm install
-pnpm -C web build
+pnpm build
 ```
+
+### Module Federation not loading
+
+Ensure both apps are running (`pnpm dev`). The host loads `remoteEntry.js` from `http://localhost:5174/remoteEntry.js` — the S3 Browser dev server must be accessible.
 
 ### Debug Mode
 
 ```bash
-# Enable verbose logging for API
-LOG_LEVEL=debug MORGAN_FORMAT=dev pnpm -C api dev
+# Verbose API logging
+LOG_LEVEL=debug MORGAN_FORMAT=dev pnpm -C apps/admin/api dev
 
-# View Vite debug output
-DEBUG=vite:* pnpm -C web dev
+# Vite debug output
+DEBUG=vite:* pnpm -C apps/admin/web dev
 ```
-
----
-
-## Contributing
-
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for the full contribution guide, including commit conventions and PR process.

@@ -1,26 +1,33 @@
 # Garage Admin Console
 
-[English](./README.md) | [中文](./README.zh.md)
+[English](./README.md) | [中文](./README_zh.md)
 
-A modern web-based administration interface for managing [Garage](https://garagehq.deuxfleurs.fr/) distributed object storage clusters. Monitor cluster health, manage buckets and access keys, configure layouts, and more — all from a single dashboard.
+A modern web-based administration interface for managing [Garage](https://garagehq.deuxfleurs.fr/) distributed object storage clusters, with a companion **S3 Browser** for managing objects in any S3-compatible storage.
 
 > Compatible with Garage Admin API v2.
 >
-> **Versioning**: The major version of this project tracks the Garage Admin API version. v2.x corresponds to Admin API v2. There is no v1.0 or v0.x — Admin API v1 and v0 were already deprecated when this project was created.
+> **Versioning**: The major version tracks the Garage Admin API version. v2.x corresponds to Admin API v2. There is no v1.0 or v0.x — Admin API v1 and v0 were already deprecated when this project was created.
 
 ## Features
 
-- **Multi-cluster Management** - Connect and manage multiple Garage clusters from a single interface
-- **Dashboard Overview** - Real-time cluster health, node status, and capacity visualizations
-- **Bucket Management** - Create, configure, and delete buckets with quota and website hosting options
-- **Access Key Management** - Generate, import, and manage S3-compatible access keys
-- **Permission Control** - Fine-grained bucket-key permission matrix with read/write/owner toggles
-- **Node Monitoring** - View node status, statistics, and trigger maintenance operations
-- **Layout Management** - Configure cluster topology with staged changes and preview before apply
-- **Block Operations** - Monitor block errors, retry failed syncs, and manage data integrity
-- **Worker Management** - Monitor background workers and configure performance parameters
-- **Admin Token Management** - Manage API tokens with scoped permissions
-- **Secure Credential Storage** - AES-256-GCM encrypted storage for Garage admin tokens
+### Admin Console
+
+- **Multi-cluster Management** — Connect and manage multiple Garage clusters from a single dashboard
+- **Real-time Monitoring** — Cluster health, node status, and capacity visualizations
+- **Bucket Management** — Create, configure, and delete buckets with quota and website hosting
+- **Access Key Management** — Generate, import, and manage S3-compatible access keys
+- **Permission Control** — Fine-grained bucket-key permission matrix
+- **Node & Layout** — Monitor nodes, configure cluster topology with staged changes
+- **Block & Worker Ops** — Block error management, worker monitoring, performance tuning
+- **Admin Tokens** — Manage API tokens with scoped permissions
+- **Secure Storage** — AES-256-GCM encrypted credential storage
+
+### S3 Browser
+
+- **S3-Compatible** — Works with Garage, AWS S3, MinIO, and any S3-compatible storage
+- **Connection Manager** — Save multiple endpoints with encrypted credentials
+- **Object Browser** — Navigate folders, upload (drag-and-drop, up to 5 GB), download, delete
+- **Module Federation** — Embeddable components for integration into the Admin Console
 
 ## Screenshots
 
@@ -30,45 +37,36 @@ See all screenshots in **[screenshots/README.md](./screenshots/README.md)**.
 
 ## Quick Start (Docker)
 
-The easiest way to run the console is with Docker. A single image bundles both the frontend and API.
-
-### Using Docker Compose
+### Admin Console Only
 
 ```bash
-# Clone the repository
-git clone https://github.com/eyebrowkang/garage-admin-console.git
-cd garage-admin-console
-
-# Edit docker-compose.yml — change the three required environment variables
-# Then start the service:
 docker compose up -d
 ```
 
-The console is available at **http://localhost:3001**.
+Access at **http://localhost:3001**. Edit `docker-compose.yml` to set the required environment variables first.
 
-See `docker-compose.yml` for all available options. At minimum you must set:
-
-| Variable         | Description                                  |
-| ---------------- | -------------------------------------------- |
-| `JWT_SECRET`     | Random string for JWT signing                |
-| `ENCRYPTION_KEY` | Exactly 32 characters for AES-256 encryption |
-| `ADMIN_PASSWORD` | Console login password                       |
-
-Data is persisted in the `/data` volume (SQLite database).
-
-### Using Docker Run
+### S3 Browser Only
 
 ```bash
-docker build -t garage-admin-console .
-
-docker run -d \
-  -p 3001:3001 \
-  -v garage-data:/data \
+docker build -t s3-browser -f docker/s3-browser.Dockerfile .
+docker run -d -p 3002:3002 -v s3-data:/data \
   -e JWT_SECRET=change-me-to-a-random-string \
   -e ENCRYPTION_KEY=change-me-exactly-32-characters! \
   -e ADMIN_PASSWORD=change-me-admin-password \
-  garage-admin-console
+  s3-browser
 ```
+
+Access at **http://localhost:3002**.
+
+### Required Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `JWT_SECRET` | Random string for JWT signing |
+| `ENCRYPTION_KEY` | Exactly 32 characters for AES-256 encryption |
+| `ADMIN_PASSWORD` | Console login password |
+
+See [Deployment Guide](./docs/deployment.md) for all deployment modes and Docker Compose examples.
 
 ## Development Setup
 
@@ -84,102 +82,85 @@ git clone https://github.com/eyebrowkang/garage-admin-console.git
 cd garage-admin-console
 
 pnpm install
-
-# If pnpm blocks native builds
-pnpm approve-builds
+pnpm approve-builds    # if prompted for native builds
 ```
 
 ### Configuration
 
-Create the API environment file from the provided template:
-
 ```bash
-cp api/.env.example api/.env
+# Admin Console
+cp apps/admin/api/.env.example apps/admin/api/.env
+
+# S3 Browser
+cp apps/s3-browser/api/.env.example apps/s3-browser/api/.env
 ```
 
-Edit `api/.env` with your settings. See `api/.env.example` for all available variables and their descriptions. `JWT_SECRET`, `ENCRYPTION_KEY`, and `ADMIN_PASSWORD` are required — the API will refuse to start if any are missing.
-
-### Database Setup
-
-```bash
-pnpm -C api db:push
-```
-
-The database file is created at `api/data.db` automatically.
+Edit both `.env` files — `JWT_SECRET`, `ENCRYPTION_KEY`, and `ADMIN_PASSWORD` are required.
 
 ### Running
 
 ```bash
-pnpm dev
+pnpm dev              # Start all apps concurrently
+pnpm dev:admin        # Admin only (API: 3001, Web: 5173)
+pnpm dev:s3           # S3 Browser only (API: 3002, Web: 5174)
 ```
 
-- Frontend: http://localhost:5173
-- API: http://localhost:3001
-
-### Production Build
-
-```bash
-pnpm build
-pnpm -C api start
-```
-
-Serve `web/dist/` with your preferred web server (Nginx, Caddy, etc.) and configure reverse proxy for `/api/*` routes to the API server.
+Databases are created automatically on first startup — no manual migration needed.
 
 ## Project Structure
 
 ```
 garage-admin-console/
-├── api/                 # Backend-For-Frontend (Express + Drizzle ORM)
-├── web/                 # Frontend SPA (React + Vite)
-├── e2e/                 # End-to-end tests (Playwright)
-└── web/public/garage-admin-v2.json  # Garage Admin API OpenAPI specification
+├── apps/
+│   ├── admin/
+│   │   ├── api/              # Admin BFF (Express 5, Drizzle ORM, SQLite)
+│   │   └── web/              # Admin SPA (React 19, Vite) — MF Host
+│   └── s3-browser/
+│       ├── api/              # S3 Browser BFF (Express 5, AWS SDK v3, SQLite)
+│       └── web/              # S3 Browser SPA (React 19, Vite) — MF Remote
+├── packages/
+│   ├── auth/                 # Shared JWT auth middleware
+│   ├── ui/                   # Shared UI components (shadcn/ui)
+│   └── tsconfig/             # Shared TypeScript configs
+├── docker/                   # Dockerfiles (admin, s3-browser, combined)
+├── docs/                     # Documentation
+└── e2e/                      # Playwright E2E tests
 ```
-
-## Architecture
-
-The console uses a Backend-For-Frontend (BFF) proxy pattern:
-
-```
-Browser → Frontend → BFF API → Garage Cluster
-```
-
-- **Authentication**: Single admin password → JWT token (24h expiry)
-- **Credential Security**: Garage admin tokens are AES-256-GCM encrypted at rest
-- **Proxy Pattern**: Frontend never communicates directly with Garage clusters
-
-## Documentation
-
-- **[CONTRIBUTING.md](./CONTRIBUTING.md)** - How to contribute
-- **[DEVELOPMENT.md](./DEVELOPMENT.md)** - Developer guide with architecture details and testing
 
 ## Scripts
 
-| Command                 | Description               |
-| ----------------------- | ------------------------- |
-| `pnpm dev`              | Start development servers |
-| `pnpm build`            | Build for production      |
-| `pnpm lint`             | Run ESLint                |
-| `pnpm format`           | Format code with Prettier |
-| `pnpm -C web test`      | Run unit tests            |
-| `npx playwright test`   | Run E2E tests             |
-| `pnpm -C api db:push`   | Push schema to database   |
-| `pnpm -C api db:studio` | Open Drizzle Studio GUI   |
+| Command | Description |
+|---------|-------------|
+| `pnpm dev` | Start all dev servers |
+| `pnpm dev:admin` | Start admin API + web only |
+| `pnpm dev:s3` | Start S3 Browser API + web only |
+| `pnpm build` | Build all packages |
+| `pnpm lint` | Lint all packages |
+| `pnpm format` | Format all code with Prettier |
+| `pnpm typecheck` | Type-check all packages |
+| `pnpm test` | Run all tests |
+| `npx playwright test` | Run E2E tests |
 
-## Security Notes
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Architecture](./docs/architecture.md) | System architecture, BFF pattern, data flow diagrams |
+| [Deployment](./docs/deployment.md) | Docker deployment modes with Compose examples |
+| [Module Federation](./docs/module-federation.md) | MF integration guide for embedding S3 Browser |
+| [S3 Browser](./docs/s3-browser.md) | S3 Browser features, API reference, configuration |
+| [Development](./DEVELOPMENT.md) | Developer setup, project structure, code style |
+| [Contributing](./CONTRIBUTING.md) | Contribution workflow, commit conventions |
+
+## Security
 
 - Deploy behind a reverse proxy with HTTPS in production
-- Use strong, unique values for `JWT_SECRET`, `ENCRYPTION_KEY`, and `ADMIN_PASSWORD`
-- The console is designed for internal network deployment
-- Consider additional authentication layers (VPN, SSO) for production use
+- Use strong, unique values for all secrets
+- Designed for internal network deployment
+- Consider VPN or additional auth layers for production use
 
 ## License
 
-This project is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0),
-consistent with the Garage project. See `LICENSE` for the full text.
+Licensed under [AGPL-3.0](./LICENSE), consistent with the Garage project.
 
-The following assets are sourced from the [Garage project repository](https://git.deuxfleurs.fr/Deuxfleurs/garage) and are governed by
-Garage's own license terms:
-
-- Logo assets in `web/public/garage.svg`, `web/public/garage.png`,
-  `web/public/garage-notext.svg`, and `web/public/garage-notext.png`
-- OpenAPI specification in `web/public/garage-admin-v2.json`
+Assets from the [Garage project](https://git.deuxfleurs.fr/Deuxfleurs/garage) (logos in `apps/admin/web/public/`, OpenAPI spec) are governed by Garage's own license.

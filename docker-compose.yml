@@ -1,3 +1,8 @@
+# Garage Admin Console — Docker Compose
+#
+# This file provides the Admin Console deployment.
+# For all deployment modes (S3 Browser, Combined), see docs/deployment.md.
+
 services:
   garage-admin-console:
     image: ghcr.io/eyebrowkang/garage-admin-console:latest

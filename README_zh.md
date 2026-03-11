@@ -1,68 +1,66 @@
 # Garage Admin Console
 
-[English](./README.md) | [中文](./README.zh.md)
+[English](./README.md) | [中文](./README_zh.md)
 
-一个现代化的 Web 管理界面，用于管理 [Garage](https://garagehq.deuxfleurs.fr/) 分布式对象存储集群。通过统一的仪表盘监控集群健康状态、管理存储桶和访问密钥、配置布局等。
+一个现代化的 Web 管理界面，用于管理 [Garage](https://garagehq.deuxfleurs.fr/) 分布式对象存储集群，附带 **S3 Browser** 用于管理任何 S3 兼容存储中的对象。
 
 > 兼容 Garage Admin API v2。
 >
-> **版本说明**：本项目的主版本号与 Garage Admin API 版本保持同步。v2.x 对应 Admin API v2。没有 v1.0 或 v0.x — 本项目创建时 Admin API v1 和 v0 均已废弃，因此不做支持。
+> **版本说明**：主版本号与 Garage Admin API 版本同步。v2.x 对应 Admin API v2。没有 v1.0 或 v0.x — 本项目创建时 Admin API v1 和 v0 均已废弃。
 
 ## 功能特性
 
-- **多集群管理** - 在单一界面中连接和管理多个 Garage 集群
-- **仪表盘概览** - 实时集群健康状态、节点状态和容量可视化
-- **存储桶管理** - 创建、配置和删除存储桶，支持配额和网站托管选项
-- **访问密钥管理** - 生成、导入和管理 S3 兼容的访问密钥
-- **权限控制** - 细粒度的存储桶-密钥权限矩阵，支持读/写/所有者权限切换
-- **节点监控** - 查看节点状态、统计信息并触发维护操作
-- **布局管理** - 配置集群拓扑，支持暂存变更和应用前预览
-- **数据块操作** - 监控数据块错误、重试失败的同步操作并管理数据完整性
-- **Worker 管理** - 监控后台工作进程并配置性能参数
-- **管理令牌管理** - 管理具有作用域权限的 API 令牌
-- **安全凭证存储** - 使用 AES-256-GCM 加密存储 Garage 管理令牌
+### Admin Console（集群管理）
+
+- **多集群管理** — 在单一仪表盘中连接和管理多个 Garage 集群
+- **实时监控** — 集群健康状态、节点状态和容量可视化
+- **存储桶管理** — 创建、配置和删除存储桶，支持配额和网站托管
+- **访问密钥管理** — 生成、导入和管理 S3 兼容的访问密钥
+- **权限控制** — 细粒度的存储桶-密钥权限矩阵
+- **节点与布局** — 监控节点，配置集群拓扑，支持暂存变更
+- **数据块与 Worker** — 数据块错误管理、Worker 监控、性能调优
+- **管理令牌** — 管理具有作用域权限的 API 令牌
+- **安全存储** — 使用 AES-256-GCM 加密凭证存储
+
+### S3 Browser（对象浏览器）
+
+- **S3 兼容** — 支持 Garage、AWS S3、MinIO 及任何 S3 兼容存储
+- **连接管理** — 保存多个端点，凭证加密存储
+- **对象浏览** — 文件夹导航、上传（拖放，最大 5 GB）、下载、删除
+- **Module Federation** — 可嵌入组件，集成到 Admin Console 中使用
 
 ## 快速开始（Docker）
 
-使用 Docker 是运行控制台最简单的方式。单个镜像同时包含前端和 API。
-
-### 使用 Docker Compose
+### 仅 Admin Console
 
 ```bash
-# 克隆仓库
-git clone https://github.com/eyebrowkang/garage-admin-console.git
-cd garage-admin-console
-
-# 编辑 docker-compose.yml — 修改三个必需的环境变量
-# 然后启动服务：
 docker compose up -d
 ```
 
-控制台访问地址：**http://localhost:3001**
+访问 **http://localhost:3001**。先编辑 `docker-compose.yml` 设置必需的环境变量。
 
-查看 `docker-compose.yml` 了解所有可用选项。至少需要设置以下变量：
-
-| 变量             | 说明                              |
-| ---------------- | --------------------------------- |
-| `JWT_SECRET`     | 用于 JWT 签名的随机字符串         |
-| `ENCRYPTION_KEY` | 恰好 32 个字符，用于 AES-256 加密 |
-| `ADMIN_PASSWORD` | 控制台登录密码                    |
-
-数据持久化在 `/data` 卷中（SQLite 数据库）。
-
-### 使用 Docker Run
+### 仅 S3 Browser
 
 ```bash
-docker build -t garage-admin-console .
-
-docker run -d \
-  -p 3001:3001 \
-  -v garage-data:/data \
+docker build -t s3-browser -f docker/s3-browser.Dockerfile .
+docker run -d -p 3002:3002 -v s3-data:/data \
   -e JWT_SECRET=change-me-to-a-random-string \
   -e ENCRYPTION_KEY=change-me-exactly-32-characters! \
   -e ADMIN_PASSWORD=change-me-admin-password \
-  garage-admin-console
+  s3-browser
 ```
+
+访问 **http://localhost:3002**。
+
+### 必需环境变量
+
+| 变量 | 说明 |
+|------|------|
+| `JWT_SECRET` | 用于 JWT 签名的随机字符串 |
+| `ENCRYPTION_KEY` | 恰好 32 个字符，用于 AES-256 加密 |
+| `ADMIN_PASSWORD` | 控制台登录密码 |
+
+完整的部署模式和 Docker Compose 示例请参阅[部署指南](./docs/deployment.md)。
 
 ## 开发设置
 
@@ -78,100 +76,85 @@ git clone https://github.com/eyebrowkang/garage-admin-console.git
 cd garage-admin-console
 
 pnpm install
-
-# 如果 pnpm 阻止原生构建
-pnpm approve-builds
+pnpm approve-builds    # 如果提示需要批准原生构建
 ```
 
 ### 配置
 
-从提供的模板创建 API 环境文件：
-
 ```bash
-cp api/.env.example api/.env
+# Admin Console
+cp apps/admin/api/.env.example apps/admin/api/.env
+
+# S3 Browser
+cp apps/s3-browser/api/.env.example apps/s3-browser/api/.env
 ```
 
-编辑 `api/.env` 配置你的设置。查看 `api/.env.example` 了解所有可用变量及其说明。`JWT_SECRET`、`ENCRYPTION_KEY` 和 `ADMIN_PASSWORD` 是必需的 — 如果缺少任何一个，API 将拒绝启动。
-
-### 数据库设置
-
-```bash
-pnpm -C api db:push
-```
-
-数据库文件将自动创建在 `api/data.db`。
+编辑两个 `.env` 文件 — `JWT_SECRET`、`ENCRYPTION_KEY` 和 `ADMIN_PASSWORD` 为必填项。
 
 ### 运行
 
 ```bash
-pnpm dev
+pnpm dev              # 同时启动所有应用
+pnpm dev:admin        # 仅 Admin（API: 3001, Web: 5173）
+pnpm dev:s3           # 仅 S3 Browser（API: 3002, Web: 5174）
 ```
 
-- 前端：http://localhost:5173
-- API：http://localhost:3001
-
-### 生产构建
-
-```bash
-pnpm build
-pnpm -C api start
-```
-
-使用你偏好的 Web 服务器（Nginx、Caddy 等）提供 `web/dist/` 的静态文件服务，并配置反向代理将 `/api/*` 路由转发到 API 服务器。
+数据库在首次启动时自动创建，无需手动迁移。
 
 ## 项目结构
 
 ```
 garage-admin-console/
-├── api/                 # Backend-For-Frontend 服务（Express + Drizzle ORM）
-├── web/                 # 前端单页应用（React + Vite）
-├── e2e/                 # 端到端测试（Playwright）
-└── web/public/garage-admin-v2.json  # Garage Admin API OpenAPI 规范
+├── apps/
+│   ├── admin/
+│   │   ├── api/              # Admin BFF（Express 5, Drizzle ORM, SQLite）
+│   │   └── web/              # Admin SPA（React 19, Vite）— MF Host
+│   └── s3-browser/
+│       ├── api/              # S3 Browser BFF（Express 5, AWS SDK v3, SQLite）
+│       └── web/              # S3 Browser SPA（React 19, Vite）— MF Remote
+├── packages/
+│   ├── auth/                 # 共享 JWT 认证中间件
+│   ├── ui/                   # 共享 UI 组件（shadcn/ui）
+│   └── tsconfig/             # 共享 TypeScript 配置
+├── docker/                   # Dockerfile（admin、s3-browser、combined）
+├── docs/                     # 文档
+└── e2e/                      # Playwright 端到端测试
 ```
-
-## 架构
-
-控制台采用 Backend-For-Frontend（BFF）代理模式：
-
-```
-浏览器 → 前端 → BFF API → Garage 集群
-```
-
-- **认证**：单一管理员密码 → JWT 令牌（24 小时有效期）
-- **凭证安全**：Garage 管理令牌使用 AES-256-GCM 加密存储
-- **代理模式**：前端不直接与 Garage 集群通信
-
-## 文档
-
-- **[CONTRIBUTING.md](./CONTRIBUTING.md)** - 贡献指南
-- **[DEVELOPMENT.md](./DEVELOPMENT.md)** - 开发者指南，包含架构详情和测试
 
 ## 常用脚本
 
-| 命令                    | 说明                     |
-| ----------------------- | ------------------------ |
-| `pnpm dev`              | 启动开发服务器           |
-| `pnpm build`            | 生产构建                 |
-| `pnpm lint`             | 运行 ESLint              |
-| `pnpm format`           | 使用 Prettier 格式化代码 |
-| `pnpm -C web test`      | 运行单元测试             |
-| `npx playwright test`   | 运行端到端测试           |
-| `pnpm -C api db:push`   | 推送数据库架构           |
-| `pnpm -C api db:studio` | 打开 Drizzle Studio GUI  |
+| 命令 | 说明 |
+|------|------|
+| `pnpm dev` | 启动所有开发服务器 |
+| `pnpm dev:admin` | 仅启动 Admin API + Web |
+| `pnpm dev:s3` | 仅启动 S3 Browser API + Web |
+| `pnpm build` | 构建所有包 |
+| `pnpm lint` | 检查所有包 |
+| `pnpm format` | 使用 Prettier 格式化代码 |
+| `pnpm typecheck` | 类型检查所有包 |
+| `pnpm test` | 运行所有测试 |
+| `npx playwright test` | 运行端到端测试 |
+
+## 文档
+
+| 文档 | 说明 |
+|------|------|
+| [架构设计](./docs/architecture.md) | 系统架构、BFF 模式、数据流图 |
+| [部署指南](./docs/deployment.md) | Docker 部署模式及 Compose 示例 |
+| [Module Federation](./docs/module-federation.md) | MF 集成指南 |
+| [S3 Browser](./docs/s3-browser.md) | S3 Browser 功能、API 参考、配置 |
+| [开发指南](./DEVELOPMENT.md) | 开发环境设置、项目结构、代码风格 |
+| [贡献指南](./CONTRIBUTING.md) | 贡献流程、提交规范 |
 
 ## 安全注意事项
 
-- 生产环境中应部署在带有 HTTPS 的反向代理之后
-- 为 `JWT_SECRET`、`ENCRYPTION_KEY` 和 `ADMIN_PASSWORD` 使用强且唯一的值
-- 控制台设计用于内部网络部署
-- 生产环境中建议考虑额外的认证层（VPN、SSO）
+- 生产环境应部署在带有 HTTPS 的反向代理之后
+- 为所有密钥使用强且唯一的值
+- 设计用于内部网络部署
+- 生产环境建议使用 VPN 或额外认证层
 
 ## 许可证
 
-本项目采用 GNU Affero 通用公共许可证 v3.0（AGPL-3.0）授权，
-与 Garage 项目保持一致。完整条款请参阅 `LICENSE` 文件。
+采用 [AGPL-3.0](./LICENSE) 许可，与 Garage 项目一致。
 
-以下资源来源于 [Garage 项目仓库](https://git.deuxfleurs.fr/Deuxfleurs/garage)，受 Garage 自身许可条款约束：
-
-- `web/public/garage.svg`、`web/public/garage.png`、`web/public/garage-notext.svg` 和 `web/public/garage-notext.png` 中的 Logo 资源
-- `web/public/garage-admin-v2.json` 中的 OpenAPI 规范
+来自 [Garage 项目](https://git.deuxfleurs.fr/Deuxfleurs/garage)的资源（`apps/admin/web/public/` 中的 Logo、OpenAPI 规范）受 Garage 自身许可条款约束。

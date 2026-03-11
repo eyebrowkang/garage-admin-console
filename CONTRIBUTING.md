@@ -18,17 +18,20 @@ cd garage-admin-console
 pnpm install
 pnpm approve-builds    # if prompted for native builds
 
-cp api/.env.example api/.env
-# Edit api/.env with your settings
+# Configure Admin Console
+cp apps/admin/api/.env.example apps/admin/api/.env
 
-pnpm -C api db:push    # initialize database
-pnpm dev               # start development servers
+# Configure S3 Browser
+cp apps/s3-browser/api/.env.example apps/s3-browser/api/.env
+
+# Edit both .env files, then start:
+pnpm dev
 ```
 
-- Frontend: http://localhost:5173
-- API: http://localhost:3001
+- Admin Web: http://localhost:5173 | Admin API: http://localhost:3001
+- S3 Browser Web: http://localhost:5174 | S3 Browser API: http://localhost:3002
 
-See [DEVELOPMENT.md](./DEVELOPMENT.md) for full architecture details and advanced topics.
+See [DEVELOPMENT.md](./DEVELOPMENT.md) for architecture details and advanced topics.
 
 ## Development Workflow
 
@@ -40,8 +43,8 @@ See [DEVELOPMENT.md](./DEVELOPMENT.md) for full architecture details and advance
 
 ```bash
 pnpm lint
-pnpm -C api typecheck
-pnpm -C web build
+pnpm typecheck
+pnpm build
 pnpm test
 ```
 
@@ -58,6 +61,14 @@ Each commit message (and PR title for squash merges) should have the format:
 <type>: <description>
 ```
 
+For scoped changes:
+
+```
+<type>(<scope>): <description>
+```
+
+Common scopes: `admin`, `s3-browser`, `ui`, `auth`, `ci`, `docker`.
+
 Types:
 
 | Type | Purpose |
@@ -72,9 +83,9 @@ Types:
 Examples:
 
 ```
-feat: add bucket quota editing
-fix: correct JWT expiry check on proxy routes
-docs: update Docker deployment instructions
+feat(s3-browser): add bucket browser and object browser
+fix(admin): correct JWT expiry check on proxy routes
+docs: update deployment guide with combined mode
 ```
 
 ## Versioning
@@ -90,7 +101,7 @@ Within a major version, minor and patch bumps follow the usual conventions:
 
 - **Prettier**: 100-char width, single quotes, trailing commas, semicolons, 2-space indent
 - **ESLint 9**: flat config with TypeScript rules
-- **TypeScript**: strict mode in both packages
+- **TypeScript**: strict mode in all packages
 
 ```bash
 pnpm format      # auto-format
