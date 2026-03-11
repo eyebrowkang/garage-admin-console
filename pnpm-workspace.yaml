@@ -4,6 +4,7 @@ packages:
   - packages/tsconfig
   - packages/ui
   - packages/auth
+  - apps/s3-browser/api
 
 onlyBuiltDependencies:
   - bcrypt
