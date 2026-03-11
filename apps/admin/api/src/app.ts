@@ -10,6 +10,7 @@ import clusterRouter from './routes/clusters.js';
 import authRouter from './routes/auth.js';
 import proxyRouter from './routes/proxy.js';
 import s3BridgeRouter from './routes/s3-bridge.js';
+import s3ApiProxyRouter from './routes/s3-api-proxy.js';
 import { authenticateToken } from './middleware/auth.middleware.js';
 
 export const app: Express = express();
@@ -50,3 +51,7 @@ app.get('/api/health', async (_req, res) => {
 app.use('/api/clusters', authenticateToken, clusterRouter);
 app.use('/api/proxy', authenticateToken, proxyRouter);
 app.use('/api/s3-bridge', authenticateToken, s3BridgeRouter);
+
+// Proxy S3 Browser API requests so embedded components stay same-origin.
+// The S3 Browser JWT token (from s3-bridge connect flow) is passed through.
+app.use('/s3-api', s3ApiProxyRouter);
