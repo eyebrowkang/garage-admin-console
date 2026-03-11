@@ -186,7 +186,9 @@ export function ConnectionFormDialog({
             />
             <Label htmlFor="conn-path-style" className="font-normal">
               Use path-style addressing
-              <span className="ml-1 text-muted-foreground">(recommended for most S3-compatible services)</span>
+              <span className="ml-1 text-muted-foreground">
+                (recommended for most S3-compatible services)
+              </span>
             </Label>
           </div>
 

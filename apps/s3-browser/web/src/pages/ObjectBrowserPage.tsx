@@ -92,11 +92,7 @@ export function ObjectBrowserPage() {
     null,
   );
 
-  const {
-    data,
-    isLoading,
-    error,
-  } = useQuery<ListObjectsResponse>({
+  const { data, isLoading, error } = useQuery<ListObjectsResponse>({
     queryKey: ['objects', connectionId, bucket, prefix],
     queryFn: async () => {
       const params = new URLSearchParams({ bucket });
@@ -378,9 +374,7 @@ export function ObjectBrowserPage() {
                 <TableRow
                   key={item.key}
                   className={cn(item.type === 'folder' && 'cursor-pointer')}
-                  onClick={
-                    item.type === 'folder' ? () => navigateToPrefix(item.key) : undefined
-                  }
+                  onClick={item.type === 'folder' ? () => navigateToPrefix(item.key) : undefined}
                 >
                   <TableCell>
                     <div className="flex items-center gap-2">
@@ -422,9 +416,7 @@ export function ObjectBrowserPage() {
                           size="sm"
                           className="h-7 w-7 p-0 text-destructive hover:text-destructive"
                           title="Delete"
-                          onClick={() =>
-                            setDeletingObject({ key: item.key, isFolder: false })
-                          }
+                          onClick={() => setDeletingObject({ key: item.key, isFolder: false })}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
@@ -437,9 +429,7 @@ export function ObjectBrowserPage() {
                           size="sm"
                           className="h-7 w-7 p-0 text-destructive hover:text-destructive"
                           title="Delete folder"
-                          onClick={() =>
-                            setDeletingObject({ key: item.key, isFolder: true })
-                          }
+                          onClick={() => setDeletingObject({ key: item.key, isFolder: true })}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>

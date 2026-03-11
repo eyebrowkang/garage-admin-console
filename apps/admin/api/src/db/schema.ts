@@ -9,7 +9,9 @@ export const clusters = sqliteTable('Cluster', {
   endpoint: text('endpoint').notNull(),
   adminToken: text('adminToken').notNull(),
   metricToken: text('metricToken'),
-  createdAt: text('createdAt').notNull().default(sql`CURRENT_TIMESTAMP`),
+  createdAt: text('createdAt')
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text('updatedAt')
     .notNull()
     .$defaultFn(() => new Date().toISOString()),

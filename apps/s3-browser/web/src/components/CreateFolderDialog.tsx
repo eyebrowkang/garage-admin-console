@@ -78,8 +78,7 @@ export function CreateFolderDialog({
         <DialogHeader>
           <DialogTitle>Create Folder</DialogTitle>
           <DialogDescription>
-            Create a new folder in{' '}
-            <span className="font-mono text-xs">{prefix || '/'}</span>
+            Create a new folder in <span className="font-mono text-xs">{prefix || '/'}</span>
           </DialogDescription>
         </DialogHeader>
 
@@ -100,10 +99,7 @@ export function CreateFolderDialog({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button
-              type="submit"
-              disabled={!folderName.trim() || createMutation.isPending}
-            >
+            <Button type="submit" disabled={!folderName.trim() || createMutation.isPending}>
               {createMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

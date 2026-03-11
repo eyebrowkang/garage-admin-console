@@ -42,9 +42,7 @@ export function ConnectionLayout() {
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Error</AlertTitle>
-          <AlertDescription>
-            {getApiErrorMessage(error, 'Connection not found')}
-          </AlertDescription>
+          <AlertDescription>{getApiErrorMessage(error, 'Connection not found')}</AlertDescription>
         </Alert>
       </div>
     );

@@ -22,8 +22,8 @@ export function S3BrowserTest() {
         <div>
           <h1 className="text-xl font-bold">S3 Browser — Module Federation Test</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Connect to an S3 Browser instance to browse objects. The S3 Browser components are loaded
-            remotely via Module Federation.
+            Connect to an S3 Browser instance to browse objects. The S3 Browser components are
+            loaded remotely via Module Federation.
           </p>
         </div>
 

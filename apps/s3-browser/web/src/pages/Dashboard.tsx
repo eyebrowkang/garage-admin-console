@@ -120,7 +120,9 @@ export function Dashboard() {
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
         <AlertTitle>Error</AlertTitle>
-        <AlertDescription>{getApiErrorMessage(error, 'Failed to load connections')}</AlertDescription>
+        <AlertDescription>
+          {getApiErrorMessage(error, 'Failed to load connections')}
+        </AlertDescription>
       </Alert>
     );
   }
@@ -209,9 +211,7 @@ export function Dashboard() {
                       <span className="text-xs italic">All accessible buckets</span>
                     </div>
                   )}
-                  {conn.region && (
-                    <div className="text-xs">Region: {conn.region}</div>
-                  )}
+                  {conn.region && <div className="text-xs">Region: {conn.region}</div>}
                 </div>
                 <Button
                   variant="outline"
@@ -239,9 +239,7 @@ export function Dashboard() {
         <ConnectionFormDialog
           open={!!editingConnection}
           onOpenChange={(open) => !open && setEditingConnection(null)}
-          onSubmit={(data) =>
-            updateMutation.mutate({ id: editingConnection.id, data })
-          }
+          onSubmit={(data) => updateMutation.mutate({ id: editingConnection.id, data })}
           isLoading={updateMutation.isPending}
           initialData={editingConnection}
         />

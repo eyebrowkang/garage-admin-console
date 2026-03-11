@@ -57,7 +57,10 @@ router.get('/', async (_req, res) => {
 // GET /api/connections/:id — Get a single connection
 router.get('/:id', async (req, res) => {
   try {
-    const [row] = await db.select(safeColumns).from(connections).where(eq(connections.id, req.params.id));
+    const [row] = await db
+      .select(safeColumns)
+      .from(connections)
+      .where(eq(connections.id, req.params.id));
     if (!row) {
       return res.status(404).json({ error: 'Connection not found' });
     }
@@ -118,7 +121,8 @@ router.put('/:id', async (req, res) => {
     if (data.endpoint !== undefined) updateData.endpoint = data.endpoint;
     if (data.region !== undefined) updateData.region = data.region;
     if (data.accessKeyId !== undefined) updateData.accessKeyId = encrypt(data.accessKeyId);
-    if (data.secretAccessKey !== undefined) updateData.secretAccessKey = encrypt(data.secretAccessKey);
+    if (data.secretAccessKey !== undefined)
+      updateData.secretAccessKey = encrypt(data.secretAccessKey);
     if (data.bucket !== undefined) updateData.bucket = data.bucket;
     if (data.pathStyle !== undefined) updateData.pathStyle = data.pathStyle;
 

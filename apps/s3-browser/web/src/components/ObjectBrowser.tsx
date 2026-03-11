@@ -1,5 +1,11 @@
 import { useState, useMemo, useCallback } from 'react';
-import { useQuery, useMutation, useQueryClient, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  QueryClient,
+  QueryClientProvider,
+} from '@tanstack/react-query';
 import {
   AlertCircle,
   File,
@@ -223,12 +229,7 @@ function ObjectBrowserInner({ config, bucket }: ObjectBrowserInnerProps) {
     <div className="space-y-3">
       {/* Breadcrumb */}
       <div className="flex items-center gap-1 text-sm">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 gap-1 px-2"
-          onClick={() => setPrefix('')}
-        >
+        <Button variant="ghost" size="sm" className="h-7 gap-1 px-2" onClick={() => setPrefix('')}>
           <Home className="h-3.5 w-3.5" />
           {bucket}
         </Button>

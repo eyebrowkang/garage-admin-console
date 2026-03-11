@@ -12,7 +12,9 @@ export const connections = sqliteTable('Connection', {
   secretAccessKey: text('secretAccessKey').notNull(),
   bucket: text('bucket'),
   pathStyle: integer('pathStyle', { mode: 'boolean' }).notNull().default(true),
-  createdAt: text('createdAt').notNull().default(sql`CURRENT_TIMESTAMP`),
+  createdAt: text('createdAt')
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text('updatedAt')
     .notNull()
     .$defaultFn(() => new Date().toISOString()),

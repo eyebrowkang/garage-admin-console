@@ -20,17 +20,16 @@ export function BucketList() {
   // If connection has a specific bucket, redirect directly to object browser
   useEffect(() => {
     if (connection.bucket) {
-      navigate(`/connections/${connectionId}/browse?bucket=${encodeURIComponent(connection.bucket)}`, {
-        replace: true,
-      });
+      navigate(
+        `/connections/${connectionId}/browse?bucket=${encodeURIComponent(connection.bucket)}`,
+        {
+          replace: true,
+        },
+      );
     }
   }, [connection.bucket, connectionId, navigate]);
 
-  const {
-    data,
-    isLoading,
-    error,
-  } = useQuery<{ buckets: Bucket[] }>({
+  const { data, isLoading, error } = useQuery<{ buckets: Bucket[] }>({
     queryKey: ['buckets', connectionId],
     queryFn: async () => {
       const res = await api.get(`/s3/${connectionId}/buckets`);
@@ -81,9 +80,7 @@ export function BucketList() {
     <div className="space-y-4">
       <div>
         <h3 className="text-lg font-semibold">Buckets</h3>
-        <p className="text-sm text-muted-foreground">
-          Select a bucket to browse its objects.
-        </p>
+        <p className="text-sm text-muted-foreground">Select a bucket to browse its objects.</p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -91,7 +88,11 @@ export function BucketList() {
           <Card
             key={bucket.name}
             className="cursor-pointer transition-shadow hover:shadow-md"
-            onClick={() => navigate(`/connections/${connectionId}/browse?bucket=${encodeURIComponent(bucket.name!)}`)}
+            onClick={() =>
+              navigate(
+                `/connections/${connectionId}/browse?bucket=${encodeURIComponent(bucket.name!)}`,
+              )
+            }
           >
             <CardContent className="flex items-center gap-3 p-4">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">

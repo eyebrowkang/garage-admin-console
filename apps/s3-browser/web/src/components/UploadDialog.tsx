@@ -142,9 +142,7 @@ export function UploadDialog({
 
       try {
         await uploadFile(connectionId, bucket, prefix + item.file.name, item.file, (progress) => {
-          setFiles((prev) =>
-            prev.map((f, idx) => (idx === i ? { ...f, progress } : f)),
-          );
+          setFiles((prev) => prev.map((f, idx) => (idx === i ? { ...f, progress } : f)));
         });
 
         setFiles((prev) =>
@@ -154,9 +152,7 @@ export function UploadDialog({
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Upload failed';
         setFiles((prev) =>
-          prev.map((f, idx) =>
-            idx === i ? { ...f, status: 'error', error: message } : f,
-          ),
+          prev.map((f, idx) => (idx === i ? { ...f, status: 'error', error: message } : f)),
         );
         errorCount++;
       }
@@ -284,10 +280,7 @@ export function UploadDialog({
           <Button variant="outline" onClick={() => handleClose(false)} disabled={isUploading}>
             Cancel
           </Button>
-          <Button
-            onClick={uploadAll}
-            disabled={pendingCount === 0 || isUploading}
-          >
+          <Button onClick={uploadAll} disabled={pendingCount === 0 || isUploading}>
             {isUploading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

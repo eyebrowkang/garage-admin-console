@@ -21,9 +21,7 @@ const embeddedQueryClient = new QueryClient({
 
 function BucketExplorerInner({ config }: { config: S3EmbedConfig }) {
   const api = useMemo(() => createEmbedApi(config), [config]);
-  const [selectedBucket, setSelectedBucket] = useState<string | null>(
-    config.bucket ?? null,
-  );
+  const [selectedBucket, setSelectedBucket] = useState<string | null>(config.bucket ?? null);
 
   const { data, isLoading, error } = useQuery<{ buckets: Bucket[] }>({
     queryKey: ['embed-buckets', config.connectionId],

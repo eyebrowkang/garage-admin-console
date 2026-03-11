@@ -108,9 +108,7 @@ router.get('/:connectionId/objects/download', async (req, res) => {
       return res.status(404).json({ error: 'Connection not found' });
     }
 
-    const response = await result.client.send(
-      new GetObjectCommand({ Bucket: bucket, Key: key }),
-    );
+    const response = await result.client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
 
     if (!response.Body) {
       return res.status(404).json({ error: 'Object body is empty' });
@@ -148,9 +146,7 @@ router.get('/:connectionId/objects/info', async (req, res) => {
       return res.status(404).json({ error: 'Connection not found' });
     }
 
-    const response = await result.client.send(
-      new HeadObjectCommand({ Bucket: bucket, Key: key }),
-    );
+    const response = await result.client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
 
     res.json({
       key,
@@ -320,9 +316,7 @@ router.delete('/:connectionId/objects', async (req, res) => {
       return res.status(404).json({ error: 'Connection not found' });
     }
 
-    await result.client.send(
-      new DeleteObjectCommand({ Bucket: bucket, Key: key }),
-    );
+    await result.client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
 
     res.json({ success: true, key, bucket });
   } catch (error) {
