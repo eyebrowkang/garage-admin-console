@@ -4,6 +4,8 @@ import { sql } from 'drizzle-orm';
 import db from './db/index.js';
 import healthRouter from './routes/health.js';
 import authRouter from './routes/auth.js';
+import connectionRouter from './routes/connections.js';
+import { authenticateToken } from './middleware/auth.middleware.js';
 
 export const app: Express = express();
 
@@ -20,3 +22,6 @@ app.get('/api/health/db', async (_req, res) => {
     res.status(503).json({ status: 'error', timestamp: new Date() });
   }
 });
+
+// Protected routes
+app.use('/api/connections', authenticateToken, connectionRouter);
