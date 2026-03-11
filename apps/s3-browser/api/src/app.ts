@@ -1,5 +1,7 @@
 import express, { type Express } from 'express';
+import { sql } from 'drizzle-orm';
 
+import db from './db/index.js';
 import healthRouter from './routes/health.js';
 
 export const app: Express = express();
@@ -8,6 +10,11 @@ app.use(express.json());
 
 // Public routes
 app.use('/api/health', healthRouter);
-
-// Placeholder: S3 proxy routes will be added here
-// app.use('/api/s3', authenticateToken, s3Router);
+app.get('/api/health/db', async (_req, res) => {
+  try {
+    await db.run(sql`SELECT 1`);
+    res.json({ status: 'ok', timestamp: new Date() });
+  } catch {
+    res.status(503).json({ status: 'error', timestamp: new Date() });
+  }
+});
