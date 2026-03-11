@@ -1,9 +1,12 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MainLayout } from './layouts/MainLayout';
+import { ConnectionLayout } from './layouts/ConnectionLayout';
 import { Toaster } from '@/components/ui/toaster';
 import Login from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
+import { BucketList } from './pages/BucketList';
+import { ObjectBrowserPage } from './pages/ObjectBrowserPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -34,6 +37,10 @@ function App() {
           <Route element={<ProtectedRoute />}>
             <Route element={<MainLayout />}>
               <Route index element={<Dashboard />} />
+              <Route path="connections/:id" element={<ConnectionLayout />}>
+                <Route index element={<BucketList />} />
+                <Route path="browse" element={<ObjectBrowserPage />} />
+              </Route>
             </Route>
           </Route>
         </Routes>

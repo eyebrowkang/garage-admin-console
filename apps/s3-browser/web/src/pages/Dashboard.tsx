@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Plus,
@@ -32,6 +33,7 @@ interface Connection {
 
 export function Dashboard() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [editingConnection, setEditingConnection] = useState<Connection | null>(null);
@@ -215,9 +217,7 @@ export function Dashboard() {
                   variant="outline"
                   size="sm"
                   className="mt-4 w-full"
-                  onClick={() => {
-                    window.location.href = `/connections/${conn.id}`;
-                  }}
+                  onClick={() => navigate(`/connections/${conn.id}`)}
                 >
                   Browse
                 </Button>
