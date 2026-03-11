@@ -1,5 +1,5 @@
 {
-  "name": "api",
+  "name": "@garage-admin/admin-api",
   "version": "0.0.0",
   "description": "Garage Admin Console BFF API",
   "main": "dist/index.js",

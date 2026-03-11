@@ -1,6 +1,6 @@
 packages:
-  - api
-  - web
+  - apps/admin/api
+  - apps/admin/web
 
 onlyBuiltDependencies:
   - bcrypt

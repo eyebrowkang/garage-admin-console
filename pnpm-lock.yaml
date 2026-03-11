@@ -22,7 +22,7 @@ importers:
         specifier: ^1.58.1
         version: 1.58.2
 
-  api:
+  apps/admin/api:
     dependencies:
       '@libsql/client':
         specifier: ^0.17.0
@@ -104,7 +104,7 @@ importers:
         specifier: ^4.0.18
         version: 4.0.18(@types/node@25.3.1)(jiti@2.6.1)(jsdom@28.1.0(@noble/hashes@1.8.0))(lightningcss@1.31.1)(tsx@4.21.0)
 
-  web:
+  apps/admin/web:
     dependencies:
       '@fontsource/manrope':
         specifier: ^5.2.8
