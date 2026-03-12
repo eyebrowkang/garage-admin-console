@@ -402,7 +402,7 @@ export function BucketDetail() {
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="h-5 w-5 rounded-sm text-muted-foreground hover:text-destructive"
+                          className="h-5 w-5 rounded-sm text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                           onClick={() => setRemoveAliasConfirm({ alias })}
                         >
                           <DeleteActionIcon className="h-3.5 w-3.5" />
@@ -442,7 +442,7 @@ export function BucketDetail() {
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="h-5 w-5 rounded-sm text-muted-foreground hover:text-destructive"
+                          className="h-5 w-5 rounded-sm text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                           onClick={() =>
                             setRemoveAliasConfirm({
                               alias: alias.alias,

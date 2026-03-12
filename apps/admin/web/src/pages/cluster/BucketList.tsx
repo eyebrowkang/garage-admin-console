@@ -395,7 +395,7 @@ export function BucketList() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-destructive"
+                      className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                       onClick={() =>
                         setDeleteConfirm({
                           id: bucket.id,
@@ -423,7 +423,7 @@ export function BucketList() {
                 action={
                   !searchQuery && (
                     <Button variant="outline" size="sm" onClick={() => setIsDialogOpen(true)}>
-                      <AddActionIcon className="h-4 w-4 mr-2" /> Create Bucket
+                      <AddActionIcon className="h-4 w-4" /> Create Bucket
                     </Button>
                   )
                 }

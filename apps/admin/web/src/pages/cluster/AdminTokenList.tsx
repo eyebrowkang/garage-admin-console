@@ -367,7 +367,7 @@ export function AdminTokenList() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="text-destructive"
+                            className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                             onClick={() => setDeleteConfirm({ id: token.id!, name: token.name })}
                           >
                             <DeleteActionIcon className="h-3.5 w-3.5" />

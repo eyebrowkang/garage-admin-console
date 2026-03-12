@@ -539,7 +539,7 @@ export function KeyList() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-destructive"
+                      className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                       onClick={() => setDeleteConfirm({ id: k.id, name: k.name || k.id })}
                     >
                       <DeleteActionIcon className="h-3.5 w-3.5" />
@@ -562,7 +562,7 @@ export function KeyList() {
                 action={
                   !searchQuery && (
                     <Button variant="outline" size="sm" onClick={() => setIsDialogOpen(true)}>
-                      <AddActionIcon className="h-4 w-4 mr-2" /> Create Key
+                      <AddActionIcon className="h-4 w-4" /> Create Key
                     </Button>
                   )
                 }

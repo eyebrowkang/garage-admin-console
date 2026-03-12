@@ -364,7 +364,7 @@ node_id@address`}
                 colSpan={8}
                 action={
                   <Button variant="outline" size="sm" onClick={() => setConnectDialogOpen(true)}>
-                    <ConnectActionIcon className="h-4 w-4 mr-2" /> Connect Nodes
+                    <ConnectActionIcon className="h-4 w-4" /> Connect Nodes
                   </Button>
                 }
               />

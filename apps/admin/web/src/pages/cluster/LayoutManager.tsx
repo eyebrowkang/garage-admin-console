@@ -665,7 +665,7 @@ export function LayoutManager() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="text-destructive"
+                              className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                               onClick={() =>
                                 setRemoveConfirm({
                                   id: node.id,

@@ -225,7 +225,7 @@ export function BucketObjectBrowserCard({
                     onClick={handleBrowseConnect}
                     disabled={!browseKeyId || browseConnecting}
                   >
-                    <FolderOpen className="mr-2 h-4 w-4" />
+                    <FolderOpen className="h-4 w-4" />
                     {browseConnecting ? 'Connecting...' : 'Browse Objects'}
                   </Button>
                 </div>
