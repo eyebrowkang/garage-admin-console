@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Copy, Eye, EyeOff } from 'lucide-react';
-import { Button } from '@garage-admin/ui';
+import { Button, InlineStatus } from '@garage-admin/ui';
 
 interface SecretRevealProps {
   label: string;
@@ -50,7 +50,11 @@ export function SecretReveal({ label, value, hidden = true }: SecretRevealProps)
           </Button>
         </div>
       </div>
-      {copied && <div className="text-xs text-green-600 mt-1">Copied!</div>}
+      {copied && (
+        <InlineStatus tone="success" className="mt-1">
+          Copied!
+        </InlineStatus>
+      )}
     </div>
   );
 }

@@ -23,6 +23,11 @@ export {
   DialogDescription,
 } from './components/dialog.js';
 export { Input, type InputProps } from './components/input.js';
+export {
+  InlineStatus,
+  inlineStatusVariants,
+  type InlineStatusProps,
+} from './components/inline-status.js';
 export { Label } from './components/label.js';
 export { Skeleton } from './components/skeleton.js';
 export {

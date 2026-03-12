@@ -4,12 +4,10 @@ import {
   Activity,
   AlertTriangle,
   BarChart2,
-  CheckCircle2,
   LayoutGrid,
   Layers,
-  ShieldCheck,
   RefreshCw,
-  XCircle,
+  ShieldCheck,
 } from 'lucide-react';
 import {
   Alert,
@@ -28,6 +26,7 @@ import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
 import { useClusterContext } from '@/contexts/ClusterContext';
 import { useNodes } from '@/hooks/useNodes';
 import { api, proxyPath } from '@/lib/api';
+import { getClusterHealthAppearance, resolveClusterHealthStatus } from '@/lib/cluster-health';
 import { formatBytes } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { NodeIcon } from '@/lib/entity-icons';
@@ -100,60 +99,12 @@ export function ClusterOverview() {
     }
   }
 
-  const statusConfig = {
-    healthy: {
-      color: 'text-green-600',
-      bgColor: 'bg-green-50',
-      borderColor: 'border-green-200',
-      icon: CheckCircle2,
-      label: 'Healthy',
-      badge: 'success' as const,
-    },
-    degraded: {
-      color: 'text-violet-700',
-      bgColor: 'bg-violet-50',
-      borderColor: 'border-violet-200',
-      icon: AlertTriangle,
-      label: 'Degraded',
-      badge: 'warning' as const,
-    },
-    unavailable: {
-      color: 'text-red-600',
-      bgColor: 'bg-red-50',
-      borderColor: 'border-red-200',
-      icon: XCircle,
-      label: 'Unavailable',
-      badge: 'destructive' as const,
-    },
-    unreachable: {
-      color: 'text-red-600',
-      bgColor: 'bg-red-50',
-      borderColor: 'border-red-200',
-      icon: XCircle,
-      label: 'Unreachable',
-      badge: 'destructive' as const,
-    },
-    unknown: {
-      color: 'text-muted-foreground',
-      bgColor: 'bg-muted/60',
-      borderColor: 'border-border',
-      icon: Activity,
-      label: 'Checking',
-      badge: 'secondary' as const,
-    },
-  };
-
-  type HealthStatusKey = keyof typeof statusConfig;
-  const rawHealthStatus = health?.status ?? '';
-  const isKnownStatus = (value: string): value is HealthStatusKey => value in statusConfig;
-  const healthStatus: HealthStatusKey = isKnownStatus(rawHealthStatus)
-    ? rawHealthStatus
-    : healthQuery.error
-      ? 'unreachable'
-      : healthQuery.isLoading
-        ? 'unknown'
-        : 'unknown';
-  const config = statusConfig[healthStatus];
+  const healthStatus = resolveClusterHealthStatus(
+    health?.status,
+    Boolean(healthQuery.error),
+    healthQuery.isLoading,
+  );
+  const config = getClusterHealthAppearance(healthStatus);
   const StatusIcon = config.icon;
 
   const nodes = status?.nodes ?? [];
@@ -231,16 +182,16 @@ export function ClusterOverview() {
         </Alert>
       )}
 
-      <Card className={`relative overflow-hidden ${config.borderColor}`}>
+      <Card className={`relative overflow-hidden ${config.borderClass}`}>
         <div
-          className={`pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full ${config.bgColor} opacity-60 blur-2xl`}
+          className={`pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full ${config.softBackgroundClass} opacity-60 blur-2xl`}
         />
         <CardHeader className="relative z-10 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-4 min-w-0">
             <div
-              className={`h-12 w-12 rounded-xl ${config.bgColor} flex items-center justify-center shrink-0`}
+              className={`h-12 w-12 rounded-xl ${config.softBackgroundClass} flex items-center justify-center shrink-0`}
             >
-              <StatusIcon className={`h-5 w-5 ${config.color}`} />
+              <StatusIcon className={`h-5 w-5 ${config.emphasisClass}`} />
             </div>
             <div className="space-y-1 min-w-0">
               <div className="text-xs uppercase tracking-wider text-muted-foreground">

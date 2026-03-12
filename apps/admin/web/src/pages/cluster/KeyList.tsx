@@ -15,6 +15,7 @@ import {
   DialogTitle,
   DialogTrigger,
   Input,
+  InlineStatus,
   Label,
   Table,
   TableBody,
@@ -599,7 +600,9 @@ export function KeyList() {
                   </Button>
                 </div>
                 {copiedValue === createdKey.accessKeyId && (
-                  <div className="text-xs text-green-600 mt-1">Copied!</div>
+                  <InlineStatus tone="success" className="mt-1">
+                    Copied!
+                  </InlineStatus>
                 )}
               </div>
               <div className="rounded-lg border bg-muted/40 p-3">
@@ -619,7 +622,9 @@ export function KeyList() {
                   )}
                 </div>
                 {createdKey.secretAccessKey && copiedValue === createdKey.secretAccessKey && (
-                  <div className="text-xs text-green-600 mt-1">Copied!</div>
+                  <InlineStatus tone="success" className="mt-1">
+                    Copied!
+                  </InlineStatus>
                 )}
               </div>
               <div className="text-xs text-muted-foreground">

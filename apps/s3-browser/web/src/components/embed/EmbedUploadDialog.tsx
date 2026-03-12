@@ -237,7 +237,7 @@ export function EmbedUploadDialog({
                   {item.status === 'uploading' ? (
                     <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />
                   ) : item.status === 'done' ? (
-                    <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600" />
+                    <CheckCircle2 className="h-4 w-4 shrink-0 text-success" />
                   ) : item.status === 'error' ? (
                     <AlertCircle className="h-4 w-4 shrink-0 text-destructive" />
                   ) : (

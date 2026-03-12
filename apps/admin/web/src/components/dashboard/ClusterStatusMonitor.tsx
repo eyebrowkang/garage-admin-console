@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
-import { Activity, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
 import { Badge, Button, Card, CardContent } from '@garage-admin/ui';
 import { DisconnectActionIcon, EditActionIcon, OpenActionIcon } from '@/lib/action-icons';
+import { getClusterHealthAppearance, type ClusterHealthStatus } from '@/lib/cluster-health';
 import { formatBytes } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type {
@@ -14,7 +14,7 @@ interface ClusterWithStatus {
   cluster: ClusterSummary;
   health?: GetClusterHealthResponse;
   status?: GetClusterStatusResponse;
-  healthStatus: 'healthy' | 'degraded' | 'unavailable' | 'unreachable' | 'unknown';
+  healthStatus: ClusterHealthStatus;
   isLoading: boolean;
 }
 
@@ -23,44 +23,6 @@ interface ClusterStatusMonitorProps {
   onEditCluster: (cluster: ClusterSummary) => void;
   onDeleteCluster: (cluster: ClusterSummary) => void;
 }
-
-const statusConfig = {
-  healthy: {
-    label: 'Healthy',
-    icon: CheckCircle2,
-    badge: 'success' as const,
-    iconClass: 'text-success',
-    borderClass: 'border-success-border/80',
-  },
-  degraded: {
-    label: 'Degraded',
-    icon: AlertTriangle,
-    badge: 'warning' as const,
-    iconClass: 'text-warning',
-    borderClass: 'border-warning-border/80',
-  },
-  unavailable: {
-    label: 'Unavailable',
-    icon: XCircle,
-    badge: 'destructive' as const,
-    iconClass: 'text-destructive',
-    borderClass: 'border-destructive/30',
-  },
-  unreachable: {
-    label: 'Unreachable',
-    icon: XCircle,
-    badge: 'destructive' as const,
-    iconClass: 'text-destructive',
-    borderClass: 'border-destructive/30',
-  },
-  unknown: {
-    label: 'Checking',
-    icon: Activity,
-    badge: 'secondary' as const,
-    iconClass: 'text-primary',
-    borderClass: 'border-primary/25',
-  },
-};
 
 function getPressurePercent(status?: GetClusterStatusResponse) {
   const nodes = status?.nodes ?? [];
@@ -225,7 +187,7 @@ export function ClusterStatusMonitor({
         className={cn('grid gap-4', clusterGridClass)}
       >
         {clustersWithStatus.map((item) => {
-          const config = statusConfig[item.healthStatus];
+          const config = getClusterHealthAppearance(item.healthStatus);
           const StatusIcon = config.icon;
           const nodes = item.status?.nodes ?? [];
           const up = nodes.filter((node) => node.isUp).length;
@@ -242,7 +204,7 @@ export function ClusterStatusMonitor({
               <Card
                 className={cn(
                   'border bg-card transition-shadow hover:shadow-md',
-                  config.borderClass,
+                  config.subtleBorderClass,
                   isSingleCluster && 'rounded-2xl',
                 )}
               >
@@ -260,7 +222,7 @@ export function ClusterStatusMonitor({
                       </div>
                     </div>
                     <Badge variant={config.badge} className="shrink-0">
-                      <StatusIcon className={`mr-1 h-3.5 w-3.5 ${config.iconClass}`} />
+                      <StatusIcon className={`mr-1 h-3.5 w-3.5 ${config.emphasisClass}`} />
                       {config.label}
                     </Badge>
                   </div>

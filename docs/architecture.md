@@ -6,10 +6,10 @@ This document describes the system architecture of the Garage Admin Console mono
 
 The project is a **monorepo** containing two independent web applications that can be deployed separately or together:
 
-| App | Purpose | API Port | Web Port |
-|-----|---------|----------|----------|
-| **Admin Console** | Garage cluster management | 3001 | 5173 |
-| **S3 Browser** | S3-compatible object storage browser | 3002 | 5174 |
+| App               | Purpose                              | API Port | Web Port |
+| ----------------- | ------------------------------------ | -------- | -------- |
+| **Admin Console** | Garage cluster management            | 3001     | 5173     |
+| **S3 Browser**    | S3-compatible object storage browser | 3002     | 5174     |
 
 Both apps follow the **Backend-For-Frontend (BFF) proxy pattern** — the browser never communicates directly with backend storage services.
 
@@ -124,7 +124,7 @@ const authenticateToken = createAuthMiddleware({ secret: env.jwtSecret });
 
 ### @garage-admin/ui
 
-Shared UI primitives built on shadcn/ui and Radix UI: `Button`, `Card`, `cn()` utility, etc.
+Shared UI primitives built on shadcn/ui and Radix UI: `Button`, `Card`, `InlineStatus`, `cn()` utility, etc.
 
 ### @garage-admin/tsconfig
 
@@ -156,10 +156,10 @@ Sensitive data (Garage admin tokens, S3 access keys) is encrypted at rest using 
 
 Each app has its own SQLite database managed by Drizzle ORM with LibSQL:
 
-| App | Database | Tables |
-|-----|----------|--------|
-| Admin | `data.db` | `clusters`, `app_settings` |
-| S3 Browser | `s3-browser.db` | `connections` |
+| App        | Database        | Tables                     |
+| ---------- | --------------- | -------------------------- |
+| Admin      | `data.db`       | `clusters`, `app_settings` |
+| S3 Browser | `s3-browser.db` | `connections`              |
 
 Migrations run automatically on startup — no manual migration step needed.
 

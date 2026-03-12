@@ -22,6 +22,7 @@ import {
 } from '@garage-admin/ui';
 import { AddActionIcon } from '@/lib/action-icons';
 import { api, proxyPath } from '@/lib/api';
+import { resolveClusterHealthStatus } from '@/lib/cluster-health';
 import { getApiErrorMessage } from '@/lib/errors';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
@@ -109,19 +110,18 @@ export default function Dashboard() {
     const healthQuery = healthQueries[index];
     const health = healthById.get(cluster.id);
     const healthError = healthQuery?.error;
-    const healthStatus = health?.status ?? (healthError ? 'unreachable' : 'unknown');
     const isLoading = !health && !healthError;
+    const healthStatus = resolveClusterHealthStatus(
+      health?.status,
+      Boolean(healthError),
+      isLoading,
+    );
 
     return {
       cluster,
       health,
       status: statusById.get(cluster.id),
-      healthStatus: healthStatus as
-        | 'healthy'
-        | 'degraded'
-        | 'unavailable'
-        | 'unreachable'
-        | 'unknown',
+      healthStatus,
       isLoading,
     };
   });

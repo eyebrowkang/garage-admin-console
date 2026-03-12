@@ -19,6 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
   Input,
+  InlineStatus,
   Label,
   Table,
   TableBody,
@@ -171,7 +172,7 @@ export function AdminTokenList() {
 
   const renderScopeSummary = (scope: string[]) => {
     if (scope.includes('*')) {
-      return <span className="text-violet-700 font-medium">Full access (*)</span>;
+      return <InlineStatus tone="warning">Full access (*)</InlineStatus>;
     }
     if (scope.length === 0) {
       return <span className="text-muted-foreground">No scope</span>;

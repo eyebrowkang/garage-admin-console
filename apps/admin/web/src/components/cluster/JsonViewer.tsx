@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Copy, ChevronDown, ChevronRight } from 'lucide-react';
-import { Button } from '@garage-admin/ui';
+import { Button, InlineStatus } from '@garage-admin/ui';
 
 interface JsonViewerProps {
   data: unknown;
@@ -39,7 +39,7 @@ export function JsonViewer({ data, collapsed = false }: JsonViewerProps) {
           JSON
         </button>
         <div className="flex items-center gap-2">
-          {copied && <span className="text-xs text-green-600">Copied!</span>}
+          {copied && <InlineStatus tone="success">Copied!</InlineStatus>}
           <Button variant="ghost" size="sm" onClick={handleCopy}>
             <Copy className="h-3 w-3" />
             Copy
