@@ -34,7 +34,9 @@ it('renders the dashboard loading state with consistent page structure', () => {
 
   renderDashboard();
 
-  expect(screen.getByText(/Loading dashboard/i)).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: /Dashboard/i })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: /Loading clusters/i })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /Connect Cluster/i })).toBeDisabled();
 });
 
 it('renders the admin dashboard empty state cleanly when no clusters exist', () => {

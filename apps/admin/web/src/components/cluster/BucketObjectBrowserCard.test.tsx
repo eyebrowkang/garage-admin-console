@@ -181,6 +181,37 @@ it('passes readonly=true into the embedded remote config for a read-only key', a
   expect(screen.getByText('Browsing photos')).toBeInTheDocument();
 });
 
+it('shows a clear access summary for the selected key before connecting', async () => {
+  render(
+    <BucketObjectBrowserCard
+      bucketId="bucket-1"
+      clusterId="cluster-1"
+      keys={[
+        createKey({
+          accessKeyId: 'key-readonly',
+          name: 'Read Only Key',
+          read: true,
+          write: false,
+        }),
+        createKey({
+          accessKeyId: 'key-readwrite',
+          name: 'Read Write Key',
+          read: true,
+          write: true,
+        }),
+      ]}
+    />,
+  );
+
+  await selectAccessKey(/Read Only Key/i);
+  expect(
+    screen.getByText(/can browse objects but cannot upload, rename, or delete/i),
+  ).toBeInTheDocument();
+
+  await selectAccessKey(/Read Write Key/i);
+  expect(screen.getByText(/can browse and change objects in this bucket/i)).toBeInTheDocument();
+});
+
 it('shows the MF fallback when the remote fails to load', async () => {
   const connectToBucketBrowser = vi.fn().mockResolvedValue({
     apiBase: '/ignored',

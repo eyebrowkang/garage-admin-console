@@ -1,5 +1,5 @@
 import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import {
   Alert,
   AlertDescription,
@@ -7,6 +7,9 @@ import {
   Button,
   Card,
   CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -46,6 +49,25 @@ const emptyForm: ClusterFormState = {
   adminToken: '',
   metricToken: '',
 };
+
+function DashboardHeader({
+  connectAction,
+}: {
+  connectAction: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Dashboard</h1>
+        <p className="mt-0.5 text-sm text-muted-foreground sm:mt-1">
+          Cluster-level overview first. Open a cluster for deeper operations and diagnostics.
+        </p>
+      </div>
+
+      {connectAction}
+    </div>
+  );
+}
 
 export default function Dashboard() {
   const queryClient = useQueryClient();
@@ -251,20 +273,36 @@ export default function Dashboard() {
   };
 
   if (isLoading) {
-    return <PageLoadingState label="Loading dashboard..." />;
+    return (
+      <div className="space-y-8">
+        <DashboardHeader
+          connectAction={
+            <Button size="lg" disabled className="shadow-sm">
+              <AddActionIcon className="mr-2 h-5 w-5" /> Connect Cluster
+            </Button>
+          }
+        />
+
+        <Card className="border-dashed bg-muted/20 shadow-none">
+          <CardHeader className="space-y-2">
+            <CardTitle>Loading clusters...</CardTitle>
+            <CardDescription>
+              Checking saved clusters and refreshing the latest health snapshots.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <PageLoadingState label="Loading clusters..." />
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-sm text-muted-foreground mt-0.5 sm:mt-1">
-            Cluster-level overview first. Open a cluster for deeper operations and diagnostics.
-          </p>
-        </div>
-
+      <DashboardHeader
+        connectAction={
         <Dialog
           open={isCreateDialogOpen}
           onOpenChange={(open) => {
@@ -301,40 +339,44 @@ export default function Dashboard() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        }
+      />
 
-        <Dialog
-          open={isEditDialogOpen}
-          onOpenChange={(open) => {
-            setIsEditDialogOpen(open);
-            if (!open) {
-              setEditError('');
-              setEditForm(emptyForm);
-              setEditCluster(null);
-            }
-          }}
-        >
-          <DialogContent className="sm:max-w-[520px]">
-            <DialogHeader>
-              <DialogTitle>Update Cluster</DialogTitle>
-              <DialogDescription>
-                Edit connection details. Leave token fields blank to keep existing values.
-              </DialogDescription>
-            </DialogHeader>
-            <ClusterForm form={editForm} setForm={setEditForm} mode="edit" error={editError} />
-            <DialogFooter>
-              <Button onClick={handleEditSave} disabled={isEditDisabled}>
-                {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
+      <Dialog
+        open={isEditDialogOpen}
+        onOpenChange={(open) => {
+          setIsEditDialogOpen(open);
+          if (!open) {
+            setEditError('');
+            setEditForm(emptyForm);
+            setEditCluster(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle>Update Cluster</DialogTitle>
+            <DialogDescription>
+              Edit connection details. Leave token fields blank to keep existing values.
+            </DialogDescription>
+          </DialogHeader>
+          <ClusterForm form={editForm} setForm={setEditForm} mode="edit" error={editError} />
+          <DialogFooter>
+            <Button onClick={handleEditSave} disabled={isEditDisabled}>
+              {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {error && (
         <Alert variant="destructive">
-          <AlertTitle>Failed to load clusters</AlertTitle>
+          <AlertTitle>Unable to load clusters</AlertTitle>
           <AlertDescription>
-            {getApiErrorMessage(error, 'Unable to fetch clusters.')}
+            {getApiErrorMessage(
+              error,
+              'Review the Admin API status, then refresh the page or sign in again.',
+            )}
           </AlertDescription>
         </Alert>
       )}
@@ -361,7 +403,7 @@ export default function Dashboard() {
                 Connect a Garage cluster to see health, capacity, and operations here.
               </p>
             </div>
-            <Button variant="outline" onClick={() => setIsCreateDialogOpen(true)}>
+            <Button onClick={() => setIsCreateDialogOpen(true)}>
               Connect your first cluster
             </Button>
           </CardContent>
