@@ -3,12 +3,14 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { federation } from '@module-federation/vite';
 import path from 'path';
+import { createDevServerSocketResiliencePlugin } from './src/lib/dev-server-resilience';
 import { resolveS3BrowserRemoteEntry } from './src/lib/mf-config';
 
 const s3BrowserRemoteEntry = resolveS3BrowserRemoteEntry(process.env);
 
 export default defineConfig({
   plugins: [
+    createDevServerSocketResiliencePlugin(),
     federation({
       name: 'admin_console',
       dts: false,
