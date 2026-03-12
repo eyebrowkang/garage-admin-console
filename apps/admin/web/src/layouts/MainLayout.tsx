@@ -26,8 +26,8 @@ export function MainLayout() {
             className="h-9 px-3 text-muted-foreground hover:text-foreground transition-colors"
             onClick={handleLogout}
           >
-            <LogOut className="h-4 w-4 mr-2" />
-            <span className="hidden sm:inline">Sign Out</span>
+            <LogOut className="h-4 w-4" />
+            <span>Sign Out</span>
           </Button>
         </div>
       </header>

@@ -1,10 +1,9 @@
-import React, { Suspense, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MainLayout } from './layouts/MainLayout';
 import { ClusterLayout } from './layouts/ClusterLayout';
 import { Toaster } from '@/components/ui/toaster';
-import { PageLoadingState } from '@/components/cluster/PageLoadingState';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 
@@ -85,10 +84,6 @@ function ScrollToTop() {
   return null;
 }
 
-function LazyFallback() {
-  return <PageLoadingState label="Loading..." />;
-}
-
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -96,16 +91,6 @@ function App() {
         <ScrollToTop />
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route
-            path="/clusters/:id/metrics"
-            element={
-              <ProtectedRoute>
-                <Suspense fallback={<LazyFallback />}>
-                  <MetricsPage />
-                </Suspense>
-              </ProtectedRoute>
-            }
-          />
           <Route
             path="/"
             element={
@@ -126,6 +111,7 @@ function App() {
               <Route path="nodes" element={<ClusterNodeList />} />
               <Route path="nodes/:nid" element={<NodeDetail />} />
               <Route path="layout" element={<LayoutManager />} />
+              <Route path="metrics" element={<MetricsPage />} />
               <Route path="tokens" element={<AdminTokenList />} />
               <Route path="tokens/:tid" element={<AdminTokenDetail />} />
               <Route path="blocks" element={<BlockManager />} />

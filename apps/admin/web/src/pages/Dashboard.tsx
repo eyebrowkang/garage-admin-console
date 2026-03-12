@@ -277,8 +277,8 @@ export default function Dashboard() {
       <div className="space-y-8">
         <DashboardHeader
           connectAction={
-            <Button size="lg" disabled className="shadow-sm">
-              <AddActionIcon className="mr-2 h-5 w-5" /> Connect Cluster
+            <Button size="lg" disabled className="w-full shadow-sm sm:w-auto">
+              <AddActionIcon className="h-5 w-5" /> Connect Cluster
             </Button>
           }
         />
@@ -303,42 +303,45 @@ export default function Dashboard() {
       {/* Header */}
       <DashboardHeader
         connectAction={
-        <Dialog
-          open={isCreateDialogOpen}
-          onOpenChange={(open) => {
-            setIsCreateDialogOpen(open);
-            if (!open) {
-              setFormError('');
-              setClusterForm(emptyForm);
-            }
-          }}
-        >
-          <DialogTrigger asChild>
-            <Button size="lg" className="shadow-sm hover:shadow-md transition-shadow">
-              <AddActionIcon className="mr-2 h-5 w-5" /> Connect Cluster
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>Connect Garage Cluster</DialogTitle>
-              <DialogDescription>Add a new existing Garage cluster to manage.</DialogDescription>
-            </DialogHeader>
-            <ClusterForm
-              form={clusterForm}
-              setForm={setClusterForm}
-              mode="create"
-              error={formError}
-            />
-            <DialogFooter>
+          <Dialog
+            open={isCreateDialogOpen}
+            onOpenChange={(open) => {
+              setIsCreateDialogOpen(open);
+              if (!open) {
+                setFormError('');
+                setClusterForm(emptyForm);
+              }
+            }}
+          >
+            <DialogTrigger asChild>
               <Button
-                onClick={() => createMutation.mutate(clusterForm)}
-                disabled={isCreateDisabled}
+                size="lg"
+                className="w-full shadow-sm transition-shadow hover:shadow-md sm:w-auto"
               >
-                {createMutation.isPending ? 'Connecting...' : 'Connect'}
+                <AddActionIcon className="h-5 w-5" /> Connect Cluster
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>Connect Garage Cluster</DialogTitle>
+                <DialogDescription>Add a new existing Garage cluster to manage.</DialogDescription>
+              </DialogHeader>
+              <ClusterForm
+                form={clusterForm}
+                setForm={setClusterForm}
+                mode="create"
+                error={formError}
+              />
+              <DialogFooter>
+                <Button
+                  onClick={() => createMutation.mutate(clusterForm)}
+                  disabled={isCreateDisabled}
+                >
+                  {createMutation.isPending ? 'Connecting...' : 'Connect'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         }
       />
 
@@ -391,7 +394,7 @@ export default function Dashboard() {
       )}
 
       {/* Empty State */}
-      {clusters.length === 0 && (
+      {!error && clusters.length === 0 && (
         <Card className="border-2 border-dashed bg-muted/20 shadow-none">
           <CardContent className="flex min-h-[18rem] flex-col items-center justify-center gap-5 p-10 text-center">
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">

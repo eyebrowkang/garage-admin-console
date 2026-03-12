@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api, proxyPath } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/errors';
+import { Alert, AlertDescription, AlertTitle, Card, CardContent } from '@garage-admin/ui';
+import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
 
 export function MetricsPage() {
   const { id } = useParams<{ id: string }>();
@@ -32,25 +34,33 @@ export function MetricsPage() {
     return null;
   }
 
-  if (error) {
-    return (
-      <pre className="min-h-screen whitespace-pre bg-white p-4 font-mono text-xs text-red-600">
-        {error}
-      </pre>
-    );
-  }
-
-  if (!data) {
-    return (
-      <pre className="min-h-screen whitespace-pre bg-white p-4 font-mono text-xs text-slate-500">
-        Loading...
-      </pre>
-    );
-  }
-
   return (
-    <pre className="min-h-screen whitespace-pre bg-white p-4 font-mono text-xs text-slate-900">
-      {data}
-    </pre>
+    <div className="space-y-6">
+      <ModulePageHeader
+        title="Metrics"
+        description="Raw Prometheus output for this cluster."
+      />
+
+      {error && (
+        <Alert variant="destructive">
+          <AlertTitle>Unable to load metrics</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      <Card>
+        <CardContent className="p-0">
+          {!data ? (
+            <div className="flex min-h-[18rem] items-center justify-center px-6 py-10 text-sm text-muted-foreground">
+              Loading cluster metrics...
+            </div>
+          ) : (
+            <pre className="overflow-x-auto p-4 font-mono text-xs leading-6 whitespace-pre text-foreground sm:p-5">
+              {data}
+            </pre>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }

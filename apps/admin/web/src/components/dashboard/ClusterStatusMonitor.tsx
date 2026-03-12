@@ -4,6 +4,7 @@ import { Badge, Button, Card, CardContent } from '@garage-admin/ui';
 import { DisconnectActionIcon, EditActionIcon, OpenActionIcon } from '@/lib/action-icons';
 import { formatBytes } from '@/lib/format';
 import { NodeIcon } from '@/lib/entity-icons';
+import { cn } from '@/lib/utils';
 import type {
   ClusterSummary,
   GetClusterHealthResponse,
@@ -142,6 +143,7 @@ export function ClusterStatusMonitor({
     (sum, item) => sum + (item.status?.nodes?.filter((node) => node.isUp).length ?? 0),
     0,
   );
+  const clusterGridClass = clustersWithStatus.length > 1 ? 'md:grid-cols-2' : 'grid-cols-1';
 
   return (
     <div className="space-y-4">
@@ -180,7 +182,11 @@ export function ClusterStatusMonitor({
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div
+        role="list"
+        aria-label="Cluster status cards"
+        className={cn('grid gap-4', clusterGridClass)}
+      >
         {clustersWithStatus.map((item) => {
           const config = statusConfig[item.healthStatus];
           const StatusIcon = config.icon;
@@ -203,11 +209,9 @@ export function ClusterStatusMonitor({
           const minCapacity = capacityValues.length > 0 ? Math.min(...capacityValues) : null;
 
           return (
-            <Card
-              key={item.cluster.id}
-              className={`border ${config.bgClass} transition-shadow hover:shadow-md`}
-            >
-              <CardContent className="space-y-3 p-4 sm:p-5">
+            <div key={item.cluster.id} role="listitem">
+              <Card className={`border ${config.bgClass} transition-shadow hover:shadow-md`}>
+                <CardContent className="space-y-3 p-4 sm:p-5">
                 {/* Header row: name + status badge */}
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -288,10 +292,10 @@ export function ClusterStatusMonitor({
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-2 pt-1">
+                <div className="flex flex-wrap items-center gap-2 pt-1">
                   <Button asChild size="sm" className="h-9">
                     <Link to={`/clusters/${item.cluster.id}`}>
-                      <OpenActionIcon className="mr-2 h-4 w-4" />
+                      <OpenActionIcon className="h-4 w-4" />
                       Open
                     </Link>
                   </Button>
@@ -301,7 +305,7 @@ export function ClusterStatusMonitor({
                     className="h-9"
                     onClick={() => onEditCluster(item.cluster)}
                   >
-                    <EditActionIcon className="mr-2 h-4 w-4" />
+                    <EditActionIcon className="h-4 w-4" />
                     Edit
                   </Button>
                   <div className="flex-1" />
@@ -311,12 +315,13 @@ export function ClusterStatusMonitor({
                     className="h-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                     onClick={() => onDeleteCluster(item.cluster)}
                   >
-                    <DisconnectActionIcon className="mr-2 h-4 w-4" />
-                    <span className="hidden sm:inline">Disconnect</span>
+                    <DisconnectActionIcon className="h-4 w-4" />
+                    Disconnect
                   </Button>
                 </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
           );
         })}
       </div>

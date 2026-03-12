@@ -56,3 +56,17 @@ it('renders the admin dashboard empty state cleanly when no clusters exist', () 
     screen.getByRole('button', { name: /Connect your first cluster/i }),
   ).toBeInTheDocument();
 });
+
+it('does not show the first-run empty state when cluster loading failed', () => {
+  mockedUseClusters.mockReturnValue({
+    data: undefined,
+    error: new Error('Backend unavailable'),
+    isLoading: false,
+  } as unknown as ReturnType<typeof useClusters>);
+
+  renderDashboard();
+
+  expect(screen.getByText(/Unable to load clusters/i)).toBeInTheDocument();
+  expect(screen.queryByText(/No clusters configured yet/i)).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /Connect your first cluster/i })).not.toBeInTheDocument();
+});
