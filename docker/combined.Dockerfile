@@ -32,11 +32,14 @@ RUN pnpm -C apps/admin/api build
 ENV VITE_S3_BROWSER_REMOTE_ENTRY=${VITE_S3_BROWSER_REMOTE_ENTRY}
 RUN pnpm -C apps/admin/web build
 
-# Deploy admin API with production deps
-RUN pnpm --filter @garage-admin/admin-api deploy --prod --legacy /deploy
+# Deploy both APIs with production deps
+RUN pnpm --filter @garage-admin/admin-api deploy --prod --legacy /deploy/admin
+RUN pnpm --filter @garage-admin/s3-api deploy --prod --legacy /deploy/s3-browser-api
 
-RUN cp -r /src/apps/admin/api/dist /deploy/dist && \
-    cp -r /src/apps/admin/api/drizzle /deploy/drizzle
+RUN cp -r /src/apps/admin/api/dist /deploy/admin/dist && \
+    cp -r /src/apps/admin/api/drizzle /deploy/admin/drizzle && \
+    cp -r /src/apps/s3-browser/api/dist /deploy/s3-browser-api/dist && \
+    cp -r /src/apps/s3-browser/api/drizzle /deploy/s3-browser-api/drizzle
 
 # ---- Production stage ----
 FROM node:24-alpine
@@ -45,22 +48,29 @@ RUN apk add --no-cache tini
 
 WORKDIR /app
 
-COPY --from=build /deploy/ .
+COPY --from=build /deploy/admin/ /app/admin/
+COPY --from=build /deploy/s3-browser-api/ /app/s3-browser-api/
 
 # Admin SPA
 COPY --from=build /src/apps/admin/web/dist/ /app/static/
 
 # S3 Browser remote assets (remoteEntry.js etc.)
 COPY --from=build /src/apps/s3-browser/web/dist/ /app/static/s3-browser/
+RUN rm -f /app/static/s3-browser/index.html
+
+COPY docker/combined-entrypoint.sh /app/combined-entrypoint.sh
+RUN chmod +x /app/combined-entrypoint.sh
 
 ENV NODE_ENV=production
 ENV DATA_DIR=/data
 ENV STATIC_DIR=/app/static
 ENV S3_BROWSER_STATIC_DIR=/app/static/s3-browser
+ENV S3_BROWSER_API_URL=http://127.0.0.1:3002
+ENV S3_BROWSER_PORT=3002
 ENV PORT=3001
 
 VOLUME /data
 EXPOSE 3001
 
 ENTRYPOINT ["tini", "--"]
-CMD ["node", "dist/index.js"]
+CMD ["/app/combined-entrypoint.sh"]

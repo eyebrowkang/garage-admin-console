@@ -14,12 +14,18 @@ const staticDir = process.env.STATIC_DIR;
 if (staticDir) {
   const resolved = path.resolve(staticDir);
 
-  // Serve S3 Browser remote assets (MF remoteEntry.js etc.) in combined deployment.
-  // Must be registered before the generic static middleware so /s3-browser/ is not
-  // caught by the SPA fallback.
+  // Serve only S3 Browser remote assets in combined deployment. Standalone S3
+  // routes must not leak a second SPA shell under the Admin host.
   const s3BrowserDir = process.env.S3_BROWSER_STATIC_DIR;
   if (s3BrowserDir) {
-    app.use('/s3-browser', express.static(path.resolve(s3BrowserDir)));
+    app.use(
+      '/s3-browser',
+      express.static(path.resolve(s3BrowserDir), {
+        fallthrough: false,
+        index: false,
+        redirect: false,
+      }),
+    );
   }
 
   app.use(express.static(resolved));

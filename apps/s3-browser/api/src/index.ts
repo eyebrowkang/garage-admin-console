@@ -8,11 +8,16 @@ import { app } from './app.js';
 await runMigrations();
 console.log('Database migrations applied');
 
-// Serve static frontend files when STATIC_DIR is configured
+// Serve static frontend files only in standalone deployments. Combined mode
+// runs this API internally and leaves shell/static handling to the Admin app.
 const staticDir = process.env.STATIC_DIR;
 if (staticDir) {
   const resolved = path.resolve(staticDir);
-  app.use(express.static(resolved));
+  app.use(
+    express.static(resolved, {
+      redirect: false,
+    }),
+  );
 
   // SPA fallback
   app.use((req, res, next) => {
