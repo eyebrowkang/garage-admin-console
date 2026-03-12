@@ -18,6 +18,15 @@
   --color-primary: hsl(var(--primary));
   --color-primary-foreground: hsl(var(--primary-foreground));
 
+  --color-success: hsl(var(--success));
+  --color-success-soft: hsl(var(--success-soft));
+  --color-success-border: hsl(var(--success-border));
+
+  --color-warning: hsl(var(--warning));
+  --color-warning-soft: hsl(var(--warning-soft));
+  --color-warning-border: hsl(var(--warning-border));
+  --color-warning-foreground: hsl(var(--warning-foreground));
+
   --color-secondary: hsl(var(--secondary));
   --color-secondary-foreground: hsl(var(--secondary-foreground));
 
@@ -50,6 +59,15 @@
 
     --primary: 30 100% 58%;
     --primary-foreground: 0 0% 100%;
+
+    --success: 145 55% 32%;
+    --success-soft: 144 48% 95%;
+    --success-border: 144 26% 82%;
+
+    --warning: 282 44% 44%;
+    --warning-soft: 282 44% 95%;
+    --warning-border: 282 24% 82%;
+    --warning-foreground: 282 35% 24%;
 
     --secondary: 35 45% 95%;
     --secondary-foreground: 24 20% 18%;

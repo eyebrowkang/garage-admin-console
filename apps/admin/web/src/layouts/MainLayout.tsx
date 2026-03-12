@@ -23,7 +23,7 @@ export function MainLayout() {
           <Button
             variant="outline"
             size="sm"
-            className="h-9 px-3 text-muted-foreground hover:text-foreground transition-colors"
+            className="px-3 text-muted-foreground transition-colors hover:text-foreground"
             onClick={handleLogout}
           >
             <LogOut className="h-4 w-4" />

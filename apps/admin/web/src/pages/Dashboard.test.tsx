@@ -54,7 +54,7 @@ it('renders the admin dashboard empty state cleanly when no clusters exist', () 
       /Connect a Garage cluster to monitor health, capacity, and access from one place/i,
     ),
   ).toBeInTheDocument();
-  expect(screen.getAllByRole('button', { name: /Connect Cluster/i })).toHaveLength(2);
+  expect(screen.getAllByRole('button', { name: /Connect Cluster/i })).toHaveLength(1);
 });
 
 it('does not show the first-run empty state when cluster loading failed', () => {

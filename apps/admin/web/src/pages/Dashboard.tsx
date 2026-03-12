@@ -284,47 +284,50 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <ModulePageHeader
         title="Dashboard"
         description="Review cluster health here, then open a cluster for detailed operations."
         actions={
-          <Dialog
-            open={isCreateDialogOpen}
-            onOpenChange={(open) => {
-              setIsCreateDialogOpen(open);
-              if (!open) {
-                setFormError('');
-                setClusterForm(emptyForm);
-              }
-            }}
-          >
-            <DialogTrigger asChild>
-              <Button size="lg" className="w-full sm:w-auto">
-                <AddActionIcon className="h-5 w-5" /> Connect Cluster
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
-              <DialogHeader>
-                <DialogTitle>Connect Garage Cluster</DialogTitle>
-                <DialogDescription>Add a new existing Garage cluster to manage.</DialogDescription>
-              </DialogHeader>
-              <ClusterForm
-                form={clusterForm}
-                setForm={setClusterForm}
-                mode="create"
-                error={formError}
-              />
-              <DialogFooter>
-                <Button
-                  onClick={() => createMutation.mutate(clusterForm)}
-                  disabled={isCreateDisabled}
-                >
-                  {createMutation.isPending ? 'Connecting...' : 'Connect'}
+          clusters.length > 0 || error ? (
+            <Dialog
+              open={isCreateDialogOpen}
+              onOpenChange={(open) => {
+                setIsCreateDialogOpen(open);
+                if (!open) {
+                  setFormError('');
+                  setClusterForm(emptyForm);
+                }
+              }}
+            >
+              <DialogTrigger asChild>
+                <Button size="lg" className="w-full sm:w-auto">
+                  <AddActionIcon className="h-5 w-5" /> Connect Cluster
                 </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                  <DialogTitle>Connect Garage Cluster</DialogTitle>
+                  <DialogDescription>
+                    Add a new existing Garage cluster to manage.
+                  </DialogDescription>
+                </DialogHeader>
+                <ClusterForm
+                  form={clusterForm}
+                  setForm={setClusterForm}
+                  mode="create"
+                  error={formError}
+                />
+                <DialogFooter>
+                  <Button
+                    onClick={() => createMutation.mutate(clusterForm)}
+                    disabled={isCreateDisabled}
+                  >
+                    {createMutation.isPending ? 'Connecting...' : 'Connect'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          ) : undefined
         }
       />
 
@@ -367,7 +370,6 @@ export default function Dashboard() {
         </Alert>
       )}
 
-      {/* Cluster Status Monitor */}
       {clusters.length > 0 && (
         <ClusterStatusMonitor
           clustersWithStatus={clustersWithStatus}
@@ -376,7 +378,6 @@ export default function Dashboard() {
         />
       )}
 
-      {/* Empty State */}
       {!error && clusters.length === 0 && (
         <Card className="border-2 border-dashed bg-muted/20 shadow-none">
           <CardContent className="flex min-h-[18rem] flex-col items-center justify-center gap-5 p-10 text-center">
@@ -394,7 +395,6 @@ export default function Dashboard() {
         </Card>
       )}
 
-      {/* Delete Confirmation */}
       <ConfirmDialog
         open={!!deleteConfirm}
         onOpenChange={(open) => !open && setDeleteConfirm(null)}

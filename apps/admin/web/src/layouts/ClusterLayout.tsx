@@ -1,13 +1,28 @@
 import { Suspense } from 'react';
 import { Outlet, useParams, NavLink, useLocation, Link } from 'react-router-dom';
-import { Activity, AlertTriangle, LayoutGrid, Settings, ChevronLeft, type LucideIcon } from 'lucide-react';
+import {
+  Activity,
+  AlertTriangle,
+  LayoutGrid,
+  Settings,
+  ChevronLeft,
+  type LucideIcon,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useClusters } from '@/hooks/useClusters';
 import { useBlockErrors } from '@/hooks/useBlocks';
 import { ClusterContext } from '@/contexts/ClusterContext';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
 import { BlockIcon, BucketIcon, KeyIcon, NodeIcon, TokenIcon } from '@/lib/entity-icons';
-import { Alert, AlertDescription, AlertTitle, Button, Card, CardContent, Skeleton } from '@garage-admin/ui';
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Button,
+  Card,
+  CardContent,
+  Skeleton,
+} from '@garage-admin/ui';
 import type { ClusterSummary } from '@/types/garage';
 
 const navItems = [
@@ -191,7 +206,7 @@ export function ClusterLayout() {
               variant="outline"
               size="sm"
               asChild
-              className="h-9 gap-1.5 shrink-0 px-3 text-muted-foreground transition-colors hover:text-foreground"
+              className="gap-1.5 shrink-0 px-3 text-muted-foreground transition-colors hover:text-foreground"
             >
               <Link to="/">
                 <ChevronLeft className="h-4 w-4" />

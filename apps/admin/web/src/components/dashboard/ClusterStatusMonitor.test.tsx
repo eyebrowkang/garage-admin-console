@@ -45,6 +45,7 @@ it('uses a compact fleet summary when only one cluster is connected', () => {
 
   expect(screen.getByText(/1 connected cluster/i)).toBeInTheDocument();
   expect(screen.queryByRole('heading', { name: /Cluster Fleet Summary/i })).not.toBeInTheDocument();
+  expect(screen.getByText(/Fleet status/i).className).toContain('text-muted-foreground');
 });
 
 it('uses a two-column card grid when multiple clusters are connected', () => {

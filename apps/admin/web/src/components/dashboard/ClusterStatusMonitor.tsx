@@ -29,15 +29,15 @@ const statusConfig = {
     label: 'Healthy',
     icon: CheckCircle2,
     badge: 'success' as const,
-    iconClass: 'text-green-600',
-    borderClass: 'border-green-200/70',
+    iconClass: 'text-success',
+    borderClass: 'border-success-border/80',
   },
   degraded: {
     label: 'Degraded',
     icon: AlertTriangle,
     badge: 'warning' as const,
-    iconClass: 'text-violet-700',
-    borderClass: 'border-violet-200/70',
+    iconClass: 'text-warning',
+    borderClass: 'border-warning-border/80',
   },
   unavailable: {
     label: 'Unavailable',
@@ -196,7 +196,7 @@ export function ClusterStatusMonitor({
       <Card className="border-border/60 bg-card/60 shadow-none">
         <CardContent className="flex flex-col gap-4 p-4 sm:p-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-xl space-y-1.5">
-            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-primary/70">
+            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
               Fleet status
             </p>
             <h2 className="text-lg font-semibold tracking-tight">{clusterCountLabel}</h2>
@@ -207,8 +207,8 @@ export function ClusterStatusMonitor({
             </p>
           </div>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:flex lg:flex-wrap lg:justify-end lg:gap-6">
-            <SummaryMetric label="Healthy" value={healthy} toneClass="text-green-700" />
-            <SummaryMetric label="Warnings" value={warning} toneClass="text-violet-700" />
+            <SummaryMetric label="Healthy" value={healthy} toneClass="text-success" />
+            <SummaryMetric label="Warnings" value={warning} toneClass="text-warning" />
             <SummaryMetric label="Errors" value={error} toneClass="text-destructive" />
             <SummaryMetric
               label="Nodes up"
@@ -312,7 +312,7 @@ export function ClusterStatusMonitor({
 
                   <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex flex-col gap-2 sm:flex-row">
-                      <Button asChild size="sm" className="h-9">
+                      <Button asChild size="sm">
                         <Link to={`/clusters/${item.cluster.id}`}>
                           <OpenActionIcon className="h-4 w-4" />
                           Open Cluster
@@ -321,7 +321,6 @@ export function ClusterStatusMonitor({
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-9"
                         onClick={() => onEditCluster(item.cluster)}
                       >
                         <EditActionIcon className="h-4 w-4" />
@@ -331,7 +330,7 @@ export function ClusterStatusMonitor({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-9 justify-start text-muted-foreground hover:bg-destructive/10 hover:text-destructive sm:justify-center"
+                      className="justify-start text-muted-foreground hover:bg-destructive/10 hover:text-destructive sm:justify-center"
                       onClick={() => onDeleteCluster(item.cluster)}
                     >
                       <DisconnectActionIcon className="h-4 w-4" />
