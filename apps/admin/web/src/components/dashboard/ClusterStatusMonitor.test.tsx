@@ -40,6 +40,13 @@ it('uses a single-column card grid when only one cluster is connected', () => {
   expect(screen.getAllByRole('listitem')).toHaveLength(1);
 });
 
+it('uses a compact fleet summary when only one cluster is connected', () => {
+  renderMonitor(['cluster-1']);
+
+  expect(screen.getByText(/1 connected cluster/i)).toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: /Cluster Fleet Summary/i })).not.toBeInTheDocument();
+});
+
 it('uses a two-column card grid when multiple clusters are connected', () => {
   renderMonitor(['cluster-1', 'cluster-2']);
 

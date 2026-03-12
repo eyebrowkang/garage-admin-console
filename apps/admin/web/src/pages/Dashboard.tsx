@@ -60,7 +60,7 @@ function DashboardHeader({
       <div>
         <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Dashboard</h1>
         <p className="mt-0.5 text-sm text-muted-foreground sm:mt-1">
-          Cluster-level overview first. Open a cluster for deeper operations and diagnostics.
+          Check cluster health here, then open a cluster for detailed work.
         </p>
       </div>
 
@@ -274,10 +274,10 @@ export default function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="space-y-8">
+      <div className="space-y-6">
         <DashboardHeader
           connectAction={
-            <Button size="lg" disabled className="w-full shadow-sm sm:w-auto">
+            <Button size="lg" disabled className="w-full sm:w-auto">
               <AddActionIcon className="h-5 w-5" /> Connect Cluster
             </Button>
           }
@@ -299,7 +299,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Header */}
       <DashboardHeader
         connectAction={
@@ -314,10 +314,7 @@ export default function Dashboard() {
             }}
           >
             <DialogTrigger asChild>
-              <Button
-                size="lg"
-                className="w-full shadow-sm transition-shadow hover:shadow-md sm:w-auto"
-              >
+              <Button size="lg" className="w-full sm:w-auto">
                 <AddActionIcon className="h-5 w-5" /> Connect Cluster
               </Button>
             </DialogTrigger>

@@ -1,9 +1,8 @@
 import { Link } from 'react-router-dom';
-import { Activity, AlertTriangle, CheckCircle2, HardDrive, XCircle } from 'lucide-react';
+import { Activity, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
 import { Badge, Button, Card, CardContent } from '@garage-admin/ui';
 import { DisconnectActionIcon, EditActionIcon, OpenActionIcon } from '@/lib/action-icons';
 import { formatBytes } from '@/lib/format';
-import { NodeIcon } from '@/lib/entity-icons';
 import { cn } from '@/lib/utils';
 import type {
   ClusterSummary,
@@ -31,35 +30,35 @@ const statusConfig = {
     icon: CheckCircle2,
     badge: 'success' as const,
     iconClass: 'text-green-600',
-    bgClass: 'bg-green-50 border-green-200',
+    borderClass: 'border-green-200/70',
   },
   degraded: {
     label: 'Degraded',
     icon: AlertTriangle,
     badge: 'warning' as const,
     iconClass: 'text-violet-700',
-    bgClass: 'bg-violet-50 border-violet-200',
+    borderClass: 'border-violet-200/70',
   },
   unavailable: {
     label: 'Unavailable',
     icon: XCircle,
     badge: 'destructive' as const,
     iconClass: 'text-destructive',
-    bgClass: 'bg-destructive/5 border-destructive/30',
+    borderClass: 'border-destructive/30',
   },
   unreachable: {
     label: 'Unreachable',
     icon: XCircle,
     badge: 'destructive' as const,
     iconClass: 'text-destructive',
-    bgClass: 'bg-destructive/5 border-destructive/30',
+    borderClass: 'border-destructive/30',
   },
   unknown: {
     label: 'Checking',
     icon: Activity,
     badge: 'secondary' as const,
     iconClass: 'text-primary',
-    bgClass: 'bg-primary/5 border-primary/25',
+    borderClass: 'border-primary/25',
   },
 };
 
@@ -122,6 +121,50 @@ function getStatusMessage(item: ClusterWithStatus) {
   return 'Cluster reports unavailable health.';
 }
 
+function SummaryMetric({
+  label,
+  value,
+  toneClass,
+  detail,
+}: {
+  label: string;
+  value: string | number;
+  toneClass?: string;
+  detail?: string;
+}) {
+  return (
+    <div className="space-y-1 border-l border-border/60 pl-3">
+      <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+        {label}
+      </div>
+      <div className={cn('text-xl font-semibold leading-none tracking-tight', toneClass)}>
+        {value}
+      </div>
+      {detail && <div className="text-xs text-muted-foreground">{detail}</div>}
+    </div>
+  );
+}
+
+function ClusterMetric({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string;
+  detail?: string;
+}) {
+  return (
+    <div className="space-y-1">
+      <dt className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+        {label}
+      </dt>
+      <dd className="text-base font-semibold tracking-tight text-foreground">{value}</dd>
+      {detail && <div className="text-xs text-muted-foreground">{detail}</div>}
+    </div>
+  );
+}
+
 export function ClusterStatusMonitor({
   clustersWithStatus,
   onEditCluster,
@@ -135,6 +178,8 @@ export function ClusterStatusMonitor({
     (item) => item.healthStatus === 'unavailable' || item.healthStatus === 'unreachable',
   ).length;
   const checking = clustersWithStatus.filter((item) => item.healthStatus === 'unknown').length;
+  const clusterCount = clustersWithStatus.length;
+  const clusterCountLabel = `${clusterCount} connected cluster${clusterCount === 1 ? '' : 's'}`;
   const totalNodes = clustersWithStatus.reduce(
     (sum, item) => sum + (item.status?.nodes?.length ?? 0),
     0,
@@ -143,41 +188,33 @@ export function ClusterStatusMonitor({
     (sum, item) => sum + (item.status?.nodes?.filter((node) => node.isUp).length ?? 0),
     0,
   );
-  const clusterGridClass = clustersWithStatus.length > 1 ? 'md:grid-cols-2' : 'grid-cols-1';
+  const clusterGridClass = clusterCount > 1 ? 'md:grid-cols-2' : 'grid-cols-1';
+  const isSingleCluster = clusterCount === 1;
 
   return (
     <div className="space-y-4">
-      <Card className="border-primary/30 bg-primary/5">
-        <CardContent className="grid gap-4 p-4 sm:p-5 md:grid-cols-5">
-          <div className="md:col-span-2">
-            <p className="text-xs font-medium uppercase tracking-wider text-primary/70">Overview</p>
-            <h2 className="mt-0.5 text-lg sm:text-xl font-semibold">Cluster Fleet Summary</h2>
-            <p className="mt-1 text-sm text-muted-foreground hidden sm:block">
-              Top-level health and capacity indicators for all connected clusters.
+      <Card className="border-border/60 bg-card/60 shadow-none">
+        <CardContent className="flex flex-col gap-4 p-4 sm:p-5 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-xl space-y-1.5">
+            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-primary/70">
+              Fleet status
+            </p>
+            <h2 className="text-lg font-semibold tracking-tight">{clusterCountLabel}</h2>
+            <p className="text-sm text-muted-foreground">
+              {isSingleCluster
+                ? 'Keep the overview light here and open the cluster for bucket, key, and layout work.'
+                : 'Scan fleet health here, then open a cluster for deeper diagnostics.'}
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:gap-3 text-sm md:col-span-3 md:grid-cols-4">
-            <div className="rounded-lg border bg-card px-3 py-2">
-              <div className="text-xs text-muted-foreground">Healthy</div>
-              <div className="text-lg font-semibold text-green-700">{healthy}</div>
-            </div>
-            <div className="rounded-lg border bg-card px-3 py-2">
-              <div className="text-xs text-muted-foreground">Warnings</div>
-              <div className="text-lg font-semibold text-violet-700">{warning}</div>
-            </div>
-            <div className="rounded-lg border bg-card px-3 py-2">
-              <div className="text-xs text-muted-foreground">Errors</div>
-              <div className="text-lg font-semibold text-destructive">{error}</div>
-            </div>
-            <div className="rounded-lg border bg-card px-3 py-2">
-              <div className="text-xs text-muted-foreground">Nodes Up</div>
-              <div className="text-lg font-semibold">
-                {nodesUp}/{totalNodes}
-              </div>
-              {checking > 0 && (
-                <div className="text-xs text-muted-foreground">Checking: {checking}</div>
-              )}
-            </div>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:flex lg:flex-wrap lg:justify-end lg:gap-6">
+            <SummaryMetric label="Healthy" value={healthy} toneClass="text-green-700" />
+            <SummaryMetric label="Warnings" value={warning} toneClass="text-violet-700" />
+            <SummaryMetric label="Errors" value={error} toneClass="text-destructive" />
+            <SummaryMetric
+              label="Nodes up"
+              value={`${nodesUp}/${totalNodes}`}
+              detail={checking > 0 ? `Checking ${checking}` : undefined}
+            />
           </div>
         </CardContent>
       </Card>
@@ -193,14 +230,6 @@ export function ClusterStatusMonitor({
           const nodes = item.status?.nodes ?? [];
           const up = nodes.filter((node) => node.isUp).length;
           const pressure = getPressurePercent(item.status);
-          const pressureVariant =
-            pressure === null
-              ? 'secondary'
-              : pressure >= 85
-                ? 'destructive'
-                : pressure >= 70
-                  ? 'warning'
-                  : 'success';
           const capacityValues = nodes
             .map((node) => node.role?.capacity)
             .filter(
@@ -210,115 +239,103 @@ export function ClusterStatusMonitor({
 
           return (
             <div key={item.cluster.id} role="listitem">
-              <Card className={`border ${config.bgClass} transition-shadow hover:shadow-md`}>
-                <CardContent className="space-y-3 p-4 sm:p-5">
-                {/* Header row: name + status badge */}
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <Link
-                      to={`/clusters/${item.cluster.id}`}
-                      className="inline-flex items-center gap-2 text-base font-semibold hover:text-primary transition-colors"
-                    >
-                      {item.cluster.name}
-                    </Link>
-                    <div className="mt-0.5 truncate text-xs text-muted-foreground">
-                      {item.cluster.endpoint}
+              <Card
+                className={cn(
+                  'border bg-card transition-shadow hover:shadow-md',
+                  config.borderClass,
+                  isSingleCluster && 'rounded-2xl',
+                )}
+              >
+                <CardContent className="space-y-4 p-4 sm:p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 space-y-1">
+                      <Link
+                        to={`/clusters/${item.cluster.id}`}
+                        className="inline-flex items-center gap-2 text-lg font-semibold tracking-tight transition-colors hover:text-primary"
+                      >
+                        {item.cluster.name}
+                      </Link>
+                      <div className="truncate text-sm text-muted-foreground">
+                        {item.cluster.endpoint}
+                      </div>
                     </div>
+                    <Badge variant={config.badge} className="shrink-0">
+                      <StatusIcon className={`mr-1 h-3.5 w-3.5 ${config.iconClass}`} />
+                      {config.label}
+                    </Badge>
                   </div>
-                  <Badge variant={config.badge} className="shrink-0">
-                    <StatusIcon className={`mr-1 h-3.5 w-3.5 ${config.iconClass}`} />
-                    {config.label}
-                  </Badge>
-                </div>
 
-                {/* Metrics row */}
-                <div className="grid gap-2 grid-cols-3">
-                  <div className="rounded-lg border bg-card p-2">
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <NodeIcon className="h-3.5 w-3.5" />
-                      <span className="hidden sm:inline">Nodes</span>
-                    </div>
-                    <div className="text-sm font-semibold">
-                      {nodes.length > 0 ? `${up}/${nodes.length}` : '-'}
-                    </div>
-                  </div>
-                  <div className="rounded-lg border bg-card p-2">
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Activity className="h-3.5 w-3.5" />
-                      <span className="hidden sm:inline">Partitions</span>
-                    </div>
-                    <div className="text-sm font-semibold">
-                      {item.health
-                        ? `${item.health.partitionsAllOk}/${item.health.partitions}`
-                        : '-'}
-                    </div>
-                  </div>
-                  <div className="rounded-lg border bg-card p-2">
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <HardDrive className="h-3.5 w-3.5" />
-                      <span className="hidden sm:inline">Pressure</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-sm font-semibold">
-                        {pressure === null ? '-' : `${pressure.toFixed(0)}%`}
-                      </span>
-                      <Badge variant={pressureVariant} className="text-[10px] px-1.5 py-0">
-                        {pressure === null
-                          ? 'N/A'
+                  <dl className="grid gap-4 border-y border-border/60 py-4 sm:grid-cols-3">
+                    <ClusterMetric
+                      label="Nodes"
+                      value={nodes.length > 0 ? `${up}/${nodes.length}` : '-'}
+                      detail={nodes.length > 0 ? `${up} online` : 'No node data yet'}
+                    />
+                    <ClusterMetric
+                      label="Partitions OK"
+                      value={
+                        item.health ? `${item.health.partitionsAllOk}/${item.health.partitions}` : '-'
+                      }
+                      detail={item.health ? 'Health endpoint snapshot' : 'Waiting for health data'}
+                    />
+                    <ClusterMetric
+                      label="Pressure"
+                      value={pressure === null ? 'N/A' : `${pressure.toFixed(0)}%`}
+                      detail={
+                        pressure === null
+                          ? 'No capacity data yet'
                           : pressure >= 85
                             ? 'High'
                             : pressure >= 70
-                              ? 'Med'
-                              : 'Low'}
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
+                              ? 'Medium'
+                              : 'Low'
+                      }
+                    />
+                  </dl>
 
-                {/* Status line + capacity */}
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                  <span>{getStatusMessage(item)}</span>
-                  {item.status?.nodes && item.status.nodes.length > 0 && minCapacity !== null && (
-                    <>
-                      <span className="text-border">|</span>
-                      <span>
-                        Min zone capacity:{' '}
-                        <span className="font-medium text-foreground">
-                          {formatBytes(minCapacity)}
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+                    <span>{getStatusMessage(item)}</span>
+                    {item.status?.nodes && item.status.nodes.length > 0 && minCapacity !== null && (
+                      <>
+                        <span className="hidden text-border sm:inline">•</span>
+                        <span>
+                          Min zone capacity{' '}
+                          <span className="font-medium text-foreground">
+                            {formatBytes(minCapacity)}
+                          </span>
                         </span>
-                      </span>
-                    </>
-                  )}
-                </div>
+                      </>
+                    )}
+                  </div>
 
-                {/* Actions */}
-                <div className="flex flex-wrap items-center gap-2 pt-1">
-                  <Button asChild size="sm" className="h-9">
-                    <Link to={`/clusters/${item.cluster.id}`}>
-                      <OpenActionIcon className="h-4 w-4" />
-                      Open
-                    </Link>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-9"
-                    onClick={() => onEditCluster(item.cluster)}
-                  >
-                    <EditActionIcon className="h-4 w-4" />
-                    Edit
-                  </Button>
-                  <div className="flex-1" />
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => onDeleteCluster(item.cluster)}
-                  >
-                    <DisconnectActionIcon className="h-4 w-4" />
-                    Disconnect
-                  </Button>
-                </div>
+                  <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <Button asChild size="sm" className="h-9">
+                        <Link to={`/clusters/${item.cluster.id}`}>
+                          <OpenActionIcon className="h-4 w-4" />
+                          Open Cluster
+                        </Link>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-9"
+                        onClick={() => onEditCluster(item.cluster)}
+                      >
+                        <EditActionIcon className="h-4 w-4" />
+                        Edit
+                      </Button>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-9 justify-start text-muted-foreground hover:bg-destructive/10 hover:text-destructive sm:justify-center"
+                      onClick={() => onDeleteCluster(item.cluster)}
+                    >
+                      <DisconnectActionIcon className="h-4 w-4" />
+                      Disconnect
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             </div>
