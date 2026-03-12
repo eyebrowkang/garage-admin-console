@@ -1,259 +1,195 @@
 # Module Federation Guide
 
-The Admin Console (host) can embed S3 Browser components (remote) via [Module Federation](https://module-federation.io/), powered by `@module-federation/vite`.
+The Admin Console is the MF host. S3 Browser provides the MF remote.
 
-## Architecture
+This integration is deliberately split across two layers:
 
-```mermaid
-graph LR
-    subgraph "Admin Console (MF Host)"
-        Host[admin-web<br/>port 5173]
-        HostBuild[vite.config.ts<br/>remotes: s3_browser]
-    end
+- the **frontend** loads S3 Browser UI from `remoteEntry.js`;
+- the **backend** proxies embedded API traffic through `/s3-api/*`.
 
-    subgraph "S3 Browser (MF Remote)"
-        Remote[s3-browser-web<br/>port 5174]
-        Entry[remoteEntry.js]
-        OB[ObjectBrowser]
-        BE[BucketExplorer]
-        EP[S3EmbedProvider]
-    end
+Those two layers are configured differently and should not be conflated.
 
-    Host -->|loads| Entry
-    Entry --> OB
-    Entry --> BE
-    Entry --> EP
+## Remote Contract
+
+The S3 Browser remote exposes:
+
+| Export | Description |
+|--------|-------------|
+| `./ObjectBrowser` | Single-bucket object browser |
+| `./BucketExplorer` | Bucket list plus object drill-down |
+| `./S3EmbedProvider` | Context provider for embedded API config |
+
+Shared singletons:
+
+- `react`
+- `react-dom`
+- `react-router-dom`
+- `@tanstack/react-query`
+
+## Default Remote Entry Path
+
+Admin resolves the remote entry through `apps/admin/web/src/lib/mf-config.ts`.
+
+Default:
+
+```ts
+/s3-browser/remoteEntry.js
 ```
 
-## Exposed Components
+That default is correct for:
 
-The S3 Browser remote exposes three components:
+- local development, because Admin's Vite dev server proxies `/s3-browser/*` to the remote dev
+  server;
+- the combined image, because Admin serves the embedded remote assets itself.
 
-| Export | Component | Description |
-|--------|-----------|-------------|
-| `./ObjectBrowser` | `ObjectBrowser` | Object listing with folder navigation, download, delete |
-| `./BucketExplorer` | `BucketExplorer` | Bucket list → object browser drill-down flow |
-| `./S3EmbedProvider` | `S3EmbedProvider` | Context provider that supplies S3 connection config |
+## External Remote Override
 
-### S3EmbedProvider Config
+When Admin is deployed separately from S3 Browser, override the remote entry at build time:
+
+```bash
+docker build \
+  --build-arg VITE_S3_BROWSER_REMOTE_ENTRY=https://s3-browser.example.com/remoteEntry.js \
+  -t garage-admin \
+  -f docker/admin.Dockerfile .
+```
+
+This setting is build-time only. Changing it requires rebuilding the Admin web bundle.
+
+## Embedded API Contract
+
+MF only loads UI code. Embedded S3 operations still need API access.
+
+Inside Admin, embedded S3 components should talk to:
+
+```ts
+apiBase: '/s3-api'
+```
+
+That same-origin contract lets Admin proxy requests to the configured S3 Browser API base and
+avoid browser CORS problems.
+
+### Proxy Mapping
+
+Admin API route:
+
+```text
+/s3-api/* -> ${S3_BROWSER_API_URL}/*
+```
+
+Examples:
+
+| Browser Request | Upstream Request |
+|-----------------|------------------|
+| `GET /s3-api/api/health` | `GET ${S3_BROWSER_API_URL}/api/health` |
+| `GET /s3-api/connections` | `GET ${S3_BROWSER_API_URL}/connections` |
+| `GET /s3-api/s3/<id>/objects?...` | `GET ${S3_BROWSER_API_URL}/s3/<id>/objects?...` |
+
+`S3_BROWSER_API_URL` must be the S3 Browser **base URL**, not an `/api`-prefixed path.
+
+## S3EmbedProvider Config
 
 ```ts
 interface S3EmbedConfig {
-  apiBase: string;       // S3 Browser API URL (e.g. "http://localhost:3002/api")
-  connectionId: string;  // UUID of the S3 connection to use
-  bucket?: string;       // Pre-selected bucket (skip bucket list)
-  readonly?: boolean;    // Disable upload/delete operations
-  token?: string;        // JWT token for authentication
+  apiBase: string;
+  connectionId: string;
+  bucket?: string;
+  readonly?: boolean;
+  token?: string;
 }
 ```
 
-## Shared Singletons
+Admin's built-in bucket-detail integration creates or reuses an S3 Browser connection through
+`POST /api/s3-bridge/:clusterId/connect`, then mounts the remote with:
 
-These libraries are shared between host and remote to avoid duplicate instances:
+- `apiBase: '/s3-api'`
+- `connectionId: <bridge-created connection id>`
+- `token: <S3 Browser JWT>`
+- `bucket: <resolved bucket alias>`
+- `readonly: true | false`
 
-- `react` (^19.0.0)
-- `react-dom` (^19.0.0)
-- `react-router-dom` (^7.0.0)
-- `@tanstack/react-query` (^5.0.0)
+## Development Topology
 
-## Usage in Host App
+Recommended:
 
-### 1. Import Remote Components
+```bash
+pnpm dev
+```
+
+This starts:
+
+- Admin API on `3001`
+- Admin web on `5173`
+- S3 Browser API on `3002`
+- S3 Browser web on `5174`
+
+Admin's Vite server keeps the integration same-origin during development:
+
+| Dev Path | Target |
+|----------|--------|
+| `/api/*` | `http://localhost:3001` |
+| `/s3-browser/*` | `http://localhost:5174` |
+| `/s3-api/*` | `http://localhost:3002/api/*` |
+
+That means the Admin frontend still loads the remote from `/s3-browser/remoteEntry.js` during
+development.
+
+## Combined Runtime Boundary
+
+In the combined Docker image:
+
+- Admin serves the shell at `/`
+- Admin serves MF assets at `/s3-browser/remoteEntry.js` and `/s3-browser/assets/*`
+- Admin proxies S3 Browser API traffic at `/s3-api/*`
+- the standalone S3 Browser SPA is intentionally hidden
+
+Expected combined behavior:
+
+| Request | Result |
+|---------|--------|
+| `GET /s3-browser/remoteEntry.js` | `200 OK` |
+| `GET /s3-browser/assets/...` | `200 OK` |
+| `GET /s3-browser/` | `404 Not Found` |
+| `GET /s3-browser/connections` | `404 Not Found` |
+
+This boundary is important: combined mode embeds S3 Browser as capability, not as a second shell.
+
+## Side-by-Side Deployment Checklist
+
+If you deploy Admin and S3 Browser independently:
+
+1. Build Admin with `VITE_S3_BROWSER_REMOTE_ENTRY=https://<s3-host>/remoteEntry.js`
+2. Run S3 Browser so `https://<s3-host>/remoteEntry.js` is reachable
+3. Set Admin API runtime `S3_BROWSER_API_URL=https://<s3-host>`
+4. Set Admin API runtime `S3_BROWSER_ADMIN_PASSWORD` to the S3 Browser password if it differs
+   from `ADMIN_PASSWORD`
+
+MF remote loading and Admin API bridging are both required. Setting only one of them gives you a
+half-wired integration.
+
+## Example Host Usage
 
 ```tsx
 import React, { Suspense } from 'react';
 
-// Lazy-load remote components
 const RemoteS3EmbedProvider = React.lazy(() =>
-  import('s3_browser/S3EmbedProvider').then((m) => ({ default: m.S3EmbedProvider }))
-);
-
-const RemoteBucketExplorer = React.lazy(() =>
-  import('s3_browser/BucketExplorer').then((m) => ({ default: m.BucketExplorer }))
+  import('s3_browser/S3EmbedProvider').then((mod) => ({ default: mod.S3EmbedProvider })),
 );
 
 const RemoteObjectBrowser = React.lazy(() =>
-  import('s3_browser/ObjectBrowser').then((m) => ({ default: m.ObjectBrowser }))
+  import('s3_browser/ObjectBrowser').then((mod) => ({ default: mod.ObjectBrowser })),
 );
-```
 
-### 2. Render with Provider
-
-```tsx
 <Suspense fallback={<div>Loading S3 Browser...</div>}>
   <RemoteS3EmbedProvider
     config={{
-      apiBase: 'http://localhost:3002/api',
-      connectionId: 'uuid-of-connection',
-      token: 'jwt-token-from-s3-browser',
-      bucket: 'my-bucket',        // optional
-      readonly: false,             // optional
+      apiBase: '/s3-api',
+      connectionId: 'connection-id',
+      token: 's3-browser-jwt',
+      bucket: 'photos',
+      readonly: true,
     }}
   >
-    <RemoteBucketExplorer />
-    {/* or <RemoteObjectBrowser /> for a single bucket */}
+    <RemoteObjectBrowser bucket="photos" />
   </RemoteS3EmbedProvider>
-</Suspense>
+</Suspense>;
 ```
-
-### 3. Type Declarations
-
-The host app needs type declarations for remote imports. These are defined in `apps/admin/web/src/types/s3-browser.d.ts`:
-
-```ts
-declare module 's3_browser/ObjectBrowser' {
-  export const ObjectBrowser: React.FC;
-}
-
-declare module 's3_browser/BucketExplorer' {
-  export const BucketExplorer: React.FC;
-}
-
-declare module 's3_browser/S3EmbedProvider' {
-  export interface S3EmbedConfig {
-    apiBase: string;
-    connectionId: string;
-    bucket?: string;
-    readonly?: boolean;
-    token?: string;
-  }
-  export const S3EmbedProvider: React.FC<{
-    config: S3EmbedConfig;
-    children: React.ReactNode;
-  }>;
-}
-```
-
-## Data Flow
-
-```mermaid
-sequenceDiagram
-    participant Host as Admin Console (Host)
-    participant Remote as S3 Browser (Remote)
-    participant API as S3 Browser API
-
-    Host->>Remote: Load remoteEntry.js
-    Remote-->>Host: BucketExplorer component
-
-    Host->>Host: Render S3EmbedProvider + BucketExplorer
-
-    Note over Remote: BucketExplorer detects embed context
-    Remote->>API: GET /api/s3/:connId/buckets<br/>(with JWT token)
-    API-->>Remote: Bucket list
-    Remote-->>Host: Rendered bucket grid
-
-    Note over Remote: User clicks a bucket
-    Remote->>API: GET /api/s3/:connId/objects?bucket=X
-    API-->>Remote: Object list
-    Remote-->>Host: Rendered object browser
-```
-
-## Development
-
-### Running Both Apps
-
-Both the host and remote must be running during development:
-
-```bash
-# Start all 4 dev servers (recommended)
-pnpm dev
-
-# Or start individually
-pnpm dev:admin    # Admin API (3001) + Web (5173)
-pnpm dev:s3       # S3 Browser API (3002) + Web (5174)
-```
-
-The host's Vite config points to the remote's dev server:
-
-```ts
-// apps/admin/web/vite.config.ts
-remotes: {
-  s3_browser: {
-    type: 'module',
-    name: 's3_browser',
-    entry: 'http://localhost:5174/remoteEntry.js',
-  },
-}
-```
-
-### Embedded Components Are Self-Contained
-
-The remote components include their own `QueryClientProvider`, so they work regardless of whether the host provides one. They fetch data independently using the `apiBase` and `token` from the embed config.
-
-### Testing Embedded Mode
-
-The Admin Console includes a test page at `/s3-test` that lets you:
-
-1. Enter the S3 Browser API base URL
-2. Provide a JWT token (obtained by logging into S3 Browser)
-3. Specify a connection ID
-4. Optionally pre-select a bucket
-
-This loads `BucketExplorer` via Module Federation and renders it in the Admin Console.
-
-### Integrated Object Browsing
-
-The Admin Console's **Bucket Detail** page includes a built-in Object Browser section that provides seamless integration between the two apps:
-
-1. Open a bucket detail page in the Admin Console
-2. In the **Object Browser** card, select an access key with read permission
-3. Click **Browse Objects** — the system automatically:
-   - Retrieves the key's secret via the Garage Admin API
-   - Creates (or reuses) an S3 Browser connection
-   - Embeds the `ObjectBrowser` component via Module Federation
-4. If the key has write permission, upload/delete operations are enabled
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant AdminWeb as Admin Console
-    participant AdminAPI as Admin API
-    participant GarageAPI as Garage Admin API
-    participant S3API as S3 Browser API
-
-    User->>AdminWeb: Click "Browse Objects"
-    AdminWeb->>AdminAPI: POST /api/s3-bridge/:clusterId/connect
-    AdminAPI->>GarageAPI: GET /v2/GetKeyInfo?showSecretKey=true
-    GarageAPI-->>AdminAPI: Access key + secret
-    AdminAPI->>S3API: POST /api/auth/login
-    S3API-->>AdminAPI: JWT token
-    AdminAPI->>S3API: POST /api/connections
-    S3API-->>AdminAPI: Connection ID
-    AdminAPI-->>AdminWeb: { connectionId, token, apiBase }
-    AdminWeb->>AdminWeb: Render ObjectBrowser (MF)
-```
-
-**Required environment variables** (Admin API):
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `S3_BROWSER_API_URL` | S3 Browser API URL (e.g. `http://localhost:3002/api`) | — |
-| `S3_BROWSER_ADMIN_PASSWORD` | S3 Browser login password | Falls back to `ADMIN_PASSWORD` |
-
-## Production Deployment
-
-### Combined Image (Recommended)
-
-In the combined Docker image (`docker/combined.Dockerfile`), S3 Browser's remote assets (`remoteEntry.js`, etc.) are served from `/s3-browser/` on the same origin as the Admin Console. This avoids CORS issues.
-
-The Express server handles route priority:
-
-```
-1. /api/*           → Admin BFF routes
-2. /s3-browser/*    → S3 Browser remote assets (remoteEntry.js, chunks)
-3. /*               → Admin SPA (index.html fallback)
-```
-
-### Side-by-Side Deployment
-
-When deploying separately, the host needs the remote's `remoteEntry.js` URL. Update the host's MF config to point to the deployed S3 Browser URL:
-
-```ts
-remotes: {
-  s3_browser: {
-    entry: 'https://s3-browser.example.com/remoteEntry.js',
-  },
-}
-```
-
-> **Note:** Ensure CORS headers are configured on the S3 Browser server if deploying on different origins.

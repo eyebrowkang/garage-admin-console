@@ -2,7 +2,11 @@
 
 [English](./README.md) | [中文](./README_zh.md)
 
-一个现代化的 Web 管理界面，用于管理 [Garage](https://garagehq.deuxfleurs.fr/) 分布式对象存储集群，附带 **S3 Browser** 用于管理任何 S3 兼容存储中的对象。
+一个现代化的 Web 管理界面，用于管理 [Garage](https://garagehq.deuxfleurs.fr/)
+分布式对象存储集群，附带 **S3 Browser** 用于管理任何 S3 兼容存储中的对象。
+
+这两个应用既可以分别部署，也可以组合成一个镜像运行。在 combined 拓扑下，Admin Console
+仍然是唯一可见的产品壳，S3 Browser 则通过 Module Federation 和 `/s3-api` 代理以嵌入能力的形式存在。
 
 > 兼容 Garage Admin API v2。
 >
@@ -28,6 +32,7 @@
 - **连接管理** — 保存多个端点，凭证加密存储
 - **对象浏览** — 文件夹导航、上传（拖放，最大 5 GB）、下载、删除
 - **Module Federation** — 可嵌入组件，集成到 Admin Console 中使用
+- **独立部署** — 既可独立运行，也可作为 Admin 背后的嵌入运行时
 
 ## 快速开始（Docker）
 
@@ -52,6 +57,26 @@ docker run -d -p 3002:3002 -v s3-data:/data \
 
 访问 **http://localhost:3002**。
 
+### Combined：Admin + 内嵌 S3 Browser
+
+```bash
+docker build -t garage-admin-combined -f docker/combined.Dockerfile .
+docker run -d -p 3001:3001 -v combined-data:/data \
+  -e JWT_SECRET=change-me-to-a-random-string \
+  -e ENCRYPTION_KEY=change-me-exactly-32-characters! \
+  -e ADMIN_PASSWORD=change-me-admin-password \
+  garage-admin-combined
+```
+
+访问 Admin 壳：**http://localhost:3001**。
+
+在这种模式下：
+
+- 浏览器里只有 Admin Console 这一层壳
+- S3 Browser 的远程资源通过 `/s3-browser/remoteEntry.js` 暴露
+- S3 Browser API 请求通过 `/s3-api/*` 同源代理
+- 独立的 S3 Browser SPA 路由树会被刻意隐藏
+
 ### 必需环境变量
 
 | 变量 | 说明 |
@@ -61,6 +86,7 @@ docker run -d -p 3002:3002 -v s3-data:/data \
 | `ADMIN_PASSWORD` | 控制台登录密码 |
 
 完整的部署模式和 Docker Compose 示例请参阅[部署指南](./docs/deployment.md)。
+远程入口和 `/s3-api` 契约请参阅 [Module Federation 指南](./docs/module-federation.md)。
 
 ## 开发设置
 
@@ -152,6 +178,15 @@ garage-admin-console/
 - 为所有密钥使用强且唯一的值
 - 设计用于内部网络部署
 - 生产环境建议使用 VPN 或额外认证层
+
+## 部署备注
+
+- 如果 Admin 要嵌入一个外部部署的 S3 Browser remote，构建 Admin 镜像时需要传入
+  `VITE_S3_BROWSER_REMOTE_ENTRY=https://<host>/remoteEntry.js`。
+- Admin API 的运行时环境变量 `S3_BROWSER_API_URL` 必须指向 S3 Browser 的基础 URL，
+  不要追加 `/api`。
+- 在 combined 模式下，`/s3-browser/` 和 `/s3-browser/connections` 应返回
+  `404 Not Found`；这里应该只暴露 MF 远程资源，不应暴露独立的 S3 Browser 壳。
 
 ## 许可证
 

@@ -2,7 +2,13 @@
 
 [English](./README.md) | [中文](./README_zh.md)
 
-A modern web-based administration interface for managing [Garage](https://garagehq.deuxfleurs.fr/) distributed object storage clusters, with a companion **S3 Browser** for managing objects in any S3-compatible storage.
+A modern web-based administration interface for managing [Garage](https://garagehq.deuxfleurs.fr/)
+distributed object storage clusters, with a companion **S3 Browser** for managing objects in any
+S3-compatible storage.
+
+The two apps stay independently deployable, but they can also run in a single combined image.
+In that combined topology, the Admin Console remains the only visible shell while S3 Browser is
+embedded as capability through Module Federation and the `/s3-api` proxy.
 
 > Compatible with Garage Admin API v2.
 >
@@ -28,6 +34,7 @@ A modern web-based administration interface for managing [Garage](https://garage
 - **Connection Manager** — Save multiple endpoints with encrypted credentials
 - **Object Browser** — Navigate folders, upload (drag-and-drop, up to 5 GB), download, delete
 - **Module Federation** — Embeddable components for integration into the Admin Console
+- **Independent Deployment** — Can run standalone or as the embedded runtime behind Admin
 
 ## Screenshots
 
@@ -58,6 +65,26 @@ docker run -d -p 3002:3002 -v s3-data:/data \
 
 Access at **http://localhost:3002**.
 
+### Combined Admin + Embedded S3 Browser
+
+```bash
+docker build -t garage-admin-combined -f docker/combined.Dockerfile .
+docker run -d -p 3001:3001 -v combined-data:/data \
+  -e JWT_SECRET=change-me-to-a-random-string \
+  -e ENCRYPTION_KEY=change-me-exactly-32-characters! \
+  -e ADMIN_PASSWORD=change-me-admin-password \
+  garage-admin-combined
+```
+
+Access the Admin shell at **http://localhost:3001**.
+
+In this mode:
+
+- Admin serves the only browser shell
+- embedded S3 assets are exposed from `/s3-browser/remoteEntry.js`
+- S3 Browser API traffic is proxied through `/s3-api/*`
+- the standalone S3 Browser SPA is intentionally hidden
+
 ### Required Environment Variables
 
 | Variable | Description |
@@ -67,6 +94,8 @@ Access at **http://localhost:3002**.
 | `ADMIN_PASSWORD` | Console login password |
 
 See [Deployment Guide](./docs/deployment.md) for all deployment modes and Docker Compose examples.
+See [Module Federation Guide](./docs/module-federation.md) for the remote-entry and `/s3-api`
+contract.
 
 ## Development Setup
 
@@ -158,6 +187,15 @@ garage-admin-console/
 - Use strong, unique values for all secrets
 - Designed for internal network deployment
 - Consider VPN or additional auth layers for production use
+
+## Deployment Notes
+
+- If Admin embeds an externally deployed S3 Browser remote, build Admin with
+  `VITE_S3_BROWSER_REMOTE_ENTRY=https://<host>/remoteEntry.js`.
+- At runtime, Admin API `S3_BROWSER_API_URL` must point to the S3 Browser base URL without
+  appending `/api`.
+- In combined mode, requests like `/s3-browser/` or `/s3-browser/connections` should return
+  `404 Not Found`; only MF assets are exposed there.
 
 ## License
 
