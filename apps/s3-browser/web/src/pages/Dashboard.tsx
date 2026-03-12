@@ -22,7 +22,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardHeader,
   CardTitle,
 } from '@garage-admin/ui';
 import { ConnectionFormDialog, type ConnectionFormData } from '@/components/ConnectionFormDialog';
@@ -37,6 +36,53 @@ interface Connection {
   pathStyle: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+const ADMIN_BRIDGE_PREFIX = 'admin-bridge:';
+
+function getConnectionDisplayName(connection: Connection) {
+  const trimmedName = connection.name.trim();
+
+  if (!trimmedName) {
+    return 'Unnamed connection';
+  }
+
+  if (trimmedName.startsWith(ADMIN_BRIDGE_PREFIX)) {
+    return 'Admin bridge connection';
+  }
+
+  return trimmedName;
+}
+
+function getConnectionInternalId(connection: Connection) {
+  return connection.name.trim().startsWith(ADMIN_BRIDGE_PREFIX) ? connection.name : null;
+}
+
+function ConnectionFact({
+  label,
+  value,
+  tone = 'default',
+}: {
+  label: string;
+  value: string;
+  tone?: 'default' | 'mono' | 'muted';
+}) {
+  return (
+    <div className="min-w-0 rounded-lg border border-border/60 bg-muted/20 px-3 py-2.5">
+      <dt className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+        {label}
+      </dt>
+      <dd
+        className={[
+          'mt-1 text-sm leading-relaxed text-foreground',
+          tone === 'mono' ? 'break-all font-mono text-xs' : '',
+          tone === 'muted' ? 'italic text-muted-foreground' : '',
+        ].join(' ')}
+      >
+        {value}
+      </dd>
+    </div>
+  );
 }
 
 export function Dashboard() {
@@ -58,6 +104,7 @@ export function Dashboard() {
       return res.data;
     },
   });
+  const connectionCountLabel = `${connections.length} saved connection${connections.length === 1 ? '' : 's'}`;
 
   const createMutation = useMutation({
     mutationFn: async (data: ConnectionFormData) => {
@@ -117,7 +164,7 @@ export function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
+      <div className="mx-auto max-w-5xl space-y-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Connections</h1>
           <p className="text-sm text-muted-foreground">
@@ -142,36 +189,41 @@ export function Dashboard() {
 
   if (error) {
     return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Unable to load connections</AlertTitle>
-        <AlertDescription>
-          {getApiErrorMessage(error, 'Failed to load connections')}
-        </AlertDescription>
-      </Alert>
+      <div className="mx-auto max-w-5xl">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Unable to load connections</AlertTitle>
+          <AlertDescription>
+            {getApiErrorMessage(error, 'Failed to load connections')}
+          </AlertDescription>
+        </Alert>
+      </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="mx-auto max-w-5xl space-y-6">
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div className="space-y-1">
           <h1 className="text-2xl font-bold tracking-tight">Connections</h1>
           <p className="text-sm text-muted-foreground">
             Manage your S3-compatible storage connections.
           </p>
         </div>
-        <Button onClick={() => setShowCreateDialog(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Connection
-        </Button>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          {connections.length > 0 && (
+            <div className="text-sm text-muted-foreground">{connectionCountLabel}</div>
+          )}
+          <Button className="w-full sm:w-auto" onClick={() => setShowCreateDialog(true)}>
+            <Plus className="h-4 w-4" />
+            Add Connection
+          </Button>
+        </div>
       </div>
 
-      {/* Connection list */}
       {connections.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16">
+        <Card className="border-dashed shadow-none">
+          <CardContent className="flex flex-col items-start justify-center py-12 text-left sm:items-center sm:py-16 sm:text-center">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
               <HardDrive className="h-8 w-8 text-primary" />
             </div>
@@ -179,73 +231,97 @@ export function Dashboard() {
             <p className="mt-1 max-w-sm text-center text-sm text-muted-foreground">
               Add an S3-compatible storage connection to start browsing buckets and objects here.
             </p>
-            <Button className="mt-6" onClick={() => setShowCreateDialog(true)}>
-              <Plus className="mr-2 h-4 w-4" />
+            <Button className="mt-6 w-full sm:w-auto" onClick={() => setShowCreateDialog(true)}>
+              <Plus className="h-4 w-4" />
               Add Connection
             </Button>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div role="list" aria-label="Connection cards" className="grid gap-4 xl:grid-cols-2">
           {connections.map((conn) => (
-            <Card key={conn.id} className="group relative transition-shadow hover:shadow-md">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                      <HardDrive className="h-5 w-5 text-primary" />
+            <Card
+              key={conn.id}
+              role="listitem"
+              className="overflow-hidden border-border/70 shadow-sm transition-shadow hover:shadow-md"
+            >
+              <CardContent className="space-y-4 p-4 sm:p-5">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                    <HardDrive className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <CardTitle className="break-words text-base leading-snug">
+                      {getConnectionDisplayName(conn)}
+                    </CardTitle>
+                    <CardDescription className="flex items-start gap-1.5 text-xs [overflow-wrap:anywhere]">
+                      <Globe className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      <span className="min-w-0">{conn.endpoint}</span>
+                    </CardDescription>
+                  </div>
+                </div>
+
+                {getConnectionInternalId(conn) && (
+                  <div className="rounded-lg border border-border/60 bg-muted/25 px-3 py-2.5">
+                    <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                      Internal ID
                     </div>
-                    <div>
-                      <CardTitle className="text-base">{conn.name}</CardTitle>
-                      <CardDescription className="flex items-center gap-1 text-xs">
-                        <Globe className="h-3 w-3" />
-                        {conn.endpoint}
-                      </CardDescription>
+                    <div className="mt-1 break-all font-mono text-[11px] leading-relaxed text-foreground">
+                      {getConnectionInternalId(conn)}
                     </div>
                   </div>
-                  <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                )}
+
+                <dl className="grid gap-3 md:grid-cols-3">
+                  <ConnectionFact
+                    label="Bucket"
+                    value={conn.bucket || 'All accessible buckets'}
+                    tone={conn.bucket ? 'mono' : 'muted'}
+                  />
+                  <ConnectionFact
+                    label="Region"
+                    value={conn.region || 'Auto-detect from endpoint'}
+                    tone={conn.region ? 'default' : 'muted'}
+                  />
+                  <ConnectionFact
+                    label="Addressing"
+                    value={conn.pathStyle ? 'Path-style' : 'Virtual-hosted'}
+                  />
+                </dl>
+
+                <div className="flex flex-col gap-2 border-t border-border/60 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex gap-2 sm:flex-wrap">
                     <Button
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
-                      className="h-8 w-8 p-0"
+                      className="flex-1 sm:flex-none"
+                      aria-label={`Edit ${getConnectionDisplayName(conn)}`}
                       onClick={() => setEditingConnection(conn)}
                     >
-                      <Pencil className="h-3.5 w-3.5" />
+                      <Pencil className="h-4 w-4" />
+                      Edit
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                      className="flex-1 text-destructive hover:bg-destructive/10 hover:text-destructive sm:flex-none"
+                      aria-label={`Delete ${getConnectionDisplayName(conn)}`}
                       onClick={() => setDeletingConnection(conn)}
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <Trash2 className="h-4 w-4" />
+                      Delete
                     </Button>
                   </div>
+                  <Button
+                    size="sm"
+                    className="w-full sm:w-auto"
+                    aria-label={`Browse ${getConnectionDisplayName(conn)}`}
+                    onClick={() => navigate(`/connections/${conn.id}`)}
+                  >
+                    <FolderOpen className="h-4 w-4" />
+                    Browse
+                  </Button>
                 </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="space-y-1.5 text-sm text-muted-foreground">
-                  {conn.bucket ? (
-                    <div className="flex items-center gap-1.5">
-                      <FolderOpen className="h-3.5 w-3.5" />
-                      <span className="font-mono text-xs">{conn.bucket}</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1.5">
-                      <FolderOpen className="h-3.5 w-3.5" />
-                      <span className="text-xs italic">All accessible buckets</span>
-                    </div>
-                  )}
-                  {conn.region && <div className="text-xs">Region: {conn.region}</div>}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-4 w-full"
-                  onClick={() => navigate(`/connections/${conn.id}`)}
-                >
-                  Browse
-                </Button>
               </CardContent>
             </Card>
           ))}
@@ -254,6 +330,7 @@ export function Dashboard() {
 
       {/* Dialogs */}
       <ConnectionFormDialog
+        key={showCreateDialog ? 'create-open' : 'create-closed'}
         open={showCreateDialog}
         onOpenChange={setShowCreateDialog}
         onSubmit={(data) => createMutation.mutate(data)}

@@ -80,7 +80,7 @@ export function ConnectionFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Edit Connection' : 'Add Connection'}</DialogTitle>
           <DialogDescription>
@@ -126,7 +126,7 @@ export function ConnectionFormDialog({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="conn-access-key">
                 Access Key ID{' '}
@@ -176,18 +176,18 @@ export function ConnectionFormDialog({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-start gap-3 rounded-lg border border-border/60 bg-muted/20 p-3">
             <input
               id="conn-path-style"
               type="checkbox"
               checked={pathStyle}
               onChange={(e) => setPathStyle(e.target.checked)}
-              className="h-4 w-4"
+              className="mt-0.5 h-4 w-4 shrink-0"
             />
-            <Label htmlFor="conn-path-style" className="font-normal">
+            <Label htmlFor="conn-path-style" className="font-normal leading-relaxed">
               Use path-style addressing
-              <span className="ml-1 text-muted-foreground">
-                (recommended for most S3-compatible services)
+              <span className="ml-1 inline text-muted-foreground">
+                Recommended for most S3-compatible services.
               </span>
             </Label>
           </div>

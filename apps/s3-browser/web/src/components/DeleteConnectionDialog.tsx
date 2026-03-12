@@ -26,12 +26,13 @@ export function DeleteConnectionDialog({
 }: DeleteConnectionDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Delete Connection</DialogTitle>
           <DialogDescription>
-            Are you sure you want to delete <strong>{connectionName}</strong>? This action cannot be
-            undone. Your stored credentials will be permanently removed.
+            Are you sure you want to delete{' '}
+            <strong className="block break-all pt-1 text-foreground">{connectionName}</strong>?
+            This action cannot be undone. Your stored credentials will be permanently removed.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
