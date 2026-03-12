@@ -18,6 +18,23 @@ test.describe('Authentication', () => {
     await expect(page.locator('h1')).toContainText('Dashboard');
   });
 
+  test('shows the connect cluster dialog within the viewport after login', async ({ page }) => {
+    await page.goto('/login');
+    await page.waitForLoadState('domcontentloaded');
+
+    await page.locator('#password').fill(ADMIN_PASSWORD);
+    await page.click('button[type="submit"]');
+
+    await expect(page).toHaveURL('/');
+    await page.getByRole('button', { name: 'Connect Cluster' }).click();
+
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toBeInViewport();
+    await expect(dialog.getByRole('heading', { name: 'Connect Garage Cluster' })).toBeVisible();
+    await expect(dialog.locator('input#name')).toBeInViewport();
+  });
+
   test('redirects to login after logout', async ({ authenticatedPage }) => {
     // Clear token to simulate logout
     await authenticatedPage.evaluate(() => {
