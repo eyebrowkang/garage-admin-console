@@ -159,6 +159,8 @@ describe('admin production static routing', () => {
     await expect(remoteEntry.text()).resolves.toContain('remote entry');
 
     expect(s3Root.status).toBe(404);
+    await expect(s3Root.text()).resolves.toBe('');
     expect(s3StandaloneRoute.status).toBe(404);
+    await expect(s3StandaloneRoute.text()).resolves.toBe('');
   });
 });

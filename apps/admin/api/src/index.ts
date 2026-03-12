@@ -18,13 +18,25 @@ if (staticDir) {
   // routes must not leak a second SPA shell under the Admin host.
   const s3BrowserDir = process.env.S3_BROWSER_STATIC_DIR;
   if (s3BrowserDir) {
+    const s3BrowserStatic = express.static(path.resolve(s3BrowserDir), {
+      index: false,
+      redirect: false,
+    });
+
     app.use(
       '/s3-browser',
-      express.static(path.resolve(s3BrowserDir), {
-        fallthrough: false,
-        index: false,
-        redirect: false,
-      }),
+      (req, res, next) => {
+        s3BrowserStatic(req, res, (error) => {
+          if (error) {
+            next(error);
+            return;
+          }
+
+          if (!res.headersSent) {
+            res.status(404).end();
+          }
+        });
+      },
     );
   }
 
