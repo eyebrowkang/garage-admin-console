@@ -92,16 +92,16 @@ function MobileNavItem({
     <NavLink
       to={fullPath}
       className={cn(
-        'relative flex shrink-0 snap-start items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-medium transition-all',
+        'relative flex min-h-[4.5rem] flex-col items-start justify-between rounded-2xl border px-3 py-2.5 text-left transition-colors',
         isActive
-          ? 'bg-primary/15 text-primary shadow-sm'
-          : 'text-muted-foreground hover:bg-muted/50 active:scale-95',
+          ? 'border-primary/30 bg-primary/10 text-primary shadow-sm'
+          : 'border-border/70 bg-card text-muted-foreground hover:bg-muted/40 hover:text-foreground',
       )}
     >
-      <Icon className="h-4 w-4" />
-      {label}
+      <Icon className="h-4 w-4 shrink-0" />
+      <span className="text-xs font-medium leading-tight">{label}</span>
       {badge !== undefined && badge > 0 && (
-        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
+        <span className="absolute right-2 top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
           {badge > 99 ? '99+' : badge}
         </span>
       )}
@@ -198,10 +198,10 @@ export function ClusterLayout() {
 
   return (
     <ClusterContext.Provider value={{ clusterId: id, cluster }}>
-      <div className="flex flex-col lg:flex-row gap-6">
-        {/* Mobile: cluster header + sticky horizontal nav */}
+      <div className="flex flex-col gap-6 lg:flex-row">
+        {/* Mobile: cluster header + module grid */}
         <div className="lg:hidden">
-          <div className="flex items-center gap-3 mb-3">
+          <div className="mb-3 flex items-center gap-3">
             <Button
               variant="outline"
               size="sm"
@@ -215,9 +215,11 @@ export function ClusterLayout() {
             </Button>
             <ClusterIdentity cluster={cluster} />
           </div>
-          {/* Sticky pill nav */}
-          <div className="sticky top-14 z-30 -mx-4 bg-gradient-to-b from-background via-background to-transparent px-4 pb-3 pt-1">
-            <div className="scroll-fade scrollbar-none flex snap-x snap-mandatory gap-1.5 overflow-x-auto px-1 py-1">
+          <div className="rounded-2xl border bg-card/80 p-2 shadow-sm">
+            <div className="px-2 pb-2 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+              Modules
+            </div>
+            <nav aria-label="Cluster modules" className="grid grid-cols-4 gap-2">
               {navItems.map((item) => (
                 <MobileNavItem
                   key={item.to}
@@ -229,12 +231,12 @@ export function ClusterLayout() {
                   badge={item.to === 'blocks' ? blockErrorCount : undefined}
                 />
               ))}
-            </div>
+            </nav>
           </div>
         </div>
 
         {/* Desktop sidebar nav */}
-        <aside className="hidden lg:block w-56 flex-shrink-0 self-start">
+        <aside className="hidden w-56 flex-shrink-0 self-start lg:block">
           <div className="sticky top-20 rounded-xl border bg-card/90 p-2.5">
             <div className="flex items-center gap-2.5 mb-3 px-2 py-1.5">
               <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">

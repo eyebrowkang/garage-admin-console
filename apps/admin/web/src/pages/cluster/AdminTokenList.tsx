@@ -48,7 +48,7 @@ import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { SecretReveal } from '@/components/cluster/SecretReveal';
 import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
 import { TableLoadingState } from '@/components/cluster/TableLoadingState';
-import { AddActionIcon, DeleteActionIcon } from '@/lib/action-icons';
+import { AddActionIcon, DeleteActionIcon, OpenActionIcon } from '@/lib/action-icons';
 import { formatDateTime24h, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { TokenIcon } from '@/lib/entity-icons';
@@ -314,28 +314,37 @@ export function AdminTokenList() {
         </CardHeader>
         <CardContent>
           {filteredTokens.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Token</TableHead>
-                  <TableHead>Scope</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead>Expires</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              <div role="list" aria-label="Admin token cards" className="space-y-3 md:hidden">
                 {filteredTokens.map((token, index) => (
-                  <TableRow
+                  <Card
                     key={token.id || index}
-                    className={token.id ? 'cursor-pointer hover:bg-muted/50' : ''}
-                    onClick={() =>
-                      token.id && navigate(`/clusters/${clusterId}/tokens/${token.id}`)
-                    }
+                    role="listitem"
+                    className="overflow-hidden border shadow-none"
                   >
-                    <TableCell>
+                    <CardContent className="space-y-4 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 space-y-1">
+                          <div className="truncate text-base font-semibold text-foreground">
+                            {token.name}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            ID: {token.id ? formatShortId(token.id, 14) : 'Unavailable'}
+                          </div>
+                        </div>
+                        {token.id && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate(`/clusters/${clusterId}/tokens/${token.id}`)}
+                          >
+                            <OpenActionIcon className="h-4 w-4" />
+                            Open
+                          </Button>
+                        )}
+                      </div>
+
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-medium">{token.name}</span>
                         {token.expired ? (
                           <Badge variant="destructive" className="text-xs">
                             Expired
@@ -351,20 +360,35 @@ export function AdminTokenList() {
                           </Badge>
                         )}
                       </div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        ID: {token.id ? formatShortId(token.id, 14) : 'Unavailable'}
+
+                      <div className="space-y-1.5">
+                        <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                          Scope
+                        </div>
+                        <div>{renderScopeSummary(token.scope)}</div>
                       </div>
-                    </TableCell>
-                    <TableCell>{renderScopeSummary(token.scope)}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {formatDateTime24h(token.created) || '-'}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {formatExpiration(token.expiration)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                        {token.id && (
+
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="space-y-1">
+                          <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                            Created
+                          </div>
+                          <div className="text-sm text-foreground">
+                            {formatDateTime24h(token.created) || '-'}
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                            Expires
+                          </div>
+                          <div className="text-sm text-foreground">
+                            {formatExpiration(token.expiration)}
+                          </div>
+                        </div>
+                      </div>
+
+                      {token.id && (
+                        <div className="flex items-center justify-end gap-2 border-t border-border/60 pt-3">
                           <Button
                             variant="ghost"
                             size="sm"
@@ -374,17 +398,98 @@ export function AdminTokenList() {
                             <DeleteActionIcon className="h-3.5 w-3.5" />
                             Delete
                           </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Token</TableHead>
+                      <TableHead>Scope</TableHead>
+                      <TableHead>Created</TableHead>
+                      <TableHead>Expires</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredTokens.map((token, index) => (
+                      <TableRow
+                        key={token.id || index}
+                        className={token.id ? 'cursor-pointer hover:bg-muted/50' : ''}
+                        onClick={() =>
+                          token.id && navigate(`/clusters/${clusterId}/tokens/${token.id}`)
+                        }
+                      >
+                        <TableCell>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-medium">{token.name}</span>
+                            {token.expired ? (
+                              <Badge variant="destructive" className="text-xs">
+                                Expired
+                              </Badge>
+                            ) : (
+                              <Badge variant="success" className="text-xs">
+                                Active
+                              </Badge>
+                            )}
+                            {currentToken?.id && currentToken.id === token.id && (
+                              <Badge variant="secondary" className="text-xs">
+                                Current
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            ID: {token.id ? formatShortId(token.id, 14) : 'Unavailable'}
+                          </div>
+                        </TableCell>
+                        <TableCell>{renderScopeSummary(token.scope)}</TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {formatDateTime24h(token.created) || '-'}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {formatExpiration(token.expiration)}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                            {token.id && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                onClick={() =>
+                                  setDeleteConfirm({ id: token.id!, name: token.name })
+                                }
+                              >
+                                <DeleteActionIcon className="h-3.5 w-3.5" />
+                                Delete
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           ) : (
-            <p className="text-sm text-muted-foreground text-center py-8">
-              {searchQuery ? 'No tokens match your search' : 'No admin tokens found'}
-            </p>
+            <div className="rounded-xl border border-dashed bg-muted/20 px-5 py-8 text-center">
+              <div className="space-y-1">
+                <h3 className="font-medium text-foreground">
+                  {searchQuery ? 'No tokens match your search' : 'No admin tokens found'}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {searchQuery
+                    ? 'Try a different token name, ID, or scope.'
+                    : 'Create an admin token to manage cluster access.'}
+                </p>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>

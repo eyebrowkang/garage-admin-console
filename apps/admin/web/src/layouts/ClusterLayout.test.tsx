@@ -63,3 +63,26 @@ it('renders the cluster identity when cluster data is available', () => {
   expect(screen.getAllByText('Production Cluster')).not.toHaveLength(0);
   expect(screen.getAllByText('http://10.0.0.1:3903')).not.toHaveLength(0);
 });
+
+it('renders mobile cluster navigation as a grid of module links', () => {
+  mockedUseClusters.mockReturnValue({
+    data: [
+      {
+        id: 'cluster-1',
+        name: 'Production Cluster',
+        endpoint: 'http://10.0.0.1:3903',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    ],
+  } as unknown as ReturnType<typeof useClusters>);
+  mockedUseBlockErrors.mockReturnValue({
+    data: undefined,
+  } as unknown as ReturnType<typeof useBlockErrors>);
+
+  renderClusterLayout();
+
+  const nav = screen.getByRole('navigation', { name: /Cluster modules/i });
+  expect(nav.className).toContain('grid');
+  expect(nav.className).toContain('grid-cols-4');
+});

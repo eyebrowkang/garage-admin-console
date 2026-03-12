@@ -8,6 +8,8 @@ import {
   AlertTitle,
   Badge,
   Button,
+  Card,
+  CardContent,
   Dialog,
   DialogContent,
   DialogFooter,
@@ -41,7 +43,7 @@ import { TableEmptyState } from '@/components/cluster/TableEmptyState';
 import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
 import { TableLoadingState } from '@/components/cluster/TableLoadingState';
 import { useClusterContext } from '@/contexts/ClusterContext';
-import { AddActionIcon, CopyActionIcon, DeleteActionIcon } from '@/lib/action-icons';
+import { AddActionIcon, CopyActionIcon, DeleteActionIcon, OpenActionIcon } from '@/lib/action-icons';
 import { KeyIcon } from '@/lib/entity-icons';
 import { toast } from '@/hooks/use-toast';
 import { useKeys, useImportKey } from '@/hooks/useKeys';
@@ -231,6 +233,12 @@ export function KeyList() {
       }
     });
   }, [keys, searchQuery, sortField, sortDirection]);
+
+  const handleOpenKey = (keyId: string) => {
+    navigate(`/clusters/${clusterId}/keys/${keyId}`);
+  };
+
+  const formatExpiration = (value?: string | null) => (value ? formatDateTime24h(value) : 'Never');
 
   if (isLoading) return <TableLoadingState label="Loading access keys..." />;
 
@@ -478,7 +486,93 @@ export function KeyList() {
         />
       </div>
 
-      <div className="overflow-hidden rounded-lg border bg-card">
+      <div role="list" aria-label="Access key cards" className="space-y-3 md:hidden">
+        {filteredAndSorted.map((key) => (
+          <Card key={key.id} role="listitem" className="overflow-hidden shadow-none">
+            <CardContent className="space-y-4 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 space-y-1">
+                  <div className="truncate text-base font-semibold text-foreground">
+                    {key.name || 'Unnamed key'}
+                  </div>
+                  <div className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                    <span>ID {formatShortId(key.id, 12)}</span>
+                    <CopyButton value={key.id} label="Access key ID" compact />
+                  </div>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => handleOpenKey(key.id)}>
+                  <OpenActionIcon className="h-4 w-4" />
+                  Open
+                </Button>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {key.expired ? (
+                  <Badge variant="destructive">Expired</Badge>
+                ) : (
+                  <Badge variant="success">Active</Badge>
+                )}
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                    Created
+                  </div>
+                  <div className="text-sm text-foreground">{formatDateTime24h(key.created)}</div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                    Expires
+                  </div>
+                  <div className="text-sm text-foreground">{formatExpiration(key.expiration)}</div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 border-t border-border/60 pt-3">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                  onClick={() => setDeleteConfirm({ id: key.id, name: key.name || key.id })}
+                >
+                  <DeleteActionIcon className="h-3.5 w-3.5" />
+                  Delete
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+
+        {filteredAndSorted.length === 0 && (
+          <Card className="border-dashed bg-muted/20 shadow-none">
+            <CardContent className="space-y-3 p-6 text-center">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                <KeyIcon className="h-6 w-6 text-muted-foreground" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="font-medium text-foreground">
+                  {searchQuery ? 'No keys match search' : 'No keys found'}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {searchQuery
+                    ? `No results for "${searchQuery}". Try a different term.`
+                    : 'Create or import an access key to get started.'}
+                </p>
+              </div>
+              {!searchQuery && (
+                <div className="pt-1">
+                  <Button variant="outline" size="sm" onClick={() => setIsDialogOpen(true)}>
+                    <AddActionIcon className="h-4 w-4" /> Create Key
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      <div className="hidden overflow-hidden rounded-lg border bg-card md:block">
         <Table>
           <TableHeader>
             <TableRow>
@@ -513,7 +607,7 @@ export function KeyList() {
               <TableRow
                 key={k.id}
                 className="cursor-pointer hover:bg-muted/50"
-                onClick={() => navigate(`/clusters/${clusterId}/keys/${k.id}`)}
+                onClick={() => handleOpenKey(k.id)}
               >
                 <TableCell className="text-xs">
                   <div className="inline-flex items-center gap-1">
@@ -533,7 +627,7 @@ export function KeyList() {
                   {formatDateTime24h(k.created)}
                 </TableCell>
                 <TableCell className="text-xs text-muted-foreground">
-                  {formatDateTime24h(k.expiration)}
+                  {formatExpiration(k.expiration)}
                 </TableCell>
                 <TableCell>
                   <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
