@@ -32,12 +32,14 @@ export function DetailPageHeader({
             {badges}
           </div>
           {subtitle && (
-            <p className="break-all text-xs sm:text-sm text-muted-foreground">{subtitle}</p>
+            <p className="break-words text-xs text-muted-foreground [overflow-wrap:anywhere] sm:text-sm">
+              {subtitle}
+            </p>
           )}
         </div>
       </div>
       {actions && (
-        <div className="flex flex-wrap items-center gap-2 sm:justify-end pl-10 sm:pl-0">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
           {actions}
         </div>
       )}

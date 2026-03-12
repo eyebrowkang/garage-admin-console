@@ -43,17 +43,16 @@ import { AliasMiniChip } from '@/components/cluster/AliasMiniChip';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { CopyButton } from '@/components/cluster/CopyButton';
 import { DetailPageHeader } from '@/components/cluster/DetailPageHeader';
+import { ExpirationFields } from '@/components/cluster/ExpirationFields';
 import { InlineLoadingState } from '@/components/cluster/InlineLoadingState';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
+import { PermissionStatusBadge } from '@/components/cluster/PermissionStatusBadge';
 import { AddActionIcon, DeleteActionIcon, EditActionIcon } from '@/lib/action-icons';
 import { BucketIcon, KeyIcon } from '@/lib/entity-icons';
 import { formatDateTime24h, formatShortId } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { toast } from '@/hooks/use-toast';
 import type { GetKeyInfoResponse, UpdateKeyRequest } from '@/types/garage';
-
-const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
-const MINUTE_OPTIONS = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
 
 export function KeyDetail() {
   const { kid } = useParams<{ kid: string }>();
@@ -507,31 +506,13 @@ export function KeyDetail() {
                       </div>
                     </TableCell>
                     <TableCell className="text-center">
-                      {bucket.permissions.read ? (
-                        <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
-                          Yes
-                        </Badge>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">No</span>
-                      )}
+                      <PermissionStatusBadge allowed={bucket.permissions.read} />
                     </TableCell>
                     <TableCell className="text-center">
-                      {bucket.permissions.write ? (
-                        <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
-                          Yes
-                        </Badge>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">No</span>
-                      )}
+                      <PermissionStatusBadge allowed={bucket.permissions.write} />
                     </TableCell>
                     <TableCell className="text-center">
-                      {bucket.permissions.owner ? (
-                        <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
-                          Yes
-                        </Badge>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">No</span>
-                      )}
+                      <PermissionStatusBadge allowed={bucket.permissions.owner} />
                     </TableCell>
                     <TableCell>
                       <Button
@@ -588,81 +569,27 @@ export function KeyDetail() {
                 placeholder="my-app-key"
               />
             </div>
-            <div className="space-y-3">
-              <div className="space-y-2">
-                <Label>Expiration (24h)</Label>
-                <div className="flex flex-wrap items-end gap-3">
-                  <div className="space-y-1">
-                    <div className="text-xs text-muted-foreground">Date</div>
-                    <Input
-                      type="date"
-                      value={editExpirationDate}
-                      onChange={(e) => setEditExpirationDate(e.target.value)}
-                      disabled={editNeverExpires}
-                      className="min-w-[170px]"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <div className="text-xs text-muted-foreground">Time</div>
-                    <div className="flex items-center gap-2">
-                      <Select
-                        value={editExpirationHour}
-                        onValueChange={setEditExpirationHour}
-                        disabled={editNeverExpires}
-                      >
-                        <SelectTrigger className="w-[84px]">
-                          <SelectValue placeholder="HH" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {HOUR_OPTIONS.map((hour) => (
-                            <SelectItem key={hour} value={hour}>
-                              {hour}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <span className="text-sm text-muted-foreground">:</span>
-                      <Select
-                        value={editExpirationMinute}
-                        onValueChange={setEditExpirationMinute}
-                        disabled={editNeverExpires}
-                      >
-                        <SelectTrigger className="w-[84px]">
-                          <SelectValue placeholder="MM" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {MINUTE_OPTIONS.map((minute) => (
-                            <SelectItem key={minute} value={minute}>
-                              {minute}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Current: {keyInfo.expiration ? formatDateTime24h(keyInfo.expiration) : 'Never'}
-                </p>
-                {editExpirationInvalid && (
-                  <p className="text-xs text-destructive">Invalid date and time.</p>
-                )}
-              </div>
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={editNeverExpires}
-                  onCheckedChange={(checked) => {
-                    setEditNeverExpires(checked);
-                    if (checked) {
-                      setEditExpirationDate('');
-                      setEditExpirationHour('00');
-                      setEditExpirationMinute('00');
-                    }
-                  }}
-                />
-                Never expires
-              </label>
-            </div>
+            <ExpirationFields
+              label="Expiration"
+              dateValue={editExpirationDate}
+              hourValue={editExpirationHour}
+              minuteValue={editExpirationMinute}
+              neverExpires={editNeverExpires}
+              onDateChange={setEditExpirationDate}
+              onHourChange={setEditExpirationHour}
+              onMinuteChange={setEditExpirationMinute}
+              onNeverExpiresChange={(checked) => {
+                setEditNeverExpires(checked);
+                if (checked) {
+                  setEditExpirationDate('');
+                  setEditExpirationHour('00');
+                  setEditExpirationMinute('00');
+                }
+              }}
+              currentValue={keyInfo.expiration ? formatDateTime24h(keyInfo.expiration) : 'Never'}
+              invalid={editExpirationInvalid}
+              invalidMessage="Invalid date and time."
+            />
             <div className="space-y-2">
               <Label>Bucket Creation Permission</Label>
               <Select

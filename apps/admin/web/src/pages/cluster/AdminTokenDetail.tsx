@@ -21,7 +21,6 @@ import {
   Input,
   Label,
 } from '@garage-admin/ui';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
@@ -39,15 +38,13 @@ import {
 } from '@/hooks/useAdminTokens';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { DetailPageHeader } from '@/components/cluster/DetailPageHeader';
+import { ExpirationFields } from '@/components/cluster/ExpirationFields';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
 import { DeleteActionIcon, EditActionIcon } from '@/lib/action-icons';
 import { TokenIcon } from '@/lib/entity-icons';
 import { formatDateTime24h } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import { toast } from '@/hooks/use-toast';
-
-const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
-const MINUTE_OPTIONS = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
 
 export function AdminTokenDetail() {
   const { tid } = useParams<{ tid: string }>();
@@ -390,56 +387,26 @@ export function AdminTokenDetail() {
                 </AlertDescription>
               </Alert>
             )}
-            <div className="space-y-2">
-              <Label>Expiration</Label>
-              <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-end">
-                <Input
-                  type="date"
-                  value={editExpirationDate}
-                  onChange={(e) => setEditExpirationDate(e.target.value)}
-                  disabled={editNeverExpires}
-                />
-                <Select
-                  value={editExpirationHour}
-                  onValueChange={setEditExpirationHour}
-                  disabled={editNeverExpires}
-                >
-                  <SelectTrigger className="w-[90px]">
-                    <SelectValue placeholder="HH" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {HOUR_OPTIONS.map((hour) => (
-                      <SelectItem key={hour} value={hour}>
-                        {hour}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select
-                  value={editExpirationMinute}
-                  onValueChange={setEditExpirationMinute}
-                  disabled={editNeverExpires}
-                >
-                  <SelectTrigger className="w-[90px]">
-                    <SelectValue placeholder="MM" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {MINUTE_OPTIONS.map((minute) => (
-                      <SelectItem key={minute} value={minute}>
-                        {minute}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <label className="flex items-center gap-2 text-sm text-foreground">
-                <Checkbox checked={editNeverExpires} onCheckedChange={setEditNeverExpires} />
-                Never expires
-              </label>
-              {editExpirationInvalid && !editNeverExpires && (
-                <div className="text-xs text-destructive">Expiration date/time is invalid.</div>
-              )}
-            </div>
+            <ExpirationFields
+              label="Expiration"
+              dateValue={editExpirationDate}
+              hourValue={editExpirationHour}
+              minuteValue={editExpirationMinute}
+              neverExpires={editNeverExpires}
+              onDateChange={setEditExpirationDate}
+              onHourChange={setEditExpirationHour}
+              onMinuteChange={setEditExpirationMinute}
+              onNeverExpiresChange={(checked) => {
+                setEditNeverExpires(checked);
+                if (checked) {
+                  setEditExpirationDate('');
+                  setEditExpirationHour('00');
+                  setEditExpirationMinute('00');
+                }
+              }}
+              currentValue={token.expiration ? formatDateTime24h(token.expiration) : 'Never'}
+              invalid={editExpirationInvalid}
+            />
             {editError && (
               <Alert variant="destructive">
                 <AlertTitle>Cannot update token</AlertTitle>

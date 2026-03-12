@@ -5,7 +5,6 @@ import {
   Alert,
   AlertDescription,
   AlertTitle,
-  Badge,
   Button,
   Card,
   CardContent,
@@ -51,6 +50,7 @@ import { CopyButton } from '@/components/cluster/CopyButton';
 import { DetailPageHeader } from '@/components/cluster/DetailPageHeader';
 import { JsonViewer } from '@/components/cluster/JsonViewer';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
+import { PermissionStatusBadge } from '@/components/cluster/PermissionStatusBadge';
 import { DeleteActionIcon } from '@/lib/action-icons';
 import { KeyIcon } from '@/lib/entity-icons';
 import { formatBytes, formatShortId } from '@/lib/format';
@@ -396,13 +396,13 @@ export function BucketDetail() {
                           value={alias}
                           label="Global alias"
                           compact
-                          className="h-5 w-5 rounded-sm"
+                          className="rounded-sm"
                         />
                         <Button
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="h-5 w-5 rounded-sm text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                          className="h-7 w-7 rounded-sm text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                           onClick={() => setRemoveAliasConfirm({ alias })}
                         >
                           <DeleteActionIcon className="h-3.5 w-3.5" />
@@ -436,13 +436,13 @@ export function BucketDetail() {
                           value={alias.alias}
                           label="Local alias"
                           compact
-                          className="h-5 w-5 rounded-sm"
+                          className="rounded-sm"
                         />
                         <Button
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="h-5 w-5 rounded-sm text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                          className="h-7 w-7 rounded-sm text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                           onClick={() =>
                             setRemoveAliasConfirm({
                               alias: alias.alias,
@@ -497,31 +497,13 @@ export function BucketDetail() {
                     </TableCell>
                     <TableCell>{key.name || '-'}</TableCell>
                     <TableCell className="text-center">
-                      {key.permissions.read ? (
-                        <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
-                          Yes
-                        </Badge>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">No</span>
-                      )}
+                      <PermissionStatusBadge allowed={key.permissions.read} />
                     </TableCell>
                     <TableCell className="text-center">
-                      {key.permissions.write ? (
-                        <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
-                          Yes
-                        </Badge>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">No</span>
-                      )}
+                      <PermissionStatusBadge allowed={key.permissions.write} />
                     </TableCell>
                     <TableCell className="text-center">
-                      {key.permissions.owner ? (
-                        <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
-                          Yes
-                        </Badge>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">No</span>
-                      )}
+                      <PermissionStatusBadge allowed={key.permissions.owner} />
                     </TableCell>
                     <TableCell>
                       <Button

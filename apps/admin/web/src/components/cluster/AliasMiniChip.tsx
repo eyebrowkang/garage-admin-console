@@ -20,7 +20,7 @@ export function AliasMiniChip({ value, kind = 'global', className }: AliasMiniCh
     >
       <span className="truncate font-medium">{value}</span>
       <div className="ml-0.5 flex items-center border-l border-border/60 pl-0.5">
-        <CopyButton value={value} label={copyLabel} compact className="h-4 w-4 rounded-sm" />
+        <CopyButton value={value} label={copyLabel} compact className="h-6 w-6 rounded-sm" />
       </div>
     </div>
   );

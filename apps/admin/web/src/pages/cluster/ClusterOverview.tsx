@@ -134,9 +134,9 @@ export function ClusterOverview() {
       badge: 'destructive' as const,
     },
     unknown: {
-      color: 'text-slate-600',
-      bgColor: 'bg-slate-50',
-      borderColor: 'border-slate-200',
+      color: 'text-muted-foreground',
+      bgColor: 'bg-muted/60',
+      borderColor: 'border-border',
       icon: Activity,
       label: 'Checking',
       badge: 'secondary' as const,
@@ -202,7 +202,7 @@ export function ClusterOverview() {
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Block Errors Detected</AlertTitle>
-          <AlertDescription className="flex items-center justify-between">
+          <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <span>
               {blockErrorCount} block error(s) require attention. This may indicate data corruption
               or synchronization issues.
@@ -256,59 +256,59 @@ export function ClusterOverview() {
         </CardHeader>
         <CardContent className="relative z-10 space-y-4">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="flex items-center gap-3 rounded-lg bg-slate-50 px-3 py-2">
-              <div className="h-8 w-8 rounded-lg bg-white flex items-center justify-center shadow-sm">
-                <Activity className="h-4 w-4 text-slate-500" />
+            <div className="flex items-center gap-3 rounded-lg bg-muted/40 px-3 py-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-background shadow-sm">
+                <Activity className="h-4 w-4 text-muted-foreground" />
               </div>
               <div>
                 <div className="text-xs text-muted-foreground">Connected Nodes</div>
-                <div className="font-semibold text-slate-900 tabular-nums">
+                <div className="font-semibold text-foreground tabular-nums">
                   {health ? `${health.connectedNodes}/${health.knownNodes}` : '-'}
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-3 rounded-lg bg-slate-50 px-3 py-2">
-              <div className="h-8 w-8 rounded-lg bg-white flex items-center justify-center shadow-sm">
-                <NodeIcon className="h-4 w-4 text-slate-500" />
+            <div className="flex items-center gap-3 rounded-lg bg-muted/40 px-3 py-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-background shadow-sm">
+                <NodeIcon className="h-4 w-4 text-muted-foreground" />
               </div>
               <div>
                 <div className="text-xs text-muted-foreground">Storage Nodes</div>
-                <div className="font-semibold text-slate-900 tabular-nums">
+                <div className="font-semibold text-foreground tabular-nums">
                   {health ? `${health.storageNodesUp}/${health.storageNodes}` : '-'}
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-3 rounded-lg bg-slate-50 px-3 py-2">
-              <div className="h-8 w-8 rounded-lg bg-white flex items-center justify-center shadow-sm">
-                <Layers className="h-4 w-4 text-slate-500" />
+            <div className="flex items-center gap-3 rounded-lg bg-muted/40 px-3 py-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-background shadow-sm">
+                <Layers className="h-4 w-4 text-muted-foreground" />
               </div>
               <div>
                 <div className="text-xs text-muted-foreground">Partitions OK</div>
-                <div className="font-semibold text-slate-900 tabular-nums">
+                <div className="font-semibold text-foreground tabular-nums">
                   {health ? `${health.partitionsAllOk}/${health.partitions}` : '-'}
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-3 rounded-lg bg-slate-50 px-3 py-2">
-              <div className="h-8 w-8 rounded-lg bg-white flex items-center justify-center shadow-sm">
-                <ShieldCheck className="h-4 w-4 text-slate-500" />
+            <div className="flex items-center gap-3 rounded-lg bg-muted/40 px-3 py-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-background shadow-sm">
+                <ShieldCheck className="h-4 w-4 text-muted-foreground" />
               </div>
               <div>
                 <div className="text-xs text-muted-foreground">Quorum OK</div>
-                <div className="font-semibold text-slate-900 tabular-nums">
+                <div className="font-semibold text-foreground tabular-nums">
                   {health ? `${health.partitionsQuorum}/${health.partitions}` : '-'}
                 </div>
               </div>
             </div>
           </div>
           <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-            <span className="rounded-full border bg-white px-2 py-1">
+            <span className="rounded-full border bg-background px-2 py-1">
               Nodes up: {status ? nodesUp : '-'}
             </span>
-            <span className="rounded-full border bg-white px-2 py-1">
+            <span className="rounded-full border bg-background px-2 py-1">
               Nodes down: {status ? nodesDown : '-'}
             </span>
-            <span className="rounded-full border bg-white px-2 py-1">
+            <span className="rounded-full border bg-background px-2 py-1">
               Draining: {status ? nodesDraining : '-'}
             </span>
           </div>

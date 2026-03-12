@@ -49,7 +49,7 @@ export function CopyButton({
       size="icon"
       className={cn(
         compact
-          ? 'h-6 w-6 p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted'
+          ? 'h-7 w-7 rounded-sm p-1 text-muted-foreground hover:bg-muted hover:text-foreground'
           : 'h-8 w-8 p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted',
         className,
       )}
