@@ -202,7 +202,7 @@ export function ClusterStatusMonitor({
             <h2 className="text-lg font-semibold tracking-tight">{clusterCountLabel}</h2>
             <p className="text-sm text-muted-foreground">
               {isSingleCluster
-                ? 'Keep the overview light here and open the cluster for bucket, key, and layout work.'
+                ? 'Open the cluster for buckets, keys, and layout work.'
                 : 'Scan fleet health here, then open a cluster for deeper diagnostics.'}
             </p>
           </div>
@@ -274,7 +274,9 @@ export function ClusterStatusMonitor({
                     <ClusterMetric
                       label="Partitions OK"
                       value={
-                        item.health ? `${item.health.partitionsAllOk}/${item.health.partitions}` : '-'
+                        item.health
+                          ? `${item.health.partitionsAllOk}/${item.health.partitions}`
+                          : '-'
                       }
                       detail={item.health ? 'Health endpoint snapshot' : 'Waiting for health data'}
                     />

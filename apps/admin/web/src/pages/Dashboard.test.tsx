@@ -50,11 +50,11 @@ it('renders the admin dashboard empty state cleanly when no clusters exist', () 
 
   expect(screen.getByRole('heading', { name: /No clusters configured yet/i })).toBeInTheDocument();
   expect(
-    screen.getByText(/Connect a Garage cluster to see health, capacity, and operations here/i),
+    screen.getByText(
+      /Connect a Garage cluster to monitor health, capacity, and access from one place/i,
+    ),
   ).toBeInTheDocument();
-  expect(
-    screen.getByRole('button', { name: /Connect your first cluster/i }),
-  ).toBeInTheDocument();
+  expect(screen.getAllByRole('button', { name: /Connect Cluster/i })).toHaveLength(2);
 });
 
 it('does not show the first-run empty state when cluster loading failed', () => {
@@ -68,5 +68,5 @@ it('does not show the first-run empty state when cluster loading failed', () => 
 
   expect(screen.getByText(/Unable to load clusters/i)).toBeInTheDocument();
   expect(screen.queryByText(/No clusters configured yet/i)).not.toBeInTheDocument();
-  expect(screen.queryByRole('button', { name: /Connect your first cluster/i })).not.toBeInTheDocument();
+  expect(screen.getAllByRole('button', { name: /Connect Cluster/i })).toHaveLength(1);
 });

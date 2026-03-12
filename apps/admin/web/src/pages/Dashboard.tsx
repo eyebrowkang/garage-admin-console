@@ -1,5 +1,5 @@
 import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
-import { type ReactNode, useState } from 'react';
+import { useState } from 'react';
 import {
   Alert,
   AlertDescription,
@@ -24,6 +24,7 @@ import { AddActionIcon } from '@/lib/action-icons';
 import { api, proxyPath } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/errors';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
+import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
 import { ClusterStatusMonitor } from '@/components/dashboard/ClusterStatusMonitor';
 import { toast } from '@/hooks/use-toast';
@@ -49,25 +50,6 @@ const emptyForm: ClusterFormState = {
   adminToken: '',
   metricToken: '',
 };
-
-function DashboardHeader({
-  connectAction,
-}: {
-  connectAction: ReactNode;
-}) {
-  return (
-    <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Dashboard</h1>
-        <p className="mt-0.5 text-sm text-muted-foreground sm:mt-1">
-          Check cluster health here, then open a cluster for detailed work.
-        </p>
-      </div>
-
-      {connectAction}
-    </div>
-  );
-}
 
 export default function Dashboard() {
   const queryClient = useQueryClient();
@@ -275,8 +257,10 @@ export default function Dashboard() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <DashboardHeader
-          connectAction={
+        <ModulePageHeader
+          title="Dashboard"
+          description="Review cluster health here, then open a cluster for detailed operations."
+          actions={
             <Button size="lg" disabled className="w-full sm:w-auto">
               <AddActionIcon className="h-5 w-5" /> Connect Cluster
             </Button>
@@ -301,8 +285,10 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <DashboardHeader
-        connectAction={
+      <ModulePageHeader
+        title="Dashboard"
+        description="Review cluster health here, then open a cluster for detailed operations."
+        actions={
           <Dialog
             open={isCreateDialogOpen}
             onOpenChange={(open) => {
@@ -400,12 +386,10 @@ export default function Dashboard() {
             <div className="max-w-md space-y-2">
               <h3 className="text-xl font-semibold">No clusters configured yet</h3>
               <p className="text-sm text-muted-foreground">
-                Connect a Garage cluster to see health, capacity, and operations here.
+                Connect a Garage cluster to monitor health, capacity, and access from one place.
               </p>
             </div>
-            <Button onClick={() => setIsCreateDialogOpen(true)}>
-              Connect your first cluster
-            </Button>
+            <Button onClick={() => setIsCreateDialogOpen(true)}>Connect Cluster</Button>
           </CardContent>
         </Card>
       )}
