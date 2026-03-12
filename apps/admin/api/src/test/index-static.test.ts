@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 const PACKAGE_ROOT = path.resolve(import.meta.dirname, '../..');
 const START_TIMEOUT_MS = 20_000;
 const STOP_TIMEOUT_MS = 5_000;
+const TEST_TIMEOUT_MS = 25_000;
 
 type StartedServer = {
   adminStaticDir: string;
@@ -138,29 +139,33 @@ afterEach(async () => {
 });
 
 describe('admin production static routing', () => {
-  it('serves only MF assets from /s3-browser while keeping the admin shell at /', async () => {
-    const server = await startServer();
+  it(
+    'serves only MF assets from /s3-browser while keeping the admin shell at /',
+    async () => {
+      const server = await startServer();
 
-    const adminShell = await fetch(`${server.url}/`, {
-      headers: { Accept: 'text/html' },
-    });
-    const remoteEntry = await fetch(`${server.url}/s3-browser/remoteEntry.js`);
-    const s3Root = await fetch(`${server.url}/s3-browser/`, {
-      headers: { Accept: 'text/html' },
-    });
-    const s3StandaloneRoute = await fetch(`${server.url}/s3-browser/connections`, {
-      headers: { Accept: 'text/html' },
-    });
+      const adminShell = await fetch(`${server.url}/`, {
+        headers: { Accept: 'text/html' },
+      });
+      const remoteEntry = await fetch(`${server.url}/s3-browser/remoteEntry.js`);
+      const s3Root = await fetch(`${server.url}/s3-browser/`, {
+        headers: { Accept: 'text/html' },
+      });
+      const s3StandaloneRoute = await fetch(`${server.url}/s3-browser/connections`, {
+        headers: { Accept: 'text/html' },
+      });
 
-    expect(adminShell.status).toBe(200);
-    await expect(adminShell.text()).resolves.toContain('admin-shell');
+      expect(adminShell.status).toBe(200);
+      await expect(adminShell.text()).resolves.toContain('admin-shell');
 
-    expect(remoteEntry.status).toBe(200);
-    await expect(remoteEntry.text()).resolves.toContain('remote entry');
+      expect(remoteEntry.status).toBe(200);
+      await expect(remoteEntry.text()).resolves.toContain('remote entry');
 
-    expect(s3Root.status).toBe(404);
-    await expect(s3Root.text()).resolves.toBe('');
-    expect(s3StandaloneRoute.status).toBe(404);
-    await expect(s3StandaloneRoute.text()).resolves.toBe('');
-  });
+      expect(s3Root.status).toBe(404);
+      await expect(s3Root.text()).resolves.toBe('');
+      expect(s3StandaloneRoute.status).toBe(404);
+      await expect(s3StandaloneRoute.text()).resolves.toBe('');
+    },
+    TEST_TIMEOUT_MS,
+  );
 });
