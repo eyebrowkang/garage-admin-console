@@ -7,6 +7,11 @@ import { createDevServerSocketResiliencePlugin } from './src/lib/dev-server-resi
 import { resolveS3BrowserRemoteEntry } from './src/lib/mf-config';
 
 const s3BrowserRemoteEntry = resolveS3BrowserRemoteEntry(process.env);
+const mfSharedPackages = ['react', 'react-dom', 'react-router-dom', '@tanstack/react-query'];
+
+function isPackageModule(id: string, packageName: string) {
+  return id.includes(`/node_modules/${packageName}/`) || id.includes(`\\node_modules\\${packageName}\\`);
+}
 
 export default defineConfig({
   plugins: [
@@ -48,6 +53,10 @@ export default defineConfig({
           }
           // Skip MF internal modules to avoid circular chunk warnings
           if (id.includes('@module-federation') || id.includes('__loadShare__')) {
+            return undefined;
+          }
+          // Let Module Federation own its shared singletons instead of forcing them into vendor.
+          if (mfSharedPackages.some((packageName) => isPackageModule(id, packageName))) {
             return undefined;
           }
           // Only split echarts (large); MF handles shared deps (react, router, query)
