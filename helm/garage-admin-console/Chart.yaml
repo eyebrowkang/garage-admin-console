@@ -1,0 +1,13 @@
+apiVersion: v2
+appVersion: 2.1.3
+description: A modern web-based administration interface for managing Garage distributed
+  object storage clusters.
+home: https://github.com/eyebrowkang/garage-admin-console
+keywords:
+- garage
+- s3
+name: garage-admin-console
+sources:
+- https://github.com/eyebrowkang/garage-admin-console
+type: application
+version: 1.0.2
