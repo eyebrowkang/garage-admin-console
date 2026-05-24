@@ -1,8 +1,13 @@
 packages:
   - api
   - web
-
-onlyBuiltDependencies:
-  - bcrypt
-  - esbuild
-  - sqlite3
+overrides:
+  '@prisma/client': '-'
+  prisma: '-'
+  '@electric-sql/pglite': '-'
+  mysql2: '-'
+  postgres: '-'
+allowBuilds:
+  bcrypt: true
+  esbuild: true
+  sqlite3: true

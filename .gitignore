@@ -13,3 +13,4 @@ pnpm-debug.log*
 .pnpm-store
 test-results/
 playwright-report/
+designs/

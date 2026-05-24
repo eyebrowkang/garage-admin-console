@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -160,16 +160,9 @@ export function KeyDetail() {
   const editExpirationInvalid = Boolean(editExpirationDate) && !editExpirationIso;
 
   const currentBucketPermission = keyInfo?.permissions?.createBucket ? 'Allowed' : 'Denied';
-
-  useEffect(() => {
-    if (availableBuckets.length === 0) {
-      if (grantBucketId) setGrantBucketId('');
-      return;
-    }
-    if (!grantBucketId || !availableBuckets.some((bucket) => bucket.id === grantBucketId)) {
-      setGrantBucketId(availableBuckets[0].id);
-    }
-  }, [availableBuckets, grantBucketId]);
+  const selectedGrantBucketId = availableBuckets.some((bucket) => bucket.id === grantBucketId)
+    ? grantBucketId
+    : (availableBuckets[0]?.id ?? '');
 
   if (!kid) {
     return (
@@ -296,7 +289,7 @@ export function KeyDetail() {
   };
 
   const handleGrantAccess = async () => {
-    if (!grantBucketId) {
+    if (!selectedGrantBucketId) {
       toast({
         title: 'Select a bucket',
         description: 'Choose a bucket to grant access.',
@@ -315,7 +308,7 @@ export function KeyDetail() {
 
     try {
       await allowKeyMutation.mutateAsync({
-        bucketId: grantBucketId,
+        bucketId: selectedGrantBucketId,
         accessKeyId: kid,
         permissions: { read: grantRead, write: grantWrite, owner: grantOwner },
       });
@@ -463,6 +456,7 @@ export function KeyDetail() {
               variant="outline"
               size="sm"
               onClick={() => {
+                setGrantBucketId('');
                 setGrantRead(true);
                 setGrantWrite(false);
                 setGrantOwner(false);
@@ -765,6 +759,7 @@ export function KeyDetail() {
         onOpenChange={(open) => {
           setGrantDialogOpen(open);
           if (open) {
+            setGrantBucketId('');
             setGrantRead(true);
             setGrantWrite(false);
             setGrantOwner(false);
@@ -789,7 +784,7 @@ export function KeyDetail() {
               <>
                 <div className="space-y-2">
                   <Label>Bucket</Label>
-                  <Select value={grantBucketId} onValueChange={setGrantBucketId}>
+                  <Select value={selectedGrantBucketId} onValueChange={setGrantBucketId}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select bucket" />
                     </SelectTrigger>
@@ -841,7 +836,7 @@ export function KeyDetail() {
                 await handleGrantAccess();
                 setGrantDialogOpen(false);
               }}
-              disabled={!grantBucketId || (!grantRead && !grantWrite && !grantOwner)}
+              disabled={!selectedGrantBucketId || (!grantRead && !grantWrite && !grantOwner)}
             >
               Grant Access
             </Button>

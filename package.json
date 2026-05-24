@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "license": "AGPL-3.0-only",
-  "packageManager": "pnpm@10.28.0",
+  "packageManager": "pnpm@11.2.2",
   "engines": {
     "node": ">=24.0.0"
   },
@@ -18,16 +18,7 @@
     "typecheck": "pnpm -C api typecheck"
   },
   "devDependencies": {
-    "@playwright/test": "^1.58.1",
-    "playwright": "^1.58.1"
-  },
-  "pnpm": {
-    "overrides": {
-      "@prisma/client": "-",
-      "prisma": "-",
-      "@electric-sql/pglite": "-",
-      "mysql2": "-",
-      "postgres": "-"
-    }
+    "@playwright/test": "^1.60.0",
+    "playwright": "^1.60.0"
   }
 }
