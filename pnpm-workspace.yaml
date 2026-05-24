@@ -1,5 +1,6 @@
 packages:
   - 'garage-admin-console/*'
+  - 's3-browser/*'
   - 'packages/*'
 overrides:
   '@prisma/client': '-'

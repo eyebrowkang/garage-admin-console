@@ -237,6 +237,8 @@ importers:
         specifier: ^4.1.7
         version: 4.1.7(@types/node@25.9.1)(jsdom@29.1.1(@noble/hashes@1.8.0))(vite@8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3))
 
+  packages/bucket-api-contract-tests: {}
+
   packages/tokens:
     devDependencies:
       tsup:
@@ -306,6 +308,10 @@ importers:
       typescript:
         specifier: ~6.0.3
         version: 6.0.3
+
+  s3-browser/api: {}
+
+  s3-browser/web: {}
 
 packages:
 

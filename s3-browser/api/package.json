@@ -1,0 +1,11 @@
+{
+  "name": "@s3-browser/api",
+  "version": "0.0.0",
+  "private": true,
+  "description": "S3 Browser BFF — placeholder, not yet implemented",
+  "type": "module",
+  "license": "AGPL-3.0-only",
+  "scripts": {
+    "build": "echo '@s3-browser/api: not yet implemented' && exit 0"
+  }
+}

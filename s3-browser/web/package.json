@@ -1,0 +1,11 @@
+{
+  "name": "@s3-browser/web",
+  "version": "0.0.0",
+  "private": true,
+  "description": "S3 Browser frontend (MF Remote) — placeholder, not yet implemented",
+  "type": "module",
+  "license": "AGPL-3.0-only",
+  "scripts": {
+    "build": "echo '@s3-browser/web: not yet implemented' && exit 0"
+  }
+}
