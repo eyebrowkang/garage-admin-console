@@ -1,0 +1,57 @@
+import { defineConfig } from '@rsbuild/core';
+import { pluginReact } from '@rsbuild/plugin-react';
+import { pluginModuleFederation } from '@module-federation/rsbuild-plugin';
+import path from 'node:path';
+
+/**
+ * @s3-browser/web — Rsbuild + React 19 + Module Federation 2.0 (Remote).
+ *
+ * MF surface:
+ *   - `./FileBrowser`  — plain React component, the primary embedded surface.
+ *   - `./export-app`   — Bridge-wrapped full app, for hosts that want the
+ *                        entire standalone UI mounted as a remote.
+ *
+ * Shared graph: only React + ReactDOM are singletons. @garage/ui and
+ * @garage/tokens are intentionally NOT shared at runtime (each app bundles
+ * its own copy — see designs/mf-integration-plan.md §2.6).
+ */
+export default defineConfig({
+  plugins: [
+    pluginReact(),
+    pluginModuleFederation({
+      name: 's3Browser',
+      filename: 'remoteEntry.js',
+      exposes: {
+        './export-app': './src/export-app.tsx',
+        './FileBrowser': './src/export-file-browser.tsx',
+      },
+      shared: {
+        react: { singleton: true, requiredVersion: '^19' },
+        'react-dom': { singleton: true, requiredVersion: '^19' },
+      },
+      dts: true,
+      bridge: { enableBridgeRouter: false },
+    }),
+  ],
+  source: {
+    entry: { index: './src/main.tsx' },
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
+  server: {
+    port: 5174,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3002',
+        changeOrigin: true,
+      },
+    },
+  },
+  html: {
+    title: 'S3 Browser',
+  },
+  output: {
+    distPath: { root: 'dist' },
+  },
+});
