@@ -1,4 +1,4 @@
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton } from '@garage/ui';
 
 interface TableLoadingStateProps {
   label?: string;

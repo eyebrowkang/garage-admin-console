@@ -1,12 +1,6 @@
 import { useNodes } from '@/hooks/useNodes';
 import { formatShortId } from '@/lib/format';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@garage/ui';
 
 interface NodeSelectorProps {
   clusterId: string;

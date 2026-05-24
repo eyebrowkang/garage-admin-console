@@ -6,10 +6,10 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+  Button,
+  Input,
+  Label,
+} from '@garage/ui';
 import { AlertTriangle } from 'lucide-react';
 
 export type ConfirmTier = 'simple' | 'danger' | 'type-to-confirm';

@@ -1,8 +1,9 @@
 import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import {
+  Card,
+  CardContent,
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -10,10 +11,12 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+  Input,
+  Label,
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from '@garage/ui';
 import { AddActionIcon } from '@/lib/action-icons';
 import { api, proxyPath } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/errors';
@@ -278,9 +281,7 @@ export default function Dashboard() {
             <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
                 <DialogTitle>Connect Garage Cluster</DialogTitle>
-                <DialogDescription>
-                  Add a new existing Garage cluster to manage.
-                </DialogDescription>
+                <DialogDescription>Add a new existing Garage cluster to manage.</DialogDescription>
               </DialogHeader>
               <ClusterForm
                 form={clusterForm}

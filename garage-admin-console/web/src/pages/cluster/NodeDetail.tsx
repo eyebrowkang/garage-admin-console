@@ -1,26 +1,30 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { HardDrive, Activity, Database, RefreshCw } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Label } from '@/components/ui/label';
 import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  Button,
+  Badge,
+  Label,
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
   DialogDescription,
-} from '@/components/ui/dialog';
-import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from '@garage/ui';
 import { useClusterContext } from '@/contexts/ClusterContext';
 import {
   useNodes,

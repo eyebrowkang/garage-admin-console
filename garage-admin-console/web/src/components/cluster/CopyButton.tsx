@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Check } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@garage/ui';
 import { CopyActionIcon } from '@/lib/action-icons';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';

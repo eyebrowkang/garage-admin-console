@@ -1,6 +1,6 @@
 import { Outlet, useNavigate, Link } from 'react-router-dom';
 import { LogOut } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@garage/ui';
 
 export function MainLayout() {
   const navigate = useNavigate();
@@ -16,7 +16,11 @@ export function MainLayout() {
       <header className="sticky top-0 z-50 border-b bg-card/80 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 lg:px-8 h-14 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
-            <img src="/garage-admin-logo.svg" alt="Garage Admin" className="h-7 w-7 sm:h-8 sm:w-8" />
+            <img
+              src="/garage-admin-logo.svg"
+              alt="Garage Admin"
+              className="h-7 w-7 sm:h-8 sm:w-8"
+            />
             <span className="font-bold text-base sm:text-lg tracking-tight">Garage Admin</span>
           </Link>
 
