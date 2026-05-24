@@ -177,9 +177,17 @@ Browser → Frontend → BFF API → Garage Cluster
 This project is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0),
 consistent with the Garage project. See `LICENSE` for the full text.
 
-The following assets are sourced from the [Garage project repository](https://git.deuxfleurs.fr/Deuxfleurs/garage) and are governed by
-Garage's own license terms:
+### Logo assets
 
-- Logo assets in `web/public/garage.svg`, `web/public/garage.png`,
-  `web/public/garage-notext.svg`, and `web/public/garage-notext.png`
-- OpenAPI specification in `web/public/garage-admin-v2.json`
+The Garage Admin Console logo assets in `web/public/` —
+`garage-admin-logo.svg`, `garage-admin-logo.png`,
+`garage-admin-logo-32.png`, `garage-admin-logo-64.png`,
+`garage-admin-logo-128.png`, and `favicon.ico` —
+are © [eyebrowkang](https://github.com/eyebrowkang) and licensed under AGPL-3.0
+along with the rest of this project.
+
+### Third-party assets
+
+- OpenAPI specification in `web/public/garage-admin-v2.json` is sourced from the
+  [Garage project repository](https://git.deuxfleurs.fr/Deuxfleurs/garage) and
+  governed by Garage's own license terms.

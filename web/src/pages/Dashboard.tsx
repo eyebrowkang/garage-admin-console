@@ -19,6 +19,7 @@ import { api, proxyPath } from '@/lib/api';
 import { getApiErrorMessage } from '@/lib/errors';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { ClusterStatusMonitor } from '@/components/dashboard/ClusterStatusMonitor';
+import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
 import { toast } from '@/hooks/use-toast';
 import { useClusters } from '@/hooks/useClusters';
 import type {
@@ -254,80 +255,78 @@ export default function Dashboard() {
     );
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-sm text-muted-foreground mt-0.5 sm:mt-1">
-            Cluster-level overview first. Open a cluster for deeper operations and diagnostics.
-          </p>
-        </div>
+    <div className="space-y-6">
+      <ModulePageHeader
+        title="Dashboard"
+        description="Cluster-level overview first. Open a cluster for deeper operations and diagnostics."
+        actions={
+          <Dialog
+            open={isCreateDialogOpen}
+            onOpenChange={(open) => {
+              setIsCreateDialogOpen(open);
+              if (!open) {
+                setFormError('');
+                setClusterForm(emptyForm);
+              }
+            }}
+          >
+            <DialogTrigger asChild>
+              <Button>
+                <AddActionIcon className="mr-2 h-4 w-4" /> Connect Cluster
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>Connect Garage Cluster</DialogTitle>
+                <DialogDescription>
+                  Add a new existing Garage cluster to manage.
+                </DialogDescription>
+              </DialogHeader>
+              <ClusterForm
+                form={clusterForm}
+                setForm={setClusterForm}
+                mode="create"
+                error={formError}
+              />
+              <DialogFooter>
+                <Button
+                  onClick={() => createMutation.mutate(clusterForm)}
+                  disabled={isCreateDisabled}
+                >
+                  {createMutation.isPending ? 'Connecting...' : 'Connect'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        }
+      />
 
-        <Dialog
-          open={isCreateDialogOpen}
-          onOpenChange={(open) => {
-            setIsCreateDialogOpen(open);
-            if (!open) {
-              setFormError('');
-              setClusterForm(emptyForm);
-            }
-          }}
-        >
-          <DialogTrigger asChild>
-            <Button size="lg" className="shadow-sm hover:shadow-md transition-shadow">
-              <AddActionIcon className="mr-2 h-5 w-5" /> Connect Cluster
+      <Dialog
+        open={isEditDialogOpen}
+        onOpenChange={(open) => {
+          setIsEditDialogOpen(open);
+          if (!open) {
+            setEditError('');
+            setEditForm(emptyForm);
+            setEditCluster(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle>Update Cluster</DialogTitle>
+            <DialogDescription>
+              Edit connection details. Leave token fields blank to keep existing values.
+            </DialogDescription>
+          </DialogHeader>
+          <ClusterForm form={editForm} setForm={setEditForm} mode="edit" error={editError} />
+          <DialogFooter>
+            <Button onClick={handleEditSave} disabled={isEditDisabled}>
+              {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
             </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>Connect Garage Cluster</DialogTitle>
-              <DialogDescription>Add a new existing Garage cluster to manage.</DialogDescription>
-            </DialogHeader>
-            <ClusterForm
-              form={clusterForm}
-              setForm={setClusterForm}
-              mode="create"
-              error={formError}
-            />
-            <DialogFooter>
-              <Button
-                onClick={() => createMutation.mutate(clusterForm)}
-                disabled={isCreateDisabled}
-              >
-                {createMutation.isPending ? 'Connecting...' : 'Connect'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog
-          open={isEditDialogOpen}
-          onOpenChange={(open) => {
-            setIsEditDialogOpen(open);
-            if (!open) {
-              setEditError('');
-              setEditForm(emptyForm);
-              setEditCluster(null);
-            }
-          }}
-        >
-          <DialogContent className="sm:max-w-[520px]">
-            <DialogHeader>
-              <DialogTitle>Update Cluster</DialogTitle>
-              <DialogDescription>
-                Edit connection details. Leave token fields blank to keep existing values.
-              </DialogDescription>
-            </DialogHeader>
-            <ClusterForm form={editForm} setForm={setEditForm} mode="edit" error={editError} />
-            <DialogFooter>
-              <Button onClick={handleEditSave} disabled={isEditDisabled}>
-                {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {error && (
         <Alert variant="destructive">

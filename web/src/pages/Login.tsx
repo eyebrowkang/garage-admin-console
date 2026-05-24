@@ -40,7 +40,7 @@ export default function Login() {
       <Card className="relative w-full max-w-md border-primary/25 shadow-lg">
         <CardHeader className="space-y-3 text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
-            <img src="/garage-notext.svg" alt="Garage" className="h-10 w-10" />
+            <img src="/garage-admin-logo.svg" alt="Garage Admin" className="h-10 w-10" />
           </div>
           <div className="space-y-1">
             <CardTitle className="text-2xl">Garage Admin Console</CardTitle>

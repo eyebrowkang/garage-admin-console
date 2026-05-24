@@ -171,7 +171,17 @@ garage-admin-console/
 本项目采用 GNU Affero 通用公共许可证 v3.0（AGPL-3.0）授权，
 与 Garage 项目保持一致。完整条款请参阅 `LICENSE` 文件。
 
-以下资源来源于 [Garage 项目仓库](https://git.deuxfleurs.fr/Deuxfleurs/garage)，受 Garage 自身许可条款约束：
+### Logo 资源
 
-- `web/public/garage.svg`、`web/public/garage.png`、`web/public/garage-notext.svg` 和 `web/public/garage-notext.png` 中的 Logo 资源
-- `web/public/garage-admin-v2.json` 中的 OpenAPI 规范
+Garage Admin Console 的 Logo 资源（位于 `web/public/`）——
+`garage-admin-logo.svg`、`garage-admin-logo.png`、
+`garage-admin-logo-32.png`、`garage-admin-logo-64.png`、
+`garage-admin-logo-128.png` 和 `favicon.ico` ——
+版权归 [eyebrowkang](https://github.com/eyebrowkang) 所有，
+并随本项目以 AGPL-3.0 许可证发布。
+
+### 第三方资源
+
+- `web/public/garage-admin-v2.json` 中的 OpenAPI 规范来源于
+  [Garage 项目仓库](https://git.deuxfleurs.fr/Deuxfleurs/garage)，
+  受 Garage 自身许可条款约束。

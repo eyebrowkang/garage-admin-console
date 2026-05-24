@@ -159,23 +159,23 @@ export function ClusterStatusMonitor({
           <div className="grid grid-cols-2 gap-2 sm:gap-3 text-sm md:col-span-3 md:grid-cols-4">
             <div className="rounded-lg border bg-card px-3 py-2">
               <div className="text-xs text-muted-foreground">Healthy</div>
-              <div className="text-lg font-semibold text-green-700">{healthy}</div>
+              <div className="text-2xl font-semibold tracking-tight text-green-700">{healthy}</div>
             </div>
             <div className="rounded-lg border bg-card px-3 py-2">
               <div className="text-xs text-muted-foreground">Warnings</div>
-              <div className="text-lg font-semibold text-violet-700">{warning}</div>
+              <div className="text-2xl font-semibold tracking-tight text-violet-700">{warning}</div>
             </div>
             <div className="rounded-lg border bg-card px-3 py-2">
               <div className="text-xs text-muted-foreground">Errors</div>
-              <div className="text-lg font-semibold text-destructive">{error}</div>
+              <div className="text-2xl font-semibold tracking-tight text-destructive">{error}</div>
             </div>
             <div className="rounded-lg border bg-card px-3 py-2">
               <div className="text-xs text-muted-foreground">Nodes Up</div>
-              <div className="text-lg font-semibold">
+              <div className="text-2xl font-semibold tracking-tight">
                 {nodesUp}/{totalNodes}
               </div>
               {checking > 0 && (
-                <div className="text-xs text-muted-foreground">Checking: {checking}</div>
+                <div className="text-[11px] text-muted-foreground">Checking: {checking}</div>
               )}
             </div>
           </div>
