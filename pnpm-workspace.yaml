@@ -1,6 +1,6 @@
 packages:
-  - api
-  - web
+  - 'garage-admin-console/*'
+  - 'packages/*'
 overrides:
   '@prisma/client': '-'
   prisma: '-'
@@ -8,6 +8,7 @@ overrides:
   mysql2: '-'
   postgres: '-'
 allowBuilds:
+  '@parcel/watcher': true
   bcrypt: true
   esbuild: true
   sqlite3: true

@@ -8,14 +8,15 @@
     "node": ">=24.0.0"
   },
   "scripts": {
-    "build": "pnpm -C api build && pnpm -C web build",
-    "dev": "pnpm -r --parallel --filter api --filter web dev",
-    "lint": "pnpm -C api lint && pnpm -C web lint",
-    "lint:fix": "pnpm -C api lint:fix && pnpm -C web lint:fix",
-    "format": "pnpm -C api format && pnpm -C web format",
-    "format:check": "pnpm -C api format:check && pnpm -C web format:check",
-    "test": "pnpm -C api test:run && pnpm -C web test:run",
-    "typecheck": "pnpm -C api typecheck"
+    "build:packages": "pnpm -F @garage/tokens build && pnpm -F @garage/ui build",
+    "build": "pnpm build:packages && pnpm -C garage-admin-console/api build && pnpm -C garage-admin-console/web build",
+    "dev": "pnpm -r --parallel --filter @garage-admin/api --filter @garage-admin/web dev",
+    "lint": "pnpm -C garage-admin-console/api lint && pnpm -C garage-admin-console/web lint",
+    "lint:fix": "pnpm -C garage-admin-console/api lint:fix && pnpm -C garage-admin-console/web lint:fix",
+    "format": "pnpm -C garage-admin-console/api format && pnpm -C garage-admin-console/web format",
+    "format:check": "pnpm -C garage-admin-console/api format:check && pnpm -C garage-admin-console/web format:check",
+    "test": "pnpm -C garage-admin-console/api test:run && pnpm -C garage-admin-console/web test:run",
+    "typecheck": "pnpm -C garage-admin-console/api typecheck"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",

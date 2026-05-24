@@ -35,16 +35,19 @@ jobs:
         run: pnpm lint
 
       - name: Typecheck API
-        run: pnpm -C api typecheck
+        run: pnpm -C garage-admin-console/api typecheck
+
+      - name: Build shared packages
+        run: pnpm build:packages
 
       - name: Build web
-        run: pnpm -C web build
+        run: pnpm -C garage-admin-console/web build
 
       - name: Test API
-        run: pnpm -C api test:run
+        run: pnpm -C garage-admin-console/api test:run
 
       - name: Test web
-        run: pnpm -C web test:run
+        run: pnpm -C garage-admin-console/web test:run
 
   build-and-push:
     needs: check
