@@ -84,6 +84,7 @@ export default defineConfig(({ command }) => ({
     ],
   },
   output: {
+    assetPrefix: 'auto',
     distPath: { root: 'dist' },
   },
 }));

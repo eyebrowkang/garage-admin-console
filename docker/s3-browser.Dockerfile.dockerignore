@@ -1,0 +1,17 @@
+**/node_modules
+**/dist
+*.db
+*.db-journal
+*.log
+.env
+**/.env
+**/.env.*
+!**/.env.example
+.git
+.DS_Store
+coverage
+test-results
+playwright-report
+screenshots
+pnpm-debug.log*
+.pnpm-store

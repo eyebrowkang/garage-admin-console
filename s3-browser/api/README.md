@@ -14,13 +14,13 @@ The Admin Console BFF (`@garage-admin/api`) implements the SAME §2.4 contract u
 
 ## Endpoints
 
-| Path                                                                                       | Auth | Purpose                                                              |
-| ------------------------------------------------------------------------------------------ | ---- | -------------------------------------------------------------------- |
-| `POST /api/auth/login`                                                                     | none | Exchange password → JWT                                              |
-| `GET /api/health`                                                                          | none | Health check                                                         |
-| `GET/POST/PUT/DELETE /api/connections[/:id]`                                               | JWT  | CRUD S3 connections (credentials excluded from list responses)       |
-| `GET /api/connections/:connId/buckets`                                                     | JWT  | S3 `ListBuckets` (helper; not in §2.4)                               |
-| `GET/POST/DELETE /api/connections/:connId/buckets/:bucket/{list,object,presign,upload,objects,copy}` | JWT  | Bucket Backend API (§2.4)                                            |
+| Path                                                                                                 | Auth | Purpose                                                        |
+| ---------------------------------------------------------------------------------------------------- | ---- | -------------------------------------------------------------- |
+| `POST /api/auth/login`                                                                               | none | Exchange password → JWT                                        |
+| `GET /api/health`                                                                                    | none | Health check                                                   |
+| `GET/POST/PUT/DELETE /api/connections[/:id]`                                                         | JWT  | CRUD S3 connections (credentials excluded from list responses) |
+| `GET /api/connections/:connId/buckets`                                                               | JWT  | S3 `ListBuckets` (helper; not in §2.4)                         |
+| `GET/POST/DELETE /api/connections/:connId/buckets/:bucket/{list,object,presign,upload,objects,copy}` | JWT  | Bucket Backend API (§2.4)                                      |
 
 ## Running
 
@@ -37,6 +37,22 @@ Required env vars (see [`.env.example`](.env.example)):
 - `ENCRYPTION_KEY` — exactly 32 bytes, encrypts stored S3 credentials.
 - `ADMIN_PASSWORD` — single account, mirrors `@garage-admin/api`.
 - `PORT` (optional) — defaults to `3002`.
+
+## Docker
+
+`docker/s3-browser.Dockerfile` builds the full S3 Browser product image: BFF API, standalone SPA, and MF remote assets.
+
+```bash
+docker build -f docker/s3-browser.Dockerfile -t s3-browser .
+docker run -p 3002:3002 \
+  -v s3-browser-data:/data \
+  -e JWT_SECRET=change-me-to-a-random-string \
+  -e ENCRYPTION_KEY=change-me-exactly-32-characters! \
+  -e ADMIN_PASSWORD=change-me-admin-password \
+  s3-browser
+```
+
+For embedded Admin deployments, run the same image with `S3_BROWSER_STATIC_ONLY=true`. In that mode it only serves the built SPA/MF remote and skips API env validation, migrations, and DB access.
 
 ## Database
 

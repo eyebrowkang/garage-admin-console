@@ -6,6 +6,7 @@
 .env
 .env.*
 !.env.example
+!docker/.env.compose.example
 coverage
 node_modules
 dist
@@ -16,3 +17,4 @@ playwright-report/
 designs/
 .agents/
 .claude/
+.junie/

@@ -286,9 +286,7 @@ export function HomePage({ onOpenConnection }: { onOpenConnection: (id: string) 
             <ConnectionCard
               key={connection.id}
               connection={connection}
-              status={
-                statusById.get(connection.id) ?? { isLoading: true, status: 'checking' }
-              }
+              status={statusById.get(connection.id) ?? { isLoading: true, status: 'checking' }}
               onOpen={() => onOpenConnection(connection.id)}
               onEdit={() => setEditTarget(connection)}
               onDelete={() => setDeleteTarget(connection)}
@@ -392,15 +390,7 @@ export function HomePage({ onOpenConnection }: { onOpenConnection: (id: string) 
   );
 }
 
-function SummaryStat({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: number;
-  tone?: string;
-}) {
+function SummaryStat({ label, value, tone }: { label: string; value: number; tone?: string }) {
   return (
     <div className="rounded-lg border bg-card px-3 py-2">
       <div className="text-xs text-muted-foreground">{label}</div>
@@ -480,12 +470,7 @@ function ConnectionCard({
 
         {/* Actions — same shape and h-9 sizing as admin's cluster cards */}
         <div className="flex items-center gap-2 pt-1">
-          <Button
-            size="sm"
-            className="h-9"
-            onClick={onOpen}
-            disabled={status.status !== 'healthy'}
-          >
+          <Button size="sm" className="h-9" onClick={onOpen} disabled={status.status !== 'healthy'}>
             <ArrowRight className="mr-2 h-4 w-4" />
             Open
           </Button>

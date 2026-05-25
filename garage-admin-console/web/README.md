@@ -43,9 +43,9 @@ Splitting these imports across CSS and JS (e.g. doing `import '@garage/ui/style.
 
 ## Configuration
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `VITE_S3_BROWSER_MF_URL` | No | URL of `s3-browser/web`'s MF manifest. In development, defaults to the current browser hostname on port `5174`. Bake this in at build time when deploying with the embedded browser. |
+| Variable                 | Required | Description                                                                                                                                                                          |
+| ------------------------ | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `VITE_S3_BROWSER_MF_URL` | No       | URL of `s3-browser/web`'s MF manifest. In development, defaults to the current browser hostname on port `5174`. Bake this in at build time when deploying with the embedded browser. |
 
 ## Documentation
 

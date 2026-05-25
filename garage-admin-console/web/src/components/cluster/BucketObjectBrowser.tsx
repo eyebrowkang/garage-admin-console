@@ -85,9 +85,9 @@ export function BucketObjectBrowser({
           <Alert>
             <AlertTitle>S3 endpoint not configured</AlertTitle>
             <AlertDescription>
-              This cluster has no <span className="mono">s3Endpoint</span> set, so the embedded
-              file browser can't talk to its object surface. Edit the cluster from the Dashboard
-              and add the S3 endpoint (e.g. <span className="mono">http://host:3900</span>).
+              This cluster has no <span className="mono">s3Endpoint</span> set, so the embedded file
+              browser can't talk to its object surface. Edit the cluster from the Dashboard and add
+              the S3 endpoint (e.g. <span className="mono">http://host:3900</span>).
             </AlertDescription>
           </Alert>
         </CardContent>
@@ -95,8 +95,7 @@ export function BucketObjectBrowser({
     );
   }
 
-  const token =
-    typeof window !== 'undefined' ? (window.localStorage.getItem('token') ?? '') : '';
+  const token = typeof window !== 'undefined' ? (window.localStorage.getItem('token') ?? '') : '';
   const baseUrl = `/api/clusters/${clusterId}/buckets/${encodeURIComponent(bucketAlias)}`;
 
   return (

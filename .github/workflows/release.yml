@@ -4,12 +4,11 @@ on:
   workflow_call:
     inputs:
       tag_name:
-        description: 'Git tag name (e.g. v2.1.0)'
-        required: true
+        description: 'Git tag name (e.g. v2.1.0). When set, publish semver tags; otherwise publish :dev.'
+        required: false
         type: string
-
-env:
-  IMAGE_NAME: garage-admin-console
+  workflow_dispatch:
+    # Manually trigger from any branch to publish :dev images for end-to-end testing.
 
 jobs:
   check:
@@ -18,6 +17,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag_name || github.ref }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -34,14 +35,24 @@ jobs:
       - name: Lint
         run: pnpm lint
 
-      - name: Typecheck API
-        run: pnpm -C garage-admin-console/api typecheck
+      - name: Lint s3-browser
+        run: |
+          pnpm -C s3-browser/api lint
+          pnpm -C s3-browser/web lint
+
+      - name: Typecheck APIs
+        run: |
+          pnpm -C garage-admin-console/api typecheck
+          pnpm -C s3-browser/api typecheck
 
       - name: Build shared packages
         run: pnpm build:packages
 
-      - name: Build web
+      - name: Build web (admin)
         run: pnpm -C garage-admin-console/web build
+
+      - name: Build web (s3-browser)
+        run: pnpm -C s3-browser/web build
 
       - name: Test API
         run: pnpm -C garage-admin-console/api test:run
@@ -56,11 +67,20 @@ jobs:
       contents: read
       packages: write
 
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: garage-admin-console
+            dockerfile: docker/garage-admin-console.Dockerfile
+          - image: s3-browser
+            dockerfile: docker/s3-browser.Dockerfile
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag_name }}
+          ref: ${{ inputs.tag_name || github.ref }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -86,20 +106,28 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
-            ${{ vars.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}
+            ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}
+            ${{ vars.DOCKERHUB_USERNAME }}/${{ matrix.image }}
+          # When tag_name is set (release-please flow), publish semver tags +
+          # the implicit :latest. Otherwise (manual dispatch from a feature
+          # branch) publish :dev and :dev-<sha> only — never :latest.
+          flavor: |
+            latest=${{ inputs.tag_name != '' }}
           tags: |
-            type=semver,pattern={{version}},value=${{ inputs.tag_name }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ inputs.tag_name }}
-            type=semver,pattern={{major}},value=${{ inputs.tag_name }}
+            type=semver,pattern={{version}},value=${{ inputs.tag_name }},enable=${{ inputs.tag_name != '' }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ inputs.tag_name }},enable=${{ inputs.tag_name != '' }}
+            type=semver,pattern={{major}},value=${{ inputs.tag_name }},enable=${{ inputs.tag_name != '' }}
+            type=raw,value=dev,enable=${{ inputs.tag_name == '' }}
+            type=sha,prefix=dev-,enable=${{ inputs.tag_name == '' }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: ${{ matrix.dockerfile }}
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}

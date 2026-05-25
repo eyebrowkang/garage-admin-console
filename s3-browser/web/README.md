@@ -20,6 +20,18 @@ The dev server proxies `/api/*` to `http://localhost:3002` (the S3 Browser BFF).
 
 When the dev server is running, the MF manifest is published at `/mf-manifest.json` and the remote entry at `/remoteEntry.js` on whichever host you use to access port `5174`. The Admin Console (`@garage-admin/web`) picks these up automatically via `VITE_S3_BROWSER_MF_URL`, or derives the same hostname in development when that variable is unset.
 
+## Docker
+
+The web build is shipped inside the single `ghcr.io/eyebrowkang/s3-browser:latest` product image. That image can run in two modes:
+
+- default standalone mode: API + SPA + MF remote;
+- `S3_BROWSER_STATIC_ONLY=true`: static SPA/MF remote only, for embedded Admin deployments.
+
+```bash
+docker build -f docker/s3-browser.Dockerfile -t s3-browser .
+docker run -p 3002:3002 -e S3_BROWSER_STATIC_ONLY=true s3-browser
+```
+
 ## MF Remote configuration
 
 [`rsbuild.config.ts`](rsbuild.config.ts):
@@ -33,16 +45,16 @@ pluginModuleFederation({
     './FileBrowser': './src/export-file-browser.tsx',
   },
   shared: {
-    react:     { singleton: true, requiredVersion: '^19' },
+    react: { singleton: true, requiredVersion: '^19' },
     'react-dom': { singleton: true, requiredVersion: '^19' },
   },
   dts: command === 'build',
   bridge: { enableBridgeRouter: false },
-})
+});
 ```
 
 - Only React + ReactDOM are runtime-shared. `@garage/ui` / `@garage/tokens` are bundled (build-time deps), per `designs/mf-integration-plan.md` §2.6.
-- `dev.assetPrefix: 'auto'` keeps dev HTML and MF manifest assets host-relative, so `pnpm -C s3-browser/web dev --host 0.0.0.0` works from LAN clients without `localhost` URLs leaking into resource links.
+- `assetPrefix: 'auto'` keeps dev and production MF assets resolved from the remote origin, so cross-origin Admin embeds do not leak asset requests back to the Admin host.
 - `dts` is enabled for `rsbuild build` only. Production builds emit remote types so hosts can consume `FileBrowserProps` from `@mf-types/`, while dev avoids the local DTS broker WebSocket. The Admin Console keeps a hand-rolled shim at [`garage-admin-console/web/src/types/s3-browser.d.ts`](../../garage-admin-console/web/src/types/s3-browser.d.ts) as a fallback.
 - `enableBridgeRouter: false` — `./FileBrowser` doesn't use react-router; the host owns navigation.
 
@@ -57,7 +69,7 @@ pluginModuleFederation({
 
 ```ts
 export interface FileBrowserProps {
-  backend: { baseUrl: string; authToken: string };  // baseUrl already encodes the bucket
+  backend: { baseUrl: string; authToken: string }; // baseUrl already encodes the bucket
   bucket: string;
   path: string[];
   onPathChange: (path: string[]) => void;

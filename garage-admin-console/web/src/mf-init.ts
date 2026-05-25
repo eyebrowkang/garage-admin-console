@@ -22,6 +22,18 @@ import { init } from '@module-federation/runtime';
 
 const REACT_VERSION = React.version;
 
+function normalizeS3BrowserMfUrl(value: string | undefined | null) {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+
+  const withoutTrailingSlash = trimmed.replace(/\/+$/, '');
+  if (withoutTrailingSlash.endsWith('.json')) {
+    return withoutTrailingSlash;
+  }
+
+  return `${withoutTrailingSlash}/mf-manifest.json`;
+}
+
 function getDefaultS3BrowserMfUrl() {
   if (!import.meta.env.DEV || typeof window === 'undefined') {
     return 'http://localhost:5174/mf-manifest.json';
@@ -33,7 +45,15 @@ function getDefaultS3BrowserMfUrl() {
   return `${window.location.protocol}//${host}:5174/mf-manifest.json`;
 }
 
-const s3BrowserMfUrl = import.meta.env.VITE_S3_BROWSER_MF_URL ?? getDefaultS3BrowserMfUrl();
+const runtimeS3BrowserMfUrl =
+  typeof window === 'undefined'
+    ? null
+    : normalizeS3BrowserMfUrl(window.__GARAGE_RUNTIME_CONFIG__?.s3BrowserMfUrl);
+
+const s3BrowserMfUrl =
+  runtimeS3BrowserMfUrl ??
+  normalizeS3BrowserMfUrl(import.meta.env.VITE_S3_BROWSER_MF_URL) ??
+  getDefaultS3BrowserMfUrl();
 
 /**
  * Exported so consumers can call `mfInstance.loadRemote(...)`. The global

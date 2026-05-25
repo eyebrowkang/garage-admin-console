@@ -49,14 +49,14 @@ flowchart LR
 
 ## Endpoints
 
-| Path                                                                                       | Auth | Purpose                                                              |
-| ------------------------------------------------------------------------------------------ | ---- | -------------------------------------------------------------------- |
-| `POST /api/auth/login`                                                                     | none | Exchange password → JWT                                              |
-| `GET /api/health`                                                                          | none | Health check                                                         |
-| `GET/POST /api/clusters`                                                                   | JWT  | List / add clusters (tokens excluded from list responses)            |
-| `PUT/DELETE /api/clusters/:id`                                                             | JWT  | Update / remove a cluster                                            |
-| `ALL /api/proxy/:clusterId/*splat`                                                         | JWT  | Pass-through to Garage Admin API (admin token decrypted in memory)   |
-| `GET/POST/DELETE /api/clusters/:clusterId/buckets/:bucket/{list,object,presign,upload,objects,copy}` | JWT  | Bucket Backend API (`designs/mf-integration-plan.md` §2.4)           |
+| Path                                                                                                 | Auth | Purpose                                                            |
+| ---------------------------------------------------------------------------------------------------- | ---- | ------------------------------------------------------------------ |
+| `POST /api/auth/login`                                                                               | none | Exchange password → JWT                                            |
+| `GET /api/health`                                                                                    | none | Health check                                                       |
+| `GET/POST /api/clusters`                                                                             | JWT  | List / add clusters (tokens excluded from list responses)          |
+| `PUT/DELETE /api/clusters/:id`                                                                       | JWT  | Update / remove a cluster                                          |
+| `ALL /api/proxy/:clusterId/*splat`                                                                   | JWT  | Pass-through to Garage Admin API (admin token decrypted in memory) |
+| `GET/POST/DELETE /api/clusters/:clusterId/buckets/:bucket/{list,object,presign,upload,objects,copy}` | JWT  | Bucket Backend API (`designs/mf-integration-plan.md` §2.4)         |
 
 ## Per-bucket S3 key minting
 

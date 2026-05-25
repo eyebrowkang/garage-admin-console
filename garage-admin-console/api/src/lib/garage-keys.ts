@@ -94,16 +94,10 @@ interface GarageBucket {
   localAliases?: { alias: string; accessKeyId?: string }[];
 }
 
-async function resolveBucketId(
-  http: AxiosInstance,
-  bucketName: string,
-): Promise<string | null> {
+async function resolveBucketId(http: AxiosInstance, bucketName: string): Promise<string | null> {
   const res = await http.get<GarageBucket[]>('/v2/ListBuckets');
   if (res.status !== 200 || !Array.isArray(res.data)) {
-    throw new BucketAccessError(
-      502,
-      `Failed to list buckets on cluster (HTTP ${res.status})`,
-    );
+    throw new BucketAccessError(502, `Failed to list buckets on cluster (HTTP ${res.status})`);
   }
   for (const b of res.data) {
     if (b.globalAliases?.includes(bucketName)) return b.id;
@@ -130,10 +124,7 @@ async function mintKey(
     { headers: { 'Content-Type': 'application/json' } },
   );
   if (createRes.status !== 200 || !createRes.data?.accessKeyId) {
-    throw new BucketAccessError(
-      502,
-      `CreateKey failed on cluster (HTTP ${createRes.status})`,
-    );
+    throw new BucketAccessError(502, `CreateKey failed on cluster (HTTP ${createRes.status})`);
   }
   const key = createRes.data;
 
@@ -151,10 +142,7 @@ async function mintKey(
     void http
       .post(`/v2/DeleteKey?id=${encodeURIComponent(key.accessKeyId)}`)
       .catch(() => undefined);
-    throw new BucketAccessError(
-      502,
-      `AllowBucketKey failed on cluster (HTTP ${allowRes.status})`,
-    );
+    throw new BucketAccessError(502, `AllowBucketKey failed on cluster (HTTP ${allowRes.status})`);
   }
 
   logger.info(

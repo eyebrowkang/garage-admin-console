@@ -28,7 +28,7 @@ garage-admin-console/                         # monorepo root
 ├── designs/                                  # frozen design specs (incl. mf-integration-plan.md)
 ├── e2e/                                      # Playwright tests for Admin Console
 ├── screenshots/                              # rendered Admin Console screenshots for README
-├── Dockerfile, docker-compose.yml            # Admin Console image
+├── docker/                                   # Dockerfiles, compose, build ignores
 └── pnpm-workspace.yaml                       # garage-admin-console/*, s3-browser/*, packages/*
 ```
 
@@ -86,16 +86,17 @@ Browser
 
 The contract surface that BOTH BFFs implement:
 
-| Method + path (relative to bucket scope) | Body / query                                                                | Response                                                                       |
-| ---------------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `GET /list`                              | `?prefix=&delimiter=/&continuationToken=&maxKeys=`                          | `{ objects: S3Object[]; prefixes: string[]; nextContinuationToken? }`          |
-| `GET /object`                            | `?key=`                                                                     | `S3Object` (HEAD-equivalent metadata)                                          |
-| `POST /presign`                          | `{ key, operation: 'getObject' \| 'putObject', expiresIn }`                 | `{ url, expiresAt }`                                                           |
-| `POST /upload`                           | `multipart/form-data` (one+ files, optional `prefix`)                       | `{ uploaded: { key, etag, size }[] }`                                          |
-| `DELETE /objects`                        | `{ keys: string[] }`                                                        | `{ deleted: string[]; errors: { key, message }[] }`                            |
-| `POST /copy`                             | `{ src, dst }`                                                              | `{ etag }`                                                                     |
+| Method + path (relative to bucket scope) | Body / query                                                | Response                                                              |
+| ---------------------------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------- |
+| `GET /list`                              | `?prefix=&delimiter=/&continuationToken=&maxKeys=`          | `{ objects: S3Object[]; prefixes: string[]; nextContinuationToken? }` |
+| `GET /object`                            | `?key=`                                                     | `S3Object` (HEAD-equivalent metadata)                                 |
+| `POST /presign`                          | `{ key, operation: 'getObject' \| 'putObject', expiresIn }` | `{ url, expiresAt }`                                                  |
+| `POST /upload`                           | `multipart/form-data` (one+ files, optional `prefix`)       | `{ uploaded: { key, etag, size }[] }`                                 |
+| `DELETE /objects`                        | `{ keys: string[] }`                                        | `{ deleted: string[]; errors: { key, message }[] }`                   |
+| `POST /copy`                             | `{ src, dst }`                                              | `{ etag }`                                                            |
 
 Scope prefix:
+
 - Admin BFF: `/api/clusters/:clusterId/buckets/:bucket/...`
 - S3 Browser BFF: `/api/connections/:connId/buckets/:bucket/...`
 
@@ -105,33 +106,33 @@ Conformance suite at `packages/bucket-api-contract-tests/` runs against EITHER p
 
 Admin BFF — registered in [`garage-admin-console/api/src/app.ts`](garage-admin-console/api/src/app.ts):
 
-| Route                                                          | Auth | Purpose                                                            |
-| -------------------------------------------------------------- | ---- | ------------------------------------------------------------------ |
-| `POST /api/auth/login`                                         | No   | Returns JWT                                                        |
-| `GET  /api/health`                                             | No   | Health check                                                       |
-| `GET/POST /api/clusters`                                       | JWT  | List / add clusters (tokens excluded from list)                    |
-| `PUT/DELETE /api/clusters/:id`                                 | JWT  | Update / remove cluster                                            |
-| `ALL  /api/proxy/:clusterId/*splat`                            | JWT  | Pass-through to Garage admin API                                   |
-| `* /api/clusters/:clusterId/buckets/:bucket/*` (Bucket API)    | JWT  | §2.4 contract — list, object, presign, upload, objects, copy       |
+| Route                                                       | Auth | Purpose                                                      |
+| ----------------------------------------------------------- | ---- | ------------------------------------------------------------ |
+| `POST /api/auth/login`                                      | No   | Returns JWT                                                  |
+| `GET  /api/health`                                          | No   | Health check                                                 |
+| `GET/POST /api/clusters`                                    | JWT  | List / add clusters (tokens excluded from list)              |
+| `PUT/DELETE /api/clusters/:id`                              | JWT  | Update / remove cluster                                      |
+| `ALL  /api/proxy/:clusterId/*splat`                         | JWT  | Pass-through to Garage admin API                             |
+| `* /api/clusters/:clusterId/buckets/:bucket/*` (Bucket API) | JWT  | §2.4 contract — list, object, presign, upload, objects, copy |
 
 S3 Browser BFF — registered in [`s3-browser/api/src/app.ts`](s3-browser/api/src/app.ts):
 
-| Route                                                          | Auth | Purpose                                                            |
-| -------------------------------------------------------------- | ---- | ------------------------------------------------------------------ |
-| `POST /api/auth/login`                                         | No   | Returns JWT                                                        |
-| `GET  /api/health`                                             | No   | Health check                                                       |
-| `GET/POST/PUT/DELETE /api/connections[/:id]`                   | JWT  | CRUD S3 connections                                                |
-| `GET  /api/connections/:connId/buckets`                        | JWT  | S3 ListBuckets (helper; not in §2.4)                               |
-| `* /api/connections/:connId/buckets/:bucket/*` (Bucket API)    | JWT  | §2.4 contract                                                      |
+| Route                                                       | Auth | Purpose                              |
+| ----------------------------------------------------------- | ---- | ------------------------------------ |
+| `POST /api/auth/login`                                      | No   | Returns JWT                          |
+| `GET  /api/health`                                          | No   | Health check                         |
+| `GET/POST/PUT/DELETE /api/connections[/:id]`                | JWT  | CRUD S3 connections                  |
+| `GET  /api/connections/:connId/buckets`                     | JWT  | S3 ListBuckets (helper; not in §2.4) |
+| `* /api/connections/:connId/buckets/:bucket/*` (Bucket API) | JWT  | §2.4 contract                        |
 
 ### Module Federation surface
 
 `s3-browser/web` (Rsbuild + `@module-federation/rsbuild-plugin`) exposes:
 
-| Key             | Source                                                                          | Wrapper                |
-| --------------- | ------------------------------------------------------------------------------- | ---------------------- |
-| `./FileBrowser` | `s3-browser/web/src/export-file-browser.tsx`                                    | none — plain React     |
-| `./export-app`  | `s3-browser/web/src/export-app.tsx`                                             | `createBridgeComponent` |
+| Key             | Source                                       | Wrapper                 |
+| --------------- | -------------------------------------------- | ----------------------- |
+| `./FileBrowser` | `s3-browser/web/src/export-file-browser.tsx` | none — plain React      |
+| `./export-app`  | `s3-browser/web/src/export-app.tsx`          | `createBridgeComponent` |
 
 `garage-admin-console/web` is the Host. It deliberately does NOT use `@module-federation/vite` — that plugin's build-time share registration races the Rsbuild-built remote's `consume_default_react` wrapper and trips React 19's "Invalid hook call" two-copies guard. Instead the host owns federation via `@module-federation/runtime`:
 
@@ -192,11 +193,13 @@ Within each module the same drill-down applies — list pages stay information-l
 ## Key Files
 
 **Shared / contract**:
+
 - [`designs/mf-integration-plan.md`](designs/mf-integration-plan.md) — frozen architectural contract
 - [`packages/bucket-api-contract-tests/src/contract.test.ts`](packages/bucket-api-contract-tests/src/contract.test.ts) — §2.4 conformance suite
 - [`packages/ui/src/index.ts`](packages/ui/src/index.ts) / [`packages/tokens/src/style.css`](packages/tokens/src/style.css)
 
 **Admin BFF**:
+
 - `garage-admin-console/web/public/garage-admin-v2.json` — Garage OpenAPI spec
 - [`garage-admin-console/api/src/app.ts`](garage-admin-console/api/src/app.ts) — Express setup, route mounting (multipart-aware JSON parser)
 - [`garage-admin-console/api/src/encryption.ts`](garage-admin-console/api/src/encryption.ts) — AES-256-GCM (mirrored in s3-browser/api)
@@ -207,6 +210,7 @@ Within each module the same drill-down applies — list pages stay information-l
 - [`garage-admin-console/api/src/db/{index,schema,migrate}.ts`](garage-admin-console/api/src/db/schema.ts)
 
 **Admin web**:
+
 - [`garage-admin-console/web/src/mf-init.ts`](garage-admin-console/web/src/mf-init.ts) — explicit MF runtime init
 - [`garage-admin-console/web/src/components/cluster/BucketObjectBrowser.tsx`](garage-admin-console/web/src/components/cluster/BucketObjectBrowser.tsx) — embedded FileBrowser wrapper
 - [`garage-admin-console/web/src/lib/api.ts`](garage-admin-console/web/src/lib/api.ts) — axios + `proxyPath()` helper
@@ -214,20 +218,22 @@ Within each module the same drill-down applies — list pages stay information-l
 - [`garage-admin-console/web/src/types/s3-browser.d.ts`](garage-admin-console/web/src/types/s3-browser.d.ts) — `FileBrowserProps` shim for tsc
 
 **S3 Browser BFF**:
+
 - [`s3-browser/api/src/app.ts`](s3-browser/api/src/app.ts)
 - [`s3-browser/api/src/lib/s3-client.ts`](s3-browser/api/src/lib/s3-client.ts) — builds `@aws-sdk/client-s3` from a stored Connection
 - [`s3-browser/api/src/routes/buckets.ts`](s3-browser/api/src/routes/buckets.ts) — §2.4 handlers
 
 **S3 Browser web**:
+
 - [`s3-browser/web/rsbuild.config.ts`](s3-browser/web/rsbuild.config.ts) — MF Remote config, build-time `dts`, `bridge.enableBridgeRouter: false`
 - [`s3-browser/web/src/features/file-browser/FileBrowser.tsx`](s3-browser/web/src/features/file-browser/FileBrowser.tsx) — the federated primary surface
 - [`s3-browser/web/src/{export-app,export-file-browser}.tsx`](s3-browser/web/src/export-file-browser.tsx) — MF entry points
 
 ## Docker
 
-The bundled `Dockerfile` + `docker-compose.yml` build the **Admin Console only** (Express serves both API and the Vite-built SPA from one image). The Admin image works standalone — the BucketObjectBrowser surfaces a friendly fallback when `VITE_S3_BROWSER_MF_URL` is unreachable or the cluster has no `s3Endpoint` configured.
+Docker files live under `docker/`. `docker/garage-admin-console.Dockerfile` builds the **Admin Console** image (Express serves both API and the Vite-built SPA from one image). `docker/s3-browser.Dockerfile` builds one **S3 Browser** product image that can run standalone or in `S3_BROWSER_STATIC_ONLY=true` mode as the Admin-embedded MF remote. `docker/docker-compose.yml` demonstrates the combined deployment with only the Admin port published.
 
-Per-app images for S3 Browser are not yet shipped. When they are, each app will get its own `Dockerfile`. Key production env vars on the Admin image: `JWT_SECRET`, `ENCRYPTION_KEY`, `ADMIN_PASSWORD`, `DATA_DIR` (default `/data`), `STATIC_DIR` (default `/app/static`), and optionally `VITE_S3_BROWSER_MF_URL` baked at build time.
+Key production env vars on the Admin image: `JWT_SECRET`, `ENCRYPTION_KEY`, `ADMIN_PASSWORD`, `DATA_DIR` (default `/data`), `STATIC_DIR` (default `/app/static`), and optionally runtime `S3_BROWSER_MF_URL` plus `S3_BROWSER_MF_PROXY_TARGET` for combined deployments.
 
 ## Environment Variables
 

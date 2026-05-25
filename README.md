@@ -51,7 +51,11 @@ garage-admin-console/
 
 ## Quick Start (Docker)
 
-The shipped Docker image bundles **the Admin Console** (api + frontend in one container). S3 Browser is not yet dockerized — the embedded object browser inside Admin gracefully shows a fallback if the remote is unavailable, so Admin works standalone too.
+Docker deployment is intentionally composable:
+
+- **Admin-only**: run the Admin Console image by itself. Bucket pages keep working and show a fallback if the S3 Browser remote is unavailable.
+- **Standalone S3 Browser**: run the S3 Browser image by itself. It serves its own API, SPA, and MF remote.
+- **Embedded combined deployment**: run both product images. Admin receives `S3_BROWSER_MF_URL` at runtime and proxies `/s3-browser/*` to the S3 Browser container, so only the Admin port needs to be published.
 
 ### Using Docker Compose
 
@@ -59,26 +63,31 @@ The shipped Docker image bundles **the Admin Console** (api + frontend in one co
 git clone https://github.com/eyebrowkang/garage-admin-console.git
 cd garage-admin-console
 
-# Edit docker-compose.yml — change the three required environment variables
-docker compose up -d
+cp docker/.env.compose.example docker/.env
+# Edit docker/.env — change every secret before starting
+docker compose -f docker/docker-compose.yml --env-file docker/.env up -d --build
 ```
 
-The console is available at **http://localhost:3001**.
+With the default compose profile from `docker/.env.compose.example`, Admin is available at **http://localhost:3001** and proxies the S3 Browser remote at **http://localhost:3001/s3-browser/mf-manifest.json**. The S3 Browser container stays internal to the Compose network.
 
-See `docker-compose.yml` for all available options. At minimum you must set:
+See `docker/docker-compose.yml` and `docker/.env.compose.example` for all available options. At minimum you must set:
 
-| Variable         | Description                                  |
-| ---------------- | -------------------------------------------- |
-| `JWT_SECRET`     | Random string for JWT signing                |
-| `ENCRYPTION_KEY` | Exactly 32 characters for AES-256 encryption |
-| `ADMIN_PASSWORD` | Console login password                       |
+| Variable                      | Description                                     |
+| ----------------------------- | ----------------------------------------------- |
+| `GARAGE_ADMIN_JWT_SECRET`     | Random string for Admin JWT signing             |
+| `GARAGE_ADMIN_ENCRYPTION_KEY` | Exactly 32 characters for Admin AES-256 storage |
+| `GARAGE_ADMIN_PASSWORD`       | Admin Console login password                    |
+| `S3_BROWSER_MF_URL`           | Browser-visible URL to the S3 Browser manifest  |
+| `S3_BROWSER_MF_PROXY_TARGET`  | Compose-internal S3 Browser URL for Admin proxy |
 
-Data is persisted in the `/data` volume (SQLite database).
+Set `COMPOSE_PROFILES=` for Admin-only deployment. With `COMPOSE_PROFILES=s3-browser`, the S3 Browser image runs in `S3_BROWSER_STATIC_ONLY=true` mode and only serves the MF/static assets used by Admin. To run S3 Browser as a standalone product, use the same image without `S3_BROWSER_STATIC_ONLY` and provide its own secrets.
+
+Data is persisted in named Docker volumes (SQLite databases).
 
 ### Using Docker Run
 
 ```bash
-docker build -t garage-admin-console .
+docker build -f docker/garage-admin-console.Dockerfile -t garage-admin-console .
 
 docker run -d \
   -p 3001:3001 \
@@ -87,6 +96,20 @@ docker run -d \
   -e ENCRYPTION_KEY=change-me-exactly-32-characters! \
   -e ADMIN_PASSWORD=change-me-admin-password \
   garage-admin-console
+```
+
+Standalone S3 Browser uses one image too:
+
+```bash
+docker build -f docker/s3-browser.Dockerfile -t s3-browser .
+
+docker run -d \
+  -p 3002:3002 \
+  -v s3-browser-data:/data \
+  -e JWT_SECRET=change-me-to-a-random-string \
+  -e ENCRYPTION_KEY=change-me-exactly-32-characters! \
+  -e ADMIN_PASSWORD=change-me-admin-password \
+  s3-browser
 ```
 
 ## Development Setup
@@ -158,7 +181,7 @@ pnpm -C s3-browser/web build                # (optional) S3 Browser web (emits M
 pnpm -C garage-admin-console/api start
 ```
 
-Serve `garage-admin-console/web/dist/` with your preferred web server and configure reverse proxy for `/api/*` routes to the Admin BFF. If you also deploy S3 Browser, point `VITE_S3_BROWSER_MF_URL` at its hosted `mf-manifest.json` before the Admin web build.
+Serve `garage-admin-console/web/dist/` with your preferred web server and configure reverse proxy for `/api/*` routes to the Admin BFF. If the Admin BFF serves the built SPA, set `S3_BROWSER_MF_URL` at runtime. If you statically host the SPA elsewhere, set `VITE_S3_BROWSER_MF_URL` before the Admin web build.
 
 ## Architecture
 
@@ -184,17 +207,17 @@ Browser → Admin Web ──→ Admin BFF ──→ Garage Cluster Admin API
 
 ## Scripts
 
-| Command                                                       | Description                                        |
-| ------------------------------------------------------------- | -------------------------------------------------- |
-| `pnpm dev`                                                    | Start Admin api + web (parallel)                   |
-| `pnpm -C s3-browser/api dev` / `pnpm -C s3-browser/web dev`   | Start S3 Browser BFF / web                         |
-| `pnpm build`                                                  | Build shared packages + Admin api + web            |
-| `pnpm lint` / `pnpm format`                                   | Lint / format Admin packages                       |
-| `pnpm test`                                                   | Vitest for Admin api + web                         |
-| `pnpm -C packages/bucket-api-contract-tests test:run`         | §2.4 conformance suite (env-gated, skips offline)  |
-| `npx playwright test`                                         | Admin Console E2E tests                            |
-| `pnpm -C garage-admin-console/api db:push`                    | Apply Admin schema                                 |
-| `pnpm -C garage-admin-console/api db:studio`                  | Open Drizzle Studio for Admin DB                   |
+| Command                                                     | Description                                       |
+| ----------------------------------------------------------- | ------------------------------------------------- |
+| `pnpm dev`                                                  | Start Admin api + web (parallel)                  |
+| `pnpm -C s3-browser/api dev` / `pnpm -C s3-browser/web dev` | Start S3 Browser BFF / web                        |
+| `pnpm build`                                                | Build shared packages + Admin api + web           |
+| `pnpm lint` / `pnpm format`                                 | Lint / format Admin packages                      |
+| `pnpm test`                                                 | Vitest for Admin api + web                        |
+| `pnpm -C packages/bucket-api-contract-tests test:run`       | §2.4 conformance suite (env-gated, skips offline) |
+| `npx playwright test`                                       | Admin Console E2E tests                           |
+| `pnpm -C garage-admin-console/api db:push`                  | Apply Admin schema                                |
+| `pnpm -C garage-admin-console/api db:studio`                | Open Drizzle Studio for Admin DB                  |
 
 ## Security Notes
 

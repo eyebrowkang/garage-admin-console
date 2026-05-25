@@ -108,22 +108,22 @@ pnpm -C s3-browser/web dev     # web :5174, exposes /mf-manifest.json
 
 #### Admin BFF (`garage-admin-console/api/.env`)
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `JWT_SECRET` | Yes | Secret for JWT signing (random 32+ char string) |
-| `ENCRYPTION_KEY` | Yes | AES-256 key (exactly 32 bytes) |
-| `ADMIN_PASSWORD` | Yes | Console login password |
-| `PORT` | No | API server port (default: `3001`) |
-| `LOG_LEVEL` | No | `fatal` / `error` / `warn` / `info` / `debug` / `trace` / `silent` (default: `info`) |
-| `MORGAN_FORMAT` | No | HTTP log format for morgan, or `off` to disable |
+| Variable         | Required | Description                                                                          |
+| ---------------- | -------- | ------------------------------------------------------------------------------------ |
+| `JWT_SECRET`     | Yes      | Secret for JWT signing (random 32+ char string)                                      |
+| `ENCRYPTION_KEY` | Yes      | AES-256 key (exactly 32 bytes)                                                       |
+| `ADMIN_PASSWORD` | Yes      | Console login password                                                               |
+| `PORT`           | No       | API server port (default: `3001`)                                                    |
+| `LOG_LEVEL`      | No       | `fatal` / `error` / `warn` / `info` / `debug` / `trace` / `silent` (default: `info`) |
+| `MORGAN_FORMAT`  | No       | HTTP log format for morgan, or `off` to disable                                      |
 
 Validation: `garage-admin-console/api/src/config/env.ts`. Database lives at `garage-admin-console/api/data.db` in dev, or `$DATA_DIR/data.db` (`/data` by default) in Docker.
 
 #### Admin web (`garage-admin-console/web/.env`)
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `VITE_S3_BROWSER_MF_URL` | No | URL of the s3-browser/web MF manifest. In development, defaults to the current browser hostname on port `5174`; set it explicitly at build time for production. If unset / unreachable, the embedded BucketObjectBrowser shows a friendly fallback. |
+| Variable                 | Required | Description                                                                                                                                                                                                                                         |
+| ------------------------ | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `VITE_S3_BROWSER_MF_URL` | No       | URL of the s3-browser/web MF manifest. In development, defaults to the current browser hostname on port `5174`; set it explicitly at build time for production. If unset / unreachable, the embedded BucketObjectBrowser shows a friendly fallback. |
 
 #### S3 Browser BFF (`s3-browser/api/.env`)
 
@@ -249,7 +249,7 @@ garage-admin-console/                              # monorepo root
 │   ├── auth.spec.ts, cluster.spec.ts, buckets.spec.ts, keys.spec.ts
 │
 ├── screenshots/                                  # rendered Admin Console screenshots
-├── Dockerfile, docker-compose.yml                # Admin Console image (S3 Browser not yet)
+├── docker/                                       # Dockerfiles, compose, build ignores
 ├── playwright.config.ts
 ├── package.json, pnpm-workspace.yaml
 └── README.md, README_zh.md, AGENTS.md, CONTRIBUTING.md, DEVELOPMENT.md, CHANGELOG.md
@@ -263,18 +263,19 @@ garage-admin-console/                              # monorepo root
 
 Registered in [`src/app.ts`](garage-admin-console/api/src/app.ts):
 
-| Endpoint                                                              | Method | Auth | Description                                              |
-|-----------------------------------------------------------------------|--------|------|----------------------------------------------------------|
-| `/api/auth/login`                                                     | POST   | No   | Authenticate and receive JWT                             |
-| `/api/health`                                                         | GET    | No   | Health check                                             |
-| `/api/clusters`                                                       | GET    | JWT  | List clusters (tokens excluded)                          |
-| `/api/clusters`                                                       | POST   | JWT  | Add a cluster                                            |
-| `/api/clusters/:id`                                                   | PUT    | JWT  | Update a cluster                                         |
-| `/api/clusters/:id`                                                   | DELETE | JWT  | Remove a cluster                                         |
-| `/api/proxy/:clusterId/*splat`                                        | ALL    | JWT  | Pass-through to Garage Admin API                         |
-| `/api/clusters/:clusterId/buckets/:bucket/{list,object,presign,upload,objects,copy}` | various | JWT | [Bucket Backend API](#bucket-backend-api) §2.4 |
+| Endpoint                                                                             | Method  | Auth | Description                                    |
+| ------------------------------------------------------------------------------------ | ------- | ---- | ---------------------------------------------- |
+| `/api/auth/login`                                                                    | POST    | No   | Authenticate and receive JWT                   |
+| `/api/health`                                                                        | GET     | No   | Health check                                   |
+| `/api/clusters`                                                                      | GET     | JWT  | List clusters (tokens excluded)                |
+| `/api/clusters`                                                                      | POST    | JWT  | Add a cluster                                  |
+| `/api/clusters/:id`                                                                  | PUT     | JWT  | Update a cluster                               |
+| `/api/clusters/:id`                                                                  | DELETE  | JWT  | Remove a cluster                               |
+| `/api/proxy/:clusterId/*splat`                                                       | ALL     | JWT  | Pass-through to Garage Admin API               |
+| `/api/clusters/:clusterId/buckets/:bucket/{list,object,presign,upload,objects,copy}` | various | JWT  | [Bucket Backend API](#bucket-backend-api) §2.4 |
 
 Notes:
+
 - The JSON body parser skips `multipart/form-data` so busboy can stream uploads.
 - Bucket-API requests mint or reuse a cached per-(cluster, bucket) S3 keypair before signing the S3 call.
 
@@ -288,6 +289,7 @@ Defined in [`src/db/schema.ts`](garage-admin-console/api/src/db/schema.ts) using
 The `s3*` columns are nullable. Clusters without them keep working everywhere except the embedded BucketObjectBrowser, which shows a "configure s3Endpoint" panel.
 
 Migrations:
+
 - `0000_init.sql` — initial schema
 - `0001_curious_purple_man.sql` — adds the three `s3*` columns
 
@@ -334,19 +336,19 @@ Defined in [`src/App.tsx`](garage-admin-console/web/src/App.tsx) (React Router v
 - **Layouts** (`src/layouts/`): `MainLayout` (top bar + Sign Out) and `ClusterLayout` (sticky cluster sidebar with module nav, mobile pill nav, badge counts).
 - **Reusable cluster components** (`src/components/cluster/`):
 
-| Component | Purpose |
-|-----------|---------|
-| `BucketObjectBrowser.tsx` | **Phase 3 embed** — `mfInstance.loadRemote('s3Browser/FileBrowser')` + ErrorBoundary + s3Endpoint gating |
-| `ConfirmDialog.tsx` | 3-tier confirmation dialog (simple / danger / type-to-confirm) |
-| `ModulePageHeader.tsx` | Consistent page header for module list pages |
-| `DetailPageHeader.tsx` | Page header for detail pages with back navigation |
-| `SecretReveal.tsx` | One-time secret display |
-| `NodeSelector.tsx` | Node selection dropdown |
-| `JsonViewer.tsx` | JSON display component |
-| `CopyButton.tsx` | Click-to-copy button |
-| `AliasMiniChip.tsx` | Compact alias badge |
-| `PageLoadingState.tsx` / `InlineLoadingState.tsx` / `TableLoadingState.tsx` | Loading states |
-| `TableEmptyState.tsx` | Empty state for tables |
+| Component                                                                   | Purpose                                                                                                  |
+| --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `BucketObjectBrowser.tsx`                                                   | **Phase 3 embed** — `mfInstance.loadRemote('s3Browser/FileBrowser')` + ErrorBoundary + s3Endpoint gating |
+| `ConfirmDialog.tsx`                                                         | 3-tier confirmation dialog (simple / danger / type-to-confirm)                                           |
+| `ModulePageHeader.tsx`                                                      | Consistent page header for module list pages                                                             |
+| `DetailPageHeader.tsx`                                                      | Page header for detail pages with back navigation                                                        |
+| `SecretReveal.tsx`                                                          | One-time secret display                                                                                  |
+| `NodeSelector.tsx`                                                          | Node selection dropdown                                                                                  |
+| `JsonViewer.tsx`                                                            | JSON display component                                                                                   |
+| `CopyButton.tsx`                                                            | Click-to-copy button                                                                                     |
+| `AliasMiniChip.tsx`                                                         | Compact alias badge                                                                                      |
+| `PageLoadingState.tsx` / `InlineLoadingState.tsx` / `TableLoadingState.tsx` | Loading states                                                                                           |
+| `TableEmptyState.tsx`                                                       | Empty state for tables                                                                                   |
 
 - **Dashboard components** (`src/components/dashboard/`): `ClusterStatusMonitor.tsx` and friends.
 - **UI primitives** come from `@garage/ui` (not from `web/src/components/ui/`). The Admin Console's host stylesheet imports tokens + UI CSS + Tailwind in that order.
@@ -355,15 +357,15 @@ Defined in [`src/App.tsx`](garage-admin-console/web/src/App.tsx) (React Router v
 
 In `src/hooks/`:
 
-| Hook | Purpose |
-|------|---------|
-| `useClusters` | Cluster CRUD |
-| `useBuckets` | Bucket operations |
-| `useKeys` | Access key operations |
-| `useNodes` | Node info + cluster status queries |
-| `useBlocks` | Block error management |
-| `useWorkers` | Worker management |
-| `useAdminTokens` | Admin token CRUD |
+| Hook             | Purpose                                   |
+| ---------------- | ----------------------------------------- |
+| `useClusters`    | Cluster CRUD                              |
+| `useBuckets`     | Bucket operations                         |
+| `useKeys`        | Access key operations                     |
+| `useNodes`       | Node info + cluster status queries        |
+| `useBlocks`      | Block error management                    |
+| `useWorkers`     | Worker management                         |
+| `useAdminTokens` | Admin token CRUD                          |
 | `usePermissions` | Bucket-key permission grants (allow/deny) |
 
 ### API client
@@ -389,14 +391,14 @@ This package is the **MF Host** for the federated `FileBrowser`. The vite federa
 
 Registered in [`src/app.ts`](s3-browser/api/src/app.ts):
 
-| Endpoint                                                               | Method | Auth | Description                                          |
-|------------------------------------------------------------------------|--------|------|------------------------------------------------------|
-| `/api/auth/login`                                                      | POST   | No   | Authenticate and receive JWT                         |
-| `/api/health`                                                          | GET    | No   | Health check                                         |
-| `/api/connections`                                                     | GET/POST | JWT | CRUD list/create connections (creds excluded from list) |
-| `/api/connections/:id`                                                 | PUT/DELETE | JWT | Update / delete a connection                        |
-| `/api/connections/:connId/buckets`                                     | GET    | JWT  | S3 `ListBuckets` (helper; not in §2.4)               |
-| `/api/connections/:connId/buckets/:bucket/{list,object,presign,upload,objects,copy}` | various | JWT | [Bucket Backend API](#bucket-backend-api) §2.4 |
+| Endpoint                                                                             | Method     | Auth | Description                                             |
+| ------------------------------------------------------------------------------------ | ---------- | ---- | ------------------------------------------------------- |
+| `/api/auth/login`                                                                    | POST       | No   | Authenticate and receive JWT                            |
+| `/api/health`                                                                        | GET        | No   | Health check                                            |
+| `/api/connections`                                                                   | GET/POST   | JWT  | CRUD list/create connections (creds excluded from list) |
+| `/api/connections/:id`                                                               | PUT/DELETE | JWT  | Update / delete a connection                            |
+| `/api/connections/:connId/buckets`                                                   | GET        | JWT  | S3 `ListBuckets` (helper; not in §2.4)                  |
+| `/api/connections/:connId/buckets/:bucket/{list,object,presign,upload,objects,copy}` | various    | JWT  | [Bucket Backend API](#bucket-backend-api) §2.4          |
 
 ### Database schema
 
@@ -430,6 +432,7 @@ The standalone shell ([`App.tsx`](s3-browser/web/src/App.tsx), [`features/home`]
 [`src/features/file-browser/FileBrowser.tsx`](s3-browser/web/src/features/file-browser/FileBrowser.tsx) is the primary federated surface. It speaks only to the Bucket Backend API via axios — **no `@aws-sdk/*` imports anywhere in the frontend**.
 
 Hard rules (per `designs/mf-integration-plan.md` §2.5):
+
 - `path` is parent-controlled (`path: string[]` + `onPathChange`). No internal router.
 - Credentials come from `props.backend.{baseUrl, authToken}`. Not from `localStorage`, `window`, or env vars.
 - Owns its own `QueryClient` so it's independent of any host's TanStack Query.
@@ -460,6 +463,7 @@ Dev server runs on `:5174`, exposes `/mf-manifest.json` and `/remoteEntry.js`. F
 ### `@garage/tokens`
 
 Framework-agnostic design tokens:
+
 - [`src/style.css`](packages/tokens/src/style.css) — CSS variables (palette, radii, semantic colors) used by both web apps' `index.css`
 - [`src/index.ts`](packages/tokens/src/index.ts) — same palette as TS constants for JS-driven theming
 
@@ -552,19 +556,20 @@ If the remote is unreachable or the cluster has no `s3Endpoint` configured, Buck
 The contract that both BFFs implement. Frozen in `designs/mf-integration-plan.md` §2.4.
 
 **Scope prefix** (relative to BFF base URL):
+
 - Admin: `/api/clusters/:clusterId/buckets/:bucket/...`
 - S3 Browser: `/api/connections/:connId/buckets/:bucket/...`
 
 **Routes** (relative to scope):
 
-| Method | Path | Body / query | Response |
-|--------|------|---------------|----------|
-| GET | `/list` | `?prefix=&delimiter=/&continuationToken=&maxKeys=` | `{ objects: S3Object[]; prefixes: string[]; nextContinuationToken? }` |
-| GET | `/object` | `?key=` | `S3Object` (HEAD-equivalent) |
-| POST | `/presign` | `{ key, operation: 'getObject'\|'putObject', expiresIn }` | `{ url, expiresAt }` |
-| POST | `/upload` | `multipart/form-data` (one+ files, optional `prefix`) | `{ uploaded: { key, etag, size }[] }` |
-| DELETE | `/objects` | `{ keys: string[] }` | `{ deleted: string[]; errors: { key, message }[] }` |
-| POST | `/copy` | `{ src, dst }` | `{ etag }` |
+| Method | Path       | Body / query                                              | Response                                                              |
+| ------ | ---------- | --------------------------------------------------------- | --------------------------------------------------------------------- |
+| GET    | `/list`    | `?prefix=&delimiter=/&continuationToken=&maxKeys=`        | `{ objects: S3Object[]; prefixes: string[]; nextContinuationToken? }` |
+| GET    | `/object`  | `?key=`                                                   | `S3Object` (HEAD-equivalent)                                          |
+| POST   | `/presign` | `{ key, operation: 'getObject'\|'putObject', expiresIn }` | `{ url, expiresAt }`                                                  |
+| POST   | `/upload`  | `multipart/form-data` (one+ files, optional `prefix`)     | `{ uploaded: { key, etag, size }[] }`                                 |
+| DELETE | `/objects` | `{ keys: string[] }`                                      | `{ deleted: string[]; errors: { key, message }[] }`                   |
+| POST   | `/copy`    | `{ src, dst }`                                            | `{ etag }`                                                            |
 
 All routes require `Authorization: Bearer <jwt>`. Error envelope is `{ error: string | Issue[] }` (Zod issues for validation errors).
 
@@ -732,40 +737,44 @@ Add it under `packages/ui/src/components/`, export from `packages/ui/src/index.t
 
 ### How it works
 
-The `Dockerfile` builds the **Admin Console only** as a single image. Multi-stage:
+`docker/garage-admin-console.Dockerfile` builds the **Admin Console only** as a single image. Multi-stage:
 
 1. **Build stage** (`node:24-alpine`) — installs deps with frozen lockfile, builds `@garage/tokens` and `@garage/ui` (the web app consumes their pre-compiled outputs), then compiles the Admin API and Vite frontend. Uses `pnpm deploy --legacy /deploy` to produce a standalone API directory with production-only `node_modules`.
 2. **Production stage** (`node:24-alpine`) — copies the deployed API, Drizzle migration files, and the built frontend (`/app/static/`).
 
 The Express server serves the SPA from `/app/static/` with SPA fallback. Migrations run automatically on startup. All API routes live under `/api`, matching the frontend's default `VITE_API_BASE_URL=/api`, which avoids collisions with client-side routes.
 
-The image works standalone — the BucketObjectBrowser surfaces a friendly fallback when `VITE_S3_BROWSER_MF_URL` is unset/unreachable. If you want the embedded browser in production, set `VITE_S3_BROWSER_MF_URL` at Docker build time (it's a Vite env var, baked into the bundle).
+The image works standalone — the BucketObjectBrowser surfaces a friendly fallback when no S3 Browser remote is configured. For combined deployments, set `S3_BROWSER_MF_URL` at runtime; when using the bundled Compose file, Admin also proxies `/s3-browser/*` to the internal S3 Browser container through `S3_BROWSER_MF_PROXY_TARGET`.
 
 ### Key files
 
-| File | Purpose |
-|------|---------|
-| `Dockerfile` | Multi-stage Admin image build |
-| `docker-compose.yml` | Example Compose configuration |
-| `.dockerignore` | Files excluded from build context |
+| File                                     | Purpose                                    |
+| ---------------------------------------- | ------------------------------------------ |
+| `docker/garage-admin-console.Dockerfile` | Multi-stage Admin image build              |
+| `docker/s3-browser.Dockerfile`           | Full S3 Browser image build                |
+| `docker/docker-compose.yml`              | Example Compose configuration              |
+| `docker/*.Dockerfile.dockerignore`       | Dockerfile-specific build-context excludes |
+| `docker/.env.compose.example`            | Example Compose environment file           |
 
 ### Building
 
 ```bash
-docker build -t garage-admin-console .
+docker build -f docker/garage-admin-console.Dockerfile -t garage-admin-console .
 ```
 
 ### Environment variables (production)
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `JWT_SECRET` | Yes | — | Secret for JWT signing |
-| `ENCRYPTION_KEY` | Yes | — | AES-256 key (exactly 32 characters) |
-| `ADMIN_PASSWORD` | Yes | — | Console login password |
-| `PORT` | No | `3001` | Server port |
-| `LOG_LEVEL` | No | `info` | Log level |
-| `DATA_DIR` | No | `/data` | Directory for SQLite database |
-| `STATIC_DIR` | No | `/app/static` | Directory for frontend files |
+| Variable                     | Required | Default       | Description                                         |
+| ---------------------------- | -------- | ------------- | --------------------------------------------------- |
+| `JWT_SECRET`                 | Yes      | —             | Secret for JWT signing                              |
+| `ENCRYPTION_KEY`             | Yes      | —             | AES-256 key (exactly 32 characters)                 |
+| `ADMIN_PASSWORD`             | Yes      | —             | Console login password                              |
+| `PORT`                       | No       | `3001`        | Server port                                         |
+| `LOG_LEVEL`                  | No       | `info`        | Log level                                           |
+| `DATA_DIR`                   | No       | `/data`       | Directory for SQLite database                       |
+| `STATIC_DIR`                 | No       | `/app/static` | Directory for frontend files                        |
+| `S3_BROWSER_MF_URL`          | No       | —             | Browser-visible MF manifest URL                     |
+| `S3_BROWSER_MF_PROXY_TARGET` | No       | —             | Internal upstream for Admin's `/s3-browser/*` proxy |
 
 ### Data persistence
 
@@ -776,7 +785,20 @@ volumes:
 
 ### S3 Browser images
 
-Not yet shipped. When added, each app will get its own `Dockerfile`. Until then, the S3 Browser side is dev-only or self-hosted from `s3-browser/web/dist/` with whichever static server you prefer.
+`docker/s3-browser.Dockerfile` builds one product image that can run either as the standalone S3 Browser product or as a static-only MF remote for Admin.
+
+```bash
+docker build -f docker/s3-browser.Dockerfile -t s3-browser .
+```
+
+Default mode starts the S3 Browser API, runs migrations, and serves the standalone SPA/MF remote. `S3_BROWSER_STATIC_ONLY=true` skips API env validation and database startup, serving only the built static frontend and MF manifest.
+
+The bundled combined deployment uses:
+
+```bash
+cp docker/.env.compose.example docker/.env
+docker compose -f docker/docker-compose.yml --env-file docker/.env up -d --build
+```
 
 ---
 
@@ -785,12 +807,14 @@ Not yet shipped. When added, each app will get its own `Dockerfile`. Until then,
 ### Common issues
 
 **pnpm install fails with native module errors**
+
 ```bash
 pnpm approve-builds
 pnpm install
 ```
 
 **Database connection errors**
+
 ```bash
 # Ensure data.db is readable/writable
 # Reset if corrupted (loses local state)
@@ -799,6 +823,7 @@ pnpm -C garage-admin-console/api db:push
 ```
 
 **Port already in use**
+
 ```bash
 lsof -ti:3001 | xargs kill -9   # Admin BFF
 lsof -ti:5173 | xargs kill -9   # Admin web
@@ -807,6 +832,7 @@ lsof -ti:5174 | xargs kill -9   # S3 Browser web
 ```
 
 **TypeScript errors after pulling changes**
+
 ```bash
 pnpm install
 pnpm -F @garage/ui build

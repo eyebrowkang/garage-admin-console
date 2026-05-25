@@ -49,7 +49,7 @@ export function App() {
   const activeConnection: Connection | null =
     view.kind === 'home'
       ? null
-      : connections.data?.find((c) => c.id === view.connectionId) ?? null;
+      : (connections.data?.find((c) => c.id === view.connectionId) ?? null);
 
   if (!authed) {
     return <LoginPage onAuthed={() => setAuthed(true)} />;
@@ -87,9 +87,7 @@ export function App() {
 
       <main className="w-full max-w-7xl mx-auto px-4 lg:px-8 py-5 sm:py-6 flex-1">
         {view.kind === 'home' && (
-          <HomePage
-            onOpenConnection={(id) => setView({ kind: 'connection', connectionId: id })}
-          />
+          <HomePage onOpenConnection={(id) => setView({ kind: 'connection', connectionId: id })} />
         )}
         {view.kind === 'connection' && activeConnection && (
           <ConnectionView
@@ -104,9 +102,7 @@ export function App() {
           <BucketView
             connection={activeConnection}
             bucket={view.bucket}
-            onBack={() =>
-              setView({ kind: 'connection', connectionId: activeConnection.id })
-            }
+            onBack={() => setView({ kind: 'connection', connectionId: activeConnection.id })}
           />
         )}
         {view.kind !== 'home' && !activeConnection && connections.isLoading && (

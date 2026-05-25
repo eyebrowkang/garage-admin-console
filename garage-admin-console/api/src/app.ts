@@ -61,8 +61,4 @@ app.use('/api/clusters', authenticateToken, clusterRouter);
 app.use('/api/proxy', authenticateToken, proxyRouter);
 // Bucket Backend API — §2.4. Mounted at /api/clusters/:clusterId/buckets/:bucket
 // (distinct from clusterRouter so the routers stay focused).
-app.use(
-  '/api/clusters/:clusterId/buckets/:bucket',
-  authenticateToken,
-  bucketRouter,
-);
+app.use('/api/clusters/:clusterId/buckets/:bucket', authenticateToken, bucketRouter);

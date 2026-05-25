@@ -7,15 +7,7 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Database, Folder, RefreshCw } from 'lucide-react';
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-  Badge,
-  Button,
-  Card,
-  CardContent,
-} from '@garage/ui';
+import { Alert, AlertDescription, AlertTitle, Badge, Button, Card, CardContent } from '@garage/ui';
 
 import { api } from '@/lib/api';
 import { connectionDisplayMeta, formatShortDate } from '@/lib/connection-display';
@@ -37,9 +29,7 @@ export function ConnectionView({
   const list = useQuery({
     queryKey: ['connection-buckets', connection.id],
     queryFn: async () => {
-      const res = await api.get<{ buckets: BucketInfo[] }>(
-        `/connections/${connection.id}/buckets`,
-      );
+      const res = await api.get<{ buckets: BucketInfo[] }>(`/connections/${connection.id}/buckets`);
       return res.data.buckets;
     },
   });

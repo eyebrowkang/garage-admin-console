@@ -167,9 +167,7 @@ router.get('/object', async (req, res) => {
   const ctx = await resolveContext(req, res);
   if (!ctx) return;
   try {
-    const head = await ctx.client.send(
-      new HeadObjectCommand({ Bucket: ctx.bucket, Key: key }),
-    );
+    const head = await ctx.client.send(new HeadObjectCommand({ Bucket: ctx.bucket, Key: key }));
     res.json(
       shapeObject({
         Key: key,
@@ -355,9 +353,7 @@ router.delete('/objects', async (req, res) => {
   if (!ctx) return;
   try {
     if (body.keys.length === 1) {
-      await ctx.client.send(
-        new DeleteObjectCommand({ Bucket: ctx.bucket, Key: body.keys[0]! }),
-      );
+      await ctx.client.send(new DeleteObjectCommand({ Bucket: ctx.bucket, Key: body.keys[0]! }));
       res.json({ deleted: [body.keys[0]!], errors: [] });
       return;
     }
