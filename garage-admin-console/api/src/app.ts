@@ -9,10 +9,11 @@ import db from './db/index.js';
 import clusterRouter from './routes/clusters.js';
 import authRouter from './routes/auth.js';
 import proxyRouter from './routes/proxy.js';
+import bucketRouter from './routes/buckets.js';
 import { authenticateToken } from './middleware/auth.middleware.js';
 
 export const app: Express = express();
-const ANSI_COLOR_PATTERN = new RegExp(String.raw`\u001B\[[0-9;]*m`, 'g');
+const ANSI_COLOR_PATTERN = new RegExp(String.raw`\[[0-9;]*m`, 'g');
 const stripAnsi = (value: string) => value.replace(ANSI_COLOR_PATTERN, '');
 
 if (env.httpLogFormat) {
@@ -30,9 +31,19 @@ if (env.httpLogFormat) {
   );
 }
 
-// The proxy needs to forward valid JSON primitives (e.g. top-level strings),
-// so use a non-strict JSON parser.
-app.use(express.json({ strict: false }));
+// JSON body parser. The proxy needs to forward valid JSON primitives (e.g.
+// top-level strings), so strict mode is off. Multipart uploads (the
+// embedded FileBrowser's POST /upload) need busboy to read the raw stream,
+// so skip JSON parsing for that content type.
+app.use(
+  express.json({
+    strict: false,
+    type: (req) => {
+      const contentType = req.headers['content-type'] ?? '';
+      return !contentType.toLowerCase().startsWith('multipart/form-data');
+    },
+  }),
+);
 
 // Public routes
 app.use('/api/auth', authRouter);
@@ -48,3 +59,10 @@ app.get('/api/health', async (_req, res) => {
 // Protected routes
 app.use('/api/clusters', authenticateToken, clusterRouter);
 app.use('/api/proxy', authenticateToken, proxyRouter);
+// Bucket Backend API — §2.4. Mounted at /api/clusters/:clusterId/buckets/:bucket
+// (distinct from clusterRouter so the routers stay focused).
+app.use(
+  '/api/clusters/:clusterId/buckets/:bucket',
+  authenticateToken,
+  bucketRouter,
+);

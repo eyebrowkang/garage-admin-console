@@ -13,11 +13,11 @@ const prefix = `contract-test/${runId}`;
 
 describe.skipIf(config === null)('Bucket Backend API §2.4 conformance', () => {
   let client: BucketApiClient;
-  let ownedConnection = false;
+  let ownedOwner = false;
 
   beforeAll(async () => {
     if (!config) return;
-    ownedConnection = config.connectionId === null;
+    ownedOwner = config.ownerId === null;
     client = await BucketApiClient.create(config);
   });
 
@@ -31,7 +31,7 @@ describe.skipIf(config === null)('Bucket Backend API §2.4 conformance', () => {
     } catch {
       // ignore cleanup errors
     }
-    await client.dispose({ ownedConnection });
+    await client.dispose({ ownedOwner });
   });
 
   it('GET /list returns the contract envelope on an empty prefix', async () => {

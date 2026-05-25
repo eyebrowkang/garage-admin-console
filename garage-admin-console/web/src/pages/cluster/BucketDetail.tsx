@@ -46,6 +46,7 @@ import { useAllowBucketKey, useDenyBucketKey } from '@/hooks/usePermissions';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { CopyButton } from '@/components/cluster/CopyButton';
 import { DetailPageHeader } from '@/components/cluster/DetailPageHeader';
+import { BucketObjectBrowser } from '@/components/cluster/BucketObjectBrowser';
 import { JsonViewer } from '@/components/cluster/JsonViewer';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
 import { DeleteActionIcon } from '@/lib/action-icons';
@@ -56,7 +57,7 @@ import { toast } from '@/hooks/use-toast';
 
 export function BucketDetail() {
   const { bid } = useParams<{ bid: string }>();
-  const { clusterId } = useClusterContext();
+  const { clusterId, cluster } = useClusterContext();
 
   const [aliasDialogOpen, setAliasDialogOpen] = useState(false);
   const [aliasType, setAliasType] = useState<'global' | 'local'>('global');
@@ -313,6 +314,16 @@ export function BucketDetail() {
         title={bucket.globalAliases[0] || `${bucket.id.slice(0, 12)}...`}
         subtitle={bucket.id}
       />
+
+      {/* Embedded S3 Browser — federated remote, see designs/mf-integration-plan.md §2 */}
+      {bucket.globalAliases[0] && (
+        <BucketObjectBrowser
+          clusterId={clusterId}
+          bucketId={bucket.id}
+          bucketAlias={bucket.globalAliases[0]}
+          s3Endpoint={cluster?.s3Endpoint ?? null}
+        />
+      )}
 
       <Card>
         <CardHeader>

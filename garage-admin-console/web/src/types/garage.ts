@@ -3,6 +3,13 @@ export interface ClusterSummary {
   id: string;
   name: string;
   endpoint: string;
+  // S3 protocol endpoint exposed by Garage (e.g. http://host:3900). Optional
+  // because legacy cluster rows pre-date the column; the Object Browser
+  // surface in BucketDetail requires it.
+  s3Endpoint?: string | null;
+  s3Region?: string | null;
+  /** Stored as the string 'true' | 'false' | null by the BFF. */
+  s3ForcePathStyle?: string | null;
   createdAt: string;
   updatedAt?: string;
 }

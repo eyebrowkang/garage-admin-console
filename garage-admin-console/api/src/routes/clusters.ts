@@ -14,6 +14,12 @@ const CreateClusterSchema = z.object({
   endpoint: z.string().url(),
   adminToken: z.string().min(1),
   metricToken: z.string().min(1).nullable().optional(),
+  // S3-protocol surface for the embedded FileBrowser. Optional because most
+  // existing Admin Console workflows don't need it; if missing the bucket
+  // browser surfaces a graceful "not configured" message.
+  s3Endpoint: z.string().url().nullable().optional(),
+  s3Region: z.string().min(1).nullable().optional(),
+  s3ForcePathStyle: z.boolean().nullable().optional(),
 });
 
 const UpdateClusterSchema = z
@@ -22,6 +28,9 @@ const UpdateClusterSchema = z
     endpoint: z.string().url().optional(),
     adminToken: z.string().min(1).optional(),
     metricToken: z.string().min(1).nullable().optional(),
+    s3Endpoint: z.string().url().nullable().optional(),
+    s3Region: z.string().min(1).nullable().optional(),
+    s3ForcePathStyle: z.boolean().nullable().optional(),
   })
   .refine((data) => Object.values(data).some((v) => v !== undefined), {
     message: 'At least one field must be provided',
@@ -32,6 +41,9 @@ const safeColumns = {
   id: clusters.id,
   name: clusters.name,
   endpoint: clusters.endpoint,
+  s3Endpoint: clusters.s3Endpoint,
+  s3Region: clusters.s3Region,
+  s3ForcePathStyle: clusters.s3ForcePathStyle,
   createdAt: clusters.createdAt,
   updatedAt: clusters.updatedAt,
 } as const;
@@ -66,6 +78,14 @@ router.post('/', async (req, res) => {
         endpoint: body.endpoint,
         adminToken: encryptedAdminToken,
         metricToken: encryptedMetricToken,
+        s3Endpoint: body.s3Endpoint ?? null,
+        s3Region: body.s3Region ?? null,
+        s3ForcePathStyle:
+          body.s3ForcePathStyle === undefined || body.s3ForcePathStyle === null
+            ? null
+            : body.s3ForcePathStyle
+              ? 'true'
+              : 'false',
       })
       .returning(safeColumns);
 
@@ -95,6 +115,12 @@ router.put('/:id', async (req, res) => {
     if (body.adminToken !== undefined) data.adminToken = encrypt(body.adminToken);
     if (body.metricToken !== undefined) {
       data.metricToken = body.metricToken === null ? null : encrypt(body.metricToken);
+    }
+    if (body.s3Endpoint !== undefined) data.s3Endpoint = body.s3Endpoint;
+    if (body.s3Region !== undefined) data.s3Region = body.s3Region;
+    if (body.s3ForcePathStyle !== undefined) {
+      data.s3ForcePathStyle =
+        body.s3ForcePathStyle === null ? null : body.s3ForcePathStyle ? 'true' : 'false';
     }
 
     const [cluster] = await db

@@ -1,16 +1,20 @@
 import axios, { type AxiosInstance } from 'axios';
 import FormData from 'form-data';
-import type { ContractTestConfig } from './env.js';
+import type { BffFlavor, ContractTestConfig } from './env.js';
 
 /**
  * A thin axios wrapper aimed at the Bucket Backend API. Caller supplies
  * baseUrl + jwt up front; per-call shape mirrors the §2.4 contract.
+ *
+ * The path template is flavor-driven so the same suite can validate both
+ * `s3-browser/api` (connections) and `garage-admin-console/api` (clusters).
  */
 export class BucketApiClient {
   private constructor(
     private readonly bff: AxiosInstance,
-    public readonly connectionId: string,
+    public readonly ownerId: string,
     public readonly bucket: string,
+    private readonly flavor: BffFlavor,
   ) {}
 
   static async create(cfg: ContractTestConfig): Promise<BucketApiClient> {
@@ -25,9 +29,14 @@ export class BucketApiClient {
       headers: { Authorization: `Bearer ${token}` },
     });
 
-    // 2. Resolve or create a connection.
-    let connectionId = cfg.connectionId;
-    if (!connectionId) {
+    // 2. Resolve or create a bucket-owning row.
+    let ownerId = cfg.ownerId;
+    if (!ownerId) {
+      if (cfg.flavor !== 'connections') {
+        throw new Error(
+          'Cluster-flavor BFFs cannot auto-create owners; supply TEST_CLUSTER_ID',
+        );
+      }
       if (!cfg.s3) throw new Error('TEST_S3_* env required when TEST_CONNECTION_ID is unset');
       const res = await bff.post('/connections', {
         name: `contract-test-${Date.now()}`,
@@ -37,21 +46,25 @@ export class BucketApiClient {
         accessKeyId: cfg.s3.accessKeyId,
         secretAccessKey: cfg.s3.secretAccessKey,
       });
-      connectionId = res.data.id as string;
+      ownerId = res.data.id as string;
     }
 
-    return new BucketApiClient(bff, connectionId, cfg.bucket);
+    return new BucketApiClient(bff, ownerId, cfg.bucket, cfg.flavor);
   }
 
-  /** Tear down any connection we created on demand. */
-  async dispose({ ownedConnection }: { ownedConnection: boolean }): Promise<void> {
-    if (ownedConnection) {
-      await this.bff.delete(`/connections/${this.connectionId}`);
+  /** Tear down any owner row we created on demand. */
+  async dispose({ ownedOwner }: { ownedOwner: boolean }): Promise<void> {
+    if (ownedOwner && this.flavor === 'connections') {
+      await this.bff.delete(`/connections/${this.ownerId}`);
     }
   }
 
   private path(suffix: string): string {
-    return `/connections/${this.connectionId}/buckets/${this.bucket}${suffix}`;
+    const base =
+      this.flavor === 'clusters'
+        ? `/clusters/${this.ownerId}/buckets/${this.bucket}`
+        : `/connections/${this.ownerId}/buckets/${this.bucket}`;
+    return `${base}${suffix}`;
   }
 
   async list(

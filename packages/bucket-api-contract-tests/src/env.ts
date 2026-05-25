@@ -4,18 +4,36 @@
  * The suite skips itself cleanly if mandatory vars are missing, so
  * `pnpm test` works offline without Docker / a real S3 endpoint.
  *
- * Two ways to point the suite at a connection:
- *   - Supply `TEST_CONNECTION_ID` for an existing one.
- *   - Supply `TEST_S3_*` so the suite calls POST /connections to create one.
+ * The same suite runs against BOTH backend-for-frontends:
+ *
+ *   - `s3-browser/api` (flavor=connections, default):
+ *       path template = /connections/{id}/buckets/{bucket}/...
+ *       owner id      = an S3 connection row (created on the fly via
+ *                       TEST_S3_* if TEST_CONNECTION_ID is unset).
+ *
+ *   - `garage-admin-console/api` (flavor=clusters):
+ *       path template = /clusters/{id}/buckets/{bucket}/...
+ *       owner id      = a cluster row that already exists in the BFF's
+ *                       DB and has its s3Endpoint configured. We never
+ *                       create/teardown clusters from tests.
  */
+
+export type BffFlavor = 'connections' | 'clusters';
 
 export interface ContractTestConfig {
   bffUrl: string;
   bffPassword: string;
   bucket: string;
-  /** Existing connection id, or null if we should create one. */
-  connectionId: string | null;
-  /** If `connectionId` is null, these are used to create one. */
+  flavor: BffFlavor;
+  /**
+   * The id of the bucket-owning row inside the BFF:
+   *   - flavor=connections → S3 connection id
+   *   - flavor=clusters    → cluster id
+   * If null (only valid for `connections` flavor), the suite will create
+   * the connection from TEST_S3_*.
+   */
+  ownerId: string | null;
+  /** If `ownerId` is null, these are used to create a connection. */
   s3?: {
     endpoint: string;
     region: string;
@@ -31,9 +49,19 @@ function readConfig(): ContractTestConfig | null {
   const bucket = process.env.TEST_S3_BUCKET;
   if (!bffUrl || !bffPassword || !bucket) return null;
 
-  const connectionId = process.env.TEST_CONNECTION_ID ?? null;
-  if (connectionId) {
-    return { bffUrl, bffPassword, bucket, connectionId };
+  const flavor: BffFlavor = process.env.TEST_BFF_FLAVOR === 'clusters' ? 'clusters' : 'connections';
+
+  // For the clusters flavor, the owner id MUST be a pre-existing cluster.
+  if (flavor === 'clusters') {
+    const ownerId = process.env.TEST_CLUSTER_ID ?? process.env.TEST_CONNECTION_ID;
+    if (!ownerId) return null;
+    return { bffUrl, bffPassword, bucket, flavor, ownerId };
+  }
+
+  // connections flavor — same flow as before.
+  const ownerId = process.env.TEST_CONNECTION_ID ?? null;
+  if (ownerId) {
+    return { bffUrl, bffPassword, bucket, flavor, ownerId };
   }
 
   const endpoint = process.env.TEST_S3_ENDPOINT;
@@ -45,7 +73,8 @@ function readConfig(): ContractTestConfig | null {
     bffUrl,
     bffPassword,
     bucket,
-    connectionId: null,
+    flavor,
+    ownerId: null,
     s3: {
       endpoint,
       region: process.env.TEST_S3_REGION ?? 'us-east-1',
