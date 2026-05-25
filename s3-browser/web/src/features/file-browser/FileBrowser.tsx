@@ -110,6 +110,7 @@ export interface FileBrowserProps {
   path: string[];
   onPathChange: (path: string[]) => void;
   viewMode?: 'list' | 'details' | 'grid';
+  onViewModeChange?: (mode: 'list' | 'details' | 'grid') => void;
   density?: 'compact' | 'comfortable';
   showPreview?: boolean;
   onSelect?: (items: S3Object[]) => void;
@@ -159,6 +160,8 @@ function FileBrowserInner({
   path,
   onPathChange,
   viewMode = 'list',
+  onViewModeChange,
+  density = 'comfortable',
   showPreview = true,
   onSelect,
   onError,
@@ -434,7 +437,7 @@ function FileBrowserInner({
   }, [sorted]);
 
   return (
-    <div className="fb-root">
+    <div className="fb-root" data-density={density}>
       <div className="main">
         <Toolbar
           bucket={bucket}
@@ -443,6 +446,7 @@ function FileBrowserInner({
           query={query}
           setQuery={setQuery}
           viewMode={viewMode}
+          onViewModeChange={onViewModeChange}
           onOpenUpload={() => openUpload(null)}
         />
 
@@ -654,6 +658,8 @@ function Toolbar({
   onPathChange,
   query,
   setQuery,
+  viewMode,
+  onViewModeChange,
   onOpenUpload,
 }: {
   bucket: string;
@@ -662,6 +668,7 @@ function Toolbar({
   query: string;
   setQuery: (q: string) => void;
   viewMode: 'list' | 'details' | 'grid';
+  onViewModeChange?: (m: 'list' | 'details' | 'grid') => void;
   onOpenUpload: () => void;
 }) {
   return (
@@ -698,10 +705,14 @@ function Toolbar({
         <kbd>⌘F</kbd>
       </div>
 
-      <Button variant="outline">
+      {onViewModeChange && (
+        <FileBrowserViewToggle viewMode={viewMode} onChange={onViewModeChange} />
+      )}
+
+      <Button variant="outline" className="btn--responsive-label">
         <Plus /> New folder
       </Button>
-      <Button onClick={onOpenUpload}>
+      <Button onClick={onOpenUpload} className="btn--responsive-label">
         <UploadCloud /> Upload
       </Button>
     </div>

@@ -1,10 +1,4 @@
-/*
- * @s3-browser/web — standalone composition CSS.
- *
- * Order matches the host: tokens first, then the @garage/ui primitives,
- * then Tailwind utilities used by app-only code.
- */
-
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 @import 'tailwindcss';
 
 @theme {
@@ -46,15 +40,27 @@
   --radius-sm: calc(var(--radius) - 4px);
 }
 
+/*
+ * Match garage-admin-console's base layer: every element's default
+ * border-color resolves to --color-border (the soft warm tone) instead of
+ * Tailwind v4's currentColor default, which would otherwise render bare
+ * `border` utilities in the near-black foreground color.
+ */
+@layer base {
+  * {
+    @apply border-border;
+  }
+}
+
 html,
 body,
 #root {
-  height: 100%;
+  min-height: 100%;
 }
 
 body {
   margin: 0;
-  background: hsl(var(--background));
+  background: linear-gradient(to bottom right, #fffdf9, #fff4e9);
   color: hsl(var(--foreground));
   font-family:
     'Manrope',
@@ -62,8 +68,112 @@ body {
     -apple-system,
     sans-serif;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'cv11', 'ss01';
+  font-size: 14px;
+  overflow-y: scroll;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
 }
 
 * {
   box-sizing: border-box;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+button {
+  color: inherit;
+}
+
+::selection {
+  background: hsl(var(--primary) / 0.25);
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: hsl(28 18% 80% / 0.6);
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(28 18% 70% / 0.8);
+  background-clip: padding-box;
+}
+
+/*
+ * Legacy CSS variables consumed by FileBrowser.css. New code should prefer
+ * the Tailwind token utilities (bg-card, border-border, text-muted-foreground)
+ * driven by @theme above.
+ */
+:root {
+  --fg-1: hsl(var(--foreground));
+  --fg-2: hsl(var(--muted-foreground));
+  --bg-card: hsl(var(--card));
+  --bg-page: #fffdf9;
+  --bg-page-2: #fff4e9;
+  --line: hsl(var(--border));
+  --line-soft: hsl(var(--border) / 0.6);
+  --brand: hsl(var(--primary));
+  --primary-soft: hsl(var(--primary) / 0.1);
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.05);
+  --shadow-card-sm: 0 1px 2px rgb(0 0 0 / 0.04);
+  --shadow-card-lg:
+    0 10px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.05);
+}
+
+.mono {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/*
+ * Pills used by FileBrowser preview pane. Kept here (rather than inside
+ * FileBrowser.css) so the standalone shell and the federated component can
+ * share the same look without duplicating tokens.
+ */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.pill--healthy {
+  background: hsl(var(--success) / 0.12);
+  color: hsl(var(--success));
+}
+
+.pill--neutral {
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+}
+
+.pill__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
 }

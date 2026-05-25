@@ -50,6 +50,32 @@ export default defineConfig({
   },
   html: {
     title: 'S3 Browser',
+    favicon: './public/favicon.ico',
+    tags: [
+      {
+        tag: 'link',
+        attrs: {
+          rel: 'icon',
+          type: 'image/svg+xml',
+          href: '/s3-browser-logo.svg',
+        },
+      },
+      {
+        tag: 'link',
+        attrs: {
+          rel: 'alternate icon',
+          type: 'image/x-icon',
+          href: '/favicon.ico',
+        },
+      },
+      {
+        tag: 'link',
+        attrs: {
+          rel: 'apple-touch-icon',
+          href: '/apple-touch-icon.png',
+        },
+      },
+    ],
   },
   output: {
     distPath: { root: 'dist' },
