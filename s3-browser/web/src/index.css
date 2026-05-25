@@ -1,7 +1,26 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+/*
+ * Host stylesheet — composes shared design tokens + UI primitives + app-only base layer.
+ *
+ * Order matters (same as garage-admin-console/web/src/index.css):
+ *   1. @garage/tokens/style.css     — CSS variables (palette, radii)
+ *   2. @garage/ui/style.css         — compiled Tailwind utilities used by the primitives
+ *   3. tailwindcss                  — utilities consumed by host-only code
+ *   4. local @layer base            — host-only styles (body background, scrollbars, etc.)
+ *
+ * Co-locating these imports keeps Tailwind v4's single-pass resolution working,
+ * so utilities such as `text-primary-foreground` declared in @garage/ui resolve
+ * the host's @theme variables instead of being tree-shaken.
+ */
+
+@import '@garage/tokens/style.css';
+@import '@garage/ui/style.css';
 @import 'tailwindcss';
 
 @theme {
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));
@@ -34,68 +53,79 @@
 
   --color-card: hsl(var(--card));
   --color-card-foreground: hsl(var(--card-foreground));
-
-  --radius-lg: var(--radius);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-sm: calc(var(--radius) - 4px);
 }
 
-/*
- * Match garage-admin-console's base layer: every element's default
- * border-color resolves to --color-border (the soft warm tone) instead of
- * Tailwind v4's currentColor default, which would otherwise render bare
- * `border` utilities in the near-black foreground color.
- */
 @layer base {
+  html {
+    color-scheme: light;
+    scrollbar-gutter: stable;
+  }
+
   * {
     @apply border-border;
   }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family:
+      'Manrope',
+      system-ui,
+      -apple-system,
+      sans-serif;
+    background-image: linear-gradient(to bottom right, #fffdf9, #fff4e9);
+    min-height: 100vh;
+    overflow-y: scroll;
+    margin: 0;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+
+  button,
+  [role='button'],
+  a,
+  select,
+  [type='checkbox'],
+  [type='radio'],
+  label[for],
+  summary {
+    cursor: pointer;
+  }
+
+  input[type='checkbox'] {
+    accent-color: rgb(255 148 41);
+  }
+
+  html body[data-scroll-locked],
+  html body[data-radix-scroll-lock] {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
 }
 
-html,
-body,
-#root {
-  min-height: 100%;
+/*
+ * Legacy CSS variables consumed by FileBrowser.css. New code should prefer
+ * the Tailwind token utilities (bg-card, border-border, text-muted-foreground).
+ */
+:root {
+  --fg-1: hsl(var(--foreground));
+  --fg-2: hsl(var(--muted-foreground));
+  --bg-card: hsl(var(--card));
+  --line: hsl(var(--border));
+  --line-soft: hsl(var(--border) / 0.6);
+  --brand: hsl(var(--primary));
+  --primary-soft: hsl(var(--primary) / 0.1);
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.05);
+  --shadow-card-sm: 0 1px 2px rgb(0 0 0 / 0.04);
+  --shadow-card-lg:
+    0 10px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.05);
 }
 
-body {
-  margin: 0;
-  background: linear-gradient(to bottom right, #fffdf9, #fff4e9);
-  color: hsl(var(--foreground));
-  font-family:
-    'Manrope',
-    system-ui,
-    -apple-system,
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  font-feature-settings: 'cv11', 'ss01';
-  font-size: 14px;
-  overflow-y: scroll;
-}
-
-#root {
-  display: flex;
-  flex-direction: column;
-}
-
-* {
-  box-sizing: border-box;
-}
-
-button,
-input,
-select,
-textarea {
-  font-family: inherit;
-}
-
-button {
-  color: inherit;
-}
-
-::selection {
-  background: hsl(var(--primary) / 0.25);
+@font-face {
+  font-family: 'Manrope';
+  font-weight: 400 800;
+  font-display: swap;
+  src: local('Manrope');
 }
 
 *::-webkit-scrollbar {
@@ -119,25 +149,8 @@ button {
   background-clip: padding-box;
 }
 
-/*
- * Legacy CSS variables consumed by FileBrowser.css. New code should prefer
- * the Tailwind token utilities (bg-card, border-border, text-muted-foreground)
- * driven by @theme above.
- */
-:root {
-  --fg-1: hsl(var(--foreground));
-  --fg-2: hsl(var(--muted-foreground));
-  --bg-card: hsl(var(--card));
-  --bg-page: #fffdf9;
-  --bg-page-2: #fff4e9;
-  --line: hsl(var(--border));
-  --line-soft: hsl(var(--border) / 0.6);
-  --brand: hsl(var(--primary));
-  --primary-soft: hsl(var(--primary) / 0.1);
-  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.05);
-  --shadow-card-sm: 0 1px 2px rgb(0 0 0 / 0.04);
-  --shadow-card-lg:
-    0 10px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.05);
+::selection {
+  background: hsl(var(--primary) / 0.25);
 }
 
 .mono {
@@ -146,7 +159,7 @@ button {
 
 /*
  * Pills used by FileBrowser preview pane. Kept here (rather than inside
- * FileBrowser.css) so the standalone shell and the federated component can
+ * FileBrowser.css) so the standalone shell and the federated component
  * share the same look without duplicating tokens.
  */
 .pill {

@@ -127,7 +127,16 @@ export function App() {
 
       <footer className="border-t mt-auto">
         <div className="max-w-7xl mx-auto px-4 lg:px-8 py-4 flex items-center justify-center text-xs text-muted-foreground">
-          Credentials encrypted at rest by the BFF.
+          <a
+            href="https://github.com/eyebrowkang/garage-admin-console"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-2 hover:text-foreground transition-colors"
+          >
+            Source Code
+          </a>
+          <span className="mx-1.5">·</span>
+          AGPL-3.0 Licensed
         </div>
       </footer>
     </div>

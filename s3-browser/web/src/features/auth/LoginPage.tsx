@@ -99,7 +99,16 @@ export function LoginPage({ onAuthed }: { onAuthed: () => void }) {
       </Card>
 
       <p className="relative mt-6 text-center text-xs text-muted-foreground">
-        Credentials stored server-side, encrypted at rest.
+        <a
+          href="https://github.com/eyebrowkang/garage-admin-console"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline underline-offset-2 hover:text-foreground transition-colors"
+        >
+          Source Code
+        </a>
+        <span className="mx-1.5">·</span>
+        AGPL-3.0 Licensed
       </p>
     </div>
   );

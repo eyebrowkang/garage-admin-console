@@ -8,8 +8,8 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import '@garage/tokens/style.css';
-import '@garage/ui/style.css';
+// All stylesheet imports (tokens + ui + tailwind base) flow through index.css
+// so Tailwind v4 resolves them in a single pass.
 import './index.css';
 
 import { App } from './App';

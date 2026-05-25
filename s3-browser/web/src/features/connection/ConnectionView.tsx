@@ -20,6 +20,8 @@ import {
 import { api } from '@/lib/api';
 import { connectionDisplayMeta, formatShortDate } from '@/lib/connection-display';
 import type { Bucket as BucketInfo, Connection } from '@/lib/types';
+// No avatar here — DetailPageHeader (admin) stays text-only; the provider
+// surface is conveyed via the Badge below.
 
 export function ConnectionView({
   connection,
@@ -52,11 +54,6 @@ export function ConnectionView({
           </Button>
           <div className="min-w-0 space-y-0.5 sm:space-y-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span
-                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[11px] font-bold ${meta.iconClass}`}
-              >
-                {meta.short}
-              </span>
               <h1 className="text-lg sm:text-xl font-semibold tracking-tight">{connection.name}</h1>
               <Badge variant="secondary" className="font-normal">
                 {meta.provider} · {connection.region}

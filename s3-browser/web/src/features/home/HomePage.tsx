@@ -1,15 +1,28 @@
 /**
- * Home dashboard — lists every S3 connection as a Card with CRUD actions.
+ * Dashboard — lists every S3 connection as a Card with CRUD actions.
  *
- * Mirrors garage-admin-console/web/src/pages/Dashboard.tsx so the two products
- * feel like the same suite: a sticky page header (title + Add action), a
- * compact summary Card, then a responsive grid of connection Cards. No
- * sidebar at this level — picking a connection navigates into its bucket
- * list (ConnectionView).
+ * Visual contract mirrors garage-admin-console/web/src/pages/Dashboard.tsx +
+ * ClusterStatusMonitor 1:1 so the two products read as the same suite:
+ *   - ModulePageHeader-style title row
+ *   - "Connection Fleet Summary" overview card (border-primary/30 bg-primary/5)
+ *   - md:grid-cols-2 grid of connection cards, tinted by reachability
+ *   - three metric tiles per card with lucide-icon labels
+ *   - Open / Edit / Remove actions in the same h-9 button row
  */
 import { useState } from 'react';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle2, Pencil, Plug, Plus, Server, Trash2, XCircle } from 'lucide-react';
+import {
+  Activity,
+  ArrowRight,
+  CheckCircle2,
+  Edit2,
+  Globe,
+  HardDrive,
+  Link2Off,
+  Plus,
+  Server,
+  XCircle,
+} from 'lucide-react';
 import {
   Alert,
   AlertDescription,
@@ -53,11 +66,38 @@ const EMPTY_FORM: ConnectionFormData = {
 
 const normalizeEndpoint = (value: string) => value.trim().replace(/\/+$/, '');
 
+type Status = 'healthy' | 'unreachable' | 'checking';
+
 interface ConnectionStatus {
   buckets?: BucketInfo[];
   error?: Error;
   isLoading: boolean;
+  status: Status;
 }
+
+const statusConfig = {
+  healthy: {
+    label: 'Healthy',
+    icon: CheckCircle2,
+    badge: 'success' as const,
+    iconClass: 'text-green-600',
+    bgClass: 'bg-green-50 border-green-200',
+  },
+  unreachable: {
+    label: 'Unreachable',
+    icon: XCircle,
+    badge: 'destructive' as const,
+    iconClass: 'text-destructive',
+    bgClass: 'bg-destructive/5 border-destructive/30',
+  },
+  checking: {
+    label: 'Checking',
+    icon: Activity,
+    badge: 'secondary' as const,
+    iconClass: 'text-primary',
+    bgClass: 'bg-primary/5 border-primary/25',
+  },
+};
 
 export function HomePage({ onOpenConnection }: { onOpenConnection: (id: string) => void }) {
   const qc = useQueryClient();
@@ -77,8 +117,7 @@ export function HomePage({ onOpenConnection }: { onOpenConnection: (id: string) 
   const connections = list.data ?? [];
 
   // Probe each connection's bucket list to derive a live health signal —
-  // success counts the connection healthy, error tags it unreachable. Mirrors
-  // Admin Console's per-cluster useQueries fan-out in Dashboard.tsx.
+  // mirrors Dashboard.tsx's per-cluster useQueries fan-out.
   const bucketQueries = useQueries({
     queries: connections.map((c) => ({
       queryKey: ['connection-buckets', c.id],
@@ -95,10 +134,15 @@ export function HomePage({ onOpenConnection }: { onOpenConnection: (id: string) 
   const statusById = new Map<string, ConnectionStatus>();
   connections.forEach((c, i) => {
     const q = bucketQueries[i];
+    const error = q?.error as Error | undefined;
+    let status: Status = 'checking';
+    if (error) status = 'unreachable';
+    else if (q?.data) status = 'healthy';
     statusById.set(c.id, {
       buckets: q?.data,
-      error: (q?.error as Error | undefined) ?? undefined,
+      error,
       isLoading: q?.isLoading ?? false,
+      status,
     });
   });
 
@@ -110,11 +154,11 @@ export function HomePage({ onOpenConnection }: { onOpenConnection: (id: string) 
     for (const c of connections) {
       const s = statusById.get(c.id);
       if (!s) continue;
-      if (s.error) unreachable += 1;
-      else if (s.buckets) {
+      if (s.status === 'healthy') {
         healthy += 1;
-        buckets += s.buckets.length;
-      } else if (s.isLoading) checking += 1;
+        buckets += s.buckets?.length ?? 0;
+      } else if (s.status === 'unreachable') unreachable += 1;
+      else checking += 1;
     }
     return { healthy, unreachable, checking, buckets };
   })();
@@ -160,12 +204,13 @@ export function HomePage({ onOpenConnection }: { onOpenConnection: (id: string) 
 
   return (
     <div className="space-y-6">
-      {/* Page header — mirrors ModulePageHeader */}
+      {/* ModulePageHeader */}
       <div className="flex flex-col gap-2 sm:gap-3 border-b border-border/70 pb-3 sm:pb-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 space-y-0.5 sm:space-y-1">
-          <h1 className="text-lg sm:text-xl font-semibold tracking-tight">Connections</h1>
+          <h1 className="text-lg sm:text-xl font-semibold tracking-tight">Dashboard</h1>
           <p className="text-xs sm:text-sm text-muted-foreground">
-            S3-compatible endpoints first. Open a connection to browse its buckets and objects.
+            Endpoint-level overview first. Open a connection for bucket browsing and object
+            operations.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:justify-end shrink-0">
@@ -207,7 +252,7 @@ export function HomePage({ onOpenConnection }: { onOpenConnection: (id: string) 
         </Alert>
       )}
 
-      {/* Fleet summary — matches ClusterStatusMonitor's overview card */}
+      {/* Fleet summary — pixel match for ClusterStatusMonitor's overview card */}
       {connections.length > 0 && (
         <Card className="border-primary/30 bg-primary/5">
           <CardContent className="grid gap-4 p-4 sm:p-5 md:grid-cols-5">
@@ -221,10 +266,14 @@ export function HomePage({ onOpenConnection }: { onOpenConnection: (id: string) 
               </p>
             </div>
             <div className="grid grid-cols-2 gap-2 text-sm md:col-span-3 md:grid-cols-4 sm:gap-3">
-              <SummaryStat label="Healthy" value={summary.healthy} tone="success" />
-              <SummaryStat label="Unreachable" value={summary.unreachable} tone="destructive" />
-              <SummaryStat label="Checking" value={summary.checking} tone="muted" />
-              <SummaryStat label="Buckets" value={summary.buckets} tone="default" />
+              <SummaryStat label="Healthy" value={summary.healthy} tone="text-green-700" />
+              <SummaryStat
+                label="Unreachable"
+                value={summary.unreachable}
+                tone="text-destructive"
+              />
+              <SummaryStat label="Checking" value={summary.checking} />
+              <SummaryStat label="Buckets" value={summary.buckets} />
             </div>
           </CardContent>
         </Card>
@@ -237,7 +286,9 @@ export function HomePage({ onOpenConnection }: { onOpenConnection: (id: string) 
             <ConnectionCard
               key={connection.id}
               connection={connection}
-              status={statusById.get(connection.id) ?? { isLoading: true }}
+              status={
+                statusById.get(connection.id) ?? { isLoading: true, status: 'checking' }
+              }
               onOpen={() => onOpenConnection(connection.id)}
               onEdit={() => setEditTarget(connection)}
               onDelete={() => setDeleteTarget(connection)}
@@ -246,7 +297,7 @@ export function HomePage({ onOpenConnection }: { onOpenConnection: (id: string) 
         </div>
       )}
 
-      {/* Empty state — mirrors Admin's empty Dashboard */}
+      {/* Empty state */}
       {!list.isLoading && connections.length === 0 && (
         <Card className="border-2 border-dashed bg-muted/30">
           <CardContent className="flex h-64 flex-col items-center justify-center space-y-4 p-8 text-center">
@@ -348,20 +399,12 @@ function SummaryStat({
 }: {
   label: string;
   value: number;
-  tone: 'success' | 'destructive' | 'muted' | 'default';
+  tone?: string;
 }) {
-  const toneClass =
-    tone === 'success'
-      ? 'text-green-700'
-      : tone === 'destructive'
-        ? 'text-destructive'
-        : tone === 'muted'
-          ? 'text-muted-foreground'
-          : 'text-foreground';
   return (
     <div className="rounded-lg border bg-card px-3 py-2">
       <div className="text-xs text-muted-foreground">{label}</div>
-      <div className={`text-2xl font-semibold tracking-tight ${toneClass}`}>{value}</div>
+      <div className={`text-2xl font-semibold tracking-tight ${tone ?? ''}`}>{value}</div>
     </div>
   );
 }
@@ -380,81 +423,75 @@ function ConnectionCard({
   onDelete: () => void;
 }) {
   const meta = connectionDisplayMeta(connection);
-  const reachable = !status.error;
-  const badgeVariant: 'success' | 'destructive' | 'secondary' =
-    status.error ? 'destructive' : status.buckets ? 'success' : 'secondary';
-  const badgeLabel = status.error ? 'Unreachable' : status.buckets ? 'Healthy' : 'Checking';
-  const BadgeIcon = status.error ? XCircle : status.buckets ? CheckCircle2 : Plug;
-  const cardBorder = status.error
-    ? 'border-destructive/30 bg-destructive/5'
-    : status.buckets
-      ? 'border-green-200 bg-green-50/40'
-      : 'border-primary/25 bg-primary/5';
+  const config = statusConfig[status.status];
+  const StatusIcon = config.icon;
+  const bucketCount = status.buckets?.length ?? 0;
 
   return (
-    <Card className={`border transition-shadow hover:shadow-md ${cardBorder}`}>
+    <Card className={`border ${config.bgClass} transition-shadow hover:shadow-md`}>
       <CardContent className="space-y-3 p-4 sm:p-5">
-        {/* Header row: avatar + name + status badge */}
+        {/* Header row: name + endpoint + status badge — no avatar, mirrors admin */}
         <div className="flex items-start justify-between gap-3">
-          <div className="flex min-w-0 items-start gap-3">
-            <span
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[13px] font-bold ${meta.iconClass}`}
+          <div className="min-w-0">
+            <button
+              onClick={onOpen}
+              className="inline-flex items-center gap-2 text-base font-semibold text-left hover:text-primary transition-colors"
             >
-              {meta.short}
-            </span>
-            <div className="min-w-0">
-              <button
-                onClick={onOpen}
-                className="truncate text-base font-semibold text-left hover:text-primary transition-colors"
-              >
-                {connection.name}
-              </button>
-              <div className="mt-0.5 truncate text-xs text-muted-foreground">
-                {connection.endpoint}
-              </div>
+              {connection.name}
+            </button>
+            <div className="mt-0.5 truncate text-xs text-muted-foreground">
+              {connection.endpoint}
             </div>
           </div>
-          <Badge variant={badgeVariant} className="shrink-0">
-            <BadgeIcon className="mr-1 h-3.5 w-3.5" />
-            {badgeLabel}
+          <Badge variant={config.badge} className="shrink-0">
+            <StatusIcon className={`mr-1 h-3.5 w-3.5 ${config.iconClass}`} />
+            {config.label}
           </Badge>
         </div>
 
-        {/* Metrics row */}
-        <div className="grid grid-cols-3 gap-2">
-          <MetricTile label="Provider" value={meta.provider} />
-          <MetricTile label="Region" value={connection.region} />
+        {/* Metrics row — icon + label, matches admin tile shape */}
+        <div className="grid gap-2 grid-cols-3">
+          <MetricTile icon={Globe} label="Provider" value={meta.provider} />
+          <MetricTile icon={HardDrive} label="Region" value={connection.region} />
           <MetricTile
+            icon={Server}
             label="Buckets"
-            value={status.buckets ? String(status.buckets.length) : '—'}
+            value={status.status === 'healthy' ? String(bucketCount) : '—'}
           />
         </div>
 
-        {/* Status line */}
+        {/* Status line + addressing/updated */}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-          {status.error && <span>Could not reach endpoint.</span>}
-          {!status.error && status.buckets && (
+          {status.status === 'unreachable' && <span>Could not reach endpoint.</span>}
+          {status.status === 'checking' && <span>Checking endpoint…</span>}
+          {status.status === 'healthy' && (
             <span>
-              {status.buckets.length} bucket{status.buckets.length === 1 ? '' : 's'} accessible
+              {bucketCount} bucket{bucketCount === 1 ? '' : 's'} accessible
             </span>
           )}
-          {!status.error && !status.buckets && status.isLoading && <span>Checking endpoint…</span>}
           <span className="text-border">|</span>
           <span>
-            {connection.forcePathStyle ? 'Path-style' : 'Virtual-host-style'} addressing · Updated{' '}
+            {connection.forcePathStyle ? 'Path-style' : 'Virtual-host-style'} ·{' '}
             <span className="font-medium text-foreground">
-              {formatShortDate(connection.updatedAt)}
+              Updated {formatShortDate(connection.updatedAt)}
             </span>
           </span>
         </div>
 
-        {/* Actions */}
+        {/* Actions — same shape and h-9 sizing as admin's cluster cards */}
         <div className="flex items-center gap-2 pt-1">
-          <Button size="sm" className="h-9" onClick={onOpen} disabled={!reachable}>
-            <Server className="mr-2 h-4 w-4" /> Open
+          <Button
+            size="sm"
+            className="h-9"
+            onClick={onOpen}
+            disabled={status.status !== 'healthy'}
+          >
+            <ArrowRight className="mr-2 h-4 w-4" />
+            Open
           </Button>
           <Button variant="outline" size="sm" className="h-9" onClick={onEdit}>
-            <Pencil className="mr-2 h-4 w-4" /> Edit
+            <Edit2 className="mr-2 h-4 w-4" />
+            Edit
           </Button>
           <div className="flex-1" />
           <Button
@@ -463,7 +500,7 @@ function ConnectionCard({
             className="h-9 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
             onClick={onDelete}
           >
-            <Trash2 className="mr-2 h-4 w-4" />
+            <Link2Off className="mr-2 h-4 w-4" />
             <span className="hidden sm:inline">Remove</span>
           </Button>
         </div>
@@ -472,10 +509,21 @@ function ConnectionCard({
   );
 }
 
-function MetricTile({ label, value }: { label: string; value: string }) {
+function MetricTile({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+}) {
   return (
     <div className="rounded-lg border bg-card p-2">
-      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+        <Icon className="h-3.5 w-3.5" />
+        <span className="hidden sm:inline">{label}</span>
+      </div>
       <div className="truncate text-sm font-semibold">{value}</div>
     </div>
   );
@@ -545,9 +593,7 @@ function ConnectionForm({
           </div>
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="conn-key">
-            Access Key ID{isEdit ? ' (optional)' : ''}
-          </Label>
+          <Label htmlFor="conn-key">Access Key ID{isEdit ? ' (optional)' : ''}</Label>
           <Input
             id="conn-key"
             value={form.accessKeyId}
@@ -556,9 +602,7 @@ function ConnectionForm({
           />
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="conn-secret">
-            Secret Access Key{isEdit ? ' (optional)' : ''}
-          </Label>
+          <Label htmlFor="conn-secret">Secret Access Key{isEdit ? ' (optional)' : ''}</Label>
           <Input
             id="conn-secret"
             type="password"
