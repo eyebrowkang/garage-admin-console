@@ -1,13 +1,85 @@
 # @s3-browser/web
 
-S3 Browser frontend SPA — Module Federation Remote.
+S3 Browser frontend SPA — runs standalone AND is the **Module Federation Remote** consumed by `@garage-admin/web`.
 
-**Status:** placeholder. Scaffolding only — no implementation in this commit.
+**Tech stack**: React 19, TypeScript, Rsbuild, TanStack Query, `@garage/ui` + `@garage/tokens`, `@module-federation/rsbuild-plugin`, `@module-federation/bridge-react`.
 
-When implemented:
+## Roles
 
-- Rsbuild + `@module-federation/rsbuild-plugin`
-- Exposes `./FileBrowser` (plain React) and `./export-app` (Bridge-wrapped)
-- Standalone deployable; also embeddable inside `@garage-admin/web`
+- **Standalone product** — log in, manage S3 connections, browse buckets and objects against any S3-compatible endpoint. Runs as a normal SPA.
+- **Module Federation Remote** — exposes `./FileBrowser` (the primary surface) and `./export-app` (full app via Bridge). Embedded by `@garage-admin/web`'s BucketDetail page.
 
-See `designs/mf-integration-plan.md` for the full architectural contract.
+## Development
+
+```bash
+pnpm -C s3-browser/web dev          # http://localhost:5174
+pnpm -C s3-browser/web build        # production build + MF manifest
+```
+
+The dev server proxies `/api/*` to `http://localhost:3002` (the S3 Browser BFF).
+
+When the dev server is running, the MF manifest is published at `http://localhost:5174/mf-manifest.json` and the remote entry at `http://localhost:5174/remoteEntry.js`. The Admin Console (`@garage-admin/web`) picks these up automatically via `VITE_S3_BROWSER_MF_URL`.
+
+## MF Remote configuration
+
+[`rsbuild.config.ts`](rsbuild.config.ts):
+
+```ts
+pluginModuleFederation({
+  name: 's3Browser',
+  filename: 'remoteEntry.js',
+  exposes: {
+    './export-app': './src/export-app.tsx',
+    './FileBrowser': './src/export-file-browser.tsx',
+  },
+  shared: {
+    react:     { singleton: true, requiredVersion: '^19' },
+    'react-dom': { singleton: true, requiredVersion: '^19' },
+  },
+  dts: true,
+  bridge: { enableBridgeRouter: false },
+})
+```
+
+- Only React + ReactDOM are runtime-shared. `@garage/ui` / `@garage/tokens` are bundled (build-time deps), per `designs/mf-integration-plan.md` §2.6.
+- `dts: true` emits the remote types so hosts can consume `FileBrowserProps` from `@mf-types/`. The Admin Console keeps a hand-rolled shim at [`garage-admin-console/web/src/types/s3-browser.d.ts`](../../garage-admin-console/web/src/types/s3-browser.d.ts) as a fallback.
+- `enableBridgeRouter: false` — `./FileBrowser` doesn't use react-router; the host owns navigation.
+
+## The federated `FileBrowser` component
+
+[`src/features/file-browser/FileBrowser.tsx`](src/features/file-browser/FileBrowser.tsx). Hard rules (per the architectural contract):
+
+- Must NOT import `@aws-sdk/*`. All S3 details live in the BFF.
+- Must NOT use `react-router-dom`. Path state is parent-controlled (`path: string[]` + `onPathChange`).
+- Must NOT read auth tokens from `localStorage`, `window`, or env vars. Only `props.backend.{baseUrl, authToken}`.
+- Owns its own embedded `QueryClient` so it stays self-contained.
+
+```ts
+export interface FileBrowserProps {
+  backend: { baseUrl: string; authToken: string };  // baseUrl already encodes the bucket
+  bucket: string;
+  path: string[];
+  onPathChange: (path: string[]) => void;
+  viewMode?: 'list' | 'details' | 'grid';
+  onViewModeChange?: (m: 'list' | 'details' | 'grid') => void;
+  density?: 'compact' | 'comfortable';
+  showPreview?: boolean;
+  onSelect?: (items: S3Object[]) => void;
+  onError?: (err: Error) => void;
+}
+```
+
+## Standalone shell
+
+State-based navigation (no router):
+
+- `home` ([`features/home/HomePage.tsx`](src/features/home/HomePage.tsx)) — Connection Dashboard with fleet summary + connection cards + add/edit/delete
+- `connection` ([`features/connection/ConnectionView.tsx`](src/features/connection/ConnectionView.tsx)) — bucket grid for one connection
+- `bucket` ([`features/bucket/BucketView.tsx`](src/features/bucket/BucketView.tsx)) — wraps `FileBrowser` with a breadcrumb header
+
+The shell consumes the same `@garage/ui` + `@garage/tokens` palette as the Admin Console, so embedded and standalone modes are visually identical.
+
+## Documentation
+
+- [`../../DEVELOPMENT.md`](../../DEVELOPMENT.md) — full developer guide
+- [`../../designs/mf-integration-plan.md`](../../designs/mf-integration-plan.md) — frozen architectural contract

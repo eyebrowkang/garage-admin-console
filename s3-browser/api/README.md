@@ -2,32 +2,65 @@
 
 S3 Browser BFF.
 
+**Tech stack**: Express 5, TypeScript, Drizzle ORM, SQLite/LibSQL, Zod, Pino, Morgan, `@aws-sdk/client-s3`, busboy.
+
 ## What it does
 
-- Stores user-supplied S3 connection credentials, encrypted at rest with AES-256-GCM.
-- Implements the **Bucket Backend API** contract (see `designs/mf-integration-plan.md` §2.4) under `/api/connections/:connId/buckets/:bucket/*`. Any frontend that implements the §2.5 `FileBrowserProps` contract can talk to it.
+- Stores user-supplied S3 connection credentials, encrypted at rest with AES-256-GCM ([`src/encryption.ts`](src/encryption.ts) — bit-identical to the Admin BFF's).
+- Implements the **Bucket Backend API** contract (`designs/mf-integration-plan.md` §2.4) under `/api/connections/:connId/buckets/:bucket/*`. Any frontend that implements §2.5 `FileBrowserProps` can talk to it — that's what `s3-browser/web` does in standalone mode.
 - Issues JWTs for standalone login.
+
+The Admin Console BFF (`@garage-admin/api`) implements the SAME §2.4 contract under `/api/clusters/:clusterId/buckets/:bucket/*`. The shared conformance suite at `packages/bucket-api-contract-tests/` validates both.
+
+## Endpoints
+
+| Path                                                                                       | Auth | Purpose                                                              |
+| ------------------------------------------------------------------------------------------ | ---- | -------------------------------------------------------------------- |
+| `POST /api/auth/login`                                                                     | none | Exchange password → JWT                                              |
+| `GET /api/health`                                                                          | none | Health check                                                         |
+| `GET/POST/PUT/DELETE /api/connections[/:id]`                                               | JWT  | CRUD S3 connections (credentials excluded from list responses)       |
+| `GET /api/connections/:connId/buckets`                                                     | JWT  | S3 `ListBuckets` (helper; not in §2.4)                               |
+| `GET/POST/DELETE /api/connections/:connId/buckets/:bucket/{list,object,presign,upload,objects,copy}` | JWT  | Bucket Backend API (§2.4)                                            |
 
 ## Running
 
 ```bash
-pnpm -C s3-browser/api dev   # tsx watch on PORT (default 3002)
+pnpm -C s3-browser/api dev      # tsx watch — default port 3002
+pnpm -C s3-browser/api build
+pnpm -C s3-browser/api start
+pnpm -C s3-browser/api typecheck
 ```
 
-Required env vars (see `.env.example`):
+Required env vars (see [`.env.example`](.env.example)):
 
 - `JWT_SECRET` — auth tokens.
 - `ENCRYPTION_KEY` — exactly 32 bytes, encrypts stored S3 credentials.
 - `ADMIN_PASSWORD` — single account, mirrors `@garage-admin/api`.
+- `PORT` (optional) — defaults to `3002`.
 
-## Endpoints
+## Database
 
-| Path                                           | Auth | Purpose                                                   |
-| ---------------------------------------------- | ---- | --------------------------------------------------------- |
-| `POST /api/auth/login`                         | none | exchange password → JWT                                   |
-| `GET /api/health`                              | none | health check                                              |
-| `GET/POST/PUT/DELETE /api/connections[/:id]`   | JWT  | CRUD S3 connections (tokens excluded from list responses) |
-| `GET /api/connections/:connId/buckets`         | JWT  | list buckets via S3 ListBuckets (extra; not in §2.4)      |
-| `* /api/connections/:connId/buckets/:bucket/*` | JWT  | Bucket Backend API (§2.4)                                 |
+Schema in [`src/db/schema.ts`](src/db/schema.ts):
 
-See `designs/mf-integration-plan.md` for the full architectural contract.
+- **`Connection`** — `id, name, endpoint, region, forcePathStyle, accessKeyId (enc), secretAccessKey (enc), createdAt, updatedAt`
+- **`AppSettings`** — key/value store
+
+Migrations under [`drizzle/`](drizzle/) run automatically on startup.
+
+## Conformance
+
+Run the shared `@garage/bucket-api-contract-tests` suite against this BFF:
+
+```bash
+export TEST_BFF_URL=http://localhost:3002/api
+export TEST_BFF_PASSWORD=admin
+export TEST_CONNECTION_ID=<connection id from /api/connections>
+export TEST_S3_BUCKET=s3-browser-test
+pnpm -C packages/bucket-api-contract-tests test:run
+```
+
+If `TEST_CONNECTION_ID` is unset, the suite creates a throwaway connection from `TEST_S3_*` env vars and deletes it on teardown.
+
+## Documentation
+
+See [`../../DEVELOPMENT.md`](../../DEVELOPMENT.md) and [`../../designs/mf-integration-plan.md`](../../designs/mf-integration-plan.md).

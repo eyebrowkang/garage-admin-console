@@ -1,35 +1,83 @@
 # @garage/bucket-api-contract-tests
 
-Conformance test suite for the **Bucket Backend API** (see `designs/mf-integration-plan.md` §2.4).
+Conformance test suite for the **Bucket Backend API** (`designs/mf-integration-plan.md` §2.4).
 
-Any BFF that hosts a `/api/connections/:connId/buckets/:bucket/*` surface MUST pass this suite. Today that's `@s3-browser/api`; when Admin Console mints per-bucket keypairs in a future phase, `@garage-admin/api` will too.
+Both BFFs MUST pass this suite:
+
+- `@s3-browser/api` — exposes the contract under `/api/connections/:connId/buckets/:bucket/*` (the "connections" flavor)
+- `@garage-admin/api` — exposes the contract under `/api/clusters/:clusterId/buckets/:bucket/*` (the "clusters" flavor; mints per-bucket S3 keypairs on the fly)
+
+A single set of 12 tests runs against either flavor via the `TEST_BFF_FLAVOR` env var.
 
 ## Running
 
-The suite is **env-gated**. With no env vars set, it skips cleanly so `pnpm test` works offline:
+The suite is **env-gated** and skips cleanly when env vars are missing, so `pnpm test` works offline without Docker / a real S3 endpoint:
 
 ```bash
-pnpm -F @garage/bucket-api-contract-tests test:run   # skips
+pnpm -F @garage/bucket-api-contract-tests test:run   # skips with empty env
 ```
 
-To actually run it, point at a live BFF that's already wired to an S3 endpoint:
+### Against `@s3-browser/api` (connections flavor — default)
 
 ```bash
 export TEST_BFF_URL=http://localhost:3002/api
 export TEST_BFF_PASSWORD=admin
+# Optional: TEST_BFF_FLAVOR=connections  (the default)
 
-# The connection + bucket the BFF will hit. Either supply an existing
-# connection ID via TEST_CONNECTION_ID, or supply credentials so the
-# suite can create one on the fly.
-export TEST_CONNECTION_ID=…                    # OR …
-export TEST_S3_ENDPOINT=http://192.168.88.62:3900
-export TEST_S3_ACCESS_KEY=…
-export TEST_S3_SECRET_KEY=…
-export TEST_S3_REGION=garage
+# Either point at an existing connection…
+export TEST_CONNECTION_ID=<connection-id>
 
-export TEST_S3_BUCKET=s3-browser-test          # MUST already exist; key MUST own it
+# …or let the suite create one for you on the fly:
+# export TEST_S3_ENDPOINT=http://192.168.88.62:3900
+# export TEST_S3_ACCESS_KEY=…
+# export TEST_S3_SECRET_KEY=…
+# export TEST_S3_REGION=garage
+# export TEST_S3_FORCE_PATH_STYLE=true
+
+export TEST_S3_BUCKET=s3-browser-test         # MUST already exist; key MUST own it
 
 pnpm -F @garage/bucket-api-contract-tests test:run
 ```
 
-The suite runs against a per-run prefix (`contract-test/<runId>/...`) and cleans up its keys in `afterAll`, so it's safe to point at a shared dev bucket.
+### Against `@garage-admin/api` (clusters flavor)
+
+```bash
+export TEST_BFF_URL=http://localhost:3001/api
+export TEST_BFF_PASSWORD=admin
+export TEST_BFF_FLAVOR=clusters
+
+# The cluster MUST already exist in the Admin DB and have its s3Endpoint set.
+export TEST_CLUSTER_ID=<cluster-id-from-/api/clusters>
+export TEST_S3_BUCKET=s3-browser-test
+
+pnpm -F @garage/bucket-api-contract-tests test:run
+```
+
+Cluster auto-creation is not supported (the suite never creates/deletes cluster rows). Run `cp garage-admin-console/api/.env.example garage-admin-console/api/.env`, start the Admin BFF, add a cluster from the UI, and copy its id.
+
+## Environment reference
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `TEST_BFF_URL` | Yes | BFF base URL — must include `/api`. |
+| `TEST_BFF_PASSWORD` | Yes | Password for `POST /api/auth/login`. |
+| `TEST_S3_BUCKET` | Yes | Existing bucket the BFF's key owns. |
+| `TEST_BFF_FLAVOR` | No | `connections` (default) or `clusters`. |
+| `TEST_CONNECTION_ID` | When flavor=connections | Existing connection id. Omit to auto-create from `TEST_S3_*`. |
+| `TEST_CLUSTER_ID` | When flavor=clusters | Existing cluster id (auto-create not supported). |
+| `TEST_S3_ENDPOINT` | Auto-create only | S3 endpoint URL. |
+| `TEST_S3_ACCESS_KEY` / `TEST_S3_SECRET_KEY` | Auto-create only | S3 credentials. |
+| `TEST_S3_REGION` | No | Defaults to `us-east-1`. |
+| `TEST_S3_FORCE_PATH_STYLE` | No | Defaults to `true`. |
+
+## What the suite covers
+
+- `GET /list` envelope shape on empty + populated prefixes
+- `POST /upload` single + batched multipart
+- `GET /object` HEAD-equivalent metadata + 404
+- `POST /presign` getObject + putObject roundtrip via `fetch`
+- `POST /copy` ETag + size verification
+- `DELETE /objects` single + batched payloads
+- `?continuationToken` pagination
+
+Side-effects are scoped under `contract-test/<runId>/...` and reaped in `afterAll`, so it's safe to point the suite at a shared dev bucket. If the suite created a connection on the fly, it's deleted too.

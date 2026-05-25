@@ -1,8 +1,8 @@
 # Garage Admin Console
 
-[English](./README.md) | [中文](./README.zh.md)
+[English](./README.md) | [中文](./README_zh.md)
 
-一个现代化的 Web 管理界面，用于管理 [Garage](https://garagehq.deuxfleurs.fr/) 分布式对象存储集群。通过统一的仪表盘监控集群健康状态、管理存储桶和访问密钥、配置布局等。
+一个现代化的 Web 管理界面，用于管理 [Garage](https://garagehq.deuxfleurs.fr/) 分布式对象存储集群。通过统一的仪表盘监控集群健康状态、管理存储桶和访问密钥、配置布局，**并通过嵌入式 S3 文件浏览器直接浏览和上传对象**。
 
 > 兼容 Garage Admin API v2。
 >
@@ -13,6 +13,7 @@
 - **多集群管理** - 在单一界面中连接和管理多个 Garage 集群
 - **仪表盘概览** - 实时集群健康状态、节点状态和容量可视化
 - **存储桶管理** - 创建、配置和删除存储桶，支持配额和网站托管选项
+- **嵌入式对象浏览器** - 在任意桶内浏览、上传、签发预签名链接、删除对象，由通过 Module Federation 2.0 联邦的 S3 Browser 模块提供（[架构](./designs/mf-integration-plan.md)）
 - **访问密钥管理** - 生成、导入和管理 S3 兼容的访问密钥
 - **权限控制** - 细粒度的存储桶-密钥权限矩阵，支持读/写/所有者权限切换
 - **节点监控** - 查看节点状态、统计信息并触发维护操作
@@ -20,21 +21,39 @@
 - **数据块操作** - 监控数据块错误、重试失败的同步操作并管理数据完整性
 - **Worker 管理** - 监控后台工作进程并配置性能参数
 - **管理令牌管理** - 管理具有作用域权限的 API 令牌
-- **安全凭证存储** - 使用 AES-256-GCM 加密存储 Garage 管理令牌
+- **安全凭证存储** - 使用 AES-256-GCM 加密存储 Garage 管理令牌与 S3 密钥
+
+## 仓库结构
+
+本仓库是单一 pnpm workspace，包含两个产品 + 三个共享包：
+
+```
+garage-admin-console/
+├── garage-admin-console/   # Admin Console 产品
+│   ├── api/                # BFF（Express + Drizzle + LibSQL）
+│   └── web/                # 前端 SPA（React + Vite） — Module Federation Host
+├── s3-browser/             # 独立 S3 浏览器产品（可作为 MF Remote 被嵌入）
+│   ├── api/                # BFF（与 Admin api 同栈）
+│   └── web/                # 前端 SPA（React + Rsbuild）
+├── packages/
+│   ├── tokens/             # @garage/tokens — CSS 变量 + 色板
+│   ├── ui/                 # @garage/ui — 共享 UI 原件
+│   └── bucket-api-contract-tests/   # §2.4 共享一致性测试套件
+├── designs/                # 架构规范（含 mf-integration-plan.md）
+└── e2e/                    # Playwright 测试
+```
 
 ## 快速开始（Docker）
 
-使用 Docker 是运行控制台最简单的方式。单个镜像同时包含前端和 API。
+仓库内附带的 Docker 镜像打包了 **Admin Console**（api + 前端，单容器）。S3 Browser 暂未提供镜像 — 嵌入式对象浏览器在远端不可达时会优雅降级，所以 Admin 仍可独立部署。
 
 ### 使用 Docker Compose
 
 ```bash
-# 克隆仓库
 git clone https://github.com/eyebrowkang/garage-admin-console.git
 cd garage-admin-console
 
 # 编辑 docker-compose.yml — 修改三个必需的环境变量
-# 然后启动服务：
 docker compose up -d
 ```
 
@@ -85,84 +104,96 @@ pnpm approve-builds
 
 ### 配置
 
-从提供的模板创建 API 环境文件：
-
 ```bash
-cp api/.env.example api/.env
+cp garage-admin-console/api/.env.example garage-admin-console/api/.env
+# （可选）同时启用 S3 Browser BFF：
+cp s3-browser/api/.env.example s3-browser/api/.env
 ```
 
-编辑 `api/.env` 配置你的设置。查看 `api/.env.example` 了解所有可用变量及其说明。`JWT_SECRET`、`ENCRYPTION_KEY` 和 `ADMIN_PASSWORD` 是必需的 — 如果缺少任何一个，API 将拒绝启动。
+编辑各自 `.env`。两个 BFF 都需要 `JWT_SECRET`、`ENCRYPTION_KEY`、`ADMIN_PASSWORD`，缺一不可。
 
 ### 数据库设置
 
+迁移在 BFF 启动时自动执行。如需手动应用：
+
 ```bash
-pnpm -C api db:push
+pnpm -C garage-admin-console/api db:push       # Admin BFF
+pnpm -C s3-browser/api db:push                 # S3 Browser BFF（可选）
 ```
 
-数据库文件将自动创建在 `api/data.db`。
+数据库文件自动创建在 `garage-admin-console/api/data.db` 和 `s3-browser/api/data.db`。
 
 ### 运行
 
 ```bash
+# Admin Console（api :3001 + web :5173）
 pnpm dev
+
+# 另开一个终端，可选地启动 S3 Browser：
+pnpm -C s3-browser/api dev    # BFF :3002
+pnpm -C s3-browser/web dev    # web :5174 — 提供 MF remoteEntry
+
+# Admin Console 的 BucketDetail 页面会自动从
+# http://localhost:5174/mf-manifest.json 拉取联邦化的 FileBrowser。
 ```
 
-- 前端：http://localhost:5173
-- API：http://localhost:3001
+- Admin Console：http://localhost:5173
+- Admin BFF：http://localhost:3001
+- S3 Browser：http://localhost:5174
+- S3 Browser BFF：http://localhost:3002
 
 ### 生产构建
 
 ```bash
-pnpm build
-pnpm -C api start
+pnpm build                                  # 共享包 + Admin api + Admin web
+pnpm -C s3-browser/api build                # （可选）S3 Browser BFF
+pnpm -C s3-browser/web build                # （可选）S3 Browser web（产出 MF 清单）
+
+pnpm -C garage-admin-console/api start
 ```
 
-使用你偏好的 Web 服务器（Nginx、Caddy 等）提供 `web/dist/` 的静态文件服务，并配置反向代理将 `/api/*` 路由转发到 API 服务器。
-
-## 项目结构
-
-```
-garage-admin-console/
-├── api/                 # Backend-For-Frontend 服务（Express + Drizzle ORM）
-├── web/                 # 前端单页应用（React + Vite）
-├── e2e/                 # 端到端测试（Playwright）
-└── web/public/garage-admin-v2.json  # Garage Admin API OpenAPI 规范
-```
+使用任意 Web 服务器（Nginx、Caddy 等）托管 `garage-admin-console/web/dist/`，并将 `/api/*` 反向代理到 Admin BFF。若同时部署 S3 Browser，构建 Admin web 前应将 `VITE_S3_BROWSER_MF_URL` 指向 S3 Browser 的 `mf-manifest.json`。
 
 ## 架构
 
 控制台采用 Backend-For-Frontend（BFF）代理模式：
 
 ```
-浏览器 → 前端 → BFF API → Garage 集群
+浏览器 → Admin Web ──→ Admin BFF ──→ Garage 集群 Admin API
+                                  └─→ Garage S3 端点（按桶签发临时密钥）
+        └─→ （联邦）S3 Browser FileBrowser 远端
 ```
 
-- **认证**：单一管理员密码 → JWT 令牌（24 小时有效期）
-- **凭证安全**：Garage 管理令牌使用 AES-256-GCM 加密存储
-- **代理模式**：前端不直接与 Garage 集群通信
+- **认证**：每个 BFF 单一管理员密码 → JWT（24 小时有效期）
+- **凭证安全**：Garage 管理令牌与 S3 密钥均使用 AES-256-GCM 加密存储
+- **代理模式**：前端不直接与 Garage / S3 端点通信
+- **嵌入式浏览器**：Admin 的桶页面用集群 admin token 调用 Garage `CreateKey + AllowBucketKey` 临时签发桶级 S3 密钥，再转发 Bucket Backend API 请求 — 完整架构详见 [`designs/mf-integration-plan.md`](./designs/mf-integration-plan.md)
 
 ## 文档
 
 - **[CONTRIBUTING.md](./CONTRIBUTING.md)** - 贡献指南
-- **[DEVELOPMENT.md](./DEVELOPMENT.md)** - 开发者指南，包含架构详情和测试
+- **[DEVELOPMENT.md](./DEVELOPMENT.md)** - 开发者指南（架构、测试、MF 配置）
+- **[AGENTS.md](./AGENTS.md)** - 面向 Agent 的总览（新人优先阅读）
+- **[designs/mf-integration-plan.md](./designs/mf-integration-plan.md)** - 冻结的 MF + Bucket Backend API 契约
 
 ## 常用脚本
 
-| 命令                    | 说明                     |
-| ----------------------- | ------------------------ |
-| `pnpm dev`              | 启动开发服务器           |
-| `pnpm build`            | 生产构建                 |
-| `pnpm lint`             | 运行 ESLint              |
-| `pnpm format`           | 使用 Prettier 格式化代码 |
-| `pnpm -C web test`      | 运行单元测试             |
-| `npx playwright test`   | 运行端到端测试           |
-| `pnpm -C api db:push`   | 推送数据库架构           |
-| `pnpm -C api db:studio` | 打开 Drizzle Studio GUI  |
+| 命令                                                          | 说明                                  |
+| ------------------------------------------------------------- | ------------------------------------- |
+| `pnpm dev`                                                    | 启动 Admin api + web（并行）          |
+| `pnpm -C s3-browser/api dev` / `pnpm -C s3-browser/web dev`   | 启动 S3 Browser BFF / web             |
+| `pnpm build`                                                  | 构建共享包 + Admin api + web          |
+| `pnpm lint` / `pnpm format`                                   | Admin 包的 lint / 格式化              |
+| `pnpm test`                                                   | Admin api + web 的 Vitest             |
+| `pnpm -C packages/bucket-api-contract-tests test:run`         | §2.4 一致性测试（env-gated，离线跳过）|
+| `npx playwright test`                                         | Admin Console 端到端测试              |
+| `pnpm -C garage-admin-console/api db:push`                    | 应用 Admin 库结构                     |
+| `pnpm -C garage-admin-console/api db:studio`                  | 打开 Admin 库的 Drizzle Studio        |
 
 ## 安全注意事项
 
 - 生产环境中应部署在带有 HTTPS 的反向代理之后
-- 为 `JWT_SECRET`、`ENCRYPTION_KEY` 和 `ADMIN_PASSWORD` 使用强且唯一的值
+- 为每个 BFF 的 `JWT_SECRET`、`ENCRYPTION_KEY` 和 `ADMIN_PASSWORD` 使用强且唯一的值
 - 控制台设计用于内部网络部署
 - 生产环境中建议考虑额外的认证层（VPN、SSO）
 
@@ -173,15 +204,10 @@ garage-admin-console/
 
 ### Logo 资源
 
-Garage Admin Console 的 Logo 资源（位于 `web/public/`）——
-`garage-admin-logo.svg`、`garage-admin-logo.png`、
-`garage-admin-logo-32.png`、`garage-admin-logo-64.png`、
-`garage-admin-logo-128.png` 和 `favicon.ico` ——
-版权归 [eyebrowkang](https://github.com/eyebrowkang) 所有，
-并随本项目以 AGPL-3.0 许可证发布。
+`garage-admin-console/web/public/` 下的 Garage Admin Console Logo 资源以及 `s3-browser/web/public/` 下的 S3 Browser Logo 资源版权归 [eyebrowkang](https://github.com/eyebrowkang) 所有，并随本项目以 AGPL-3.0 许可证发布。
 
 ### 第三方资源
 
-- `web/public/garage-admin-v2.json` 中的 OpenAPI 规范来源于
+- `garage-admin-console/web/public/garage-admin-v2.json` 中的 OpenAPI 规范来源于
   [Garage 项目仓库](https://git.deuxfleurs.fr/Deuxfleurs/garage)，
   受 Garage 自身许可条款约束。

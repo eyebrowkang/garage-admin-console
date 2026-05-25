@@ -1,24 +1,52 @@
-# Garage Admin Console - Web
+# @garage-admin/web
 
-Frontend SPA for Garage Admin Console.
+Frontend SPA for the Garage Admin Console — also the **Module Federation Host** for the embedded S3 Browser FileBrowser.
 
-**Tech Stack**: React 19, TypeScript, Vite, TanStack Query, Tailwind CSS, shadcn/ui
+**Tech stack**: React 19, TypeScript, Vite, TanStack Query, React Router v7, Tailwind v4, `@garage/ui` + `@garage/tokens`, `@module-federation/runtime`.
 
 ## Development
 
 ```bash
-pnpm -C web dev        # Start dev server (http://localhost:5173)
-pnpm -C web build      # Production build
-pnpm -C web test       # Run unit tests
-pnpm -C web lint       # Lint code
+pnpm -C garage-admin-console/web dev         # http://localhost:5173
+pnpm -C garage-admin-console/web build       # production build
+pnpm -C garage-admin-console/web test        # Vitest watch
+pnpm -C garage-admin-console/web lint
 ```
+
+The dev server proxies `/api/*` to `http://localhost:3001` (configured in `vite.config.ts`).
+
+## Module Federation host
+
+The Admin Console deliberately does NOT use `@module-federation/vite`. That plugin's build-time share registration races the Rsbuild-built remote's `consume_default_react` wrapper and trips React 19's two-copies guard. Instead the host owns federation via `@module-federation/runtime`:
+
+- [`src/mf-init.ts`](src/mf-init.ts) calls `init()` at entry with explicit `lib: () => React/ReactDOM` references so the host's React copies are registered in the share scope before any remote loads. Exports `mfInstance`.
+- [`src/main.tsx`](src/main.tsx) imports `./mf-init` as its very first line.
+- [`src/components/cluster/BucketObjectBrowser.tsx`](src/components/cluster/BucketObjectBrowser.tsx) uses `React.lazy(() => mfInstance.loadRemote('s3Browser/FileBrowser'))` inside a `Suspense` + custom `ErrorBoundary`.
+
+The remote URL is `VITE_S3_BROWSER_MF_URL` (default `http://localhost:5174/mf-manifest.json`). See [`.env.example`](.env.example).
+
+If the remote is unreachable, BucketObjectBrowser shows a graceful fallback panel — the Admin Console keeps working.
+
+## UI primitives
+
+Imports from `@garage/ui` (`Button`, `Card`, `Dialog`, `Table`, `cn`, etc.) and reads design tokens from `@garage/tokens`. Both are workspace deps (`workspace:*`), built once and consumed at build time — NOT shared via MF.
+
+The host stylesheet imports them in the right order so Tailwind v4 resolves utility classes referenced by `@garage/ui` (see [`src/index.css`](src/index.css)):
+
+```css
+@import '@garage/tokens/style.css';
+@import '@garage/ui/style.css';
+@import 'tailwindcss';
+```
+
+Splitting these imports across CSS and JS (e.g. doing `import '@garage/ui/style.css'` from `main.tsx`) causes Tailwind v4 to tree-shake utilities like `text-primary-foreground`, which makes primary buttons render with dark foreground text.
+
+## Configuration
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `VITE_S3_BROWSER_MF_URL` | No | URL of `s3-browser/web`'s MF manifest. Defaults to `http://localhost:5174/mf-manifest.json`. Bake this in at build time when deploying with the embedded browser. |
 
 ## Documentation
 
-See [DEVELOPMENT.md](../DEVELOPMENT.md) for detailed development guide including:
-
-- Project structure
-- Component organization
-- Custom hooks
-- Testing
-- Code style
+See [`../../DEVELOPMENT.md`](../../DEVELOPMENT.md) for project structure, component organization, custom hooks, testing, and the full Module Federation setup, and [`../../designs/mf-integration-plan.md`](../../designs/mf-integration-plan.md) for the architectural contract.
