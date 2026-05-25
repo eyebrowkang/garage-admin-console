@@ -123,7 +123,7 @@ Validation: `garage-admin-console/api/src/config/env.ts`. Database lives at `gar
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `VITE_S3_BROWSER_MF_URL` | No | URL of the s3-browser/web MF manifest. Defaults to `http://localhost:5174/mf-manifest.json`. If unset / unreachable, the embedded BucketObjectBrowser shows a friendly fallback. |
+| `VITE_S3_BROWSER_MF_URL` | No | URL of the s3-browser/web MF manifest. In development, defaults to the current browser hostname on port `5174`; set it explicitly at build time for production. If unset / unreachable, the embedded BucketObjectBrowser shows a friendly fallback. |
 
 #### S3 Browser BFF (`s3-browser/api/.env`)
 
@@ -226,7 +226,7 @@ garage-admin-console/                              # monorepo root
 │       │   ├── lib/{api.ts, connection-display.ts, format.ts, types.ts}
 │       │   └── index.css
 │       ├── public/                               # S3 Browser logos
-│       └── rsbuild.config.ts                     # MF Remote config, dts:true
+│       └── rsbuild.config.ts                     # MF Remote config, build-time dts
 │
 ├── packages/
 │   ├── tokens/                                   # @garage/tokens
@@ -447,11 +447,11 @@ shared: {
   react:     { singleton: true, requiredVersion: '^19' },
   'react-dom': { singleton: true, requiredVersion: '^19' },
 },
-dts: true,
+dts: command === 'build',
 bridge: { enableBridgeRouter: false },
 ```
 
-Dev server runs on `:5174`, exposes `/mf-manifest.json` and `/remoteEntry.js`.
+Dev server runs on `:5174`, exposes `/mf-manifest.json` and `/remoteEntry.js`. Federated DTS generation stays enabled for `rsbuild build` only, so dev avoids the local type-broker WebSocket on `127.0.0.1:16322`.
 
 ---
 
@@ -539,7 +539,7 @@ The Admin Console host owns federation via `@module-federation/runtime`:
 
 ### Remote URL
 
-Configured by `VITE_S3_BROWSER_MF_URL` (default `http://localhost:5174/mf-manifest.json`). Set it at **build time** for production deployments.
+Configured by `VITE_S3_BROWSER_MF_URL`. In development, if the variable is unset, the host derives the manifest URL from the current browser hostname on port `5174`, so `localhost` and LAN URLs both resolve to the matching S3 Browser dev server. Set it at **build time** for production deployments.
 
 ### Fallback behavior
 
@@ -819,7 +819,7 @@ The cluster row's `s3Endpoint` is null. Edit the cluster from the Admin Dashboar
 
 **Embedded FileBrowser shows "S3 Browser unavailable — Retry"**
 
-The MF manifest is unreachable. Check `VITE_S3_BROWSER_MF_URL` (default `http://localhost:5174/mf-manifest.json`) and that `pnpm -C s3-browser/web dev` is running.
+The MF manifest is unreachable. Check `VITE_S3_BROWSER_MF_URL` if set, and confirm that `pnpm -C s3-browser/web dev --host 0.0.0.0` is running when testing from another LAN host.
 
 **"Invalid hook call" inside the federated FileBrowser**
 

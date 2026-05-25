@@ -23,7 +23,7 @@ The Admin Console deliberately does NOT use `@module-federation/vite`. That plug
 - [`src/main.tsx`](src/main.tsx) imports `./mf-init` as its very first line.
 - [`src/components/cluster/BucketObjectBrowser.tsx`](src/components/cluster/BucketObjectBrowser.tsx) uses `React.lazy(() => mfInstance.loadRemote('s3Browser/FileBrowser'))` inside a `Suspense` + custom `ErrorBoundary`.
 
-The remote URL is `VITE_S3_BROWSER_MF_URL` (default `http://localhost:5174/mf-manifest.json`). See [`.env.example`](.env.example).
+The remote URL is `VITE_S3_BROWSER_MF_URL`. If unset in development, the host derives the manifest URL from the current browser hostname on port `5174`, so `localhost` and LAN URLs both resolve to the matching S3 Browser dev server. See [`.env.example`](.env.example).
 
 If the remote is unreachable, BucketObjectBrowser shows a graceful fallback panel — the Admin Console keeps working.
 
@@ -45,7 +45,7 @@ Splitting these imports across CSS and JS (e.g. doing `import '@garage/ui/style.
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `VITE_S3_BROWSER_MF_URL` | No | URL of `s3-browser/web`'s MF manifest. Defaults to `http://localhost:5174/mf-manifest.json`. Bake this in at build time when deploying with the embedded browser. |
+| `VITE_S3_BROWSER_MF_URL` | No | URL of `s3-browser/web`'s MF manifest. In development, defaults to the current browser hostname on port `5174`. Bake this in at build time when deploying with the embedded browser. |
 
 ## Documentation
 

@@ -2,6 +2,9 @@ import { defineConfig } from '@rsbuild/core';
 import { pluginReact } from '@rsbuild/plugin-react';
 import { pluginModuleFederation } from '@module-federation/rsbuild-plugin';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const configDir = path.dirname(fileURLToPath(import.meta.url));
 
 /**
  * @s3-browser/web — Rsbuild + React 19 + Module Federation 2.0 (Remote).
@@ -15,7 +18,7 @@ import path from 'node:path';
  * @garage/tokens are intentionally NOT shared at runtime (each app bundles
  * its own copy — see designs/mf-integration-plan.md §2.6).
  */
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [
     pluginReact(),
     pluginModuleFederation({
@@ -29,14 +32,14 @@ export default defineConfig({
         react: { singleton: true, requiredVersion: '^19' },
         'react-dom': { singleton: true, requiredVersion: '^19' },
       },
-      dts: true,
+      dts: command === 'build',
       bridge: { enableBridgeRouter: false },
     }),
   ],
   source: {
     entry: { index: './src/main.tsx' },
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      '@': path.resolve(configDir, './src'),
     },
   },
   server: {
@@ -47,6 +50,9 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
+  },
+  dev: {
+    assetPrefix: 'auto',
   },
   html: {
     title: 'S3 Browser',
@@ -80,4 +86,4 @@ export default defineConfig({
   output: {
     distPath: { root: 'dist' },
   },
-});
+}));

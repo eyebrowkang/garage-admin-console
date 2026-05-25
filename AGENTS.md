@@ -137,7 +137,7 @@ S3 Browser BFF — registered in [`s3-browser/api/src/app.ts`](s3-browser/api/sr
 
 - [`garage-admin-console/web/src/mf-init.ts`](garage-admin-console/web/src/mf-init.ts) calls `init()` at entry with explicit `lib: () => React/ReactDOM` references, exporting an `mfInstance` handle.
 - [`BucketObjectBrowser.tsx`](garage-admin-console/web/src/components/cluster/BucketObjectBrowser.tsx) consumes via `mfInstance.loadRemote('s3Browser/FileBrowser')` inside a `React.lazy` + `Suspense` + `ErrorBoundary`.
-- Remote URL is `VITE_S3_BROWSER_MF_URL` (default `http://localhost:5174/mf-manifest.json`).
+- Remote URL is `VITE_S3_BROWSER_MF_URL`; in development, if unset, `mf-init.ts` derives it from the current browser hostname on port `5174`.
 
 ### Database schemas
 
@@ -219,7 +219,7 @@ Within each module the same drill-down applies — list pages stay information-l
 - [`s3-browser/api/src/routes/buckets.ts`](s3-browser/api/src/routes/buckets.ts) — §2.4 handlers
 
 **S3 Browser web**:
-- [`s3-browser/web/rsbuild.config.ts`](s3-browser/web/rsbuild.config.ts) — MF Remote config, `dts: true`, `bridge.enableBridgeRouter: false`
+- [`s3-browser/web/rsbuild.config.ts`](s3-browser/web/rsbuild.config.ts) — MF Remote config, build-time `dts`, `bridge.enableBridgeRouter: false`
 - [`s3-browser/web/src/features/file-browser/FileBrowser.tsx`](s3-browser/web/src/features/file-browser/FileBrowser.tsx) — the federated primary surface
 - [`s3-browser/web/src/{export-app,export-file-browser}.tsx`](s3-browser/web/src/export-file-browser.tsx) — MF entry points
 

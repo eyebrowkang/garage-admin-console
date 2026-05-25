@@ -22,8 +22,18 @@ import { init } from '@module-federation/runtime';
 
 const REACT_VERSION = React.version;
 
-const s3BrowserMfUrl =
-  import.meta.env.VITE_S3_BROWSER_MF_URL ?? 'http://localhost:5174/mf-manifest.json';
+function getDefaultS3BrowserMfUrl() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') {
+    return 'http://localhost:5174/mf-manifest.json';
+  }
+
+  const hostname = window.location.hostname;
+  const host = hostname.includes(':') && !hostname.startsWith('[') ? `[${hostname}]` : hostname;
+
+  return `${window.location.protocol}//${host}:5174/mf-manifest.json`;
+}
+
+const s3BrowserMfUrl = import.meta.env.VITE_S3_BROWSER_MF_URL ?? getDefaultS3BrowserMfUrl();
 
 /**
  * Exported so consumers can call `mfInstance.loadRemote(...)`. The global

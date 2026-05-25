@@ -18,7 +18,7 @@ pnpm -C s3-browser/web build        # production build + MF manifest
 
 The dev server proxies `/api/*` to `http://localhost:3002` (the S3 Browser BFF).
 
-When the dev server is running, the MF manifest is published at `http://localhost:5174/mf-manifest.json` and the remote entry at `http://localhost:5174/remoteEntry.js`. The Admin Console (`@garage-admin/web`) picks these up automatically via `VITE_S3_BROWSER_MF_URL`.
+When the dev server is running, the MF manifest is published at `/mf-manifest.json` and the remote entry at `/remoteEntry.js` on whichever host you use to access port `5174`. The Admin Console (`@garage-admin/web`) picks these up automatically via `VITE_S3_BROWSER_MF_URL`, or derives the same hostname in development when that variable is unset.
 
 ## MF Remote configuration
 
@@ -36,13 +36,14 @@ pluginModuleFederation({
     react:     { singleton: true, requiredVersion: '^19' },
     'react-dom': { singleton: true, requiredVersion: '^19' },
   },
-  dts: true,
+  dts: command === 'build',
   bridge: { enableBridgeRouter: false },
 })
 ```
 
 - Only React + ReactDOM are runtime-shared. `@garage/ui` / `@garage/tokens` are bundled (build-time deps), per `designs/mf-integration-plan.md` §2.6.
-- `dts: true` emits the remote types so hosts can consume `FileBrowserProps` from `@mf-types/`. The Admin Console keeps a hand-rolled shim at [`garage-admin-console/web/src/types/s3-browser.d.ts`](../../garage-admin-console/web/src/types/s3-browser.d.ts) as a fallback.
+- `dev.assetPrefix: 'auto'` keeps dev HTML and MF manifest assets host-relative, so `pnpm -C s3-browser/web dev --host 0.0.0.0` works from LAN clients without `localhost` URLs leaking into resource links.
+- `dts` is enabled for `rsbuild build` only. Production builds emit remote types so hosts can consume `FileBrowserProps` from `@mf-types/`, while dev avoids the local DTS broker WebSocket. The Admin Console keeps a hand-rolled shim at [`garage-admin-console/web/src/types/s3-browser.d.ts`](../../garage-admin-console/web/src/types/s3-browser.d.ts) as a fallback.
 - `enableBridgeRouter: false` — `./FileBrowser` doesn't use react-router; the host owns navigation.
 
 ## The federated `FileBrowser` component
