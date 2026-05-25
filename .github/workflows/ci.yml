@@ -29,14 +29,24 @@ jobs:
       - name: Lint
         run: pnpm lint
 
-      - name: Typecheck API
-        run: pnpm -C garage-admin-console/api typecheck
+      - name: Lint s3-browser
+        run: |
+          pnpm -C s3-browser/api lint
+          pnpm -C s3-browser/web lint
+
+      - name: Typecheck APIs
+        run: |
+          pnpm -C garage-admin-console/api typecheck
+          pnpm -C s3-browser/api typecheck
 
       - name: Build shared packages
         run: pnpm build:packages
 
-      - name: Build web
+      - name: Build web (admin)
         run: pnpm -C garage-admin-console/web build
+
+      - name: Build web (s3-browser)
+        run: pnpm -C s3-browser/web build
 
       - name: Test API
         run: pnpm -C garage-admin-console/api test:run
