@@ -114,6 +114,8 @@ export interface FileBrowserProps {
   backend: {
     baseUrl: string;
     authToken: string;
+    /** Extra headers forwarded on every BFF request (e.g. X-Garage-Access-Key-Id). */
+    headers?: Record<string, string>;
   };
   /** Display-only — baseUrl already encodes which bucket we're in. */
   bucket: string;
@@ -182,16 +184,22 @@ function FileBrowserInner({
   // preview" + the toolbar Eye toggle both flip this.
   const [previewOpen, setPreviewOpen] = useState(showPreviewInitial);
   // Stable axios instance for this backend + token.
+  // Re-created when baseUrl, authToken, or extra headers change so callers
+  // (e.g. the host key-selector) can swap credentials by updating the prop.
   const http = useMemo<AxiosInstance>(
     () =>
       axios.create({
         baseURL: backend.baseUrl,
-        headers: { Authorization: `Bearer ${backend.authToken}` },
+        headers: {
+          Authorization: `Bearer ${backend.authToken}`,
+          ...(backend.headers ?? {}),
+        },
         // Allow large multipart uploads to stream through axios.
         maxBodyLength: Infinity,
         maxContentLength: Infinity,
       }),
-    [backend.baseUrl, backend.authToken],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [backend.baseUrl, backend.authToken, JSON.stringify(backend.headers)],
   );
 
   const qc = useQueryClient();

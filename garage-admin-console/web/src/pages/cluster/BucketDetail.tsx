@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { Globe, Tags, Settings, RefreshCw, Pencil } from 'lucide-react';
 import {
   Card,
@@ -59,6 +59,25 @@ import { toast } from '@/hooks/use-toast';
 export function BucketDetail() {
   const { bid } = useParams<{ bid: string }>();
   const { clusterId } = useClusterContext();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // After KeyList creates a key via the guided flow, it redirects here with
+  // ?selectKey=<id>. Capture it once, pass to BucketObjectBrowser, then remove
+  // from the URL so refreshes don't re-trigger the selection logic.
+  const selectKeyParam = searchParams.get('selectKey') ?? undefined;
+  useEffect(() => {
+    if (selectKeyParam) {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete('selectKey');
+          return next;
+        },
+        { replace: true },
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [aliasDialogOpen, setAliasDialogOpen] = useState(false);
   const [aliasType, setAliasType] = useState<'global' | 'local'>('global');
@@ -354,6 +373,7 @@ export function BucketDetail() {
           clusterId={clusterId}
           bucketId={bucket.id}
           bucketAlias={bucket.globalAliases[0]}
+          initialKeyId={selectKeyParam}
         />
       )}
 

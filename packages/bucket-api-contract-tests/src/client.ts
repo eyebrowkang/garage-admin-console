@@ -25,9 +25,13 @@ export class BucketApiClient {
     });
     const token = loginRes.data.token as string;
 
+    const extraHeaders: Record<string, string> = {};
+    if (cfg.accessKeyId) {
+      extraHeaders['X-Garage-Access-Key-Id'] = cfg.accessKeyId;
+    }
     const bff = axios.create({
       baseURL: cfg.bffUrl,
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${token}`, ...extraHeaders },
     });
 
     // 2. Resolve or create a bucket-owning row.

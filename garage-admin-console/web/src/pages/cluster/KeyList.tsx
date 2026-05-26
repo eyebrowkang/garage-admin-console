@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowUpDown, ArrowUp, ArrowDown, Search } from 'lucide-react';
 import {
   Table,
@@ -51,12 +51,20 @@ export function KeyList() {
   const { clusterId } = useClusterContext();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [searchParams] = useSearchParams();
+
+  // Guided flow from BucketDetail zero-key CTA
+  const createParam = searchParams.get('create');
+  const prefillNameParam = searchParams.get('prefillName') ?? '';
+  const grantBucketIdParam = searchParams.get('grantBucketId') ?? '';
+  const returnToParam = searchParams.get('returnTo') ?? '';
+
+  const [isDialogOpen, setIsDialogOpen] = useState(createParam === '1');
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortField, setSortField] = useState<'id' | 'name' | 'created' | 'expiration'>('name');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const [newKeyName, setNewKeyName] = useState('');
+  const [newKeyName, setNewKeyName] = useState(prefillNameParam);
   const [createExpirationDate, setCreateExpirationDate] = useState('');
   const [createExpirationHour, setCreateExpirationHour] = useState('00');
   const [createExpirationMinute, setCreateExpirationMinute] = useState('00');
@@ -107,10 +115,36 @@ export function KeyList() {
       );
       return res.data;
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ['keys', clusterId] });
       setIsDialogOpen(false);
       resetCreateForm();
+
+      // Guided flow: grant the new key access to the specified bucket, then
+      // redirect back to BucketDetail so the user can start browsing.
+      if (grantBucketIdParam) {
+        try {
+          await api.post(proxyPath(clusterId, '/v2/AllowBucketKey'), {
+            bucketId: grantBucketIdParam,
+            accessKeyId: data.accessKeyId,
+            permissions: { read: true, write: true, owner: false },
+          });
+        } catch (err) {
+          toast({
+            title: 'Key created — bucket grant failed',
+            description: getApiErrorMessage(err, 'Could not grant bucket access automatically.'),
+            variant: 'destructive',
+          });
+          // Still redirect so the user can see and use the new key.
+        }
+      }
+
+      if (returnToParam) {
+        const sep = returnToParam.includes('?') ? '&' : '?';
+        navigate(`${returnToParam}${sep}selectKey=${encodeURIComponent(data.accessKeyId)}`);
+        return;
+      }
+
       setCreatedKey(data);
     },
     onError: (err) => {

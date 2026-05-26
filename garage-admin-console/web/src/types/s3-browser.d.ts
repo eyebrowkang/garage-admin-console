@@ -25,6 +25,8 @@ declare module 's3Browser/FileBrowser' {
       baseUrl: string;
       /** JWT — never a Garage admin token. */
       authToken: string;
+      /** Extra headers forwarded on every BFF request (e.g. X-Garage-Access-Key-Id). */
+      headers?: Record<string, string>;
     };
     /** Display-only; baseUrl already encodes which bucket we're in. */
     bucket: string;

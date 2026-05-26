@@ -33,6 +33,12 @@ export interface ContractTestConfig {
    * the connection from TEST_S3_*.
    */
   ownerId: string | null;
+  /**
+   * clusters flavor only: the access key ID to forward as
+   * X-Garage-Access-Key-Id on every bucket request.
+   * Required when TEST_BFF_FLAVOR=clusters; sourced from TEST_ACCESS_KEY_ID.
+   */
+  accessKeyId?: string;
   /** If `ownerId` is null, these are used to create a connection. */
   s3?: {
     endpoint: string;
@@ -54,8 +60,9 @@ function readConfig(): ContractTestConfig | null {
   // For the clusters flavor, the owner id MUST be a pre-existing cluster.
   if (flavor === 'clusters') {
     const ownerId = process.env.TEST_CLUSTER_ID ?? process.env.TEST_CONNECTION_ID;
-    if (!ownerId) return null;
-    return { bffUrl, bffPassword, bucket, flavor, ownerId };
+    const accessKeyId = process.env.TEST_ACCESS_KEY_ID;
+    if (!ownerId || !accessKeyId) return null;
+    return { bffUrl, bffPassword, bucket, flavor, ownerId, accessKeyId };
   }
 
   // connections flavor — same flow as before.
