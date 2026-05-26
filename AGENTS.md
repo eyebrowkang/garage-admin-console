@@ -36,10 +36,12 @@ garage-admin-console/                         # monorepo root
 pnpm install                                  # Install all workspaces
 
 # Dev — currently `pnpm dev` launches Admin Console only (api + web in parallel).
-# Run S3 Browser in a second terminal:
+# To also develop/debug the embedded FileBrowser inside the Admin Console,
+# run all four processes (three terminals):
 pnpm dev                                      # Admin: BFF :3001 + Vite :5173
 pnpm -C s3-browser/api dev                    # S3 Browser BFF :3002
-pnpm -C s3-browser/web dev                    # S3 Browser web :5174
+pnpm -C s3-browser/web dev                    # S3 Browser web :5174 (MF Remote — serves remoteEntry.js)
+# Admin Console auto-discovers the remote at http://<hostname>:5174 when VITE_S3_BROWSER_MF_URL is unset.
 
 pnpm build                                    # Build shared packages, then Admin api + web
 pnpm -C s3-browser/api build                  # S3 Browser BFF
@@ -88,6 +90,7 @@ The shared HTTP surface that BOTH BFFs implement so the same `FileBrowser` can r
 | ---------------------------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------- |
 | `GET /list`                              | `?prefix=&delimiter=/&continuationToken=&maxKeys=`          | `{ objects: S3Object[]; prefixes: string[]; nextContinuationToken? }` |
 | `GET /object`                            | `?key=`                                                     | `S3Object` (HEAD-equivalent metadata)                                 |
+| `GET /download`                          | `?key=`                                                     | Binary stream — `Content-Disposition: attachment`                     |
 | `POST /presign`                          | `{ key, operation: 'getObject' \| 'putObject', expiresIn }` | `{ url, expiresAt }`                                                  |
 | `POST /upload`                           | `multipart/form-data` (one+ files, optional `prefix`)       | `{ uploaded: { key, etag, size }[] }`                                 |
 | `DELETE /objects`                        | `{ keys: string[] }`                                        | `{ deleted: string[]; errors: { key, message }[] }`                   |
@@ -111,17 +114,18 @@ Admin BFF — registered in [`garage-admin-console/api/src/app.ts`](garage-admin
 | `GET/POST /api/clusters`                                    | JWT  | List / add clusters (tokens excluded from list)              |
 | `PUT/DELETE /api/clusters/:id`                              | JWT  | Update / remove cluster                                      |
 | `ALL  /api/proxy/:clusterId/*splat`                         | JWT  | Pass-through to Garage admin API                             |
-| `* /api/clusters/:clusterId/buckets/:bucket/*` (Bucket API) | JWT  | list, object, presign, upload, objects, copy                 |
+| `* /api/clusters/:clusterId/buckets/:bucket/*` (Bucket API) | JWT  | list, object, download, presign, upload, objects, copy       |
 
 S3 Browser BFF — registered in [`s3-browser/api/src/app.ts`](s3-browser/api/src/app.ts):
 
-| Route                                                       | Auth | Purpose                              |
-| ----------------------------------------------------------- | ---- | ------------------------------------ |
-| `POST /api/auth/login`                                      | No   | Returns JWT                          |
-| `GET  /api/health`                                          | No   | Health check                         |
-| `GET/POST/PUT/DELETE /api/connections[/:id]`                | JWT  | CRUD S3 connections                  |
-| `GET  /api/connections/:connId/buckets`                     | JWT  | S3 ListBuckets (helper)              |
-| `* /api/connections/:connId/buckets/:bucket/*` (Bucket API) | JWT  | shared Bucket Backend API            |
+| Route                                                       | Auth | Purpose                                                |
+| ----------------------------------------------------------- | ---- | ------------------------------------------------------ |
+| `POST /api/auth/login`                                      | No   | Returns JWT                                            |
+| `GET  /api/health`                                          | No   | Health check                                           |
+| `GET/POST/PUT/DELETE /api/connections[/:id]`                | JWT  | CRUD S3 connections                                    |
+| `POST /api/connections/test`                                | JWT  | Test credentials without saving                        |
+| `GET  /api/connections/:connId/buckets`                     | JWT  | S3 ListBuckets (helper)                                |
+| `* /api/connections/:connId/buckets/:bucket/*` (Bucket API) | JWT  | list, object, download, presign, upload, objects, copy |
 
 ### Module Federation surface
 

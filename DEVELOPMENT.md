@@ -271,8 +271,8 @@ Registered in [`src/app.ts`](garage-admin-console/api/src/app.ts):
 | `/api/clusters`                                                                      | POST    | JWT  | Add a cluster                                  |
 | `/api/clusters/:id`                                                                  | PUT     | JWT  | Update a cluster                               |
 | `/api/clusters/:id`                                                                  | DELETE  | JWT  | Remove a cluster                               |
-| `/api/proxy/:clusterId/*splat`                                                       | ALL     | JWT  | Pass-through to Garage Admin API               |
-| `/api/clusters/:clusterId/buckets/:bucket/{list,object,presign,upload,objects,copy}` | various | JWT  | [Bucket Backend API](#bucket-backend-api)      |
+| `/api/proxy/:clusterId/*splat`                                                                       | ALL     | JWT  | Pass-through to Garage Admin API               |
+| `/api/clusters/:clusterId/buckets/:bucket/{list,object,download,presign,upload,objects,copy}` | various | JWT  | [Bucket Backend API](#bucket-backend-api)      |
 
 Notes:
 
@@ -391,14 +391,15 @@ This package is the **MF Host** for the federated `FileBrowser`. The vite federa
 
 Registered in [`src/app.ts`](s3-browser/api/src/app.ts):
 
-| Endpoint                                                                             | Method     | Auth | Description                                             |
-| ------------------------------------------------------------------------------------ | ---------- | ---- | ------------------------------------------------------- |
-| `/api/auth/login`                                                                    | POST       | No   | Authenticate and receive JWT                            |
-| `/api/health`                                                                        | GET        | No   | Health check                                            |
-| `/api/connections`                                                                   | GET/POST   | JWT  | CRUD list/create connections (creds excluded from list) |
-| `/api/connections/:id`                                                               | PUT/DELETE | JWT  | Update / delete a connection                            |
-| `/api/connections/:connId/buckets`                                                   | GET        | JWT  | S3 `ListBuckets` (helper)                               |
-| `/api/connections/:connId/buckets/:bucket/{list,object,presign,upload,objects,copy}` | various    | JWT  | [Bucket Backend API](#bucket-backend-api)               |
+| Endpoint                                                                                      | Method     | Auth | Description                                             |
+| --------------------------------------------------------------------------------------------- | ---------- | ---- | ------------------------------------------------------- |
+| `/api/auth/login`                                                                             | POST       | No   | Authenticate and receive JWT                            |
+| `/api/health`                                                                                 | GET        | No   | Health check                                            |
+| `/api/connections`                                                                            | GET/POST   | JWT  | CRUD list/create connections (creds excluded from list) |
+| `/api/connections/test`                                                                       | POST       | JWT  | Test credentials without saving — returns `{ ok, buckets?, error? }` |
+| `/api/connections/:id`                                                                        | PUT/DELETE | JWT  | Update / delete a connection                            |
+| `/api/connections/:connId/buckets`                                                            | GET        | JWT  | S3 `ListBuckets` (helper)                               |
+| `/api/connections/:connId/buckets/:bucket/{list,object,download,presign,upload,objects,copy}` | various    | JWT  | [Bucket Backend API](#bucket-backend-api)               |
 
 ### Database schema
 
@@ -549,6 +550,35 @@ Configured by `VITE_S3_BROWSER_MF_URL`. In development, if the variable is unset
 
 If the remote is unreachable or the cluster has no `s3Endpoint` configured, BucketObjectBrowser shows a friendly panel instead of crashing the BucketDetail page. The rest of the Admin Console keeps working.
 
+### Dev workflow: embedded FileBrowser in Admin Console
+
+To develop or debug the embedded `FileBrowser` inside the Admin Console bucket detail page you need all four processes running simultaneously:
+
+```bash
+# Terminal 1 — Admin Console (BFF + Vite host)
+pnpm dev                        # Admin BFF :3001 + Vite :5173
+
+# Terminal 2 — S3 Browser BFF
+pnpm -C s3-browser/api dev      # :3002
+
+# Terminal 3 — S3 Browser web (MF Remote)
+pnpm -C s3-browser/web dev      # Rsbuild :5174 — serves /remoteEntry.js
+```
+
+The Admin Console's `mf-init.ts` auto-derives `http://<hostname>:5174/mf-manifest.json` when `VITE_S3_BROWSER_MF_URL` is unset, so the host picks up the live remote from terminal 3.
+
+**What you need in the Admin Console to see the file browser:**
+1. Add a Garage cluster with `s3Endpoint` set (e.g. `http://localhost:3900`).
+2. Navigate to any bucket → the BucketDetail page renders the federated `<FileBrowser/>` via `BucketObjectBrowser`.
+
+**Hot-reload behaviour:**
+- Changes to `FileBrowser.tsx` or any file under `s3-browser/web/src/` → Rsbuild HMR re-exports the remote; the Admin Console picks up the new bundle on the next `loadRemote` call (usually a page refresh is enough).
+- Changes to the Admin Console's `BucketObjectBrowser.tsx` → Vite HMR updates the host page directly.
+
+**`assetPrefix` requirement for the S3 Browser dev server:**
+
+`s3-browser/web/rsbuild.config.ts` sets `dev.assetPrefix: '/'`. This is required because `historyApiFallback: true` (the SPA fallback) is also active on the Rsbuild dev server. Without an absolute asset prefix the HTML emits `<script src="static/js/index.js">` (relative path); when the browser is at `/connections/abc` it resolves to `/connections/static/js/index.js`, which the fallback intercepts and returns as HTML — breaking the page. Absolute paths (`/static/js/index.js`) always resolve correctly. The `output.assetPrefix: 'auto'` for production builds is unaffected.
+
 ---
 
 ## Bucket Backend API
@@ -562,16 +592,19 @@ The shared HTTP surface that both BFFs implement so the same `FileBrowser` can r
 
 **Routes** (relative to scope):
 
-| Method | Path       | Body / query                                              | Response                                                              |
-| ------ | ---------- | --------------------------------------------------------- | --------------------------------------------------------------------- |
-| GET    | `/list`    | `?prefix=&delimiter=/&continuationToken=&maxKeys=`        | `{ objects: S3Object[]; prefixes: string[]; nextContinuationToken? }` |
-| GET    | `/object`  | `?key=`                                                   | `S3Object` (HEAD-equivalent)                                          |
-| POST   | `/presign` | `{ key, operation: 'getObject'\|'putObject', expiresIn }` | `{ url, expiresAt }`                                                  |
-| POST   | `/upload`  | `multipart/form-data` (one+ files, optional `prefix`)     | `{ uploaded: { key, etag, size }[] }`                                 |
-| DELETE | `/objects` | `{ keys: string[] }`                                      | `{ deleted: string[]; errors: { key, message }[] }`                   |
-| POST   | `/copy`    | `{ src, dst }`                                            | `{ etag }`                                                            |
+| Method | Path        | Body / query                                              | Response                                                              |
+| ------ | ----------- | --------------------------------------------------------- | --------------------------------------------------------------------- |
+| GET    | `/list`     | `?prefix=&delimiter=/&continuationToken=&maxKeys=`        | `{ objects: S3Object[]; prefixes: string[]; nextContinuationToken? }` |
+| GET    | `/object`   | `?key=`                                                   | `S3Object` (HEAD-equivalent)                                          |
+| GET    | `/download` | `?key=`                                                   | Binary stream — `Content-Disposition: attachment`                     |
+| POST   | `/presign`  | `{ key, operation: 'getObject'\|'putObject', expiresIn }` | `{ url, expiresAt }`                                                  |
+| POST   | `/upload`   | `multipart/form-data` (one+ files, optional `prefix`)     | `{ uploaded: { key, etag, size }[] }`                                 |
+| DELETE | `/objects`  | `{ keys: string[] }`                                      | `{ deleted: string[]; errors: { key, message }[] }`                   |
+| POST   | `/copy`     | `{ src, dst }`                                            | `{ etag }`                                                            |
 
 All routes require `Authorization: Bearer <jwt>`. Error envelope is `{ error: string | Issue[] }` (Zod issues for validation errors).
+
+`/download` streams the S3 object through the BFF — no pre-signed URL reaches the browser. The `FileBrowser` uses `fetch` + `responseType: 'blob'` + a transient blob URL to trigger the save dialog. Note: the entire file is buffered in the browser; large-file optimisation is a future concern.
 
 ---
 
