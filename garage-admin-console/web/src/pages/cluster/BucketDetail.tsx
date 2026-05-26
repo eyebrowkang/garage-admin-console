@@ -58,7 +58,7 @@ import { toast } from '@/hooks/use-toast';
 
 export function BucketDetail() {
   const { bid } = useParams<{ bid: string }>();
-  const { clusterId, cluster } = useClusterContext();
+  const { clusterId } = useClusterContext();
 
   const [aliasDialogOpen, setAliasDialogOpen] = useState(false);
   const [aliasType, setAliasType] = useState<'global' | 'local'>('global');
