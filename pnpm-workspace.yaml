@@ -1,8 +1,15 @@
 packages:
-  - api
-  - web
-
-onlyBuiltDependencies:
-  - bcrypt
-  - esbuild
-  - sqlite3
+  - 'garage-admin-console/*'
+  - 's3-browser/*'
+  - 'packages/*'
+overrides:
+  '@prisma/client': '-'
+  prisma: '-'
+  '@electric-sql/pglite': '-'
+  mysql2: '-'
+  postgres: '-'
+allowBuilds:
+  '@parcel/watcher': true
+  bcrypt: true
+  esbuild: true
+  sqlite3: true

@@ -18,17 +18,23 @@ cd garage-admin-console
 pnpm install
 pnpm approve-builds    # if prompted for native builds
 
-cp api/.env.example api/.env
-# Edit api/.env with your settings
+cp garage-admin-console/api/.env.example garage-admin-console/api/.env
+# Optionally also configure the S3 Browser BFF:
+cp s3-browser/api/.env.example s3-browser/api/.env
 
-pnpm -C api db:push    # initialize database
-pnpm dev               # start development servers
+pnpm -C garage-admin-console/api db:push    # initialize Admin database
+pnpm dev                                    # start Admin api :3001 + web :5173
 ```
 
-- Frontend: http://localhost:5173
-- API: http://localhost:3001
+The repo is a pnpm workspace with two products (`garage-admin-console/`, `s3-browser/`) plus three shared packages (`packages/{tokens,ui,bucket-api-contract-tests}`). See [DEVELOPMENT.md](./DEVELOPMENT.md) for full architecture details.
 
-See [DEVELOPMENT.md](./DEVELOPMENT.md) for full architecture details and advanced topics.
+To work on the S3 Browser side in parallel:
+
+```bash
+# Second terminal
+pnpm -C s3-browser/api dev    # BFF on :3002
+pnpm -C s3-browser/web dev    # web on :5174 — exposes the Module Federation manifest
+```
 
 ## Development Workflow
 
@@ -39,10 +45,17 @@ See [DEVELOPMENT.md](./DEVELOPMENT.md) for full architecture details and advance
 3. Run the checks:
 
 ```bash
-pnpm lint
-pnpm -C api typecheck
-pnpm -C web build
-pnpm test
+pnpm lint                                              # Admin lint
+pnpm -C garage-admin-console/api typecheck             # Admin api types
+pnpm -C garage-admin-console/web build                 # Admin web types (compiled)
+pnpm test                                              # Admin vitest
+
+# If you touched any Bucket Backend API surface (admin or s3-browser):
+pnpm -C s3-browser/api typecheck
+pnpm -C packages/bucket-api-contract-tests test:run    # env-gated; see suite README
+
+# If you touched s3-browser/web:
+pnpm -C s3-browser/web build
 ```
 
 4. Commit using [conventional commit](#commit-messages) format.
@@ -69,12 +82,13 @@ Types:
 | `test` | Adding or updating tests |
 | `chore` | Maintenance tasks (dependencies, CI, build) |
 
-Examples:
+For changes that span both products, scoping helps readers:
 
 ```
 feat: add bucket quota editing
-fix: correct JWT expiry check on proxy routes
+fix(s3-browser): correct upload progress percentage
 docs: update Docker deployment instructions
+refactor(packages/ui): extract Skeleton primitive
 ```
 
 ## Versioning
@@ -86,11 +100,13 @@ Within a major version, minor and patch bumps follow the usual conventions:
 - `fix:` commits → **patch** bump (e.g. `2.0.0` → `2.0.1`)
 - `feat:` / significant `refactor:` commits → **minor** bump (e.g. `2.0.1` → `2.1.0`)
 
+When evolving the shared surfaces (`FileBrowserProps` and the Bucket Backend API), pick a `feat:` for additive changes and treat any rename/removal as a breaking change so downstream embedders can pin against a known minor.
+
 ## Code Style
 
 - **Prettier**: 100-char width, single quotes, trailing commas, semicolons, 2-space indent
 - **ESLint 9**: flat config with TypeScript rules
-- **TypeScript**: strict mode in both packages
+- **TypeScript**: strict mode in every package
 
 ```bash
 pnpm format      # auto-format
@@ -103,6 +119,7 @@ pnpm lint:fix    # auto-fix lint issues
 - Include a clear description of what changed and why.
 - Link related issues (`Fixes #123`).
 - Ensure CI checks pass before requesting review.
+- If you touched a contract (`FileBrowserProps`, Bucket Backend API), call it out in the PR body — it triggers cross-app coordination.
 
 ## Reporting Issues
 
@@ -110,6 +127,7 @@ Use the [issue templates](https://github.com/eyebrowkang/garage-admin-console/is
 
 - Steps to reproduce (for bugs)
 - Garage Admin Console version and Garage cluster version
+- Whether you're running standalone or with the embedded S3 Browser
 - Deployment method (Docker, from source, etc.)
 
 ## License

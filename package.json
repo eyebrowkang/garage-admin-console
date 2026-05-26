@@ -3,31 +3,27 @@
   "version": "0.0.0",
   "private": true,
   "license": "AGPL-3.0-only",
-  "packageManager": "pnpm@10.28.0",
+  "packageManager": "pnpm@11.3.0",
   "engines": {
     "node": ">=24.0.0"
   },
   "scripts": {
-    "build": "pnpm -C api build && pnpm -C web build",
-    "dev": "pnpm -r --parallel --filter api --filter web dev",
-    "lint": "pnpm -C api lint && pnpm -C web lint",
-    "lint:fix": "pnpm -C api lint:fix && pnpm -C web lint:fix",
-    "format": "pnpm -C api format && pnpm -C web format",
-    "format:check": "pnpm -C api format:check && pnpm -C web format:check",
-    "test": "pnpm -C api test:run && pnpm -C web test:run",
-    "typecheck": "pnpm -C api typecheck"
+    "build:packages": "pnpm -r --filter './packages/**' --if-present build",
+    "build:admin": "pnpm build:packages && pnpm --filter @garage-admin/api build && pnpm --filter @garage-admin/web build",
+    "build:s3-browser": "pnpm build:packages && pnpm --filter @s3-browser/api build && pnpm --filter @s3-browser/web build",
+    "build": "pnpm build:admin",
+    "dev": "pnpm -r --parallel --filter @garage-admin/api --filter @garage-admin/web dev",
+    "dev:s3-browser": "pnpm -r --parallel --filter @s3-browser/api --filter @s3-browser/web dev",
+    "dev:all": "pnpm -r --parallel --filter @garage-admin/api --filter @garage-admin/web --filter @s3-browser/api --filter @s3-browser/web dev",
+    "lint": "pnpm -r --if-present lint",
+    "lint:fix": "pnpm -r --if-present lint:fix",
+    "format": "pnpm -r --if-present format",
+    "format:check": "pnpm -r --if-present format:check",
+    "test": "pnpm -F @garage/bucket-api-server test:run && pnpm -C garage-admin-console/api test:run && pnpm -C garage-admin-console/web test:run",
+    "typecheck": "pnpm -r --if-present typecheck && pnpm --filter @garage-admin/web exec tsc --noEmit && pnpm --filter @s3-browser/web exec tsc --noEmit"
   },
   "devDependencies": {
-    "@playwright/test": "^1.58.1",
-    "playwright": "^1.58.1"
-  },
-  "pnpm": {
-    "overrides": {
-      "@prisma/client": "-",
-      "prisma": "-",
-      "@electric-sql/pglite": "-",
-      "mysql2": "-",
-      "postgres": "-"
-    }
+    "@playwright/test": "^1.60.0",
+    "playwright": "^1.60.0"
   }
 }

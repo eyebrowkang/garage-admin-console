@@ -1,0 +1,31 @@
+{
+  "name": "@garage/tokens",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Design tokens — framework-agnostic CSS variables + JS export",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "sideEffects": [
+    "./style.css",
+    "./src/style.css"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./style.css": "./src/style.css"
+  },
+  "files": [
+    "dist",
+    "src/style.css"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean",
+    "dev": "tsup src/index.ts --format esm --dts --watch"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.0",
+    "typescript": "~6.0.3"
+  }
+}

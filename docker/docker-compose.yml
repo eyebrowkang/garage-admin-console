@@ -1,0 +1,57 @@
+name: garage-admin-console
+
+services:
+  garage-admin-console:
+    image: ${GARAGE_ADMIN_IMAGE:-ghcr.io/eyebrowkang/garage-admin-console:latest}
+    build:
+      context: ..
+      dockerfile: docker/garage-admin-console.Dockerfile
+    ports:
+      - '${GARAGE_ADMIN_HTTP_PORT:-3001}:3001'
+    volumes:
+      - garage-admin-data:/data
+    environment:
+      JWT_SECRET: ${GARAGE_ADMIN_JWT_SECRET:?Set GARAGE_ADMIN_JWT_SECRET}
+      ENCRYPTION_KEY: ${GARAGE_ADMIN_ENCRYPTION_KEY:?Set GARAGE_ADMIN_ENCRYPTION_KEY}
+      ADMIN_PASSWORD: ${GARAGE_ADMIN_PASSWORD:?Set GARAGE_ADMIN_PASSWORD}
+      S3_BROWSER_MF_URL: ${S3_BROWSER_MF_URL:-}
+      S3_BROWSER_MF_PROXY_TARGET: ${S3_BROWSER_MF_PROXY_TARGET:-}
+      PORT: 3001
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      MORGAN_FORMAT: ${MORGAN_FORMAT:-off}
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:3001/api/health >/dev/null 2>&1 || exit 1']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  s3-browser:
+    profiles: ['s3-browser']
+    image: ${S3_BROWSER_IMAGE:-ghcr.io/eyebrowkang/s3-browser:latest}
+    build:
+      context: ..
+      dockerfile: docker/s3-browser.Dockerfile
+    expose:
+      - '3002'
+    environment:
+      S3_BROWSER_STATIC_ONLY: ${S3_BROWSER_STATIC_ONLY:-false}
+      JWT_SECRET: ${S3_BROWSER_JWT_SECRET:-}
+      ENCRYPTION_KEY: ${S3_BROWSER_ENCRYPTION_KEY:-}
+      ADMIN_PASSWORD: ${S3_BROWSER_ADMIN_PASSWORD:-}
+      STATIC_CORS_ORIGIN: ${S3_BROWSER_STATIC_CORS_ORIGIN:-}
+      PORT: 3002
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      MORGAN_FORMAT: ${MORGAN_FORMAT:-off}
+    volumes:
+      - s3-browser-data:/data
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:3002/api/health >/dev/null 2>&1 || exit 1']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  garage-admin-data:
+  s3-browser-data:

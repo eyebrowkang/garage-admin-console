@@ -6,6 +6,7 @@
 .env
 .env.*
 !.env.example
+!docker/.env.compose.example
 coverage
 node_modules
 dist
@@ -13,3 +14,8 @@ pnpm-debug.log*
 .pnpm-store
 test-results/
 playwright-report/
+designs/
+.agents/
+.claude/
+.junie/
+memory/

@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "mf": {
+      "source": "module-federation/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/mf/SKILL.md",
+      "computedHash": "915bbdb287795b810f91abcb642aa3d22ddeb722b37890c3141da40069156c12"
+    }
+  }
+}

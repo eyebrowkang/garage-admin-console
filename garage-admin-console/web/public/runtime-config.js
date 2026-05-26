@@ -1,0 +1,1 @@
+window.__GARAGE_RUNTIME_CONFIG__ = window.__GARAGE_RUNTIME_CONFIG__ || {};

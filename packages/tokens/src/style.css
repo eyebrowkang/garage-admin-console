@@ -1,0 +1,58 @@
+/*
+ * @garage/tokens — design tokens as CSS variables.
+ *
+ * Apps import this stylesheet once at their entry point.
+ * @garage/ui consumes ONLY these variables — never hardcoded colors.
+ *
+ * Palette (per garage-admin-console/CLAUDE.md):
+ *   - theme  : orange rgb(255, 148, 41)
+ *   - error  : red
+ *   - success: green
+ *   - warning: purple
+ *
+ * Light mode only; dark mode intentionally out of scope.
+ */
+
+:root {
+  /* Surfaces */
+  --background: 36 100% 99%;
+  --foreground: 24 23% 12%;
+
+  --card: 0 0% 100%;
+  --card-foreground: 24 23% 12%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 24 23% 12%;
+
+  /* Primary — orange theme color */
+  --primary: 30 100% 58%;
+  --primary-foreground: 0 0% 100%;
+
+  /* Secondary, muted, accent — all warm neutrals */
+  --secondary: 35 45% 95%;
+  --secondary-foreground: 24 20% 18%;
+
+  --muted: 32 35% 95%;
+  --muted-foreground: 24 10% 40%;
+
+  --accent: 32 35% 95%;
+  --accent-foreground: 24 20% 18%;
+
+  /* Semantic */
+  --destructive: 0 78% 56%;
+  --destructive-foreground: 0 0% 100%;
+
+  --success: 142 71% 41%;
+  --success-foreground: 0 0% 100%;
+
+  --warning: 271 60% 56%;
+  --warning-foreground: 0 0% 100%;
+
+  /* Borders, inputs, focus rings */
+  --border: 28 22% 88%;
+  --input: 28 22% 88%;
+  --ring: 30 100% 58%;
+
+  /* Radii */
+  --radius: 0.5rem;
+}
