@@ -1,13 +1,13 @@
 /**
- * Bucket Backend API — §2.4 of designs/mf-integration-plan.md.
+ * Bucket Backend API.
  *
  * Mounted at `/api/connections/:connId/buckets/:bucket`. Each handler:
  *   1. resolves the connection (decrypts credentials, builds S3 client)
  *   2. forwards / signs / streams against the S3 endpoint
- *   3. shapes the response to the frozen contract
+ *   3. shapes the response into the format the FileBrowser consumes
  *
- * The Frontend `FileBrowser` component talks ONLY to this surface —
- * NEVER imports @aws-sdk/*.
+ * The frontend `FileBrowser` component talks only to this surface — it
+ * doesn't import @aws-sdk/* so S3 protocol details stay server-side.
  */
 import { PassThrough, Transform } from 'node:stream';
 import { Router, type Router as ExpressRouter } from 'express';
@@ -166,6 +166,48 @@ router.get('/object', async (req, res) => {
     }
     logger.error({ err, bucket: params.bucket, key }, 'head failed');
     sendError(res, err);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// GET /download  (streams the object through the BFF — no credentials exposed)
+// ---------------------------------------------------------------------------
+
+router.get('/download', async (req, res) => {
+  const params = getParams(req);
+  if (!params) {
+    res.status(400).json({ error: 'Missing connId or bucket' });
+    return;
+  }
+  const key = typeof req.query.key === 'string' ? req.query.key : '';
+  if (!key) {
+    res.status(400).json({ error: 'Missing key' });
+    return;
+  }
+  const resolved = await clientForConnection(params.connId);
+  if (!resolved) {
+    res.status(404).json({ error: 'Connection not found' });
+    return;
+  }
+  try {
+    const out = await resolved.client.send(new GetObjectCommand({ Bucket: params.bucket, Key: key }));
+    const filename = key.includes('/') ? key.split('/').pop()! : key;
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+    if (out.ContentType) res.setHeader('Content-Type', out.ContentType);
+    if (out.ContentLength) res.setHeader('Content-Length', String(out.ContentLength));
+    const body = out.Body;
+    if (!body || typeof (body as { pipe?: unknown }).pipe !== 'function') {
+      res.status(502).json({ error: 'No body returned from S3' });
+      return;
+    }
+    (body as NodeJS.ReadableStream).pipe(res);
+  } catch (err) {
+    if ((err as { $metadata?: { httpStatusCode?: number } })?.$metadata?.httpStatusCode === 404) {
+      res.status(404).json({ error: 'Object not found' });
+      return;
+    }
+    logger.error({ err, bucket: params.bucket, key }, 'download failed');
+    if (!res.headersSent) sendError(res, err);
   }
 });
 

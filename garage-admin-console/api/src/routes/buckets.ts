@@ -1,16 +1,15 @@
 /**
- * Bucket Backend API for the Admin Console — §2.4 of
- * designs/mf-integration-plan.md.
+ * Bucket Backend API for the Admin Console.
  *
  * Mounted at `/api/clusters/:clusterId/buckets/:bucket`. Implements the
- * SAME contract that s3-browser/api/src/routes/buckets.ts implements; the
- * embedded FileBrowser doesn't know or care which BFF it talks to.
+ * same HTTP surface that s3-browser/api/src/routes/buckets.ts implements,
+ * so the embedded FileBrowser doesn't know or care which BFF it talks to.
  *
- * Per the plan's "don't over-DRY across the two BFFs" note, the handlers
- * are intentionally copy-aligned with the s3-browser version. The only
- * material difference is credential resolution: the s3-browser BFF stores
- * raw S3 keys; here we mint a short-lived per-bucket keypair from the
- * cluster's admin token via lib/garage-keys.ts.
+ * The two implementations are intentionally kept copy-aligned (not DRY'd
+ * via a shared library). The only material difference is credential
+ * resolution: the s3-browser BFF stores raw S3 keys; here we mint a
+ * short-lived per-bucket keypair from the cluster's admin token via
+ * lib/garage-keys.ts.
  */
 import { PassThrough, Transform } from 'node:stream';
 import { Router, type Router as ExpressRouter, type Response } from 'express';
@@ -184,6 +183,40 @@ router.get('/object', async (req, res) => {
     }
     logger.error({ err, bucket: ctx.bucket, key }, 'head failed');
     sendError(res, err);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// GET /download  (streams the object through the BFF — no credentials exposed)
+// ---------------------------------------------------------------------------
+
+router.get('/download', async (req, res) => {
+  const key = typeof req.query.key === 'string' ? req.query.key : '';
+  if (!key) {
+    res.status(400).json({ error: 'Missing key' });
+    return;
+  }
+  const ctx = await resolveContext(req, res);
+  if (!ctx) return;
+  try {
+    const out = await ctx.client.send(new GetObjectCommand({ Bucket: ctx.bucket, Key: key }));
+    const filename = key.includes('/') ? key.split('/').pop()! : key;
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+    if (out.ContentType) res.setHeader('Content-Type', out.ContentType);
+    if (out.ContentLength) res.setHeader('Content-Length', String(out.ContentLength));
+    const body = out.Body;
+    if (!body || typeof (body as { pipe?: unknown }).pipe !== 'function') {
+      res.status(502).json({ error: 'No body returned from S3' });
+      return;
+    }
+    (body as NodeJS.ReadableStream).pipe(res);
+  } catch (err) {
+    if ((err as { $metadata?: { httpStatusCode?: number } })?.$metadata?.httpStatusCode === 404) {
+      res.status(404).json({ error: 'Object not found' });
+      return;
+    }
+    logger.error({ err, bucket: ctx.bucket, key }, 'download failed');
+    if (!res.headersSent) sendError(res, err);
   }
 });
 
