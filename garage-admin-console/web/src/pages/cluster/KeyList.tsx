@@ -62,8 +62,8 @@ export function KeyList() {
   const [isDialogOpen, setIsDialogOpen] = useState(createParam === '1');
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortField, setSortField] = useState<'id' | 'name' | 'created' | 'expiration'>('name');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [sortField, setSortField] = useState<'id' | 'name' | 'created' | 'expiration'>('created');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [newKeyName, setNewKeyName] = useState(prefillNameParam);
   const [createExpirationDate, setCreateExpirationDate] = useState('');
   const [createExpirationHour, setCreateExpirationHour] = useState('00');

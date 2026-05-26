@@ -19,6 +19,10 @@ export const connections = sqliteTable('Connection', {
   forcePathStyle: text('forcePathStyle').notNull().default('true'),
   accessKeyId: text('accessKeyId').notNull(),
   secretAccessKey: text('secretAccessKey').notNull(),
+  // Optional bucket scope. When set, the credentials may not have ListBuckets
+  // permission; the UI skips the ListBuckets probe and surfaces only this
+  // bucket so users with bucket-scoped keys can still browse.
+  bucket: text('bucket'),
   createdAt: text('createdAt')
     .notNull()
     .default(sql`CURRENT_TIMESTAMP`),

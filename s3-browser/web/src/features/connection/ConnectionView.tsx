@@ -7,7 +7,7 @@
  * a refresh.
  */
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Database, Folder, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Database, Folder, RefreshCw, Loader2 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Alert, AlertDescription, AlertTitle, Badge, Button, Card, CardContent } from '@garage/ui';
 
@@ -58,7 +58,12 @@ export function ConnectionView() {
   }
 
   if (!connection) {
-    return <p className="text-sm text-muted-foreground">Loading…</p>;
+    return (
+      <div className="flex h-40 items-center justify-center gap-2 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Loading connection…
+      </div>
+    );
   }
 
   const meta = connectionDisplayMeta(connection);

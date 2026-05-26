@@ -103,6 +103,43 @@ function FileTypeIcon({
 
 import './FileBrowser.css';
 
+/**
+ * Boolean state that survives reloads via localStorage. Falls back to
+ * in-memory state when storage is unavailable (SSR, private browsing edge
+ * cases, embedded sandboxes).
+ */
+function usePersistedBool(
+  key: string,
+  initial: boolean,
+): [boolean, (next: boolean | ((prev: boolean) => boolean)) => void] {
+  const [value, setValue] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return initial;
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (raw === '1') return true;
+      if (raw === '0') return false;
+    } catch {
+      // ignore — fall through to initial
+    }
+    return initial;
+  });
+  const update = useCallback(
+    (next: boolean | ((prev: boolean) => boolean)) => {
+      setValue((prev) => {
+        const resolved = typeof next === 'function' ? next(prev) : next;
+        try {
+          window.localStorage.setItem(key, resolved ? '1' : '0');
+        } catch {
+          // ignore quota / disabled storage
+        }
+        return resolved;
+      });
+    },
+    [key],
+  );
+  return [value, update];
+}
+
 // ---------------------------------------------------------------------------
 // Public component surface
 // ---------------------------------------------------------------------------
@@ -181,8 +218,9 @@ function FileBrowserInner({
   onError,
 }: FileBrowserProps) {
   // Internal preview-open state, seeded from the prop. Dropdown "Open in
-  // preview" + the toolbar Eye toggle both flip this.
-  const [previewOpen, setPreviewOpen] = useState(showPreviewInitial);
+  // preview" + the toolbar Eye toggle both flip this. A user toggle persists
+  // in localStorage and beats the initial prop on subsequent mounts.
+  const [previewOpen, setPreviewOpen] = usePersistedBool('s3b.fb.previewOpen', showPreviewInitial);
   const backendHeadersKey = JSON.stringify(backend.headers);
   // Stable axios instance for this backend + token.
   // Re-created when baseUrl, authToken, or extra headers change so callers
@@ -408,11 +446,13 @@ function FileBrowserInner({
     onSelect(picked);
   }, [selected, sorted, onSelect]);
 
-  // Row body click — VS-Code/Finder semantics:
-  //   plain click   → focus row, selection := {name}
+  // Row body click — VS-Code/Finder semantics with click-to-toggle:
+  //   plain click   → focus row, selection := {name}; clicking the row again
+  //                   when it's the only selected item clears the selection
   //   shift+click   → focus row, range-extend selection from previous focus
   //   cmd/ctrl+click → focus row, toggle membership without clearing rest
   const selectRow = (name: string, e?: ReactMouseEvent) => {
+    let deselected = false;
     setSelected((prev) => {
       if (e?.shiftKey && focused) {
         const i1 = sorted.findIndex((c) => c.name === focused);
@@ -429,9 +469,15 @@ function FileBrowserInner({
         else next.add(name);
         return next;
       }
+      // Plain click: if this row is already the only selected item, toggle it
+      // off so a second click acts as a deselect.
+      if (prev.size === 1 && prev.has(name)) {
+        deselected = true;
+        return new Set();
+      }
       return new Set([name]);
     });
-    setFocused(name);
+    setFocused(deselected ? null : name);
   };
 
   // Checkbox click — additive multi-select; does NOT move focus.
@@ -477,8 +523,8 @@ function FileBrowserInner({
 
   // ---- tree state ----
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['']));
-  const [treeCollapsed, setTreeCollapsed] = useState(false);
-  const [treeShowFiles, setTreeShowFiles] = useState(false);
+  const [treeCollapsed, setTreeCollapsed] = usePersistedBool('s3b.fb.treeCollapsed', false);
+  const [treeShowFiles, setTreeShowFiles] = usePersistedBool('s3b.fb.treeShowFiles', false);
 
   const toggleFolder = (prefix: string) => {
     setExpandedFolders((prev) => {
@@ -647,7 +693,7 @@ function FileBrowserInner({
       setFocused(item.name);
       setPreviewOpen(true);
     },
-    [setSelected, setFocused],
+    [setSelected, setFocused, setPreviewOpen],
   );
 
   // ---- keyboard navigation ----
@@ -868,7 +914,10 @@ function FileBrowserInner({
             >
               {listQuery.isLoading && (
                 <div className="fempty">
-                  <p>Loading…</p>
+                  <div className="fempty__icon">
+                    <RefreshCw size={24} className="animate-spin" />
+                  </div>
+                  <p>Loading objects…</p>
                 </div>
               )}
 

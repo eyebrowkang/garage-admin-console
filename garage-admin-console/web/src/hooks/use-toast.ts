@@ -5,8 +5,9 @@ import * as React from 'react';
 
 import type { ToastActionElement, ToastProps } from '@garage/ui';
 
-const TOAST_LIMIT = 1;
-const TOAST_REMOVE_DELAY = 1000000;
+const TOAST_LIMIT = 3;
+const TOAST_DEFAULT_DURATION = 4000;
+const TOAST_REMOVE_DELAY = 400;
 
 type ToasterToast = ToastProps & {
   id: string;
@@ -151,6 +152,7 @@ function toast({ ...props }: Toast) {
   dispatch({
     type: 'ADD_TOAST',
     toast: {
+      duration: TOAST_DEFAULT_DURATION,
       ...props,
       id,
       open: true,

@@ -51,8 +51,8 @@ export function BucketList() {
   const navigate = useNavigate();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortField, setSortField] = useState<'id' | 'globalAliases' | 'created'>('globalAliases');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [sortField, setSortField] = useState<'id' | 'globalAliases' | 'created'>('created');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [aliasType, setAliasType] = useState<'none' | 'global' | 'local' | 'both'>('global');
   const [globalAlias, setGlobalAlias] = useState('');
   const [localAlias, setLocalAlias] = useState('');

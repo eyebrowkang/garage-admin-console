@@ -8,6 +8,8 @@ export interface Connection {
   endpoint: string;
   region: string;
   forcePathStyle: boolean;
+  // Optional bucket scope — set when the credentials lack ListBuckets.
+  bucket?: string | null;
   createdAt: string;
   updatedAt: string;
 }

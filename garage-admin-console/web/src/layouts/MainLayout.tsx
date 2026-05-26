@@ -1,12 +1,16 @@
 import { Outlet, useNavigate, Link } from 'react-router-dom';
+import { useState } from 'react';
 import { LogOut } from 'lucide-react';
 import { Button } from '@garage/ui';
+import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 
 export function MainLayout() {
   const navigate = useNavigate();
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
+    setConfirmOpen(false);
     navigate('/login');
   };
 
@@ -28,13 +32,22 @@ export function MainLayout() {
             variant="outline"
             size="sm"
             className="h-9 px-3 text-muted-foreground hover:text-foreground transition-colors"
-            onClick={handleLogout}
+            onClick={() => setConfirmOpen(true)}
           >
             <LogOut className="h-4 w-4 mr-2" />
             <span className="hidden sm:inline">Sign Out</span>
           </Button>
         </div>
       </header>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title="Sign Out"
+        description="You will need to sign in again to manage clusters. Continue?"
+        confirmText="Sign Out"
+        onConfirm={handleLogout}
+      />
 
       {/* Main Content */}
       <main className="w-full max-w-7xl mx-auto px-4 lg:px-8 py-5 sm:py-6">

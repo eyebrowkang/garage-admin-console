@@ -10,8 +10,8 @@
  * navigation, so refresh restores the exact folder the user was in.
  */
 import { useQuery } from '@tanstack/react-query';
-import { useCallback, useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { Alert, AlertDescription, AlertTitle, Badge, Button } from '@garage/ui';
@@ -48,7 +48,23 @@ export function BucketView() {
   });
   const connection = connectionsQ.data?.find((c) => c.id === id) ?? null;
 
-  const [viewMode, setViewMode] = useState<FileBrowserViewMode>('list');
+  const [viewMode, setViewMode] = useState<FileBrowserViewMode>(() => {
+    if (typeof window === 'undefined') return 'list';
+    try {
+      const stored = window.localStorage.getItem('s3b.fb.viewMode');
+      return stored === 'grid' ? 'grid' : 'list';
+    } catch {
+      return 'list';
+    }
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('s3b.fb.viewMode', viewMode);
+    } catch {
+      // ignore
+    }
+  }, [viewMode]);
 
   if (!connectionsQ.isLoading && !connection) {
     return (
@@ -66,7 +82,12 @@ export function BucketView() {
     );
   }
   if (!connection || !id || !bucketName) {
-    return <p className="text-sm text-muted-foreground">Loading…</p>;
+    return (
+      <div className="flex h-40 items-center justify-center gap-2 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Loading bucket…
+      </div>
+    );
   }
 
   const meta = connectionDisplayMeta(connection);
@@ -98,7 +119,7 @@ export function BucketView() {
       </div>
 
       <section className="overflow-hidden rounded-xl border bg-card shadow-sm">
-        <div className="h-[min(720px,calc(100vh-220px))] min-h-[520px]">
+        <div className="h-[min(720px,calc(100vh-220px))] min-h-[420px] sm:min-h-[520px]">
           <FileBrowser
             key={`${connection.id}/${bucketName}`}
             backend={buildBucketBackend(connection.id, bucketName)}

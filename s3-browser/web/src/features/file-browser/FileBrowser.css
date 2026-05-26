@@ -105,15 +105,35 @@
   .tbar {
     gap: 6px;
     padding: 8px;
+    flex-wrap: wrap;
+  }
+
+  .crumb {
+    flex-basis: 100%;
+    order: 0;
   }
 
   .crumb__item {
     max-width: 132px;
   }
 
-  .search,
-  .tbar .btn--responsive-label {
+  .search {
+    order: 5;
+    flex-basis: 100%;
+    width: 100%;
+  }
+
+  .search kbd {
     display: none;
+  }
+
+  .tbar .btn--responsive-label > span {
+    display: none;
+  }
+
+  .tbar .btn--responsive-label {
+    padding: 0 8px;
+    gap: 0;
   }
 
   .browser,
@@ -1106,42 +1126,12 @@
   background: hsl(var(--destructive) / 0.25);
 }
 
+/* Narrower mobile: drop secondary columns entirely for a name-only list. */
 @media (max-width: 700px) {
-  .tbar {
-    gap: 6px;
-    padding: 8px;
-  }
-
-  .search,
-  .tbar .btn--responsive-label {
-    display: none;
-  }
-
-  .crumb__item {
-    max-width: 160px;
-  }
-
-  .browser,
-  .browser[data-preview='true'] {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .tree,
-  .preview {
-    display: none;
-  }
-
-  .flist__bar {
-    padding: 8px;
-  }
-
   .flist__head,
   .flist__row {
     grid-template-columns: 24px minmax(0, 1fr) 32px;
-    gap: 8px;
-    padding: 0 8px;
   }
-
   .flist__head > :nth-child(3),
   .flist__head > :nth-child(4),
   .flist__head > :nth-child(5),
@@ -1150,12 +1140,14 @@
   .flist__row > :nth-child(5) {
     display: none;
   }
-
-  .flist__status {
-    padding: 7px 8px;
+  .bulkbar {
+    left: 8px;
+    right: 8px;
+    transform: none;
+    justify-content: space-between;
+    bottom: 12px;
   }
-
-  .flist__status .mono {
+  .bulkbar__divider {
     display: none;
   }
 }

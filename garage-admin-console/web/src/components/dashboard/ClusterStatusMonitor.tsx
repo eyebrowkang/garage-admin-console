@@ -146,30 +146,36 @@ export function ClusterStatusMonitor({
   return (
     <div className="space-y-4">
       <Card className="border-primary/30 bg-primary/5">
-        <CardContent className="grid gap-4 p-4 sm:p-5 md:grid-cols-5">
+        <CardContent className="grid gap-4 p-3 sm:p-5 md:grid-cols-5">
           <div className="md:col-span-2">
             <p className="text-xs font-medium uppercase tracking-wider text-primary/70">Overview</p>
-            <h2 className="mt-0.5 text-lg sm:text-xl font-semibold">Cluster Fleet Summary</h2>
+            <h2 className="mt-0.5 text-base sm:text-xl font-semibold">Cluster Fleet Summary</h2>
             <p className="mt-1 text-sm text-muted-foreground hidden sm:block">
               Top-level health and capacity indicators for all connected clusters.
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:gap-3 text-sm md:col-span-3 md:grid-cols-4">
-            <div className="rounded-lg border bg-card px-3 py-2">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 text-sm sm:grid-cols-4 md:col-span-3">
+            <div className="rounded-lg border bg-card px-2 py-1.5 sm:px-3 sm:py-2">
               <div className="text-xs text-muted-foreground">Healthy</div>
-              <div className="text-2xl font-semibold tracking-tight text-green-700">{healthy}</div>
+              <div className="text-xl sm:text-2xl font-semibold tracking-tight text-green-700">
+                {healthy}
+              </div>
             </div>
-            <div className="rounded-lg border bg-card px-3 py-2">
+            <div className="rounded-lg border bg-card px-2 py-1.5 sm:px-3 sm:py-2">
               <div className="text-xs text-muted-foreground">Warnings</div>
-              <div className="text-2xl font-semibold tracking-tight text-violet-700">{warning}</div>
+              <div className="text-xl sm:text-2xl font-semibold tracking-tight text-violet-700">
+                {warning}
+              </div>
             </div>
-            <div className="rounded-lg border bg-card px-3 py-2">
+            <div className="rounded-lg border bg-card px-2 py-1.5 sm:px-3 sm:py-2">
               <div className="text-xs text-muted-foreground">Errors</div>
-              <div className="text-2xl font-semibold tracking-tight text-destructive">{error}</div>
+              <div className="text-xl sm:text-2xl font-semibold tracking-tight text-destructive">
+                {error}
+              </div>
             </div>
-            <div className="rounded-lg border bg-card px-3 py-2">
+            <div className="rounded-lg border bg-card px-2 py-1.5 sm:px-3 sm:py-2">
               <div className="text-xs text-muted-foreground">Nodes Up</div>
-              <div className="text-2xl font-semibold tracking-tight">
+              <div className="text-xl sm:text-2xl font-semibold tracking-tight">
                 {nodesUp}/{totalNodes}
               </div>
               {checking > 0 && (
@@ -180,7 +186,7 @@ export function ClusterStatusMonitor({
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-3">
         {clustersWithStatus.map((item) => {
           const config = statusConfig[item.healthStatus];
           const StatusIcon = config.icon;
@@ -207,15 +213,15 @@ export function ClusterStatusMonitor({
               key={item.cluster.id}
               className={`border ${config.bgClass} transition-shadow hover:shadow-md`}
             >
-              <CardContent className="space-y-3 p-4 sm:p-5">
+              <CardContent className="space-y-3 p-3 sm:p-5">
                 {/* Header row: name + status badge */}
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
+                <div className="flex items-start justify-between gap-2 sm:gap-3">
+                  <div className="min-w-0 flex-1">
                     <Link
                       to={`/clusters/${item.cluster.id}`}
-                      className="inline-flex items-center gap-2 text-base font-semibold hover:text-primary transition-colors"
+                      className="inline-flex max-w-full items-center gap-2 truncate text-sm sm:text-base font-semibold hover:text-primary transition-colors"
                     >
-                      {item.cluster.name}
+                      <span className="truncate">{item.cluster.name}</span>
                     </Link>
                     <div className="mt-0.5 truncate text-xs text-muted-foreground">
                       {item.cluster.endpoint}
@@ -223,7 +229,7 @@ export function ClusterStatusMonitor({
                   </div>
                   <Badge variant={config.badge} className="shrink-0">
                     <StatusIcon className={`mr-1 h-3.5 w-3.5 ${config.iconClass}`} />
-                    {config.label}
+                    <span className="hidden sm:inline">{config.label}</span>
                   </Badge>
                 </div>
 
@@ -288,7 +294,7 @@ export function ClusterStatusMonitor({
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-2 pt-1">
+                <div className="flex flex-wrap items-center gap-2 pt-1">
                   <Button asChild size="sm" className="h-9">
                     <Link to={`/clusters/${item.cluster.id}`}>
                       <OpenActionIcon className="mr-2 h-4 w-4" />
@@ -310,8 +316,9 @@ export function ClusterStatusMonitor({
                     size="sm"
                     className="h-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                     onClick={() => onDeleteCluster(item.cluster)}
+                    aria-label="Disconnect cluster"
                   >
-                    <DisconnectActionIcon className="mr-2 h-4 w-4" />
+                    <DisconnectActionIcon className="h-4 w-4 sm:mr-2" />
                     <span className="hidden sm:inline">Disconnect</span>
                   </Button>
                 </div>

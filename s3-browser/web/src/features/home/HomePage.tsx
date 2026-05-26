@@ -54,6 +54,7 @@ interface ConnectionFormData {
   forcePathStyle: boolean;
   accessKeyId: string;
   secretAccessKey: string;
+  bucket: string;
 }
 
 const EMPTY_FORM: ConnectionFormData = {
@@ -63,6 +64,7 @@ const EMPTY_FORM: ConnectionFormData = {
   forcePathStyle: true,
   accessKeyId: '',
   secretAccessKey: '',
+  bucket: '',
 };
 
 const normalizeEndpoint = (value: string) => value.trim().replace(/\/+$/, '');
@@ -172,7 +174,12 @@ export function HomePage() {
         (c) => normalizeEndpoint(c.endpoint).toLowerCase() === endpoint.toLowerCase(),
       );
       if (dup) throw new Error(`A connection for "${endpoint}" already exists as "${dup.name}".`);
-      const res = await api.post<Connection>('/connections', { ...data, endpoint });
+      const payload = {
+        ...data,
+        endpoint,
+        bucket: data.bucket.trim() || undefined,
+      };
+      const res = await api.post<Connection>('/connections', payload);
       return res.data;
     },
     onSuccess: () => {
@@ -184,7 +191,13 @@ export function HomePage() {
   });
 
   const updateMut = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<ConnectionFormData> }) => {
+    mutationFn: async ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: Partial<Omit<ConnectionFormData, 'bucket'>> & { bucket?: string | null };
+    }) => {
       const res = await api.put<Connection>(`/connections/${id}`, data);
       return res.data;
     },
@@ -228,7 +241,7 @@ export function HomePage() {
                 <Plus className="mr-2 h-4 w-4" /> Add Connection
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
+            <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-[540px]">
               <DialogHeader>
                 <DialogTitle>Add S3 Connection</DialogTitle>
                 <DialogDescription>
@@ -257,17 +270,19 @@ export function HomePage() {
       {/* Fleet summary — pixel match for ClusterStatusMonitor's overview card */}
       {connections.length > 0 && (
         <Card className="border-primary/30 bg-primary/5">
-          <CardContent className="grid gap-4 p-4 sm:p-5 md:grid-cols-5">
+          <CardContent className="grid gap-4 p-3 sm:p-5 md:grid-cols-5">
             <div className="md:col-span-2">
               <p className="text-xs font-medium uppercase tracking-wider text-primary/70">
                 Overview
               </p>
-              <h2 className="mt-0.5 text-lg sm:text-xl font-semibold">Connection Fleet Summary</h2>
+              <h2 className="mt-0.5 text-base sm:text-xl font-semibold">
+                Connection Fleet Summary
+              </h2>
               <p className="mt-1 hidden text-sm text-muted-foreground sm:block">
                 Reachability and bucket counts across all configured endpoints.
               </p>
             </div>
-            <div className="grid grid-cols-2 gap-2 text-sm md:col-span-3 md:grid-cols-4 sm:gap-3">
+            <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4 sm:gap-3 md:col-span-3">
               <SummaryStat label="Healthy" value={summary.healthy} tone="text-green-700" />
               <SummaryStat
                 label="Unreachable"
@@ -283,7 +298,7 @@ export function HomePage() {
 
       {/* Connection grid */}
       {connections.length > 0 && (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-3">
           {connections.map((connection) => (
             <ConnectionCard
               key={connection.id}
@@ -293,6 +308,17 @@ export function HomePage() {
               onEdit={() => setEditTarget(connection)}
               onDelete={() => setDeleteTarget(connection)}
             />
+          ))}
+        </div>
+      )}
+
+      {/* Initial load skeleton */}
+      {list.isLoading && (
+        <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <Card key={i} className="border-border/70">
+              <CardContent className="h-44 animate-pulse bg-muted/30" />
+            </Card>
           ))}
         </div>
       )}
@@ -322,7 +348,7 @@ export function HomePage() {
           if (!o) setEditTarget(null);
         }}
       >
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-[540px]">
           <DialogHeader>
             <DialogTitle>Edit Connection</DialogTitle>
             <DialogDescription>
@@ -338,13 +364,16 @@ export function HomePage() {
                 forcePathStyle: editTarget.forcePathStyle,
                 accessKeyId: '',
                 secretAccessKey: '',
+                bucket: editTarget.bucket ?? '',
               }}
               mode="edit"
               error=""
               busy={updateMut.isPending}
               onSubmit={(d) => {
                 if (!editTarget) return;
-                const patch: Partial<ConnectionFormData> = {
+                const patch: Partial<Omit<ConnectionFormData, 'bucket'>> & {
+                  bucket?: string | null;
+                } = {
                   name: d.name,
                   endpoint: normalizeEndpoint(d.endpoint),
                   region: d.region,
@@ -352,6 +381,11 @@ export function HomePage() {
                 };
                 if (d.accessKeyId) patch.accessKeyId = d.accessKeyId;
                 if (d.secretAccessKey) patch.secretAccessKey = d.secretAccessKey;
+                const nextBucket = d.bucket.trim();
+                const prevBucket = editTarget.bucket ?? '';
+                if (nextBucket !== prevBucket) {
+                  patch.bucket = nextBucket ? nextBucket : null;
+                }
                 updateMut.mutate({ id: editTarget.id, data: patch });
               }}
             />
@@ -366,7 +400,7 @@ export function HomePage() {
           if (!o) setDeleteTarget(null);
         }}
       >
-        <DialogContent className="sm:max-w-[440px]">
+        <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-[440px]">
           <DialogHeader>
             <DialogTitle>Remove Connection</DialogTitle>
             <DialogDescription>
@@ -421,7 +455,7 @@ function ConnectionCard({
 
   return (
     <Card className={`border ${config.bgClass} transition-shadow hover:shadow-md`}>
-      <CardContent className="space-y-3 p-4 sm:p-5">
+      <CardContent className="space-y-3 p-3 sm:p-5">
         {/* Header row: name + endpoint + status badge — no avatar, mirrors admin */}
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -447,8 +481,14 @@ function ConnectionCard({
           <MetricTile icon={HardDrive} label="Region" value={connection.region} />
           <MetricTile
             icon={Server}
-            label="Buckets"
-            value={status.status === 'healthy' ? String(bucketCount) : '—'}
+            label={connection.bucket ? 'Scoped' : 'Buckets'}
+            value={
+              connection.bucket
+                ? connection.bucket
+                : status.status === 'healthy'
+                  ? String(bucketCount)
+                  : '—'
+            }
           />
         </div>
 
@@ -471,7 +511,7 @@ function ConnectionCard({
         </div>
 
         {/* Actions — same shape and h-9 sizing as admin's cluster cards */}
-        <div className="flex items-center gap-2 pt-1">
+        <div className="flex flex-wrap items-center gap-2 pt-1">
           <Button size="sm" className="h-9" onClick={onOpen} disabled={status.status !== 'healthy'}>
             <ArrowRight className="mr-2 h-4 w-4" />
             Open
@@ -486,8 +526,9 @@ function ConnectionCard({
             size="sm"
             className="h-9 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
             onClick={onDelete}
+            aria-label="Remove connection"
           >
-            <Link2Off className="mr-2 h-4 w-4" />
+            <Link2Off className="h-4 w-4 sm:mr-2" />
             <span className="hidden sm:inline">Remove</span>
           </Button>
         </div>
@@ -552,6 +593,7 @@ function ConnectionForm({
           forcePathStyle: form.forcePathStyle,
           accessKeyId: form.accessKeyId,
           secretAccessKey: form.secretAccessKey,
+          bucket: form.bucket.trim() || undefined,
         },
       );
       if (res.data.ok) {
@@ -569,81 +611,96 @@ function ConnectionForm({
 
   return (
     <>
-      <div className="grid gap-4 py-2">
-        <div className="grid gap-2">
-          <Label htmlFor="conn-name">Friendly Name</Label>
-          <Input
-            id="conn-name"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            placeholder="Production Garage"
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="conn-endpoint">Endpoint URL</Label>
-          <Input
-            id="conn-endpoint"
-            value={form.endpoint}
-            placeholder="https://s3.example.com"
-            onChange={(e) => setForm({ ...form, endpoint: e.target.value })}
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="grid gap-2">
-            <Label htmlFor="conn-region">Region</Label>
+      <div className="max-h-[min(70vh,560px)] overflow-y-auto pr-1">
+        <div className="grid gap-4 py-2">
+          <div className="grid gap-1.5">
+            <Label htmlFor="conn-name">Friendly Name</Label>
             <Input
-              id="conn-region"
-              value={form.region}
-              onChange={(e) => setForm({ ...form, region: e.target.value })}
+              id="conn-name"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="Production Garage"
             />
           </div>
-          <div className="flex items-end gap-2 pb-2">
-            <input
-              id="forcePathStyle"
-              type="checkbox"
-              checked={form.forcePathStyle}
-              onChange={(e) => setForm({ ...form, forcePathStyle: e.target.checked })}
-              className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+          <div className="grid gap-1.5">
+            <Label htmlFor="conn-endpoint">Endpoint URL</Label>
+            <Input
+              id="conn-endpoint"
+              value={form.endpoint}
+              placeholder="https://s3.example.com"
+              onChange={(e) => setForm({ ...form, endpoint: e.target.value })}
             />
-            <label htmlFor="forcePathStyle" className="text-sm">
-              Path-style addressing
-            </label>
           </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-1.5">
+              <Label htmlFor="conn-region">Region</Label>
+              <Input
+                id="conn-region"
+                value={form.region}
+                onChange={(e) => setForm({ ...form, region: e.target.value })}
+              />
+            </div>
+            <div className="flex items-end gap-2 pb-2">
+              <input
+                id="forcePathStyle"
+                type="checkbox"
+                checked={form.forcePathStyle}
+                onChange={(e) => setForm({ ...form, forcePathStyle: e.target.checked })}
+                className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+              />
+              <label htmlFor="forcePathStyle" className="text-sm">
+                Path-style addressing
+              </label>
+            </div>
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="conn-key">Access Key ID{isEdit ? ' (optional)' : ''}</Label>
+            <Input
+              id="conn-key"
+              value={form.accessKeyId}
+              placeholder={isEdit ? 'Leave blank to keep existing' : 'AKIA…'}
+              onChange={(e) => setForm({ ...form, accessKeyId: e.target.value })}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="conn-secret">Secret Access Key{isEdit ? ' (optional)' : ''}</Label>
+            <Input
+              id="conn-secret"
+              type="password"
+              value={form.secretAccessKey}
+              placeholder={isEdit ? 'Leave blank to keep existing' : ''}
+              onChange={(e) => setForm({ ...form, secretAccessKey: e.target.value })}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="conn-bucket">Bucket (optional)</Label>
+            <Input
+              id="conn-bucket"
+              value={form.bucket}
+              placeholder="my-bucket"
+              onChange={(e) => setForm({ ...form, bucket: e.target.value })}
+            />
+            <p className="text-xs text-muted-foreground">
+              Leave blank to list every bucket the key can see. Set a bucket name when the key has
+              no <code className="font-mono">ListBuckets</code> permission.
+            </p>
+          </div>
+          {testState !== 'idle' && (
+            <Alert variant={testState === 'err' ? 'destructive' : 'default'}>
+              <AlertDescription>
+                {testState === 'testing' ? 'Testing connection…' : testMsg}
+              </AlertDescription>
+            </Alert>
+          )}
+          {error && (
+            <Alert variant="destructive">
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
         </div>
-        <div className="grid gap-2">
-          <Label htmlFor="conn-key">Access Key ID{isEdit ? ' (optional)' : ''}</Label>
-          <Input
-            id="conn-key"
-            value={form.accessKeyId}
-            placeholder={isEdit ? 'Leave blank to keep existing' : 'AKIA…'}
-            onChange={(e) => setForm({ ...form, accessKeyId: e.target.value })}
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="conn-secret">Secret Access Key{isEdit ? ' (optional)' : ''}</Label>
-          <Input
-            id="conn-secret"
-            type="password"
-            value={form.secretAccessKey}
-            placeholder={isEdit ? 'Leave blank to keep existing' : ''}
-            onChange={(e) => setForm({ ...form, secretAccessKey: e.target.value })}
-          />
-        </div>
-        {testState !== 'idle' && (
-          <Alert variant={testState === 'err' ? 'destructive' : 'default'}>
-            <AlertDescription>
-              {testState === 'testing' ? 'Testing connection…' : testMsg}
-            </AlertDescription>
-          </Alert>
-        )}
-        {error && (
-          <Alert variant="destructive">
-            <AlertTitle>Error</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
       </div>
-      <DialogFooter className="gap-2 sm:gap-0">
+      <DialogFooter className="gap-2 sm:gap-2">
         <Button
           variant="outline"
           onClick={handleTest}

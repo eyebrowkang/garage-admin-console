@@ -14,7 +14,15 @@ import { LogOut } from 'lucide-react';
 import { useState } from 'react';
 import { BrowserRouter, Route, Routes, Link } from 'react-router-dom';
 
-import { Button } from '@garage/ui';
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@garage/ui';
 import { readStoredToken, writeStoredToken } from '@/lib/api';
 import { LoginPage } from '@/features/auth/LoginPage';
 import { HomePage } from '@/features/home/HomePage';
@@ -23,6 +31,7 @@ import { BucketView } from '@/features/bucket/BucketView';
 
 export function App() {
   const [authed, setAuthed] = useState(() => readStoredToken() !== null);
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
 
   if (!authed) {
     return <LoginPage onAuthed={() => setAuthed(true)} />;
@@ -30,6 +39,7 @@ export function App() {
 
   const handleSignOut = () => {
     writeStoredToken(null);
+    setConfirmSignOut(false);
     setAuthed(false);
   };
 
@@ -47,13 +57,30 @@ export function App() {
               variant="outline"
               size="sm"
               className="h-9 px-3 text-muted-foreground hover:text-foreground transition-colors"
-              onClick={handleSignOut}
+              onClick={() => setConfirmSignOut(true)}
             >
               <LogOut className="mr-2 h-4 w-4" />
               <span className="hidden sm:inline">Sign Out</span>
             </Button>
           </div>
         </header>
+
+        <Dialog open={confirmSignOut} onOpenChange={setConfirmSignOut}>
+          <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Sign Out</DialogTitle>
+              <DialogDescription>
+                You will need to sign in again to browse your S3 connections. Continue?
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setConfirmSignOut(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSignOut}>Sign Out</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <main className="w-full max-w-7xl mx-auto px-4 lg:px-8 py-5 sm:py-6 flex-1">
           <Routes>

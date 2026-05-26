@@ -13,6 +13,7 @@ export interface ResolvedConnection {
   forcePathStyle: boolean;
   accessKeyId: string;
   secretAccessKey: string;
+  bucket: string | null;
 }
 
 export async function loadConnection(id: string): Promise<ResolvedConnection | null> {
@@ -26,6 +27,7 @@ export async function loadConnection(id: string): Promise<ResolvedConnection | n
     forcePathStyle: row.forcePathStyle !== 'false',
     accessKeyId: decrypt(row.accessKeyId),
     secretAccessKey: decrypt(row.secretAccessKey),
+    bucket: row.bucket ?? null,
   };
 }
 

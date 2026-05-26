@@ -1,7 +1,7 @@
 import { Router, type Router as ExpressRouter } from 'express';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
-import { ListBucketsCommand } from '@aws-sdk/client-s3';
+import { HeadBucketCommand, ListBucketsCommand } from '@aws-sdk/client-s3';
 
 import db from '../db/index.js';
 import { connections } from '../db/schema.js';
@@ -19,6 +19,8 @@ const CreateSchema = z.object({
   forcePathStyle: z.boolean().default(true),
   accessKeyId: z.string().min(1),
   secretAccessKey: z.string().min(1),
+  // Optional bucket scope for keys that lack ListBuckets permission.
+  bucket: z.string().trim().optional(),
 });
 
 const UpdateSchema = z
@@ -29,6 +31,7 @@ const UpdateSchema = z
     forcePathStyle: z.boolean().optional(),
     accessKeyId: z.string().min(1).optional(),
     secretAccessKey: z.string().min(1).optional(),
+    bucket: z.string().trim().nullable().optional(),
   })
   .refine((data) => Object.values(data).some((v) => v !== undefined), {
     message: 'At least one field must be provided',
@@ -41,6 +44,7 @@ const safeColumns = {
   endpoint: connections.endpoint,
   region: connections.region,
   forcePathStyle: connections.forcePathStyle,
+  bucket: connections.bucket,
   createdAt: connections.createdAt,
   updatedAt: connections.updatedAt,
 } as const;
@@ -55,11 +59,13 @@ const TestSchema = z.object({
   forcePathStyle: z.boolean().default(true),
   accessKeyId: z.string().min(1),
   secretAccessKey: z.string().min(1),
+  bucket: z.string().trim().optional(),
 });
 
 router.post('/test', async (req, res) => {
   try {
     const body = TestSchema.parse(req.body);
+    const bucket = body.bucket?.trim();
     const client = buildS3Client({
       id: '',
       name: '',
@@ -68,7 +74,14 @@ router.post('/test', async (req, res) => {
       forcePathStyle: body.forcePathStyle,
       accessKeyId: body.accessKeyId,
       secretAccessKey: body.secretAccessKey,
+      bucket: bucket ?? null,
     });
+    if (bucket) {
+      // Bucket-scoped probe — works for keys without ListBuckets permission.
+      await client.send(new HeadBucketCommand({ Bucket: bucket }));
+      res.json({ ok: true, buckets: 1 });
+      return;
+    }
     const out = await client.send(new ListBucketsCommand({}));
     res.json({ ok: true, buckets: (out.Buckets ?? []).length });
   } catch (err) {
@@ -94,6 +107,7 @@ router.get('/', async (_req, res) => {
 router.post('/', async (req, res) => {
   try {
     const body = CreateSchema.parse(req.body);
+    const bucket = body.bucket?.trim() ? body.bucket.trim() : null;
     const [row] = await db
       .insert(connections)
       .values({
@@ -103,6 +117,7 @@ router.post('/', async (req, res) => {
         forcePathStyle: body.forcePathStyle ? 'true' : 'false',
         accessKeyId: encrypt(body.accessKeyId),
         secretAccessKey: encrypt(body.secretAccessKey),
+        bucket,
       })
       .returning(safeColumns);
     res.status(201).json(toApi(row!));
@@ -130,6 +145,10 @@ router.put('/:id', async (req, res) => {
     if (body.accessKeyId !== undefined) patch.accessKeyId = encrypt(body.accessKeyId);
     if (body.secretAccessKey !== undefined) {
       patch.secretAccessKey = encrypt(body.secretAccessKey);
+    }
+    if (body.bucket !== undefined) {
+      const trimmed = body.bucket?.trim();
+      patch.bucket = trimmed ? trimmed : null;
     }
     const [row] = await db
       .update(connections)
@@ -186,6 +205,12 @@ router.get('/:connId/buckets', async (req, res) => {
     const resolved = await clientForConnection(req.params.connId!);
     if (!resolved) {
       res.status(404).json({ error: 'Connection not found' });
+      return;
+    }
+    // If the connection is scoped to a single bucket, the key may not have
+    // ListBuckets permission — surface just that bucket and skip the probe.
+    if (resolved.conn.bucket) {
+      res.json({ buckets: [{ name: resolved.conn.bucket, creationDate: null }] });
       return;
     }
     const out = await resolved.client.send(new ListBucketsCommand({}));
