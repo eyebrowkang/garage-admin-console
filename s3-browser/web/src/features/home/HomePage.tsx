@@ -10,6 +10,7 @@
  *   - Open / Edit / Remove actions in the same h-9 button row
  */
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Activity,
@@ -99,7 +100,8 @@ const statusConfig = {
   },
 };
 
-export function HomePage({ onOpenConnection }: { onOpenConnection: (id: string) => void }) {
+export function HomePage() {
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Connection | null>(null);
@@ -203,7 +205,7 @@ export function HomePage({ onOpenConnection }: { onOpenConnection: (id: string) 
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* ModulePageHeader */}
       <div className="flex flex-col gap-2 sm:gap-3 border-b border-border/70 pb-3 sm:pb-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 space-y-0.5 sm:space-y-1">
@@ -287,7 +289,7 @@ export function HomePage({ onOpenConnection }: { onOpenConnection: (id: string) 
               key={connection.id}
               connection={connection}
               status={statusById.get(connection.id) ?? { isLoading: true, status: 'checking' }}
-              onOpen={() => onOpenConnection(connection.id)}
+              onOpen={() => navigate(`/connections/${connection.id}`)}
               onEdit={() => setEditTarget(connection)}
               onDelete={() => setDeleteTarget(connection)}
             />
@@ -528,11 +530,43 @@ function ConnectionForm({
   onSubmit: (data: ConnectionFormData) => void;
 }) {
   const [form, setForm] = useState(initial);
+  const [testState, setTestState] = useState<'idle' | 'testing' | 'ok' | 'err'>('idle');
+  const [testMsg, setTestMsg] = useState('');
   const isEdit = mode === 'edit';
   const canSubmit =
     form.name.trim() &&
     form.endpoint.trim() &&
     (isEdit ? true : form.accessKeyId.trim() && form.secretAccessKey.trim());
+  const canTest =
+    form.endpoint.trim() && form.accessKeyId.trim() && form.secretAccessKey.trim();
+
+  const handleTest = async () => {
+    if (!canTest) return;
+    setTestState('testing');
+    setTestMsg('');
+    try {
+      const res = await api.post<{ ok: boolean; buckets?: number; error?: string }>(
+        '/connections/test',
+        {
+          endpoint: form.endpoint.trim().replace(/\/+$/, ''),
+          region: form.region,
+          forcePathStyle: form.forcePathStyle,
+          accessKeyId: form.accessKeyId,
+          secretAccessKey: form.secretAccessKey,
+        },
+      );
+      if (res.data.ok) {
+        setTestState('ok');
+        setTestMsg(`Connected — ${res.data.buckets ?? 0} bucket(s) visible`);
+      } else {
+        setTestState('err');
+        setTestMsg(res.data.error ?? 'Unreachable');
+      }
+    } catch (err) {
+      setTestState('err');
+      setTestMsg((err as Error).message || 'Test failed');
+    }
+  };
 
   return (
     <>
@@ -596,6 +630,13 @@ function ConnectionForm({
             onChange={(e) => setForm({ ...form, secretAccessKey: e.target.value })}
           />
         </div>
+        {testState !== 'idle' && (
+          <Alert variant={testState === 'err' ? 'destructive' : 'default'}>
+            <AlertDescription>
+              {testState === 'testing' ? 'Testing connection…' : testMsg}
+            </AlertDescription>
+          </Alert>
+        )}
         {error && (
           <Alert variant="destructive">
             <AlertTitle>Error</AlertTitle>
@@ -603,7 +644,14 @@ function ConnectionForm({
           </Alert>
         )}
       </div>
-      <DialogFooter>
+      <DialogFooter className="gap-2 sm:gap-0">
+        <Button
+          variant="outline"
+          onClick={handleTest}
+          disabled={!canTest || testState === 'testing' || busy}
+        >
+          {testState === 'testing' ? 'Testing…' : 'Test Connection'}
+        </Button>
         <Button onClick={() => onSubmit(form)} disabled={!canSubmit || busy}>
           {busy ? (isEdit ? 'Saving…' : 'Adding…') : isEdit ? 'Save Changes' : 'Add Connection'}
         </Button>

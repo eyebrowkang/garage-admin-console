@@ -7,7 +7,7 @@ import db from '../db/index.js';
 import { connections } from '../db/schema.js';
 import { encrypt } from '../encryption.js';
 import { logger } from '../logger.js';
-import { clientForConnection } from '../lib/s3-client.js';
+import { buildS3Client, clientForConnection } from '../lib/s3-client.js';
 import bucketsRouter from './buckets.js';
 
 const router: ExpressRouter = Router();
@@ -48,6 +48,38 @@ const safeColumns = {
 function toApi<T extends { forcePathStyle: string }>(row: T) {
   return { ...row, forcePathStyle: row.forcePathStyle !== 'false' };
 }
+
+const TestSchema = z.object({
+  endpoint: z.string().url(),
+  region: z.string().min(1).default('us-east-1'),
+  forcePathStyle: z.boolean().default(true),
+  accessKeyId: z.string().min(1),
+  secretAccessKey: z.string().min(1),
+});
+
+router.post('/test', async (req, res) => {
+  try {
+    const body = TestSchema.parse(req.body);
+    const client = buildS3Client({
+      id: '',
+      name: '',
+      endpoint: body.endpoint.replace(/\/+$/, ''),
+      region: body.region,
+      forcePathStyle: body.forcePathStyle,
+      accessKeyId: body.accessKeyId,
+      secretAccessKey: body.secretAccessKey,
+    });
+    const out = await client.send(new ListBucketsCommand({}));
+    res.json({ ok: true, buckets: (out.Buckets ?? []).length });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: err.issues });
+      return;
+    }
+    logger.warn({ err }, 'connection test failed');
+    res.status(200).json({ ok: false, error: (err as Error).message || 'Unreachable' });
+  }
+});
 
 router.get('/', async (_req, res) => {
   try {
@@ -138,15 +170,15 @@ router.delete('/:id', async (req, res) => {
 });
 
 /**
- * Bucket Backend API (§2.4). Nested here so its routes share the same
+ * Bucket Backend API. Nested here so its routes share the same
  * authentication mount and `:connId`/`:bucket` params propagate via
  * mergeParams.
  */
 router.use('/:connId/buckets/:bucket', bucketsRouter);
 
 /**
- * Extra route — list buckets in a connection. NOT part of the §2.4 Bucket
- * Backend API contract; the standalone web UI uses it to populate the
+ * Extra helper — list buckets in a connection. Not part of the per-bucket
+ * Bucket Backend API; the standalone web UI uses it to populate the
  * bucket picker.
  */
 router.get('/:connId/buckets', async (req, res) => {
