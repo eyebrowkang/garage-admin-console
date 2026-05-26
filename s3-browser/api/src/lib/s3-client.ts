@@ -42,10 +42,9 @@ export function buildS3Client(conn: ResolvedConnection): S3Client {
       accessKeyId: conn.accessKeyId,
       secretAccessKey: conn.secretAccessKey,
     },
-    // AWS SDK v3 defaults to ALWAYS computing a CRC32 streaming checksum,
-    // which fails on already-flowing Readable streams (e.g. busboy file
-    // streams). Garage doesn't require it; tell the SDK only to add a
-    // checksum when the wire protocol mandates one.
+    // AWS SDK v3 defaults to adding a CRC32 checksum on uploads. Keep this
+    // opt-in for S3-compatible endpoints; the upload route already provides
+    // a concrete ContentLength so AWS S3 doesn't need chunked checksum mode.
     requestChecksumCalculation: 'WHEN_REQUIRED',
     responseChecksumValidation: 'WHEN_REQUIRED',
   };

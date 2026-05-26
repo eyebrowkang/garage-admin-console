@@ -9,7 +9,6 @@
  * The frontend `FileBrowser` component talks only to this surface — it
  * doesn't import @aws-sdk/* so S3 protocol details stay server-side.
  */
-import { PassThrough, Transform } from 'node:stream';
 import { Router, type Router as ExpressRouter } from 'express';
 import Busboy from 'busboy';
 import { z } from 'zod';
@@ -26,6 +25,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 import { logger } from '../logger.js';
 import { clientForConnection } from '../lib/s3-client.js';
+import { uploadStreamToS3 } from '../lib/s3-upload.js';
 
 const router: ExpressRouter = Router({ mergeParams: true });
 
@@ -190,7 +190,9 @@ router.get('/download', async (req, res) => {
     return;
   }
   try {
-    const out = await resolved.client.send(new GetObjectCommand({ Bucket: params.bucket, Key: key }));
+    const out = await resolved.client.send(
+      new GetObjectCommand({ Bucket: params.bucket, Key: key }),
+    );
     const filename = key.includes('/') ? key.split('/').pop()! : key;
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
     if (out.ContentType) res.setHeader('Content-Type', out.ContentType);
@@ -257,7 +259,7 @@ router.post('/presign', async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// POST /upload  (multipart/form-data; streamed to S3 PutObject)
+// POST /upload  (multipart/form-data; spooled, then sent to S3 PutObject)
 // ---------------------------------------------------------------------------
 
 interface UploadResult {
@@ -302,38 +304,23 @@ router.post('/upload', (req, res) => {
         const cleanPrefix = prefix.replace(/^\/+|\/+$/g, '');
         const key = cleanPrefix ? `${cleanPrefix}/${info.filename}` : info.filename;
 
-        // Track byte count via a Transform — must NOT put the source stream
-        // into flowing mode before PutObject reads it (the SDK's checksum
-        // middleware can't hash a flowing readable).
-        let size = 0;
-        const counter = new Transform({
-          transform(chunk: Buffer, _enc, cb) {
-            size += chunk.length;
-            cb(null, chunk);
-          },
-        });
-        const body = new PassThrough();
-        fileStream.pipe(counter).pipe(body);
-
-        const p = resolved.client
-          .send(
-            new PutObjectCommand({
-              Bucket: params.bucket,
-              Key: key,
-              Body: body,
-              ContentType: info.mimeType,
-            }),
-          )
-          .then((out) => {
+        const p = uploadStreamToS3({
+          client: resolved.client,
+          bucket: params.bucket,
+          key,
+          body: fileStream,
+          contentType: info.mimeType,
+        })
+          .then(({ etag, size }) => {
             uploaded.push({
               key,
-              etag: (out.ETag ?? '').replace(/^"|"$/g, ''),
+              etag,
               size,
             });
           })
           .catch((err) => {
             aborted = true;
-            logger.error({ err, key }, 'upload failed mid-stream');
+            logger.error({ err, key }, 'upload failed');
             throw err;
           });
 
