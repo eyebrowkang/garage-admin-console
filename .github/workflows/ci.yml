@@ -6,9 +6,20 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      CI: true
 
     steps:
       - name: Checkout repository
@@ -20,36 +31,27 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version-file: .nvmrc
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Check formatting
+        run: pnpm format:check
 
       - name: Lint
         run: pnpm lint
 
-      - name: Lint s3-browser
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+        env:
+          DATA_DIR: ${{ runner.temp }}
+
+      - name: Build products
         run: |
-          pnpm -C s3-browser/api lint
-          pnpm -C s3-browser/web lint
-
-      - name: Typecheck APIs
-        run: |
-          pnpm -C garage-admin-console/api typecheck
-          pnpm -C s3-browser/api typecheck
-
-      - name: Build shared packages
-        run: pnpm build:packages
-
-      - name: Build web (admin)
-        run: pnpm -C garage-admin-console/web build
-
-      - name: Build web (s3-browser)
-        run: pnpm -C s3-browser/web build
-
-      - name: Test API
-        run: pnpm -C garage-admin-console/api test:run
-
-      - name: Test web
-        run: pnpm -C garage-admin-console/web test:run
+          pnpm build:packages
+          pnpm -r --filter @garage-admin/api --filter @garage-admin/web --filter @s3-browser/api --filter @s3-browser/web --if-present build
