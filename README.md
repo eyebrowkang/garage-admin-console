@@ -44,6 +44,8 @@ garage-admin-console/
 ├── packages/
 │   ├── tokens/             # @garage/tokens — CSS variables + palette
 │   ├── ui/                 # @garage/ui — shared UI primitives
+│   ├── crypto/             # @garage/crypto — AES-256-GCM encrypt/decrypt (shared by both BFFs)
+│   ├── bucket-api-server/  # @garage/bucket-api-server — shared Express router for the Bucket Backend API
 │   └── bucket-api-contract-tests/   # Shared Bucket Backend API regression suite
 ├── designs/                # Historical design notes (archive)
 └── e2e/                    # Playwright tests
@@ -194,9 +196,10 @@ Browser → Admin Web ──→ Admin BFF ──→ Garage Cluster Admin API
 ```
 
 - **Authentication**: single admin password per BFF → JWT (24h expiry)
-- **Credential security**: Garage admin tokens AND S3 keypairs are AES-256-GCM encrypted at rest
+- **Credential security**: Garage admin tokens AND S3 keypairs are AES-256-GCM encrypted at rest via `@garage/crypto`
 - **Proxy pattern**: frontends never communicate directly with Garage / S3 endpoints
 - **Embedded browser**: Admin's bucket page mints a short-lived per-bucket S3 keypair (Garage `CreateKey + AllowBucketKey`) and forwards Bucket Backend API calls
+- **Shared Bucket Backend API**: the 7 HTTP endpoints (`/list`, `/object`, `/download`, `/presign`, `/upload`, `/objects`, `/copy`) are implemented once in `@garage/bucket-api-server` as a `createBucketRouter(resolveContext)` factory. Each BFF provides its own `resolveContext` that maps an incoming request to an `{ client: S3Client, bucketName }` pair — all S3 and multipart logic lives in the shared package
 
 ## Documentation
 
@@ -212,7 +215,7 @@ Browser → Admin Web ──→ Admin BFF ──→ Garage Cluster Admin API
 | `pnpm -C s3-browser/api dev` / `pnpm -C s3-browser/web dev` | Start S3 Browser BFF / web                        |
 | `pnpm build`                                                | Build shared packages + Admin api + web           |
 | `pnpm lint` / `pnpm format`                                 | Lint / format Admin packages                      |
-| `pnpm test`                                                 | Vitest for Admin api + web                        |
+| `pnpm test`                                                 | Vitest for shared packages + Admin api + web      |
 | `pnpm -C packages/bucket-api-contract-tests test:run`       | Bucket Backend API regression suite (env-gated)   |
 | `npx playwright test`                                       | Admin Console E2E tests                           |
 | `pnpm -C garage-admin-console/api db:push`                  | Apply Admin schema                                |

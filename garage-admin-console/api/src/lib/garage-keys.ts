@@ -19,6 +19,8 @@ import db from '../db/index.js';
 import { clusters } from '../db/schema.js';
 import { decrypt } from '../encryption.js';
 import { logger } from '../logger.js';
+import { BucketAccessError } from '@garage/bucket-api-server';
+export { BucketAccessError };
 
 export interface ResolvedBucketKey {
   /** S3-protocol endpoint, e.g. http://192.168.88.62:3900 */
@@ -29,16 +31,6 @@ export interface ResolvedBucketKey {
   secretAccessKey: string;
   /** Internal Garage bucket id (hex). For debugging only. */
   bucketId: string;
-}
-
-export class BucketAccessError extends Error {
-  constructor(
-    public readonly status: number,
-    message: string,
-  ) {
-    super(message);
-    this.name = 'BucketAccessError';
-  }
 }
 
 interface CacheEntry {

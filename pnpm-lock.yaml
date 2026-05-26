@@ -30,6 +30,12 @@ importers:
       '@aws-sdk/s3-request-presigner':
         specifier: ^3.1053.0
         version: 3.1053.0
+      '@garage/bucket-api-server':
+        specifier: workspace:*
+        version: link:../../packages/bucket-api-server
+      '@garage/crypto':
+        specifier: workspace:*
+        version: link:../../packages/crypto
       '@libsql/client':
         specifier: ^0.17.3
         version: 0.17.3
@@ -295,6 +301,49 @@ importers:
         specifier: ^4.1.7
         version: 4.1.7(@types/node@25.9.1)(jsdom@29.1.1(@noble/hashes@1.8.0))(vite@8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3))
 
+  packages/bucket-api-server:
+    dependencies:
+      '@aws-sdk/client-s3':
+        specifier: ^3.1053.0
+        version: 3.1053.0
+      '@aws-sdk/s3-request-presigner':
+        specifier: ^3.1053.0
+        version: 3.1053.0
+      busboy:
+        specifier: ^1.6.0
+        version: 1.6.0
+      express:
+        specifier: ^5.2.1
+        version: 5.2.1
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
+    devDependencies:
+      '@types/busboy':
+        specifier: ^1.5.4
+        version: 1.5.4
+      '@types/express':
+        specifier: ^5.0.6
+        version: 5.0.6
+      '@types/node':
+        specifier: ^25.9.1
+        version: 25.9.1
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.7
+        version: 4.1.7(@types/node@25.9.1)(jsdom@29.1.1(@noble/hashes@1.8.0))(vite@8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3))
+
+  packages/crypto:
+    devDependencies:
+      '@types/node':
+        specifier: ^25.9.1
+        version: 25.9.1
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
   packages/tokens:
     devDependencies:
       tsup:
@@ -379,6 +428,12 @@ importers:
       '@aws-sdk/s3-request-presigner':
         specifier: ^3.918.0
         version: 3.1053.0
+      '@garage/bucket-api-server':
+        specifier: workspace:*
+        version: link:../../packages/bucket-api-server
+      '@garage/crypto':
+        specifier: workspace:*
+        version: link:../../packages/crypto
       '@libsql/client':
         specifier: ^0.17.3
         version: 0.17.3

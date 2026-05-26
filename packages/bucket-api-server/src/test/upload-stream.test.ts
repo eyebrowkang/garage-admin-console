@@ -2,7 +2,7 @@ import { Readable } from 'node:stream';
 import { PutObjectCommand, type S3Client } from '@aws-sdk/client-s3';
 import { describe, expect, it, vi } from 'vitest';
 
-import { uploadStreamToS3 } from '../lib/s3-upload.js';
+import { uploadStreamToS3 } from '../upload-stream.js';
 
 async function readBody(body: unknown): Promise<Buffer> {
   const chunks: Buffer[] = [];

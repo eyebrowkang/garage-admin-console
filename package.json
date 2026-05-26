@@ -8,15 +8,15 @@
     "node": ">=24.0.0"
   },
   "scripts": {
-    "build:packages": "pnpm -F @garage/tokens build && pnpm -F @garage/ui build",
+    "build:packages": "pnpm -F @garage/crypto build && pnpm -F @garage/bucket-api-server build && pnpm -F @garage/tokens build && pnpm -F @garage/ui build",
     "build": "pnpm build:packages && pnpm -C garage-admin-console/api build && pnpm -C garage-admin-console/web build",
     "dev": "pnpm -r --parallel --filter @garage-admin/api --filter @garage-admin/web dev",
     "lint": "pnpm -C garage-admin-console/api lint && pnpm -C garage-admin-console/web lint",
     "lint:fix": "pnpm -C garage-admin-console/api lint:fix && pnpm -C garage-admin-console/web lint:fix",
     "format": "pnpm -C garage-admin-console/api format && pnpm -C garage-admin-console/web format",
     "format:check": "pnpm -C garage-admin-console/api format:check && pnpm -C garage-admin-console/web format:check",
-    "test": "pnpm -C garage-admin-console/api test:run && pnpm -C garage-admin-console/web test:run",
-    "typecheck": "pnpm -C garage-admin-console/api typecheck"
+    "test": "pnpm -F @garage/bucket-api-server test:run && pnpm -C garage-admin-console/api test:run && pnpm -C garage-admin-console/web test:run",
+    "typecheck": "pnpm -F @garage/crypto typecheck && pnpm -F @garage/bucket-api-server typecheck && pnpm -C garage-admin-console/api typecheck && pnpm -C s3-browser/api typecheck"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
