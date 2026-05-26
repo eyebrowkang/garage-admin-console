@@ -4,7 +4,7 @@
  * Used ONLY by the standalone composition (Login, Connections, BucketList,
  * the modals when invoked from the standalone UI). The embedded
  * <FileBrowser/> builds its OWN axios from props.backend — it never
- * imports this module. That's how the §2.5 contract stays tight.
+ * imports this module so it stays self-contained when federated.
  */
 import axios, { type AxiosInstance } from 'axios';
 
@@ -59,8 +59,8 @@ api.interceptors.response.use(
  * Build the per-bucket backend the embedded FileBrowser expects.
  *
  * In standalone mode the FileBrowser receives this object; in embedded
- * mode the Admin Console host constructs its own (per §2.7) and the
- * FileBrowser remains agnostic.
+ * mode the Admin Console host constructs its own pointing at the Admin
+ * BFF's bucket scope. The FileBrowser stays agnostic either way.
  */
 export function buildBucketBackend(connectionId: string, bucket: string) {
   return {

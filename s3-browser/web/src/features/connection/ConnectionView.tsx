@@ -3,43 +3,76 @@
  *
  * Mirrors the BucketList page in the Admin Console: DetailPageHeader with a
  * back button + connection metadata, then a Card grid of buckets. Picking a
- * bucket hands off to BucketView (which mounts the embedded FileBrowser).
+ * bucket pushes a URL like `/connections/:id/b/:bucket` so the route survives
+ * a refresh.
  */
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Database, Folder, RefreshCw } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Alert, AlertDescription, AlertTitle, Badge, Button, Card, CardContent } from '@garage/ui';
 
 import { api } from '@/lib/api';
 import { connectionDisplayMeta, formatShortDate } from '@/lib/connection-display';
 import type { Bucket as BucketInfo, Connection } from '@/lib/types';
-// No avatar here — DetailPageHeader (admin) stays text-only; the provider
-// surface is conveyed via the Badge below.
 
-export function ConnectionView({
-  connection,
-  onBack,
-  onOpenBucket,
-}: {
-  connection: Connection;
-  onBack: () => void;
-  onOpenBucket: (bucket: string) => void;
-}) {
-  const meta = connectionDisplayMeta(connection);
+export function ConnectionView() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
 
-  const list = useQuery({
-    queryKey: ['connection-buckets', connection.id],
+  const connectionsQ = useQuery({
+    queryKey: ['connections'],
     queryFn: async () => {
-      const res = await api.get<{ buckets: BucketInfo[] }>(`/connections/${connection.id}/buckets`);
-      return res.data.buckets;
+      const res = await api.get<Connection[]>('/connections');
+      return res.data;
     },
   });
 
+  const connection = connectionsQ.data?.find((c) => c.id === id) ?? null;
+
+  const list = useQuery({
+    queryKey: ['connection-buckets', id],
+    enabled: Boolean(id),
+    queryFn: async () => {
+      const res = await api.get<{ buckets: BucketInfo[] }>(`/connections/${id}/buckets`);
+      return [...res.data.buckets].sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }),
+      );
+    },
+  });
+
+  if (!connectionsQ.isLoading && !connection) {
+    return (
+      <Alert variant="destructive">
+        <AlertTitle>Connection not found</AlertTitle>
+        <AlertDescription>
+          The connection may have been removed.{' '}
+          <button
+            onClick={() => navigate('/')}
+            className="text-primary underline-offset-2 hover:underline"
+          >
+            Back to dashboard
+          </button>
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (!connection) {
+    return <p className="text-sm text-muted-foreground">Loading…</p>;
+  }
+
+  const meta = connectionDisplayMeta(connection);
+
   return (
     <div className="space-y-6">
-      {/* DetailPageHeader-style header */}
       <div className="flex flex-col gap-2 sm:gap-3 border-b border-border/70 pb-3 sm:pb-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 items-start gap-2.5 sm:gap-3">
-          <Button variant="outline" size="icon" className="h-8 w-8 shrink-0" onClick={onBack}>
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            onClick={() => navigate('/')}
+          >
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="min-w-0 space-y-0.5 sm:space-y-1">
@@ -107,7 +140,9 @@ export function ConnectionView({
             <BucketCard
               key={bucket.name}
               bucket={bucket}
-              onOpen={() => onOpenBucket(bucket.name)}
+              onOpen={() =>
+                navigate(`/connections/${connection.id}/b/${encodeURIComponent(bucket.name)}`)
+              }
             />
           ))}
         </div>
