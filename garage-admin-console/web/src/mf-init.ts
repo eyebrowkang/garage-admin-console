@@ -50,10 +50,20 @@ const runtimeS3BrowserMfUrl =
     ? null
     : normalizeS3BrowserMfUrl(window.__GARAGE_RUNTIME_CONFIG__?.s3BrowserMfUrl);
 
+const buildTimeS3BrowserMfUrl = normalizeS3BrowserMfUrl(import.meta.env.VITE_S3_BROWSER_MF_URL);
+
 const s3BrowserMfUrl =
-  runtimeS3BrowserMfUrl ??
-  normalizeS3BrowserMfUrl(import.meta.env.VITE_S3_BROWSER_MF_URL) ??
-  getDefaultS3BrowserMfUrl();
+  runtimeS3BrowserMfUrl ?? buildTimeS3BrowserMfUrl ?? getDefaultS3BrowserMfUrl();
+
+/**
+ * True when the S3 Browser MF remote is explicitly configured — either via
+ * the build-time `VITE_S3_BROWSER_MF_URL` env var, the runtime
+ * `S3_BROWSER_MF_URL` config, or in dev mode (where the remote is auto-
+ * discovered on port 5174). When false the host should hide the embedded
+ * FileBrowser section entirely rather than showing a load-error panel.
+ */
+export const isMfExplicitlyConfigured: boolean =
+  !!runtimeS3BrowserMfUrl || !!buildTimeS3BrowserMfUrl || import.meta.env.DEV;
 
 /**
  * Exported so consumers can call `mfInstance.loadRemote(...)`. The global

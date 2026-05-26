@@ -47,6 +47,7 @@ import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { CopyButton } from '@/components/cluster/CopyButton';
 import { DetailPageHeader } from '@/components/cluster/DetailPageHeader';
 import { BucketObjectBrowser } from '@/components/cluster/BucketObjectBrowser';
+import { isMfExplicitlyConfigured } from '@/mf-init';
 import { JsonViewer } from '@/components/cluster/JsonViewer';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
 import { DeleteActionIcon } from '@/lib/action-icons';
@@ -315,16 +316,6 @@ export function BucketDetail() {
         subtitle={bucket.id}
       />
 
-      {/* Embedded S3 Browser — federated remote, see designs/mf-integration-plan.md §2 */}
-      {bucket.globalAliases[0] && (
-        <BucketObjectBrowser
-          clusterId={clusterId}
-          bucketId={bucket.id}
-          bucketAlias={bucket.globalAliases[0]}
-          s3Endpoint={cluster?.s3Endpoint ?? null}
-        />
-      )}
-
       <Card>
         <CardHeader>
           <CardTitle>Bucket Summary</CardTitle>
@@ -354,6 +345,17 @@ export function BucketDetail() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Embedded S3 Browser — only shown when the MF remote is configured.
+          s3Endpoint is optional; the BFF derives a default from the cluster's
+          admin hostname on port 3900 when not explicitly set. */}
+      {isMfExplicitlyConfigured && bucket.globalAliases[0] && (
+        <BucketObjectBrowser
+          clusterId={clusterId}
+          bucketId={bucket.id}
+          bucketAlias={bucket.globalAliases[0]}
+        />
+      )}
 
       {/* Aliases Section */}
       <Card>

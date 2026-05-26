@@ -1,7 +1,7 @@
 /**
  * Garage per-bucket S3 key manager.
  *
- * Embedded-mode strategy from designs/mf-integration-plan.md §2.7:
+ * Embedded-mode strategy:
  *   1. Use the cluster admin token to call Garage CreateKey + AllowBucketKey
  *      and mint a short-lived S3 keypair scoped to a single bucket.
  *   2. Cache the keypair in-process keyed on (clusterId, bucketName) with a
@@ -10,8 +10,7 @@
  *      proactively delete the old one (Garage will GC; the operator can
  *      reap via the existing key list UI if desired).
  *
- * Persistence is intentionally in-memory only — restart re-mints. Per the
- * user decision recorded against §5 question 2.
+ * Persistence is intentionally in-memory only — process restart re-mints.
  */
 import axios, { type AxiosInstance } from 'axios';
 import { eq } from 'drizzle-orm';
@@ -47,7 +46,7 @@ interface CacheEntry {
   expiresAt: number;
 }
 
-const TTL_MS = 10 * 60 * 1000; // 10 minutes — see plan §5 Q2
+const TTL_MS = 10 * 60 * 1000; // 10 minutes
 const cache = new Map<string, CacheEntry>();
 
 function cacheKey(clusterId: string, bucket: string): string {
@@ -153,13 +152,32 @@ async function mintKey(
 }
 
 /**
+ * Derive a default S3 endpoint from the Garage admin API endpoint by keeping
+ * the same hostname and substituting Garage's default S3 port (3900).
+ *
+ * Examples:
+ *   http://192.168.1.10:3903  →  http://192.168.1.10:3900
+ *   https://garage.example.com  →  https://garage.example.com:3900
+ */
+function deriveS3Endpoint(adminEndpoint: string): string {
+  try {
+    const u = new URL(adminEndpoint);
+    return `${u.protocol}//${u.hostname}:3900`;
+  } catch {
+    return adminEndpoint;
+  }
+}
+
+/**
  * Resolve (and cache) an S3 keypair scoped to (clusterId, bucketName). The
  * caller can plug the returned credentials straight into @aws-sdk/client-s3.
  *
  * Throws BucketAccessError with a status hint on:
  *   - 404: cluster or bucket not found
- *   - 409: cluster has no s3Endpoint configured
  *   - 502: Garage admin API rejected one of the calls
+ *
+ * When the cluster has no explicit s3Endpoint configured, derives one from
+ * the admin API endpoint by replacing the port with Garage's default (3900).
  */
 export async function resolveBucketKey(
   clusterId: string,
@@ -174,12 +192,6 @@ export async function resolveBucketKey(
 
   const cluster = await loadCluster(clusterId);
   if (!cluster) throw new BucketAccessError(404, 'Cluster not found');
-  if (!cluster.s3Endpoint) {
-    throw new BucketAccessError(
-      409,
-      'Cluster has no S3 endpoint configured. Set it from the Dashboard before browsing objects.',
-    );
-  }
 
   const http = adminClient(cluster);
   const bucketId = await resolveBucketId(http, bucketName);
@@ -188,7 +200,7 @@ export async function resolveBucketKey(
   const minted = await mintKey(http, clusterId, bucketName, bucketId);
 
   const resolved: ResolvedBucketKey = {
-    s3Endpoint: cluster.s3Endpoint,
+    s3Endpoint: cluster.s3Endpoint ?? deriveS3Endpoint(cluster.endpoint),
     s3Region: cluster.s3Region ?? 'garage',
     s3ForcePathStyle: cluster.s3ForcePathStyle !== 'false',
     accessKeyId: minted.accessKeyId,

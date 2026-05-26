@@ -36,6 +36,7 @@ type ClusterFormState = {
   endpoint: string;
   adminToken: string;
   metricToken: string;
+  s3Endpoint: string;
 };
 
 const normalizeEndpoint = (value: string) => value.trim().replace(/\/+$/, '');
@@ -45,6 +46,7 @@ const emptyForm: ClusterFormState = {
   endpoint: '',
   adminToken: '',
   metricToken: '',
+  s3Endpoint: '',
 };
 
 export default function Dashboard() {
@@ -137,6 +139,7 @@ export default function Dashboard() {
         endpoint,
         adminToken: data.adminToken.trim(),
         metricToken: data.metricToken.trim() || undefined,
+        s3Endpoint: data.s3Endpoint.trim() || undefined,
       };
       await api.post('/clusters', payload);
     },
@@ -205,6 +208,7 @@ export default function Dashboard() {
       endpoint: cluster.endpoint,
       adminToken: '',
       metricToken: '',
+      s3Endpoint: cluster.s3Endpoint ?? '',
     });
     setEditError('');
     setIsEditDialogOpen(true);
@@ -240,6 +244,12 @@ export default function Dashboard() {
 
     if (editForm.metricToken.trim()) {
       payload.metricToken = editForm.metricToken.trim();
+    }
+
+    const newS3Endpoint = editForm.s3Endpoint.trim() || null;
+    if (newS3Endpoint !== (editCluster.s3Endpoint ?? null)) {
+      // API accepts null to clear; use a cast since the form state type is string.
+      (payload as Record<string, unknown>).s3Endpoint = newS3Endpoint;
     }
 
     if (Object.keys(payload).length === 0) {
@@ -451,6 +461,18 @@ function ClusterForm({
           </p>
         </div>
       </>
+      <div className="grid gap-2">
+        <Label htmlFor="s3-endpoint">S3 Endpoint (optional)</Label>
+        <Input
+          id="s3-endpoint"
+          value={form.s3Endpoint}
+          onChange={(e) => setForm({ ...form, s3Endpoint: e.target.value })}
+          placeholder="Auto: same host as Admin API, port 3900"
+        />
+        <p className="text-xs text-muted-foreground">
+          Leave blank to use the Garage default (admin hostname : 3900).
+        </p>
+      </div>
       {error && (
         <Alert variant="destructive">
           <AlertTitle>Error</AlertTitle>
