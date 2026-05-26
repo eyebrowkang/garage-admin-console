@@ -16,7 +16,7 @@ const configDir = path.dirname(fileURLToPath(import.meta.url));
  *
  * Shared graph: only React + ReactDOM are singletons. @garage/ui and
  * @garage/tokens are intentionally NOT shared at runtime (each app bundles
- * its own copy — see designs/mf-integration-plan.md §2.6).
+ * its own copy so a host can swap design-token versions independently).
  */
 export default defineConfig(({ command }) => ({
   plugins: [
@@ -44,6 +44,16 @@ export default defineConfig(({ command }) => ({
   },
   server: {
     port: 5174,
+    // historyApiFallback: true intercepts ALL 404s (including .js/.css files) in
+    // Rsbuild 2.x because the middleware runs before the in-memory file server,
+    // causing remoteEntry.js and CSS async chunks to be served as index.html.
+    // Explicit rewrites limit fallback to the actual SPA route patterns only.
+    historyApiFallback: {
+      rewrites: [
+        { from: /^\/$/, to: '/index.html' },
+        { from: /^\/connections/, to: '/index.html' },
+      ],
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:3002',
@@ -52,7 +62,15 @@ export default defineConfig(({ command }) => ({
     },
   },
   dev: {
-    assetPrefix: 'auto',
+    // Must be a full origin (not '/') so that __webpack_public_path__ carries
+    // the correct host:port when remoteEntry.js is loaded cross-origin from the
+    // Admin Console (port 5173). With '/' the public path resolves against the
+    // *current page* origin, causing CSS/JS chunks to be fetched from 5173
+    // instead of 5174.
+    //
+    // Override with S3_BROWSER_DEV_ORIGIN for LAN dev
+    // (e.g. S3_BROWSER_DEV_ORIGIN=http://192.168.1.10:5174).
+    assetPrefix: process.env.S3_BROWSER_DEV_ORIGIN ?? 'http://localhost:5174',
   },
   html: {
     title: 'S3 Browser',
