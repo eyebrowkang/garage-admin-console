@@ -172,8 +172,8 @@ export function ClusterLayout() {
         </div>
 
         {/* Desktop sidebar nav */}
-        <aside className="hidden lg:block w-56 flex-shrink-0 self-start">
-          <div className="sticky top-20 rounded-xl border bg-card/90 p-2.5">
+        <aside className="hidden lg:block w-56 flex-shrink-0 self-start sticky top-20">
+          <div className="rounded-xl border bg-card/90 p-2.5">
             <div className="flex items-center gap-2.5 mb-3 px-2 py-1.5">
               <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
                 <NodeIcon className="h-4 w-4" />

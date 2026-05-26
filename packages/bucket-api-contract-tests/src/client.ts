@@ -4,9 +4,10 @@ import type { BffFlavor, ContractTestConfig } from './env.js';
 
 /**
  * A thin axios wrapper aimed at the Bucket Backend API. Caller supplies
- * baseUrl + jwt up front; per-call shape mirrors the §2.4 contract.
+ * baseUrl + jwt up front; per-call shape mirrors the routes both BFFs
+ * implement.
  *
- * The path template is flavor-driven so the same suite can validate both
+ * The path template is flavor-driven so the same suite can exercise both
  * `s3-browser/api` (connections) and `garage-admin-console/api` (clusters).
  */
 export class BucketApiClient {

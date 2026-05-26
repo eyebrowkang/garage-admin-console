@@ -15,9 +15,11 @@ export default defineConfig([
       reactHooks.configs.flat.recommended,
     ],
     languageOptions: {
-      ecmaVersion: 2022,
+      ecmaVersion: 2020,
       globals: globals.browser,
-      sourceType: 'module',
+      parserOptions: {
+        tsconfigRootDir: import.meta.dirname,
+      },
     },
   },
   eslintConfigPrettier,

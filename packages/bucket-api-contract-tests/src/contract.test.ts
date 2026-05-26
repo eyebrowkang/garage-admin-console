@@ -3,7 +3,8 @@ import { config } from './env.js';
 import { BucketApiClient } from './client.js';
 
 /**
- * Conformance suite for the Bucket Backend API (§2.4).
+ * Regression suite for the Bucket Backend API — the shared HTTP surface
+ * implemented by both BFFs in this monorepo.
  *
  * Skips itself if env vars aren't set so `pnpm test` is offline-safe.
  */
@@ -11,7 +12,7 @@ import { BucketApiClient } from './client.js';
 const runId = `r${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 const prefix = `contract-test/${runId}`;
 
-describe.skipIf(config === null)('Bucket Backend API §2.4 conformance', () => {
+describe.skipIf(config === null)('Bucket Backend API regression', () => {
   let client: BucketApiClient;
   let ownedOwner = false;
 
