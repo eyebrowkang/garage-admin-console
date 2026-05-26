@@ -43,6 +43,11 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      - name: Build products
+        run: |
+          pnpm build:packages
+          pnpm -r --filter @garage-admin/api --filter @garage-admin/web --filter @s3-browser/api --filter @s3-browser/web --if-present build
+
       - name: Typecheck
         run: pnpm typecheck
 
@@ -50,8 +55,3 @@ jobs:
         run: pnpm test
         env:
           DATA_DIR: ${{ runner.temp }}
-
-      - name: Build products
-        run: |
-          pnpm build:packages
-          pnpm -r --filter @garage-admin/api --filter @garage-admin/web --filter @s3-browser/api --filter @s3-browser/web --if-present build
