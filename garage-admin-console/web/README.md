@@ -49,4 +49,4 @@ Splitting these imports across CSS and JS (e.g. doing `import '@garage/ui/style.
 
 ## Documentation
 
-See [`../../DEVELOPMENT.md`](../../DEVELOPMENT.md) for project structure, component organization, custom hooks, testing, and the full Module Federation setup, and [`../../designs/mf-integration-plan.md`](../../designs/mf-integration-plan.md) for the architectural contract.
+See [`../../DEVELOPMENT.md`](../../DEVELOPMENT.md) for project structure, component organization, custom hooks, testing, and the full Module Federation setup.

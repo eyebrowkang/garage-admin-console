@@ -1,13 +1,13 @@
 # @garage/bucket-api-contract-tests
 
-Conformance test suite for the **Bucket Backend API** (`designs/mf-integration-plan.md` §2.4).
+Regression test suite for the **Bucket Backend API** — the shared HTTP surface implemented by both BFFs in this monorepo.
 
-Both BFFs MUST pass this suite:
+Both BFFs are expected to pass this suite so the same `FileBrowser` can run against either:
 
-- `@s3-browser/api` — exposes the contract under `/api/connections/:connId/buckets/:bucket/*` (the "connections" flavor)
-- `@garage-admin/api` — exposes the contract under `/api/clusters/:clusterId/buckets/:bucket/*` (the "clusters" flavor; mints per-bucket S3 keypairs on the fly)
+- `@s3-browser/api` — exposes the surface under `/api/connections/:connId/buckets/:bucket/*` (the "connections" flavor)
+- `@garage-admin/api` — exposes the surface under `/api/clusters/:clusterId/buckets/:bucket/*` (the "clusters" flavor; mints per-bucket S3 keypairs on the fly)
 
-A single set of 12 tests runs against either flavor via the `TEST_BFF_FLAVOR` env var.
+A single set of 12 tests runs against either flavor via the `TEST_BFF_FLAVOR` env var. When you add or change a route, update both BFFs and the cases here together so they stay in sync.
 
 ## Running
 

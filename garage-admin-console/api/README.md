@@ -9,7 +9,7 @@ Backend-For-Frontend (BFF) for the Garage Admin Console.
 - Stores Garage cluster connection info (`endpoint`, `adminToken`, optional `metricToken`, and the optional S3-protocol surface `s3Endpoint` / `s3Region` / `s3ForcePathStyle`).
 - Encrypts `adminToken` and `metricToken` at rest with AES-256-GCM ([`src/encryption.ts`](src/encryption.ts)).
 - Proxies the Garage Admin API v2 (`ALL /api/proxy/:clusterId/*splat`) — the admin token is decrypted in memory per-request and the JSON body is forwarded.
-- Implements the **Bucket Backend API** contract (`designs/mf-integration-plan.md` §2.4) under `/api/clusters/:clusterId/buckets/:bucket/*`. The federated `s3Browser/FileBrowser` component embedded inside the Admin BucketDetail page talks to this surface.
+- Implements the **Bucket Backend API** under `/api/clusters/:clusterId/buckets/:bucket/*`. The federated `s3Browser/FileBrowser` component embedded inside the Admin BucketDetail page talks to this surface.
 
 ## Architecture
 
@@ -56,7 +56,7 @@ flowchart LR
 | `GET/POST /api/clusters`                                                                             | JWT  | List / add clusters (tokens excluded from list responses)          |
 | `PUT/DELETE /api/clusters/:id`                                                                       | JWT  | Update / remove a cluster                                          |
 | `ALL /api/proxy/:clusterId/*splat`                                                                   | JWT  | Pass-through to Garage Admin API (admin token decrypted in memory) |
-| `GET/POST/DELETE /api/clusters/:clusterId/buckets/:bucket/{list,object,presign,upload,objects,copy}` | JWT  | Bucket Backend API (`designs/mf-integration-plan.md` §2.4)         |
+| `GET/POST/DELETE /api/clusters/:clusterId/buckets/:bucket/{list,object,presign,upload,objects,copy}` | JWT  | Bucket Backend API                                                 |
 
 ## Per-bucket S3 key minting
 
@@ -109,4 +109,4 @@ pnpm -C packages/bucket-api-contract-tests test:run
 
 ## Documentation
 
-See [`../../DEVELOPMENT.md`](../../DEVELOPMENT.md) for the full developer guide and [`../../designs/mf-integration-plan.md`](../../designs/mf-integration-plan.md) for the frozen architectural contract.
+See [`../../DEVELOPMENT.md`](../../DEVELOPMENT.md) for the full developer guide.

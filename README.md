@@ -13,7 +13,7 @@ A modern web-based administration interface for managing [Garage](https://garage
 - **Multi-cluster Management** — connect and manage multiple Garage clusters from a single interface
 - **Dashboard Overview** — real-time cluster health, node status, and capacity visualizations
 - **Bucket Management** — create, configure, and delete buckets with quota and website hosting options
-- **Embedded Object Browser** — browse, upload, presign, and delete objects inside any bucket via a federated S3 Browser module ([architecture](./designs/mf-integration-plan.md))
+- **Embedded Object Browser** — browse, upload, presign, and delete objects inside any bucket via a federated S3 Browser module
 - **Access Key Management** — generate, import, and manage S3-compatible access keys
 - **Permission Control** — fine-grained bucket-key permission matrix with read/write/owner toggles
 - **Node Monitoring** — view node status, statistics, and trigger maintenance operations
@@ -44,8 +44,8 @@ garage-admin-console/
 ├── packages/
 │   ├── tokens/             # @garage/tokens — CSS variables + palette
 │   ├── ui/                 # @garage/ui — shared UI primitives
-│   └── bucket-api-contract-tests/   # Shared §2.4 conformance suite
-├── designs/                # Architectural specs (incl. mf-integration-plan.md)
+│   └── bucket-api-contract-tests/   # Shared Bucket Backend API regression suite
+├── designs/                # Historical design notes (archive)
 └── e2e/                    # Playwright tests
 ```
 
@@ -196,14 +196,13 @@ Browser → Admin Web ──→ Admin BFF ──→ Garage Cluster Admin API
 - **Authentication**: single admin password per BFF → JWT (24h expiry)
 - **Credential security**: Garage admin tokens AND S3 keypairs are AES-256-GCM encrypted at rest
 - **Proxy pattern**: frontends never communicate directly with Garage / S3 endpoints
-- **Embedded browser**: Admin's bucket page mints a short-lived per-bucket S3 keypair (Garage `CreateKey + AllowBucketKey`) and forwards Bucket Backend API calls — full architectural detail in [`designs/mf-integration-plan.md`](./designs/mf-integration-plan.md)
+- **Embedded browser**: Admin's bucket page mints a short-lived per-bucket S3 keypair (Garage `CreateKey + AllowBucketKey`) and forwards Bucket Backend API calls
 
 ## Documentation
 
 - **[CONTRIBUTING.md](./CONTRIBUTING.md)** — how to contribute
 - **[DEVELOPMENT.md](./DEVELOPMENT.md)** — developer guide (architecture, testing, MF setup)
 - **[AGENTS.md](./AGENTS.md)** — agent-oriented overview (read this first if you're new)
-- **[designs/mf-integration-plan.md](./designs/mf-integration-plan.md)** — frozen MF + Bucket Backend API contract
 
 ## Scripts
 
@@ -214,7 +213,7 @@ Browser → Admin Web ──→ Admin BFF ──→ Garage Cluster Admin API
 | `pnpm build`                                                | Build shared packages + Admin api + web           |
 | `pnpm lint` / `pnpm format`                                 | Lint / format Admin packages                      |
 | `pnpm test`                                                 | Vitest for Admin api + web                        |
-| `pnpm -C packages/bucket-api-contract-tests test:run`       | §2.4 conformance suite (env-gated, skips offline) |
+| `pnpm -C packages/bucket-api-contract-tests test:run`       | Bucket Backend API regression suite (env-gated)   |
 | `npx playwright test`                                       | Admin Console E2E tests                           |
 | `pnpm -C garage-admin-console/api db:push`                  | Apply Admin schema                                |
 | `pnpm -C garage-admin-console/api db:studio`                | Open Drizzle Studio for Admin DB                  |

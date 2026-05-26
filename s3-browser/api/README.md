@@ -7,10 +7,10 @@ S3 Browser BFF.
 ## What it does
 
 - Stores user-supplied S3 connection credentials, encrypted at rest with AES-256-GCM ([`src/encryption.ts`](src/encryption.ts) — bit-identical to the Admin BFF's).
-- Implements the **Bucket Backend API** contract (`designs/mf-integration-plan.md` §2.4) under `/api/connections/:connId/buckets/:bucket/*`. Any frontend that implements §2.5 `FileBrowserProps` can talk to it — that's what `s3-browser/web` does in standalone mode.
+- Implements the **Bucket Backend API** under `/api/connections/:connId/buckets/:bucket/*`. Any frontend that consumes the `FileBrowserProps` surface can talk to it — that's what `s3-browser/web` does in standalone mode.
 - Issues JWTs for standalone login.
 
-The Admin Console BFF (`@garage-admin/api`) implements the SAME §2.4 contract under `/api/clusters/:clusterId/buckets/:bucket/*`. The shared conformance suite at `packages/bucket-api-contract-tests/` validates both.
+The Admin Console BFF (`@garage-admin/api`) implements the SAME HTTP surface under `/api/clusters/:clusterId/buckets/:bucket/*`. The shared regression suite at `packages/bucket-api-contract-tests/` exercises both, so the two implementations stay in sync.
 
 ## Endpoints
 
@@ -19,8 +19,8 @@ The Admin Console BFF (`@garage-admin/api`) implements the SAME §2.4 contract u
 | `POST /api/auth/login`                                                                               | none | Exchange password → JWT                                        |
 | `GET /api/health`                                                                                    | none | Health check                                                   |
 | `GET/POST/PUT/DELETE /api/connections[/:id]`                                                         | JWT  | CRUD S3 connections (credentials excluded from list responses) |
-| `GET /api/connections/:connId/buckets`                                                               | JWT  | S3 `ListBuckets` (helper; not in §2.4)                         |
-| `GET/POST/DELETE /api/connections/:connId/buckets/:bucket/{list,object,presign,upload,objects,copy}` | JWT  | Bucket Backend API (§2.4)                                      |
+| `GET /api/connections/:connId/buckets`                                                               | JWT  | S3 `ListBuckets` (helper)                                      |
+| `GET/POST/DELETE /api/connections/:connId/buckets/:bucket/{list,object,presign,upload,objects,copy}` | JWT  | Bucket Backend API                                             |
 
 ## Running
 
@@ -79,4 +79,4 @@ If `TEST_CONNECTION_ID` is unset, the suite creates a throwaway connection from 
 
 ## Documentation
 
-See [`../../DEVELOPMENT.md`](../../DEVELOPMENT.md) and [`../../designs/mf-integration-plan.md`](../../designs/mf-integration-plan.md).
+See [`../../DEVELOPMENT.md`](../../DEVELOPMENT.md).

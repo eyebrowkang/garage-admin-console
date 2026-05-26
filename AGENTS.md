@@ -4,12 +4,10 @@ Always use Context7 MCP when I need library/API documentation, code generation, 
 
 ## Project Overview
 
-A pnpm workspace shipping **two products that share a design system and a Bucket Backend API contract**:
+A pnpm workspace shipping **two products that share a design system and a Bucket Backend API surface**:
 
 - **Garage Admin Console** (production) — web interface for managing [Garage](https://garagehq.deuxfleurs.fr/) object storage clusters. Tracks Garage Admin API v2.
-- **S3 Browser** (new) — generic S3-protocol file browser. Runs standalone, AND can be **embedded into the Admin Console's bucket detail page via Module Federation 2.0** so users can manage objects without leaving the cluster UI.
-
-The full architectural contract (MF surface, Bucket Backend API, sharing strategy) is frozen in [`designs/mf-integration-plan.md`](./designs/mf-integration-plan.md). Read it before changing anything cross-cutting.
+- **S3 Browser** — generic S3-protocol file browser. Runs standalone, AND can be **embedded into the Admin Console's bucket detail page via Module Federation 2.0** so users can manage objects without leaving the cluster UI.
 
 ## Repository Layout
 
@@ -24,8 +22,8 @@ garage-admin-console/                         # monorepo root
 ├── packages/
 │   ├── tokens/                               # @garage/tokens — CSS variables + palette
 │   ├── ui/                                   # @garage/ui — shadcn primitives lifted out
-│   └── bucket-api-contract-tests/            # @garage/bucket-api-contract-tests
-├── designs/                                  # frozen design specs (incl. mf-integration-plan.md)
+│   └── bucket-api-contract-tests/            # @garage/bucket-api-contract-tests — regression suite
+├── designs/                                  # historical design notes (archive)
 ├── e2e/                                      # Playwright tests for Admin Console
 ├── screenshots/                              # rendered Admin Console screenshots for README
 ├── docker/                                   # Dockerfiles, compose, build ignores
@@ -50,7 +48,7 @@ pnpm -C s3-browser/web build                  # S3 Browser web (emits MF manifes
 pnpm lint                                     # Admin api + web (extend per-app if you add lint to s3-browser)
 pnpm format / format:check
 pnpm test                                     # Admin api + web vitest runs
-pnpm -C packages/bucket-api-contract-tests test:run  # contract suite (env-gated)
+pnpm -C packages/bucket-api-contract-tests test:run  # regression suite (env-gated)
 
 # Per-workspace
 pnpm -C garage-admin-console/api <script>
@@ -82,9 +80,9 @@ Browser
 - `Cluster.adminToken` / `Connection.{accessKeyId,secretAccessKey}` are AES-256-GCM encrypted at rest (`encryption.ts` is bit-identical between the two BFFs).
 - Embedded mode mints per-(cluster, bucket) S3 keypairs from the cluster's admin token via Garage `CreateKey + AllowBucketKey`, in-memory-cached with a 10-min TTL (see `garage-admin-console/api/src/lib/garage-keys.ts`).
 
-### Bucket Backend API (§2.4 of the integration plan)
+### Bucket Backend API
 
-The contract surface that BOTH BFFs implement:
+The shared HTTP surface that BOTH BFFs implement so the same `FileBrowser` can run against either:
 
 | Method + path (relative to bucket scope) | Body / query                                                | Response                                                              |
 | ---------------------------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------- |
@@ -100,7 +98,7 @@ Scope prefix:
 - Admin BFF: `/api/clusters/:clusterId/buckets/:bucket/...`
 - S3 Browser BFF: `/api/connections/:connId/buckets/:bucket/...`
 
-Conformance suite at `packages/bucket-api-contract-tests/` runs against EITHER prefix via `TEST_BFF_FLAVOR=clusters | connections`.
+A regression suite at `packages/bucket-api-contract-tests/` runs the same set of HTTP cases against EITHER prefix via `TEST_BFF_FLAVOR=clusters | connections` — useful when extending or refactoring the routes to make sure both BFFs stay in sync.
 
 ### API Routes
 
@@ -113,7 +111,7 @@ Admin BFF — registered in [`garage-admin-console/api/src/app.ts`](garage-admin
 | `GET/POST /api/clusters`                                    | JWT  | List / add clusters (tokens excluded from list)              |
 | `PUT/DELETE /api/clusters/:id`                              | JWT  | Update / remove cluster                                      |
 | `ALL  /api/proxy/:clusterId/*splat`                         | JWT  | Pass-through to Garage admin API                             |
-| `* /api/clusters/:clusterId/buckets/:bucket/*` (Bucket API) | JWT  | §2.4 contract — list, object, presign, upload, objects, copy |
+| `* /api/clusters/:clusterId/buckets/:bucket/*` (Bucket API) | JWT  | list, object, presign, upload, objects, copy                 |
 
 S3 Browser BFF — registered in [`s3-browser/api/src/app.ts`](s3-browser/api/src/app.ts):
 
@@ -122,8 +120,8 @@ S3 Browser BFF — registered in [`s3-browser/api/src/app.ts`](s3-browser/api/sr
 | `POST /api/auth/login`                                      | No   | Returns JWT                          |
 | `GET  /api/health`                                          | No   | Health check                         |
 | `GET/POST/PUT/DELETE /api/connections[/:id]`                | JWT  | CRUD S3 connections                  |
-| `GET  /api/connections/:connId/buckets`                     | JWT  | S3 ListBuckets (helper; not in §2.4) |
-| `* /api/connections/:connId/buckets/:bucket/*` (Bucket API) | JWT  | §2.4 contract                        |
+| `GET  /api/connections/:connId/buckets`                     | JWT  | S3 ListBuckets (helper)              |
+| `* /api/connections/:connId/buckets/:bucket/*` (Bucket API) | JWT  | shared Bucket Backend API            |
 
 ### Module Federation surface
 
@@ -164,9 +162,10 @@ Migrations live in each BFF's `drizzle/` directory and run automatically on star
 - BucketDetail mounts the federated `BucketObjectBrowser`.
 - UI components from `@garage/ui` (shadcn primitives), tokens from `@garage/tokens`. Path alias `@` → `src/`.
 
-**S3 Browser** (`s3-browser/web/src/`) — view-state navigation, no router (so it can be federated without dragging react-router along):
+**S3 Browser** (`s3-browser/web/src/`) — React Router v7 in the standalone shell, with the federated `FileBrowser` itself kept router-free so embedders don't have to pull in react-router:
 
-- Views: `home` (Dashboard with connection cards) → `connection` (bucket list) → `bucket` (FileBrowser).
+- Standalone routes (in `App.tsx`): `/` (HomePage / connection cards), `/connections/:id` (ConnectionView / bucket list), `/connections/:id/b/:bucket/*` (BucketView mounts the FileBrowser; splat encodes the in-bucket folder path).
+- `FileBrowser` is controlled via `path` / `onPathChange` props — App resolves the splat to `path[]` and pushes new URLs on folder navigation, so refresh + back/forward work for free.
 - Uses the same `@garage/ui` + `@garage/tokens` set so embedded and standalone modes are visually consistent.
 - `index.css` mirrors the Admin Console layer order (`@import @garage/tokens/style.css; @import @garage/ui/style.css; @import 'tailwindcss';` then a `@layer base { * { @apply border-border; } }` so Tailwind v4's default `border` resolves to the soft warm tone).
 
@@ -192,10 +191,9 @@ Within each module the same drill-down applies — list pages stay information-l
 
 ## Key Files
 
-**Shared / contract**:
+**Shared**:
 
-- [`designs/mf-integration-plan.md`](designs/mf-integration-plan.md) — frozen architectural contract
-- [`packages/bucket-api-contract-tests/src/contract.test.ts`](packages/bucket-api-contract-tests/src/contract.test.ts) — §2.4 conformance suite
+- [`packages/bucket-api-contract-tests/src/contract.test.ts`](packages/bucket-api-contract-tests/src/contract.test.ts) — regression suite that exercises both BFFs against the shared Bucket Backend API
 - [`packages/ui/src/index.ts`](packages/ui/src/index.ts) / [`packages/tokens/src/style.css`](packages/tokens/src/style.css)
 
 **Admin BFF**:
@@ -221,7 +219,7 @@ Within each module the same drill-down applies — list pages stay information-l
 
 - [`s3-browser/api/src/app.ts`](s3-browser/api/src/app.ts)
 - [`s3-browser/api/src/lib/s3-client.ts`](s3-browser/api/src/lib/s3-client.ts) — builds `@aws-sdk/client-s3` from a stored Connection
-- [`s3-browser/api/src/routes/buckets.ts`](s3-browser/api/src/routes/buckets.ts) — §2.4 handlers
+- [`s3-browser/api/src/routes/buckets.ts`](s3-browser/api/src/routes/buckets.ts) — Bucket Backend API handlers
 
 **S3 Browser web**:
 

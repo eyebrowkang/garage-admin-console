@@ -13,7 +13,7 @@
 - **多集群管理** - 在单一界面中连接和管理多个 Garage 集群
 - **仪表盘概览** - 实时集群健康状态、节点状态和容量可视化
 - **存储桶管理** - 创建、配置和删除存储桶，支持配额和网站托管选项
-- **嵌入式对象浏览器** - 在任意桶内浏览、上传、签发预签名链接、删除对象，由通过 Module Federation 2.0 联邦的 S3 Browser 模块提供（[架构](./designs/mf-integration-plan.md)）
+- **嵌入式对象浏览器** - 在任意桶内浏览、上传、签发预签名链接、删除对象，由通过 Module Federation 2.0 联邦的 S3 Browser 模块提供
 - **访问密钥管理** - 生成、导入和管理 S3 兼容的访问密钥
 - **权限控制** - 细粒度的存储桶-密钥权限矩阵，支持读/写/所有者权限切换
 - **节点监控** - 查看节点状态、统计信息并触发维护操作
@@ -38,8 +38,8 @@ garage-admin-console/
 ├── packages/
 │   ├── tokens/             # @garage/tokens — CSS 变量 + 色板
 │   ├── ui/                 # @garage/ui — 共享 UI 原件
-│   └── bucket-api-contract-tests/   # §2.4 共享一致性测试套件
-├── designs/                # 架构规范（含 mf-integration-plan.md）
+│   └── bucket-api-contract-tests/   # Bucket Backend API 回归测试套件
+├── designs/                # 历史设计稿（归档）
 └── e2e/                    # Playwright 测试
 ```
 
@@ -190,14 +190,13 @@ pnpm -C garage-admin-console/api start
 - **认证**：每个 BFF 单一管理员密码 → JWT（24 小时有效期）
 - **凭证安全**：Garage 管理令牌与 S3 密钥均使用 AES-256-GCM 加密存储
 - **代理模式**：前端不直接与 Garage / S3 端点通信
-- **嵌入式浏览器**：Admin 的桶页面用集群 admin token 调用 Garage `CreateKey + AllowBucketKey` 临时签发桶级 S3 密钥，再转发 Bucket Backend API 请求 — 完整架构详见 [`designs/mf-integration-plan.md`](./designs/mf-integration-plan.md)
+- **嵌入式浏览器**：Admin 的桶页面用集群 admin token 调用 Garage `CreateKey + AllowBucketKey` 临时签发桶级 S3 密钥，再转发 Bucket Backend API 请求
 
 ## 文档
 
 - **[CONTRIBUTING.md](./CONTRIBUTING.md)** - 贡献指南
 - **[DEVELOPMENT.md](./DEVELOPMENT.md)** - 开发者指南（架构、测试、MF 配置）
 - **[AGENTS.md](./AGENTS.md)** - 面向 Agent 的总览（新人优先阅读）
-- **[designs/mf-integration-plan.md](./designs/mf-integration-plan.md)** - 冻结的 MF + Bucket Backend API 契约
 
 ## 常用脚本
 
@@ -208,7 +207,7 @@ pnpm -C garage-admin-console/api start
 | `pnpm build`                                                | 构建共享包 + Admin api + web           |
 | `pnpm lint` / `pnpm format`                                 | Admin 包的 lint / 格式化               |
 | `pnpm test`                                                 | Admin api + web 的 Vitest              |
-| `pnpm -C packages/bucket-api-contract-tests test:run`       | §2.4 一致性测试（env-gated，离线跳过） |
+| `pnpm -C packages/bucket-api-contract-tests test:run`       | Bucket Backend API 回归测试（env-gated）|
 | `npx playwright test`                                       | Admin Console 端到端测试               |
 | `pnpm -C garage-admin-console/api db:push`                  | 应用 Admin 库结构                      |
 | `pnpm -C garage-admin-console/api db:studio`                | 打开 Admin 库的 Drizzle Studio         |

@@ -1,6 +1,6 @@
 # Development Guide
 
-This document is the in-depth developer reference for the Garage Admin Console + S3 Browser monorepo. For a top-down summary read [AGENTS.md](./AGENTS.md). For the architectural contract that governs the embedded file browser, read [`designs/mf-integration-plan.md`](./designs/mf-integration-plan.md).
+This document is the in-depth developer reference for the Garage Admin Console + S3 Browser monorepo. For a top-down summary read [AGENTS.md](./AGENTS.md).
 
 ## Table of Contents
 
@@ -173,7 +173,7 @@ garage-admin-console/                              # monorepo root
 │   │   │       ├── auth.ts                       # POST /auth/login
 │   │   │       ├── clusters.ts                   # CRUD /clusters
 │   │   │       ├── proxy.ts                      # ALL /proxy/:clusterId/*splat
-│   │   │       └── buckets.ts                    # Bucket Backend API (§2.4)
+│   │   │       └── buckets.ts                    # Bucket Backend API handlers
 │   │   └── drizzle/                              # migration SQL + meta
 │   └── web/
 │       ├── src/
@@ -209,14 +209,14 @@ garage-admin-console/                              # monorepo root
 │   │   │   ├── lib/s3-client.ts                  # builds S3 client from a stored Connection
 │   │   │   └── routes/
 │   │   │       ├── auth.ts, connections.ts
-│   │   │       └── buckets.ts                    # Bucket Backend API (§2.4)
+│   │   │       └── buckets.ts                    # Bucket Backend API handlers
 │   │   └── drizzle/
 │   └── web/
 │       ├── src/
 │       │   ├── main.tsx, bootstrap.tsx           # MF async-boundary entry
 │       │   ├── export-app.tsx                    # createBridgeComponent
 │       │   ├── export-file-browser.tsx           # plain React (the primary surface)
-│       │   ├── App.tsx                           # state-based home → connection → bucket
+│       │   ├── App.tsx                           # react-router shell (home → connection → bucket/*)
 │       │   ├── features/
 │       │   │   ├── auth/LoginPage.tsx
 │       │   │   ├── home/HomePage.tsx             # Dashboard with connection cards
@@ -239,7 +239,7 @@ garage-admin-console/                              # monorepo root
 │   └── bucket-api-contract-tests/                # @garage/bucket-api-contract-tests
 │       └── src/{env.ts, client.ts, contract.test.ts}
 │
-├── designs/                                      # frozen architecture specs
+├── designs/                                      # historical design notes (archive)
 │   ├── mf-integration-plan.md
 │   ├── garage-admin-design-system/
 │   └── s3-browser/
@@ -272,7 +272,7 @@ Registered in [`src/app.ts`](garage-admin-console/api/src/app.ts):
 | `/api/clusters/:id`                                                                  | PUT     | JWT  | Update a cluster                               |
 | `/api/clusters/:id`                                                                  | DELETE  | JWT  | Remove a cluster                               |
 | `/api/proxy/:clusterId/*splat`                                                       | ALL     | JWT  | Pass-through to Garage Admin API               |
-| `/api/clusters/:clusterId/buckets/:bucket/{list,object,presign,upload,objects,copy}` | various | JWT  | [Bucket Backend API](#bucket-backend-api) §2.4 |
+| `/api/clusters/:clusterId/buckets/:bucket/{list,object,presign,upload,objects,copy}` | various | JWT  | [Bucket Backend API](#bucket-backend-api)      |
 
 Notes:
 
@@ -397,8 +397,8 @@ Registered in [`src/app.ts`](s3-browser/api/src/app.ts):
 | `/api/health`                                                                        | GET        | No   | Health check                                            |
 | `/api/connections`                                                                   | GET/POST   | JWT  | CRUD list/create connections (creds excluded from list) |
 | `/api/connections/:id`                                                               | PUT/DELETE | JWT  | Update / delete a connection                            |
-| `/api/connections/:connId/buckets`                                                   | GET        | JWT  | S3 `ListBuckets` (helper; not in §2.4)                  |
-| `/api/connections/:connId/buckets/:bucket/{list,object,presign,upload,objects,copy}` | various    | JWT  | [Bucket Backend API](#bucket-backend-api) §2.4          |
+| `/api/connections/:connId/buckets`                                                   | GET        | JWT  | S3 `ListBuckets` (helper)                               |
+| `/api/connections/:connId/buckets/:bucket/{list,object,presign,upload,objects,copy}` | various    | JWT  | [Bucket Backend API](#bucket-backend-api)               |
 
 ### Database schema
 
@@ -411,7 +411,7 @@ Defined in [`src/db/schema.ts`](s3-browser/api/src/db/schema.ts):
 
 - [`src/app.ts`](s3-browser/api/src/app.ts) — multipart-aware JSON parser, route mounting
 - [`src/lib/s3-client.ts`](s3-browser/api/src/lib/s3-client.ts) — `loadConnection()` + `buildS3Client()` from a stored Connection
-- [`src/routes/buckets.ts`](s3-browser/api/src/routes/buckets.ts) — §2.4 handlers (the canonical implementation; admin's was ported from this)
+- [`src/routes/buckets.ts`](s3-browser/api/src/routes/buckets.ts) — Bucket Backend API handlers (the canonical implementation; admin's was ported from this)
 
 ---
 
@@ -419,11 +419,11 @@ Defined in [`src/db/schema.ts`](s3-browser/api/src/db/schema.ts):
 
 ### Layout
 
-State-based navigation (no router — the bundle stays small and the federated `FileBrowser` doesn't get react-router pulled in alongside it):
+React Router v7 in the standalone shell. Routes:
 
-- `home` — Dashboard with connection cards + fleet summary + add/edit/delete
-- `connection` — bucket grid for one connection
-- `bucket` — wraps the `FileBrowser` with a breadcrumb header
+- `/` — Dashboard with connection cards + fleet summary + add/edit/delete
+- `/connections/:id` — bucket grid for one connection
+- `/connections/:id/b/:bucket/*` — wraps `FileBrowser`; splat encodes the in-bucket folder path so refresh + back/forward restore the exact location
 
 The standalone shell ([`App.tsx`](s3-browser/web/src/App.tsx), [`features/home`](s3-browser/web/src/features/home/HomePage.tsx), …) is built on `@garage/ui` so it mirrors the Admin Console's Dashboard/Detail patterns 1:1.
 
@@ -431,9 +431,9 @@ The standalone shell ([`App.tsx`](s3-browser/web/src/App.tsx), [`features/home`]
 
 [`src/features/file-browser/FileBrowser.tsx`](s3-browser/web/src/features/file-browser/FileBrowser.tsx) is the primary federated surface. It speaks only to the Bucket Backend API via axios — **no `@aws-sdk/*` imports anywhere in the frontend**.
 
-Hard rules (per `designs/mf-integration-plan.md` §2.5):
+Conventions to preserve so the component stays embeddable:
 
-- `path` is parent-controlled (`path: string[]` + `onPathChange`). No internal router.
+- `path` is parent-controlled (`path: string[]` + `onPathChange`). No internal router — the standalone shell wires URL ↔ `path[]`, and embedders provide their own.
 - Credentials come from `props.backend.{baseUrl, authToken}`. Not from `localStorage`, `window`, or env vars.
 - Owns its own `QueryClient` so it's independent of any host's TanStack Query.
 
@@ -499,7 +499,7 @@ Splitting these imports across CSS and JS (e.g. importing `@garage/ui/style.css`
 
 ### `@garage/bucket-api-contract-tests`
 
-Vitest suite that exercises every §2.4 route. Env-gated so `pnpm test` works offline.
+Vitest regression suite that exercises every Bucket Backend API route. Env-gated so `pnpm test` works offline.
 
 Run against the Admin BFF:
 
@@ -553,7 +553,7 @@ If the remote is unreachable or the cluster has no `s3Endpoint` configured, Buck
 
 ## Bucket Backend API
 
-The contract that both BFFs implement. Frozen in `designs/mf-integration-plan.md` §2.4.
+The shared HTTP surface that both BFFs implement so the same `FileBrowser` can run against either.
 
 **Scope prefix** (relative to BFF base URL):
 
@@ -701,7 +701,7 @@ pnpm -C s3-browser/api typecheck
 ### Adding a new view (S3 Browser)
 
 1. Create a view component under `s3-browser/web/src/features/...`.
-2. Wire it through `App.tsx`'s `ViewState` discriminated union.
+2. Wire it through `App.tsx`'s `<Routes>` block (and `useParams` / `useNavigate` inside the new view).
 
 ### Adding a new API endpoint
 
@@ -710,15 +710,14 @@ pnpm -C s3-browser/api typecheck
 3. Add Zod schema for request validation.
 4. Update frontend hooks + API calls.
 
-### Extending the Bucket Backend API (§2.4)
+### Extending the Bucket Backend API
 
-Any change to the contract is breaking by definition (see `designs/mf-integration-plan.md` §4 invariants):
+The Bucket Backend API is shared by both BFFs, so additions/changes should be applied symmetrically:
 
-1. Update §2.4 in `designs/mf-integration-plan.md` and §2.5 (FileBrowserProps) if relevant.
-2. Implement in BOTH BFFs (`garage-admin-console/api/src/routes/buckets.ts` and `s3-browser/api/src/routes/buckets.ts`).
-3. Update `packages/bucket-api-contract-tests/src/{client.ts,contract.test.ts}` to cover the new shape.
-4. Update the federated `FileBrowser` in `s3-browser/web/src/features/file-browser/FileBrowser.tsx`.
-5. Bump the relevant package versions in the same PR.
+1. Implement in BOTH BFFs (`garage-admin-console/api/src/routes/buckets.ts` and `s3-browser/api/src/routes/buckets.ts`).
+2. Update `packages/bucket-api-contract-tests/src/{client.ts,contract.test.ts}` to cover the new shape — that's how we keep the two implementations in lockstep.
+3. Update the federated `FileBrowser` in `s3-browser/web/src/features/file-browser/FileBrowser.tsx` (or the relevant feature module) to consume the new shape.
+4. For breaking changes (rename/remove existing fields), bump the relevant package versions in the same PR and call it out in the changelog so downstream embedders can pin.
 
 ### Adding a UI primitive
 

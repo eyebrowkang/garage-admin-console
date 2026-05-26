@@ -100,7 +100,7 @@ Within a major version, minor and patch bumps follow the usual conventions:
 - `fix:` commits → **patch** bump (e.g. `2.0.0` → `2.0.1`)
 - `feat:` / significant `refactor:` commits → **minor** bump (e.g. `2.0.1` → `2.1.0`)
 
-The integration plan ([`designs/mf-integration-plan.md`](./designs/mf-integration-plan.md) §4) lists the breaking-change invariants — most relevantly, `FileBrowserProps` (§2.5) and the Bucket Backend API (§2.4) are breaking-change-controlled.
+When evolving the shared surfaces (`FileBrowserProps` and the Bucket Backend API), pick a `feat:` for additive changes and treat any rename/removal as a breaking change so downstream embedders can pin against a known minor.
 
 ## Code Style
 
