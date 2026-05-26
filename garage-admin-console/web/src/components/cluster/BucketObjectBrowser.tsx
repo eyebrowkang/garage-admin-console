@@ -17,7 +17,6 @@ import {
   Suspense,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ComponentType,
   type ReactNode,
@@ -43,61 +42,7 @@ import {
 } from '@garage/ui';
 import { api } from '@/lib/api';
 import type { FileBrowserProps } from 's3Browser/FileBrowser';
-
-// ---------------------------------------------------------------------------
-// Key selection logic — exported for unit testing
-// ---------------------------------------------------------------------------
-
-export interface AuthorizedKey {
-  accessKeyId: string;
-  name: string;
-  permissions: { read: boolean; write: boolean; owner: boolean };
-}
-
-function capabilityScore(k: AuthorizedKey): number {
-  if (k.permissions.owner) return 3;
-  if (k.permissions.read && k.permissions.write) return 2;
-  if (k.permissions.read) return 1;
-  return 0;
-}
-
-function bestByCapability(keys: AuthorizedKey[]): string {
-  return [...keys].sort((a, b) => {
-    const cap = capabilityScore(b) - capabilityScore(a);
-    return cap !== 0 ? cap : a.accessKeyId.localeCompare(b.accessKeyId);
-  })[0]!.accessKeyId;
-}
-
-/**
- * Select a default key from `authorizedKeys` using the 4-step fallback chain:
- *   1. Saved localStorage key (if still in the list).
- *   2. First key whose name starts with `garage-admin-console:`, by
- *      capability score then accessKeyId alphabetically.
- *   3. Highest-capability key (owner > rw > r).
- *   4. Alphabetically first accessKeyId when capability is equal.
- *
- * Returns null when `authorizedKeys` is empty.
- */
-export function selectDefaultKey(
-  authorizedKeys: AuthorizedKey[],
-  savedKeyId: string | null,
-): string | null {
-  if (authorizedKeys.length === 0) return null;
-
-  // Step 1: saved key still in the list
-  if (savedKeyId && authorizedKeys.some((k) => k.accessKeyId === savedKeyId)) {
-    return savedKeyId;
-  }
-
-  // Step 2: keys with the admin-console prefix
-  const prefixKeys = authorizedKeys.filter((k) => k.name.startsWith('garage-admin-console:'));
-  if (prefixKeys.length > 0) {
-    return bestByCapability(prefixKeys);
-  }
-
-  // Steps 3+4: capability priority + alphabetical tiebreak
-  return bestByCapability(authorizedKeys);
-}
+import { selectDefaultKey, type AuthorizedKey } from './bucket-key-selection';
 
 function localStorageKey(clusterId: string, bucket: string): string {
   return `filebrowser.lastKey.${clusterId}:${bucket}`;
@@ -144,11 +89,15 @@ export function BucketObjectBrowser({
   const navigate = useNavigate();
   const [path, setPath] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
-  const [selectedKeyId, setSelectedKeyId] = useState<string | null>(null);
-  const initialized = useRef(false);
+  const [manualSelection, setManualSelection] = useState<{
+    scope: string;
+    keyId: string;
+  } | null>(null);
 
   const token = typeof window !== 'undefined' ? (window.localStorage.getItem('token') ?? '') : '';
   const baseUrl = `/api/clusters/${clusterId}/buckets/${encodeURIComponent(bucketAlias)}`;
+  const selectionScope = `${clusterId}:${bucketAlias}`;
+  const lsKey = useMemo(() => localStorageKey(clusterId, bucketAlias), [bucketAlias, clusterId]);
 
   // Fetch the authorized keys for this bucket.
   const keysQuery = useQuery<AuthorizedKey[]>({
@@ -162,36 +111,50 @@ export function BucketObjectBrowser({
     staleTime: 30_000,
   });
 
-  // Run the fallback chain once after keys are loaded.
+  const authorizedKeys = useMemo(() => keysQuery.data ?? [], [keysQuery.data]);
+
+  const defaultSelectedKeyId = useMemo(() => {
+    const keys = keysQuery.data;
+    if (!keys) return null;
+
+    if (initialKeyId && keys.some((k) => k.accessKeyId === initialKeyId)) {
+      return initialKeyId;
+    }
+
+    const saved = typeof window !== 'undefined' ? localStorage.getItem(lsKey) : null;
+    return selectDefaultKey(keys, saved);
+  }, [initialKeyId, keysQuery.data, lsKey]);
+
+  const selectedKeyId = useMemo(() => {
+    const manualKeyId = manualSelection?.scope === selectionScope ? manualSelection.keyId : null;
+    if (manualKeyId && authorizedKeys.some((k) => k.accessKeyId === manualKeyId)) {
+      return manualKeyId;
+    }
+    return defaultSelectedKeyId;
+  }, [authorizedKeys, defaultSelectedKeyId, manualSelection, selectionScope]);
+
+  // Keep localStorage aligned with the loaded key list and URL-selected key.
   useEffect(() => {
     const keys = keysQuery.data;
-    if (!keys || initialized.current) return;
-    initialized.current = true;
-
-    const lsKey = localStorageKey(clusterId, bucketAlias);
+    if (!keys || typeof window === 'undefined') return;
 
     // Priority 0: initialKeyId from URL (?selectKey=)
     if (initialKeyId && keys.some((k) => k.accessKeyId === initialKeyId)) {
-      setSelectedKeyId(initialKeyId);
       localStorage.setItem(lsKey, initialKeyId);
       return;
     }
 
     const saved = localStorage.getItem(lsKey);
-    const selected = selectDefaultKey(keys, saved);
 
     // Clear stale localStorage entry if saved key is no longer in the list.
     if (saved && !keys.some((k) => k.accessKeyId === saved)) {
       localStorage.removeItem(lsKey);
     }
-
-    setSelectedKeyId(selected);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [keysQuery.data]);
+  }, [initialKeyId, keysQuery.data, lsKey]);
 
   const handleKeyChange = (keyId: string) => {
-    setSelectedKeyId(keyId);
-    localStorage.setItem(localStorageKey(clusterId, bucketAlias), keyId);
+    setManualSelection({ scope: selectionScope, keyId });
+    localStorage.setItem(lsKey, keyId);
   };
 
   // Stable headers object — only recreates when selectedKeyId changes.
@@ -201,7 +164,6 @@ export function BucketObjectBrowser({
     [selectedKeyId],
   );
 
-  const authorizedKeys = keysQuery.data ?? [];
   const isLoading = keysQuery.isLoading;
   const hasNoKeys = !isLoading && keysQuery.data !== undefined && authorizedKeys.length === 0;
   const canRenderBrowser = !hasNoKeys && selectedKeyId !== null;
@@ -257,11 +219,8 @@ export function BucketObjectBrowser({
         {/* Show active key identity below the header when a key is selected */}
         {selectedKey && (
           <p className="text-xs text-muted-foreground mt-1">
-            Using key{' '}
-            <span className="font-mono">{selectedKey.accessKeyId.slice(0, 12)}…</span>
-            {selectedKey.name && (
-              <> ({selectedKey.name})</>
-            )}
+            Using key <span className="font-mono">{selectedKey.accessKeyId.slice(0, 12)}…</span>
+            {selectedKey.name && <> ({selectedKey.name})</>}
           </p>
         )}
       </CardHeader>

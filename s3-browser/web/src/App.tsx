@@ -38,10 +38,7 @@ export function App() {
       <div className="flex min-h-screen w-full flex-col bg-background/50">
         <header className="sticky top-0 z-50 border-b bg-card/80 backdrop-blur-xl">
           <div className="max-w-7xl mx-auto px-4 lg:px-8 h-14 flex items-center justify-between">
-            <Link
-              to="/"
-              className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
-            >
+            <Link to="/" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
               <img src="/s3-browser-logo.svg" alt="S3 Browser" className="h-7 w-7 sm:h-8 sm:w-8" />
               <span className="font-bold text-base sm:text-lg tracking-tight">S3 Browser</span>
             </Link>

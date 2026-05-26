@@ -8,15 +8,19 @@
     "node": ">=24.0.0"
   },
   "scripts": {
-    "build:packages": "pnpm -F @garage/crypto build && pnpm -F @garage/bucket-api-server build && pnpm -F @garage/tokens build && pnpm -F @garage/ui build",
-    "build": "pnpm build:packages && pnpm -C garage-admin-console/api build && pnpm -C garage-admin-console/web build",
+    "build:packages": "pnpm -r --filter './packages/**' --if-present build",
+    "build:admin": "pnpm build:packages && pnpm --filter @garage-admin/api build && pnpm --filter @garage-admin/web build",
+    "build:s3-browser": "pnpm build:packages && pnpm --filter @s3-browser/api build && pnpm --filter @s3-browser/web build",
+    "build": "pnpm build:admin",
     "dev": "pnpm -r --parallel --filter @garage-admin/api --filter @garage-admin/web dev",
-    "lint": "pnpm -C garage-admin-console/api lint && pnpm -C garage-admin-console/web lint",
-    "lint:fix": "pnpm -C garage-admin-console/api lint:fix && pnpm -C garage-admin-console/web lint:fix",
-    "format": "pnpm -C garage-admin-console/api format && pnpm -C garage-admin-console/web format",
-    "format:check": "pnpm -C garage-admin-console/api format:check && pnpm -C garage-admin-console/web format:check",
+    "dev:s3-browser": "pnpm -r --parallel --filter @s3-browser/api --filter @s3-browser/web dev",
+    "dev:all": "pnpm -r --parallel --filter @garage-admin/api --filter @garage-admin/web --filter @s3-browser/api --filter @s3-browser/web dev",
+    "lint": "pnpm -r --if-present lint",
+    "lint:fix": "pnpm -r --if-present lint:fix",
+    "format": "pnpm -r --if-present format",
+    "format:check": "pnpm -r --if-present format:check",
     "test": "pnpm -F @garage/bucket-api-server test:run && pnpm -C garage-admin-console/api test:run && pnpm -C garage-admin-console/web test:run",
-    "typecheck": "pnpm -F @garage/crypto typecheck && pnpm -F @garage/bucket-api-server typecheck && pnpm -C garage-admin-console/api typecheck && pnpm -C s3-browser/api typecheck"
+    "typecheck": "pnpm -r --if-present typecheck && pnpm --filter @garage-admin/web exec tsc --noEmit && pnpm --filter @s3-browser/web exec tsc --noEmit"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",

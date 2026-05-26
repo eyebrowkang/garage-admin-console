@@ -6,7 +6,4 @@
  * with their own QueryClient / router / shell — no Bridge needed.
  */
 export { FileBrowser as default } from './features/file-browser/FileBrowser';
-export type {
-  FileBrowserProps,
-  FileBrowserViewMode,
-} from './features/file-browser/FileBrowser';
+export type { FileBrowserProps, FileBrowserViewMode } from './features/file-browser/FileBrowser';

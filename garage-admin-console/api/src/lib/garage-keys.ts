@@ -167,7 +167,11 @@ export async function getAuthorizedBucketKeys(
   return res.data.keys.map((k) => ({
     accessKeyId: k.accessKeyId,
     name: k.name,
-    permissions: { read: k.permissions.read, write: k.permissions.write, owner: k.permissions.owner },
+    permissions: {
+      read: k.permissions.read,
+      write: k.permissions.write,
+      owner: k.permissions.owner,
+    },
   }));
 }
 
@@ -205,10 +209,7 @@ export async function resolveBucketKey(
     );
   } catch (err) {
     // Network / timeout — scrub any partial response data before logging.
-    logger.error(
-      { clusterId, accessKeyId, err: sanitizeForLog(err) },
-      'GetKeyInfo request failed',
-    );
+    logger.error({ clusterId, accessKeyId, err: sanitizeForLog(err) }, 'GetKeyInfo request failed');
     throw new BucketAccessError(502, 'Failed to contact Garage admin API');
   }
 
@@ -217,7 +218,10 @@ export async function resolveBucketKey(
   }
   if (res.status !== 200) {
     // Never log res.data here — it may contain secretAccessKey.
-    logger.error({ clusterId, accessKeyId, status: res.status }, 'GetKeyInfo returned error status');
+    logger.error(
+      { clusterId, accessKeyId, status: res.status },
+      'GetKeyInfo returned error status',
+    );
     throw new BucketAccessError(502, `GetKeyInfo failed (HTTP ${res.status})`);
   }
 

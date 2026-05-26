@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { selectDefaultKey } from '../BucketObjectBrowser';
-import type { AuthorizedKey } from '../BucketObjectBrowser';
+import { selectDefaultKey } from '../bucket-key-selection';
+import type { AuthorizedKey } from '../bucket-key-selection';
 
 function key(
   id: string,

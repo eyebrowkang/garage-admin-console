@@ -537,8 +537,7 @@ function ConnectionForm({
     form.name.trim() &&
     form.endpoint.trim() &&
     (isEdit ? true : form.accessKeyId.trim() && form.secretAccessKey.trim());
-  const canTest =
-    form.endpoint.trim() && form.accessKeyId.trim() && form.secretAccessKey.trim();
+  const canTest = form.endpoint.trim() && form.accessKeyId.trim() && form.secretAccessKey.trim();
 
   const handleTest = async () => {
     if (!canTest) return;

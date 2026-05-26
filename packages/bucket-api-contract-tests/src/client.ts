@@ -38,9 +38,7 @@ export class BucketApiClient {
     let ownerId = cfg.ownerId;
     if (!ownerId) {
       if (cfg.flavor !== 'connections') {
-        throw new Error(
-          'Cluster-flavor BFFs cannot auto-create owners; supply TEST_CLUSTER_ID',
-        );
+        throw new Error('Cluster-flavor BFFs cannot auto-create owners; supply TEST_CLUSTER_ID');
       }
       if (!cfg.s3) throw new Error('TEST_S3_* env required when TEST_CONNECTION_ID is unset');
       const res = await bff.post('/connections', {

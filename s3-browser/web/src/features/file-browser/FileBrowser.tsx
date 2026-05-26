@@ -183,6 +183,7 @@ function FileBrowserInner({
   // Internal preview-open state, seeded from the prop. Dropdown "Open in
   // preview" + the toolbar Eye toggle both flip this.
   const [previewOpen, setPreviewOpen] = useState(showPreviewInitial);
+  const backendHeadersKey = JSON.stringify(backend.headers);
   // Stable axios instance for this backend + token.
   // Re-created when baseUrl, authToken, or extra headers change so callers
   // (e.g. the host key-selector) can swap credentials by updating the prop.
@@ -199,7 +200,7 @@ function FileBrowserInner({
         maxContentLength: Infinity,
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [backend.baseUrl, backend.authToken, JSON.stringify(backend.headers)],
+    [backend.baseUrl, backend.authToken, backendHeadersKey],
   );
 
   const qc = useQueryClient();
@@ -232,20 +233,21 @@ function FileBrowserInner({
     pages: ListResult[];
     loading: boolean;
   }>({ key: extraKey, pages: [], loading: false });
-  const extra = extraState.key === extraKey
-    ? extraState
-    : { key: extraKey, pages: [], loading: false };
+  const extra =
+    extraState.key === extraKey ? extraState : { key: extraKey, pages: [], loading: false };
 
-  const nextContinuationToken = extra.pages.length > 0
-    ? extra.pages[extra.pages.length - 1]?.nextContinuationToken
-    : listQuery.data?.nextContinuationToken;
+  const nextContinuationToken =
+    extra.pages.length > 0
+      ? extra.pages[extra.pages.length - 1]?.nextContinuationToken
+      : listQuery.data?.nextContinuationToken;
   const hasMore = !!nextContinuationToken;
   const isLoadingMore = extra.loading;
 
   const loadMore = useCallback(async () => {
-    const token = extra.pages.length > 0
-      ? extra.pages[extra.pages.length - 1]?.nextContinuationToken
-      : listQuery.data?.nextContinuationToken;
+    const token =
+      extra.pages.length > 0
+        ? extra.pages[extra.pages.length - 1]?.nextContinuationToken
+        : listQuery.data?.nextContinuationToken;
     if (!token) return;
     setExtraState((prev) => {
       const base = prev.key === extraKey ? prev : { key: extraKey, pages: [], loading: false };
@@ -658,18 +660,17 @@ function FileBrowserInner({
     const isTypingTarget = (el: EventTarget | null) => {
       if (!(el instanceof HTMLElement)) return false;
       const tag = el.tagName;
-      return (
-        tag === 'INPUT' ||
-        tag === 'TEXTAREA' ||
-        tag === 'SELECT' ||
-        el.isContentEditable
-      );
+      return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
     };
     const onKey = (e: KeyboardEvent) => {
       // Cmd/Ctrl+F → focus the in-folder search (intercept the browser's
       // page find for the duration of this surface).
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'f') {
-        if (!rootRef.current?.contains(document.activeElement) && !document.activeElement?.isEqualNode(document.body)) return;
+        if (
+          !rootRef.current?.contains(document.activeElement) &&
+          !document.activeElement?.isEqualNode(document.body)
+        )
+          return;
         e.preventDefault();
         searchInputRef.current?.focus();
         searchInputRef.current?.select();
@@ -678,7 +679,16 @@ function FileBrowserInner({
       // Skip if a modal/dropdown trapped focus elsewhere or the user is
       // typing into an input.
       if (isTypingTarget(e.target)) return;
-      if (uploadOpen || presignOpen || deleteOpen || renameItem || moveItem || copyItem || newFolderOpen) return;
+      if (
+        uploadOpen ||
+        presignOpen ||
+        deleteOpen ||
+        renameItem ||
+        moveItem ||
+        copyItem ||
+        newFolderOpen
+      )
+        return;
       if (sorted.length === 0) return;
 
       const focusedIdx = focused ? sorted.findIndex((c) => c.name === focused) : -1;
@@ -938,7 +948,9 @@ function FileBrowserInner({
                         onClick={loadMore}
                       >
                         {isLoadingMore ? (
-                          <><RefreshCw size={13} className="animate-spin" /> Loading…</>
+                          <>
+                            <RefreshCw size={13} className="animate-spin" /> Loading…
+                          </>
                         ) : (
                           'Load more'
                         )}
@@ -1378,7 +1390,8 @@ function TreeNode({
       .filter((x): x is { name: string; key: string } => x !== null);
   }, [q.data, prefix]);
 
-  const hasChildren = childPrefixes.length > 0 || (showFiles && childFiles.length > 0) || !q.isFetched;
+  const hasChildren =
+    childPrefixes.length > 0 || (showFiles && childFiles.length > 0) || !q.isFetched;
 
   const handleSelect = () => {
     const segs = prefix ? prefix.replace(/\/$/, '').split('/') : [];
@@ -2087,9 +2100,7 @@ function TextPreview({ url, kind, ext }: { url: string; kind: FileKind; ext: str
     return (
       <div className="preview__placeholder preview__placeholder--err">
         <PreviewIcon kind={kind} />
-        <p className="preview__placeholder-msg">
-          Couldn&rsquo;t load text preview.
-        </p>
+        <p className="preview__placeholder-msg">Couldn&rsquo;t load text preview.</p>
       </div>
     );
   }
@@ -2767,14 +2778,18 @@ function MoveDialogBody({
               autoFocus
               value={dest}
               onChange={(e) => setDest(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && canSubmit) submit(); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && canSubmit) submit();
+              }}
               placeholder="folder/new-name.txt"
               disabled={busy}
             />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={busy}>Cancel</Button>
+          <Button variant="outline" onClick={onClose} disabled={busy}>
+            Cancel
+          </Button>
           <Button onClick={submit} disabled={!canSubmit || busy}>
             {busy ? 'Moving…' : 'Move'}
           </Button>
@@ -2851,14 +2866,18 @@ function CopyDialogBody({
               autoFocus
               value={dest}
               onChange={(e) => setDest(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && canSubmit) submit(); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && canSubmit) submit();
+              }}
               placeholder="folder/copy-of-file.txt"
               disabled={busy}
             />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={busy}>Cancel</Button>
+          <Button variant="outline" onClick={onClose} disabled={busy}>
+            Cancel
+          </Button>
           <Button onClick={submit} disabled={!canSubmit || busy}>
             {busy ? 'Copying…' : 'Copy'}
           </Button>

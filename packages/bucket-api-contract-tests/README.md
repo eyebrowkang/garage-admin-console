@@ -57,18 +57,18 @@ Cluster auto-creation is not supported (the suite never creates/deletes cluster 
 
 ## Environment reference
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `TEST_BFF_URL` | Yes | BFF base URL — must include `/api`. |
-| `TEST_BFF_PASSWORD` | Yes | Password for `POST /api/auth/login`. |
-| `TEST_S3_BUCKET` | Yes | Existing bucket the BFF's key owns. |
-| `TEST_BFF_FLAVOR` | No | `connections` (default) or `clusters`. |
-| `TEST_CONNECTION_ID` | When flavor=connections | Existing connection id. Omit to auto-create from `TEST_S3_*`. |
-| `TEST_CLUSTER_ID` | When flavor=clusters | Existing cluster id (auto-create not supported). |
-| `TEST_S3_ENDPOINT` | Auto-create only | S3 endpoint URL. |
-| `TEST_S3_ACCESS_KEY` / `TEST_S3_SECRET_KEY` | Auto-create only | S3 credentials. |
-| `TEST_S3_REGION` | No | Defaults to `us-east-1`. |
-| `TEST_S3_FORCE_PATH_STYLE` | No | Defaults to `true`. |
+| Variable                                    | Required                | Description                                                   |
+| ------------------------------------------- | ----------------------- | ------------------------------------------------------------- |
+| `TEST_BFF_URL`                              | Yes                     | BFF base URL — must include `/api`.                           |
+| `TEST_BFF_PASSWORD`                         | Yes                     | Password for `POST /api/auth/login`.                          |
+| `TEST_S3_BUCKET`                            | Yes                     | Existing bucket the BFF's key owns.                           |
+| `TEST_BFF_FLAVOR`                           | No                      | `connections` (default) or `clusters`.                        |
+| `TEST_CONNECTION_ID`                        | When flavor=connections | Existing connection id. Omit to auto-create from `TEST_S3_*`. |
+| `TEST_CLUSTER_ID`                           | When flavor=clusters    | Existing cluster id (auto-create not supported).              |
+| `TEST_S3_ENDPOINT`                          | Auto-create only        | S3 endpoint URL.                                              |
+| `TEST_S3_ACCESS_KEY` / `TEST_S3_SECRET_KEY` | Auto-create only        | S3 credentials.                                               |
+| `TEST_S3_REGION`                            | No                      | Defaults to `us-east-1`.                                      |
+| `TEST_S3_FORCE_PATH_STYLE`                  | No                      | Defaults to `true`.                                           |
 
 ## What the suite covers
 
