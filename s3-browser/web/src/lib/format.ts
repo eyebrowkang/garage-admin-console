@@ -1,30 +1,25 @@
 /**
- * Display formatters and file-kind helpers, lifted from the prototype's
- * data.jsx. Pure functions — no React, no DOM.
+ * Display formatters and file-kind helpers. Pure functions — no React, no DOM.
  */
-import type { LucideIcon } from 'lucide-react';
-import {
-  Archive,
-  Code,
-  File as FileIcon,
-  FileText,
-  Folder,
-  Image as ImageIcon,
-  Music,
-  Settings,
-  Video,
-} from 'lucide-react';
 
-export type FileKind = 'image' | 'video' | 'audio' | 'archive' | 'code' | 'config' | 'doc' | 'file';
+export type FileKind =
+  | 'image'
+  | 'text'
+  | 'json'
+  | 'markdown'
+  | 'csv'
+  | 'code'
+  | 'archive'
+  | 'unknown';
 
-/** Derive a kind from a filename / extension. */
 export function fileKind(name: string): FileKind {
   const ext = name.includes('.') ? name.split('.').pop()!.toLowerCase() : '';
   if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'avif', 'ico', 'tiff', 'bmp'].includes(ext))
     return 'image';
-  if (['mp4', 'mov', 'webm', 'avi', 'mkv'].includes(ext)) return 'video';
-  if (['mp3', 'wav', 'flac', 'ogg', 'm4a'].includes(ext)) return 'audio';
-  if (['zip', 'tar', 'gz', 'rar', '7z', 'bz2'].includes(ext)) return 'archive';
+  if (['txt', 'log', 'text'].includes(ext)) return 'text';
+  if (ext === 'json') return 'json';
+  if (['md', 'mdx', 'markdown'].includes(ext)) return 'markdown';
+  if (['csv', 'tsv'].includes(ext)) return 'csv';
   if (
     [
       'js',
@@ -45,31 +40,23 @@ export function fileKind(name: string): FileKind {
       'xml',
       'yaml',
       'yml',
+      'toml',
+      'ini',
+      'conf',
+      'env',
+      'sh',
+      'bash',
+      'zsh',
+      'sql',
     ].includes(ext)
   )
     return 'code';
-  if (['json', 'toml', 'env', 'conf', 'ini'].includes(ext)) return 'config';
-  if (['pdf', 'doc', 'docx', 'txt', 'md', 'rtf', 'woff', 'woff2', 'ttf', 'otf'].includes(ext))
-    return 'doc';
-  return 'file';
+  if (['zip', 'tar', 'gz', 'tgz', 'rar', '7z', 'bz2', 'xz'].includes(ext)) return 'archive';
+  return 'unknown';
 }
 
-export function fileIconClass(isFolder: boolean, name: string): string {
-  if (isFolder) return 'fname__icon--folder';
-  return 'fname__icon--' + fileKind(name);
-}
-
-export function getFileIcon(isFolder: boolean, name: string): LucideIcon {
-  if (isFolder) return Folder;
-  const k = fileKind(name);
-  if (k === 'image') return ImageIcon;
-  if (k === 'video') return Video;
-  if (k === 'audio') return Music;
-  if (k === 'archive') return Archive;
-  if (k === 'code') return Code;
-  if (k === 'config') return Settings;
-  if (k === 'doc') return FileText;
-  return FileIcon;
+export function isTextLikeKind(kind: FileKind): boolean {
+  return ['text', 'json', 'markdown', 'csv', 'code'].includes(kind);
 }
 
 export function formatBytes(b: number | null | undefined): string {
@@ -83,23 +70,24 @@ export function formatBytes(b: number | null | undefined): string {
 export function formatDate(iso: string | null | undefined): string {
   if (!iso) return '—';
   const d = new Date(iso);
-  const now = new Date();
-  const diffMs = now.getTime() - d.getTime();
-  const diffDay = diffMs / (1000 * 60 * 60 * 24);
-  if (diffDay < 1) {
-    const h = Math.floor(diffMs / (1000 * 60 * 60));
-    if (h < 1) return Math.max(1, Math.floor(diffMs / (1000 * 60))) + ' min ago';
-    return h + ' hour' + (h === 1 ? '' : 's') + ' ago';
-  }
-  if (diffDay < 7) return Math.floor(diffDay) + ' days ago';
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  if (Number.isNaN(d.getTime())) return '—';
+  const date = d.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+  const time = d.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  return `${date} · ${time}`;
 }
 
 export function formatNum(n: number): string {
   return new Intl.NumberFormat('en-US').format(n);
 }
 
-/** Get the filename portion of a key (last segment of the slash-delimited path). */
 export function basename(key: string): string {
   const stripped = key.endsWith('/') ? key.slice(0, -1) : key;
   const idx = stripped.lastIndexOf('/');

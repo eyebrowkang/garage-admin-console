@@ -17,6 +17,7 @@ declare module 's3Browser/FileBrowser' {
     etag: string;
     lastModified: string | null;
     storageClass: string | null;
+    contentType?: string | null;
   }
 
   export interface FileBrowserProps {

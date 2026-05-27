@@ -8,6 +8,25 @@
  *   4. local @layer base            — host-only styles (body background, scrollbars, etc.)
  */
 
+/*
+ * Predeclare cascade layer order. The standard Tailwind v4 order is
+ * (theme, base, components, utilities) — we slip `fb-utilities` between
+ * `components` and `utilities` for the federated S3 Browser remote's
+ * utility-only CSS:
+ *
+ *   - HIGHER than `base` so the remote's `.px-5`, `.flex`, etc. defeat
+ *     preflight resets like `button { padding: 0 }` — without this, embedded
+ *     FileBrowser elements lose their padding/sizing utilities entirely.
+ *   - LOWER than the host's own `utilities` layer so host rules win on
+ *     shared selectors. That keeps host responsive variants intact
+ *     (e.g. `aside.hidden.lg:block` would otherwise be hidden by the
+ *     remote's later-loaded `.hidden`).
+ *
+ *   Pair with s3-browser/web/src/embeddable.css:
+ *     @import 'tailwindcss/utilities' layer(fb-utilities);
+ */
+@layer theme, base, components, fb-utilities, utilities;
+
 @import '@garage/tokens/style.css';
 @import '@garage/ui/style.css';
 @import 'tailwindcss';

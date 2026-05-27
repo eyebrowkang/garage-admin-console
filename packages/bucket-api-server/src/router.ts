@@ -22,6 +22,7 @@ interface ShapeInput {
   ETag?: string | undefined;
   LastModified?: Date | undefined;
   StorageClass?: string | undefined;
+  ContentType?: string | undefined;
 }
 
 function shapeObject(o: ShapeInput) {
@@ -31,6 +32,7 @@ function shapeObject(o: ShapeInput) {
     etag: (o.ETag ?? '').replace(/^"|"$/g, ''),
     lastModified: o.LastModified ? o.LastModified.toISOString() : null,
     storageClass: o.StorageClass ?? null,
+    contentType: o.ContentType ?? null,
   };
 }
 
@@ -138,6 +140,7 @@ export function createBucketRouter({
           ETag: head.ETag,
           LastModified: head.LastModified,
           StorageClass: head.StorageClass,
+          ContentType: head.ContentType,
         }),
       );
     } catch (err) {
@@ -163,11 +166,20 @@ export function createBucketRouter({
     const ctx = await withContext(req, res, resolveContext, logger);
     if (!ctx) return;
     try {
+      const range = req.header('range') ?? undefined;
       const out = await ctx.client.send(
-        new GetObjectCommand({ Bucket: ctx.bucketName, Key: key }),
+        new GetObjectCommand({ Bucket: ctx.bucketName, Key: key, Range: range }),
       );
       const filename = key.includes('/') ? key.split('/').pop()! : key;
-      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+      if (out.ContentRange) {
+        res.status(206);
+        res.setHeader('Content-Range', out.ContentRange);
+        res.setHeader('Accept-Ranges', 'bytes');
+      }
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="${encodeURIComponent(filename)}"`,
+      );
       if (out.ContentType) res.setHeader('Content-Type', out.ContentType);
       if (out.ContentLength) res.setHeader('Content-Length', String(out.ContentLength));
       const body = out.Body;

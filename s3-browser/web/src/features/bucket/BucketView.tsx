@@ -1,6 +1,9 @@
 /**
- * BucketView — DetailPageHeader breadcrumb + the federated FileBrowser inside
- * a card that matches Admin Console's surface (rounded-xl border bg-card).
+ * BucketView — full-bleed shell hosting the federated FileBrowser.
+ *
+ * Layout intent: the FileBrowser is the page. The shell only carries the back
+ * affordance + endpoint hint, and breaks out of the App's max-w-7xl + padding
+ * so the browser can use the full viewport width.
  *
  * The in-bucket path lives in the URL via a splat segment:
  *   /connections/:id/b/:bucket/foo/bar
@@ -14,10 +17,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 
-import { Alert, AlertDescription, AlertTitle, Badge, Button } from '@garage/ui';
+import { Alert, AlertDescription, AlertTitle, Button } from '@garage/ui';
 
 import { api, buildBucketBackend } from '@/lib/api';
-import { connectionDisplayMeta } from '@/lib/connection-display';
 import type { Connection } from '@/lib/types';
 import { FileBrowser, type FileBrowserViewMode } from '@/features/file-browser/FileBrowser';
 
@@ -90,49 +92,50 @@ export function BucketView() {
     );
   }
 
-  const meta = connectionDisplayMeta(connection);
-
+  // Break out of <main>'s max-w-7xl + padding so the file browser claims the
+  // full viewport width / height. Header is h-14 (3.5rem); the footer falls
+  // below the fold, which is fine for a file-browser-dominant page.
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-2 sm:gap-3 border-b border-border/70 pb-3 sm:pb-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex min-w-0 items-start gap-2.5 sm:gap-3">
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-8 w-8 shrink-0"
-            onClick={() => navigate(`/connections/${id}`)}
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div className="min-w-0 space-y-0.5 sm:space-y-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-lg sm:text-xl font-semibold tracking-tight">{bucketName}</h1>
-              <Badge variant="secondary" className="font-normal">
-                {meta.provider}
-              </Badge>
-            </div>
-            <p className="break-all text-xs sm:text-sm text-muted-foreground">
-              {connection.name} · {connection.endpoint}
-            </p>
-          </div>
-        </div>
+    <div className="-mx-4 lg:-mx-8 -my-5 sm:-my-6 flex h-[calc(100vh-3.5rem)] flex-col bg-card">
+      <div className="flex h-11 shrink-0 items-center gap-2 border-b border-border bg-card/60 px-2 sm:px-3">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
+          onClick={() => {
+            // Prefer history back so single-bucket users who skipped the
+            // ConnectionView step return straight to the Dashboard instead of
+            // landing on a one-row bucket list. Fresh-tab deep links land
+            // here without history — fall back to ConnectionView in that case.
+            if (window.history.state?.idx > 0) navigate(-1);
+            else navigate(`/connections/${id}`);
+          }}
+          aria-label="Back"
+          title="Back"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <span
+          className="truncate font-mono text-[12px] text-muted-foreground"
+          title={`${connection.name} · ${connection.endpoint}`}
+        >
+          {connection.endpoint}
+        </span>
       </div>
 
-      <section className="overflow-hidden rounded-xl border bg-card shadow-sm">
-        <div className="h-[min(720px,calc(100vh-220px))] min-h-[420px] sm:min-h-[520px]">
-          <FileBrowser
-            key={`${connection.id}/${bucketName}`}
-            backend={buildBucketBackend(connection.id, bucketName)}
-            bucket={bucketName}
-            path={path}
-            onPathChange={onPathChange}
-            viewMode={viewMode}
-            onViewModeChange={setViewMode}
-            density="comfortable"
-            showPreview={false}
-          />
-        </div>
-      </section>
+      <div className="min-h-0 flex-1 overflow-hidden">
+        <FileBrowser
+          key={`${connection.id}/${bucketName}`}
+          backend={buildBucketBackend(connection.id, bucketName)}
+          bucket={bucketName}
+          path={path}
+          onPathChange={onPathChange}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          density="comfortable"
+          showPreview={false}
+        />
+      </div>
     </div>
   );
 }

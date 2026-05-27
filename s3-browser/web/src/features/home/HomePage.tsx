@@ -299,16 +299,39 @@ export function HomePage() {
       {/* Connection grid */}
       {connections.length > 0 && (
         <div className="grid gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {connections.map((connection) => (
-            <ConnectionCard
-              key={connection.id}
-              connection={connection}
-              status={statusById.get(connection.id) ?? { isLoading: true, status: 'checking' }}
-              onOpen={() => navigate(`/connections/${connection.id}`)}
-              onEdit={() => setEditTarget(connection)}
-              onDelete={() => setDeleteTarget(connection)}
-            />
-          ))}
+          {connections.map((connection) => {
+            const status = statusById.get(connection.id) ?? {
+              isLoading: true,
+              status: 'checking' as const,
+            };
+            // Skip the ConnectionView step when there's only one bucket — the
+            // detour adds a click without surfacing any choice. A scoped
+            // connection (connection.bucket) always has exactly one bucket.
+            const onlyBucket = connection.bucket
+              ? connection.bucket
+              : status.buckets?.length === 1
+                ? (status.buckets[0]?.name ?? null)
+                : null;
+            const onOpen = () => {
+              if (onlyBucket) {
+                navigate(
+                  `/connections/${connection.id}/b/${encodeURIComponent(onlyBucket)}`,
+                );
+              } else {
+                navigate(`/connections/${connection.id}`);
+              }
+            };
+            return (
+              <ConnectionCard
+                key={connection.id}
+                connection={connection}
+                status={status}
+                onOpen={onOpen}
+                onEdit={() => setEditTarget(connection)}
+                onDelete={() => setDeleteTarget(connection)}
+              />
+            );
+          })}
         </div>
       )}
 

@@ -47,7 +47,7 @@ export function App() {
     <BrowserRouter>
       <div className="flex min-h-screen w-full flex-col bg-background/50">
         <header className="sticky top-0 z-50 border-b bg-card/80 backdrop-blur-xl">
-          <div className="max-w-7xl mx-auto px-4 lg:px-8 h-14 flex items-center justify-between">
+          <div className="max-w-full mx-auto px-4 lg:px-8 h-14 flex items-center justify-between">
             <Link to="/" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
               <img src="/s3-browser-logo.svg" alt="S3 Browser" className="h-7 w-7 sm:h-8 sm:w-8" />
               <span className="font-bold text-base sm:text-lg tracking-tight">S3 Browser</span>
@@ -82,7 +82,7 @@ export function App() {
           </DialogContent>
         </Dialog>
 
-        <main className="w-full max-w-7xl mx-auto px-4 lg:px-8 py-5 sm:py-6 flex-1">
+        <main className="w-full max-w-full mx-auto px-4 lg:px-8 py-5 sm:py-6 flex-1">
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/connections/:id" element={<ConnectionView />} />

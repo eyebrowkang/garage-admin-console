@@ -247,7 +247,7 @@ export function BucketObjectBrowser({
 
         {/* FileBrowser — only rendered once we have a key selected */}
         {canRenderBrowser && (
-          <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+          <div className="overflow-hidden rounded-xl border bg-card">
             <div className="h-[min(720px,calc(100vh-280px))] min-h-[520px]">
               <RemoteErrorBoundary>
                 <Suspense fallback={<FileBrowserSkeleton />}>

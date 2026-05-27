@@ -16,7 +16,18 @@ import { App } from './App';
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { retry: false, refetchOnWindowFocus: false },
+    queries: {
+      staleTime: 30000,
+      refetchOnWindowFocus: false,
+      retry: (failureCount, error) => {
+        // Don't retry on auth errors
+        if (error && typeof error === 'object' && 'response' in error) {
+          const status = (error as { response?: { status?: number } }).response?.status;
+          if (status === 401 || status === 403) return false;
+        }
+        return failureCount < 3;
+      },
+    },
   },
 });
 
