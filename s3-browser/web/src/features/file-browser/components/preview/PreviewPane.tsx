@@ -86,7 +86,13 @@ function PreviewPaneInner({ activeFile }: { activeFile: FileItem }) {
           <LinkExternalIcon size={14} />
           Share
         </Button>
-        <DownloadButton fileKey={object.key} name={name} http={http} showToast={showToast} />
+        <DownloadButton
+          fileKey={object.key}
+          name={name}
+          size={object.size}
+          http={http}
+          showToast={showToast}
+        />
         <button
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
           onClick={() => setActiveFile(null)}
@@ -338,18 +344,20 @@ function ImagePreview({ fileKey, http }: { fileKey: string; http: AxiosInstance 
 function DownloadButton({
   fileKey,
   name,
+  size,
   http,
   showToast,
 }: {
   fileKey: string;
   name: string;
+  size: number;
   http: AxiosInstance;
   showToast: (kind: 'ok' | 'err', msg: string) => void;
 }) {
   const download = useDownload(http, (msg) => showToast('err', msg));
 
   const handleDownload = async () => {
-    await download(fileKey, name);
+    await download(fileKey, name, size);
   };
 
   return (

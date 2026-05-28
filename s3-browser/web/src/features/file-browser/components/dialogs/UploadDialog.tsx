@@ -1,5 +1,5 @@
 import { useState, useRef, type ChangeEvent } from 'react';
-import { UploadIcon, FileIcon, XIcon } from '@primer/octicons-react';
+import { UploadIcon, FileIcon, XIcon, ZapIcon } from '@primer/octicons-react';
 import {
   Button,
   Dialog,
@@ -11,7 +11,7 @@ import {
 } from '@garage/ui';
 import { formatBytes } from '@/lib/format';
 import { useBrowser } from '../../context';
-import type { UploadResult } from '@/lib/types';
+import { LARGE_FILE_THRESHOLD_BYTES, runUploadJob } from '@/lib/multipart-upload';
 
 export function UploadDialog() {
   const { dialogs, closeUpload, currentPrefix, refresh } = useBrowser();
@@ -23,7 +23,10 @@ export function UploadDialog() {
       initialFiles={uploadFiles}
       prefix={currentPrefix}
       onClose={closeUpload}
-      onComplete={() => { closeUpload(); refresh(currentPrefix); }}
+      onComplete={() => {
+        closeUpload();
+        refresh(currentPrefix);
+      }}
     />
   );
 }
@@ -44,10 +47,18 @@ function UploadDialogBody({
   const { http } = useBrowser();
   const [picked, setPicked] = useState<File[]>(initialFiles);
   const [uploading, setUploading] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const [progress, setProgress] = useState<{ loaded: number; total: number }>({
+    loaded: 0,
+    total: 0,
+  });
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  const totalBytes = picked.reduce((s, f) => s + f.size, 0);
+  const largeCount = picked.filter((f) => f.size >= LARGE_FILE_THRESHOLD_BYTES).length;
+  const pct = progress.total > 0 ? Math.round((progress.loaded / progress.total) * 100) : 0;
 
   const addFiles = (incoming: FileList | File[]) => {
     const arr = Array.from(incoming);
@@ -63,21 +74,32 @@ function UploadDialogBody({
     if (!picked.length) return;
     setUploading(true);
     setError(null);
+    setProgress({ loaded: 0, total: totalBytes });
+    const controller = new AbortController();
+    abortRef.current = controller;
     try {
-      const form = new FormData();
-      if (prefix) form.append('prefix', prefix.replace(/\/$/, ''));
-      for (const f of picked) form.append('file', f, f.name);
-      await http.post<UploadResult>('/upload', form, {
-        onUploadProgress: (e) => {
-          if (e.total) setProgress(Math.round((e.loaded / e.total) * 100));
-        },
+      await runUploadJob({
+        http,
+        files: picked,
+        prefix,
+        signal: controller.signal,
+        onProgress: setProgress,
       });
       onComplete();
     } catch (err) {
-      setError((err as Error).message || 'Upload failed');
+      if ((err as { name?: string }).name === 'AbortError') {
+        setError('Upload cancelled');
+      } else {
+        setError((err as Error).message || 'Upload failed');
+      }
     } finally {
+      abortRef.current = null;
       setUploading(false);
     }
+  };
+
+  const handleCancel = () => {
+    abortRef.current?.abort();
   };
 
   return (
@@ -95,8 +117,13 @@ function UploadDialogBody({
           {/* Drop zone */}
           <div
             className={`relative flex flex-col items-center justify-center gap-2 p-7 border-[1.5px] border-dashed rounded-xl text-center cursor-pointer transition-colors ${dragOver ? 'border-primary bg-primary/8 text-primary' : 'border-border bg-muted/35 text-muted-foreground hover:border-primary/60 hover:bg-primary/4'}`}
-            onDragOver={(e) => { e.preventDefault(); if (!uploading) setDragOver(true); }}
-            onDragLeave={(e) => { if (e.currentTarget === e.target) setDragOver(false); }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              if (!uploading) setDragOver(true);
+            }}
+            onDragLeave={(e) => {
+              if (e.currentTarget === e.target) setDragOver(false);
+            }}
             onDrop={(e) => {
               e.preventDefault();
               setDragOver(false);
@@ -113,8 +140,12 @@ function UploadDialogBody({
             }}
           >
             <UploadIcon size={28} />
-            <p className="text-sm font-semibold text-foreground">Drop files here or click to browse</p>
-            <p className="text-xs">Multiple files supported · any size</p>
+            <p className="text-sm font-semibold text-foreground">
+              Drop files here or click to browse
+            </p>
+            <p className="text-xs">
+              Files ≥ {formatBytes(LARGE_FILE_THRESHOLD_BYTES)} upload directly to S3 via multipart
+            </p>
             <input
               ref={inputRef}
               type="file"
@@ -133,31 +164,52 @@ function UploadDialogBody({
             <div className="border border-border rounded-xl overflow-hidden bg-card">
               <div className="flex items-center justify-between px-3 py-2 border-b border-border/70 bg-muted/40 text-xs text-muted-foreground">
                 <span>
-                  <strong className="text-foreground">{picked.length}</strong> file{picked.length !== 1 ? 's' : ''}{' '}
-                  · {formatBytes(picked.reduce((s, f) => s + f.size, 0))}
+                  <strong className="text-foreground">{picked.length}</strong> file
+                  {picked.length !== 1 ? 's' : ''} ·{' '}
+                  {formatBytes(picked.reduce((s, f) => s + f.size, 0))}
                 </span>
                 {!uploading && (
-                  <button className="text-primary hover:underline text-xs font-medium" onClick={() => setPicked([])}>
+                  <button
+                    className="text-primary hover:underline text-xs font-medium"
+                    onClick={() => setPicked([])}
+                  >
                     Clear all
                   </button>
                 )}
               </div>
               <ul className="max-h-48 overflow-y-auto divide-y divide-border/40">
-                {picked.map((f, i) => (
-                  <li key={`${f.name}::${i}`} className="flex items-center gap-2.5 px-3 py-2 text-sm">
-                    <FileIcon size={14} className="text-muted-foreground shrink-0" />
-                    <span className="flex-1 truncate text-foreground">{f.name}</span>
-                    <span className="font-mono text-[11px] text-muted-foreground shrink-0">{formatBytes(f.size)}</span>
-                    {!uploading && (
-                      <button
-                        className="w-5 h-5 flex items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                        onClick={() => setPicked((prev) => prev.filter((_, j) => j !== i))}
-                      >
-                        <XIcon size={12} />
-                      </button>
-                    )}
-                  </li>
-                ))}
+                {picked.map((f, i) => {
+                  const isLarge = f.size >= LARGE_FILE_THRESHOLD_BYTES;
+                  return (
+                    <li
+                      key={`${f.name}::${i}`}
+                      className="flex items-center gap-2.5 px-3 py-2 text-sm"
+                    >
+                      <FileIcon size={14} className="text-muted-foreground shrink-0" />
+                      <span className="flex-1 truncate text-foreground">{f.name}</span>
+                      {isLarge && (
+                        <span
+                          className="inline-flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-primary shrink-0"
+                          title="Uploads directly to S3 in parts"
+                        >
+                          <ZapIcon size={10} />
+                          direct
+                        </span>
+                      )}
+                      <span className="font-mono text-[11px] text-muted-foreground shrink-0">
+                        {formatBytes(f.size)}
+                      </span>
+                      {!uploading && (
+                        <button
+                          className="w-5 h-5 flex items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                          onClick={() => setPicked((prev) => prev.filter((_, j) => j !== i))}
+                        >
+                          <XIcon size={12} />
+                        </button>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           )}
@@ -168,10 +220,18 @@ function UploadDialogBody({
               <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                 <div
                   className="h-full bg-primary rounded-full transition-all duration-100"
-                  style={{ width: `${progress}%` }}
+                  style={{ width: `${pct}%` }}
                 />
               </div>
-              <p className="text-xs text-center text-muted-foreground">{progress}%</p>
+              <p className="text-xs text-center text-muted-foreground">
+                {pct}% · {formatBytes(progress.loaded)} / {formatBytes(progress.total)}
+                {largeCount > 0 && (
+                  <>
+                    {' '}
+                    · {largeCount} file{largeCount !== 1 ? 's' : ''} direct-to-S3
+                  </>
+                )}
+              </p>
             </div>
           )}
 
@@ -179,9 +239,19 @@ function UploadDialogBody({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={uploading}>Cancel</Button>
+          {uploading ? (
+            <Button variant="outline" onClick={handleCancel}>
+              Cancel upload
+            </Button>
+          ) : (
+            <Button variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+          )}
           <Button onClick={handleUpload} disabled={!picked.length || uploading}>
-            {uploading ? 'Uploading…' : `Upload ${picked.length > 0 ? picked.length + ' file' + (picked.length !== 1 ? 's' : '') : ''}`}
+            {uploading
+              ? 'Uploading…'
+              : `Upload ${picked.length > 0 ? picked.length + ' file' + (picked.length !== 1 ? 's' : '') : ''}`}
           </Button>
         </DialogFooter>
       </DialogContent>

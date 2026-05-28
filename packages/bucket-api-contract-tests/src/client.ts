@@ -97,9 +97,43 @@ export class BucketApiClient {
     return res.data;
   }
 
-  async presign(body: { key: string; operation: 'getObject' | 'putObject'; expiresIn?: number }) {
+  async presign(body: {
+    key: string;
+    operation: 'getObject' | 'putObject';
+    expiresIn?: number;
+    responseContentDisposition?: string;
+  }) {
     const res = await this.bff.post(this.path('/presign'), body);
     return res.data as { url: string; expiresAt: string };
+  }
+
+  async multipartCreate(body: { key: string; contentType?: string }) {
+    const res = await this.bff.post(this.path('/multipart/create'), body);
+    return res.data as { uploadId: string; key: string; partSize: number; maxParts: number };
+  }
+
+  async multipartSign(body: {
+    key: string;
+    uploadId: string;
+    partNumbers: number[];
+    expiresIn?: number;
+  }) {
+    const res = await this.bff.post(this.path('/multipart/sign'), body);
+    return res.data as { urls: { partNumber: number; url: string }[]; expiresAt: string };
+  }
+
+  async multipartComplete(body: {
+    key: string;
+    uploadId: string;
+    parts: { partNumber: number; etag: string }[];
+  }) {
+    const res = await this.bff.post(this.path('/multipart/complete'), body);
+    return res.data as { key: string; etag: string; location: string | null };
+  }
+
+  async multipartAbort(body: { key: string; uploadId: string }) {
+    const res = await this.bff.post(this.path('/multipart/abort'), body);
+    return res.data as { ok: true };
   }
 
   async upload(

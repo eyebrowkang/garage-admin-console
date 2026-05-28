@@ -72,7 +72,7 @@ export function ItemActions({ item, itemKey, className, menuClassName }: ItemAct
   };
 
   const handleDownload = () => {
-    if (item.type === 'file') void download(item.key, item.name);
+    if (item.type === 'file') void download(item.key, item.name, item.object.size);
   };
 
   const handleShare = () => {

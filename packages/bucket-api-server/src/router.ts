@@ -2,19 +2,29 @@ import { Router, type Router as ExpressRouter, type Request, type Response } fro
 import Busboy from 'busboy';
 import { z } from 'zod';
 import {
+  AbortMultipartUploadCommand,
+  CompleteMultipartUploadCommand,
   CopyObjectCommand,
+  CreateMultipartUploadCommand,
   DeleteObjectCommand,
   DeleteObjectsCommand,
   GetObjectCommand,
   HeadObjectCommand,
   ListObjectsV2Command,
   PutObjectCommand,
+  UploadPartCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 import type { ResolveContextFn, BucketContext, Logger } from './types.js';
 import { BucketAccessError } from './types.js';
 import { uploadStreamToS3 } from './upload-stream.js';
+import {
+  LARGE_FILE_THRESHOLD_BYTES,
+  MULTIPART_MAX_PARTS,
+  MULTIPART_PART_SIZE_BYTES,
+} from './constants.js';
+import { ensureBucketCors } from './cors.js';
 
 interface ShapeInput {
   Key?: string | undefined;
@@ -45,6 +55,10 @@ const defaultLogger: Logger = {
   error: (bindings, msg) => console.error(msg, bindings),
 };
 
+function cacheKeyFor(ctx: BucketContext): string {
+  return ctx.cacheKey ?? ctx.bucketName;
+}
+
 async function withContext(
   req: Request,
   res: Response,
@@ -67,11 +81,24 @@ async function withContext(
 export interface CreateBucketRouterOptions {
   resolveContext: ResolveContextFn;
   logger?: Logger;
+  /**
+   * Maximum per-file size accepted by POST /upload. Anything larger is
+   * rejected so callers fall back to the multipart upload flow. Default
+   * matches LARGE_FILE_THRESHOLD_BYTES (10 MiB).
+   */
+  proxyUploadMaxBytes?: number;
+  /**
+   * Recommended part size returned by POST /multipart/create. Default
+   * MULTIPART_PART_SIZE_BYTES (8 MiB). Must be >= 5 MiB per S3 rules.
+   */
+  multipartPartSize?: number;
 }
 
 export function createBucketRouter({
   resolveContext,
   logger = defaultLogger,
+  proxyUploadMaxBytes = LARGE_FILE_THRESHOLD_BYTES,
+  multipartPartSize = MULTIPART_PART_SIZE_BYTES,
 }: CreateBucketRouterOptions): ExpressRouter {
   const router = Router({ mergeParams: true });
 
@@ -200,12 +227,17 @@ export function createBucketRouter({
 
   // ---------------------------------------------------------------------------
   // POST /presign
+  //
+  // getObject and putObject sign single-shot S3 operations. Callers can pass
+  // responseContentDisposition to force the browser into a download flow even
+  // when the object would normally render inline.
   // ---------------------------------------------------------------------------
 
   const PresignSchema = z.object({
     key: z.string().min(1),
     operation: z.enum(['getObject', 'putObject']),
     expiresIn: z.number().int().positive().max(86400).default(900),
+    responseContentDisposition: z.string().optional(),
   });
 
   router.post('/presign', async (req, res) => {
@@ -222,9 +254,23 @@ export function createBucketRouter({
     const ctx = await withContext(req, res, resolveContext, logger);
     if (!ctx) return;
     try {
+      // Browser direct GET also needs CORS — ensure once per (endpoint, bucket).
+      if (body.operation === 'getObject') {
+        await ensureBucketCors({
+          client: ctx.client,
+          bucket: ctx.bucketName,
+          cacheKey: cacheKeyFor(ctx),
+          logger,
+        });
+      }
+
       const cmd =
         body.operation === 'getObject'
-          ? new GetObjectCommand({ Bucket: ctx.bucketName, Key: body.key })
+          ? new GetObjectCommand({
+              Bucket: ctx.bucketName,
+              Key: body.key,
+              ResponseContentDisposition: body.responseContentDisposition,
+            })
           : new PutObjectCommand({ Bucket: ctx.bucketName, Key: body.key });
       const url = await getSignedUrl(ctx.client, cmd, { expiresIn: body.expiresIn });
       const expiresAt = new Date(Date.now() + body.expiresIn * 1000).toISOString();
@@ -237,6 +283,9 @@ export function createBucketRouter({
 
   // ---------------------------------------------------------------------------
   // POST /upload  (multipart/form-data; spooled, then sent to S3 PutObject)
+  //
+  // Capped at proxyUploadMaxBytes per file. Larger files must use the
+  // multipart upload flow below — that path never touches the BFF stream.
   // ---------------------------------------------------------------------------
 
   interface UploadResult {
@@ -256,12 +305,13 @@ export function createBucketRouter({
       .then((ctx) => {
         if (!ctx) return;
 
-        const bb = Busboy({ headers: req.headers });
+        const bb = Busboy({ headers: req.headers, limits: { fileSize: proxyUploadMaxBytes } });
         const uploaded: UploadResult[] = [];
         const pending: Promise<void>[] = [];
         let prefix = '';
         let finished = false;
         let aborted = false;
+        let oversized = false;
 
         bb.on('field', (name, value) => {
           if (name === 'prefix') prefix = value;
@@ -272,6 +322,18 @@ export function createBucketRouter({
           const cleanPrefix = prefix.replace(/^\/+|\/+$/g, '');
           const key = cleanPrefix ? `${cleanPrefix}/${info.filename}` : info.filename;
 
+          fileStream.on('limit', () => {
+            oversized = true;
+            aborted = true;
+            fileStream.resume();
+            if (!res.headersSent) {
+              res.status(413).json({
+                error: `File exceeds proxy upload limit (${proxyUploadMaxBytes} bytes). Use the multipart upload flow.`,
+                limit: proxyUploadMaxBytes,
+              });
+            }
+          });
+
           const p = uploadStreamToS3({
             client: ctx.client,
             bucket: ctx.bucketName,
@@ -280,9 +342,11 @@ export function createBucketRouter({
             contentType: info.mimeType,
           })
             .then(({ etag, size }) => {
+              if (oversized) return; // discard truncated upload
               uploaded.push({ key, etag, size });
             })
             .catch((err) => {
+              if (oversized) return;
               aborted = true;
               logger.error({ err, key }, 'upload failed');
               throw err;
@@ -300,6 +364,7 @@ export function createBucketRouter({
         bb.on('finish', () => {
           finished = true;
           Promise.allSettled(pending).then((results) => {
+            if (oversized) return; // 413 already sent
             const failures = results.filter((r) => r.status === 'rejected');
             if (aborted || failures.length > 0) {
               const message =
@@ -324,6 +389,221 @@ export function createBucketRouter({
         logger.error({ err }, 'upload setup failed');
         if (!res.headersSent) sendError(res, err);
       });
+  });
+
+  // ---------------------------------------------------------------------------
+  // POST /multipart/create
+  //
+  // Initiates a multipart upload and returns the uploadId + the part size the
+  // client should use. The bucket also has CORS ensured on the way out so the
+  // upcoming browser PUTs aren't blocked by the preflight.
+  // ---------------------------------------------------------------------------
+
+  const MultipartCreateSchema = z.object({
+    key: z.string().min(1),
+    contentType: z.string().optional(),
+  });
+
+  router.post('/multipart/create', async (req, res) => {
+    let body: z.infer<typeof MultipartCreateSchema>;
+    try {
+      body = MultipartCreateSchema.parse(req.body);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        res.status(400).json({ error: err.issues });
+        return;
+      }
+      throw err;
+    }
+    const ctx = await withContext(req, res, resolveContext, logger);
+    if (!ctx) return;
+    try {
+      await ensureBucketCors({
+        client: ctx.client,
+        bucket: ctx.bucketName,
+        cacheKey: cacheKeyFor(ctx),
+        logger,
+      });
+
+      const out = await ctx.client.send(
+        new CreateMultipartUploadCommand({
+          Bucket: ctx.bucketName,
+          Key: body.key,
+          ContentType: body.contentType,
+        }),
+      );
+      if (!out.UploadId) {
+        res.status(502).json({ error: 'S3 did not return an upload id' });
+        return;
+      }
+      res.json({
+        uploadId: out.UploadId,
+        key: body.key,
+        partSize: multipartPartSize,
+        maxParts: MULTIPART_MAX_PARTS,
+      });
+    } catch (err) {
+      logger.error({ err, bucket: ctx.bucketName, key: body.key }, 'multipart create failed');
+      sendError(res, err);
+    }
+  });
+
+  // ---------------------------------------------------------------------------
+  // POST /multipart/sign
+  //
+  // Batch-presigns UploadPart URLs so a client uploading N parts only needs
+  // one round-trip to the BFF.
+  // ---------------------------------------------------------------------------
+
+  const MultipartSignSchema = z.object({
+    key: z.string().min(1),
+    uploadId: z.string().min(1),
+    partNumbers: z.array(z.number().int().min(1).max(MULTIPART_MAX_PARTS)).min(1).max(1000),
+    expiresIn: z.number().int().positive().max(86400).default(3600),
+  });
+
+  router.post('/multipart/sign', async (req, res) => {
+    let body: z.infer<typeof MultipartSignSchema>;
+    try {
+      body = MultipartSignSchema.parse(req.body);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        res.status(400).json({ error: err.issues });
+        return;
+      }
+      throw err;
+    }
+    const ctx = await withContext(req, res, resolveContext, logger);
+    if (!ctx) return;
+    try {
+      const urls = await Promise.all(
+        body.partNumbers.map(async (partNumber) => {
+          const cmd = new UploadPartCommand({
+            Bucket: ctx.bucketName,
+            Key: body.key,
+            UploadId: body.uploadId,
+            PartNumber: partNumber,
+          });
+          const url = await getSignedUrl(ctx.client, cmd, { expiresIn: body.expiresIn });
+          return { partNumber, url };
+        }),
+      );
+      const expiresAt = new Date(Date.now() + body.expiresIn * 1000).toISOString();
+      res.json({ urls, expiresAt });
+    } catch (err) {
+      logger.error(
+        { err, bucket: ctx.bucketName, key: body.key, uploadId: body.uploadId },
+        'multipart sign failed',
+      );
+      sendError(res, err);
+    }
+  });
+
+  // ---------------------------------------------------------------------------
+  // POST /multipart/complete
+  //
+  // Finalizes the multipart upload using the etag the client collected from
+  // each PUT response. S3 stitches the parts into the final object atomically.
+  // ---------------------------------------------------------------------------
+
+  const MultipartCompleteSchema = z.object({
+    key: z.string().min(1),
+    uploadId: z.string().min(1),
+    parts: z
+      .array(
+        z.object({
+          partNumber: z.number().int().min(1).max(MULTIPART_MAX_PARTS),
+          etag: z.string().min(1),
+        }),
+      )
+      .min(1),
+  });
+
+  router.post('/multipart/complete', async (req, res) => {
+    let body: z.infer<typeof MultipartCompleteSchema>;
+    try {
+      body = MultipartCompleteSchema.parse(req.body);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        res.status(400).json({ error: err.issues });
+        return;
+      }
+      throw err;
+    }
+    const ctx = await withContext(req, res, resolveContext, logger);
+    if (!ctx) return;
+    try {
+      const sortedParts = [...body.parts].sort((a, b) => a.partNumber - b.partNumber);
+      const out = await ctx.client.send(
+        new CompleteMultipartUploadCommand({
+          Bucket: ctx.bucketName,
+          Key: body.key,
+          UploadId: body.uploadId,
+          MultipartUpload: {
+            Parts: sortedParts.map((p) => ({
+              PartNumber: p.partNumber,
+              // S3 expects the etag wrapped in double quotes, but accepts
+              // either form for tolerance. We send the canonical quoted form.
+              ETag: /^".*"$/.test(p.etag) ? p.etag : `"${p.etag.replace(/^"|"$/g, '')}"`,
+            })),
+          },
+        }),
+      );
+      res.json({
+        key: body.key,
+        etag: (out.ETag ?? '').replace(/^"|"$/g, ''),
+        location: out.Location ?? null,
+      });
+    } catch (err) {
+      logger.error(
+        { err, bucket: ctx.bucketName, key: body.key, uploadId: body.uploadId },
+        'multipart complete failed',
+      );
+      sendError(res, err);
+    }
+  });
+
+  // ---------------------------------------------------------------------------
+  // POST /multipart/abort
+  //
+  // Best-effort cleanup when the client cancels or fails mid-stream. Garage
+  // and S3 both charge for in-progress multipart data until aborted.
+  // ---------------------------------------------------------------------------
+
+  const MultipartAbortSchema = z.object({
+    key: z.string().min(1),
+    uploadId: z.string().min(1),
+  });
+
+  router.post('/multipart/abort', async (req, res) => {
+    let body: z.infer<typeof MultipartAbortSchema>;
+    try {
+      body = MultipartAbortSchema.parse(req.body);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        res.status(400).json({ error: err.issues });
+        return;
+      }
+      throw err;
+    }
+    const ctx = await withContext(req, res, resolveContext, logger);
+    if (!ctx) return;
+    try {
+      await ctx.client.send(
+        new AbortMultipartUploadCommand({
+          Bucket: ctx.bucketName,
+          Key: body.key,
+          UploadId: body.uploadId,
+        }),
+      );
+      res.json({ ok: true });
+    } catch (err) {
+      logger.error(
+        { err, bucket: ctx.bucketName, key: body.key, uploadId: body.uploadId },
+        'multipart abort failed',
+      );
+      sendError(res, err);
+    }
   });
 
   // ---------------------------------------------------------------------------

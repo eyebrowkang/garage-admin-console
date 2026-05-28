@@ -84,17 +84,24 @@ Browser
 
 ### Bucket Backend API
 
-The shared HTTP surface that BOTH BFFs implement so the same `FileBrowser` can run against either:
+The shared HTTP surface that BOTH BFFs implement so the same `FileBrowser` can run against either. The 10 MiB `LARGE_FILE_THRESHOLD_BYTES` constant (exported from `@garage/bucket-api-server`) splits the surface in two:
 
-| Method + path (relative to bucket scope) | Body / query                                                | Response                                                              |
-| ---------------------------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------- |
-| `GET /list`                              | `?prefix=&delimiter=/&continuationToken=&maxKeys=`          | `{ objects: S3Object[]; prefixes: string[]; nextContinuationToken? }` |
-| `GET /object`                            | `?key=`                                                     | `S3Object` (HEAD-equivalent metadata)                                 |
-| `GET /download`                          | `?key=`                                                     | Binary stream — `Content-Disposition: attachment`                     |
-| `POST /presign`                          | `{ key, operation: 'getObject' \| 'putObject', expiresIn }` | `{ url, expiresAt }`                                                  |
-| `POST /upload`                           | `multipart/form-data` (one+ files, optional `prefix`)       | `{ uploaded: { key, etag, size }[] }`                                 |
-| `DELETE /objects`                        | `{ keys: string[] }`                                        | `{ deleted: string[]; errors: { key, message }[] }`                   |
-| `POST /copy`                             | `{ src, dst }`                                              | `{ etag }`                                                            |
+- **Below the threshold** — small files upload through `POST /upload` and download through `GET /download`. The BFF proxies the bytes; S3 credentials never reach the browser. `POST /upload` rejects oversized files with 413 so callers can't accidentally proxy huge bodies.
+- **At or above the threshold** — uploads use the `POST /multipart/*` flow and downloads use a presigned `getObject` URL. The browser PUTs/GETs the S3 endpoint directly. On the first such request per `(endpoint, bucket)`, the BFF idempotently appends a permissive CORS rule (`AllowedOrigins:['*']`, `AllowedMethods:['GET','PUT','HEAD','POST']`, `ExposeHeaders:['ETag']`) without disturbing pre-existing rules.
+
+| Method + path (relative to bucket scope) | Body / query                                                             | Response                                                              |
+| ---------------------------------------- | ------------------------------------------------------------------------ | --------------------------------------------------------------------- |
+| `GET /list`                              | `?prefix=&delimiter=/&continuationToken=&maxKeys=`                       | `{ objects: S3Object[]; prefixes: string[]; nextContinuationToken? }` |
+| `GET /object`                            | `?key=`                                                                  | `S3Object` (HEAD-equivalent metadata)                                 |
+| `GET /download`                          | `?key=`                                                                  | Binary stream — `Content-Disposition: attachment`                     |
+| `POST /presign`                          | `{ key, operation, expiresIn, responseContentDisposition? }`             | `{ url, expiresAt }`                                                  |
+| `POST /upload`                           | `multipart/form-data` (one+ files, optional `prefix`); per-file ≤ 10 MiB | `{ uploaded: { key, etag, size }[] }` · 413 if oversized              |
+| `POST /multipart/create`                 | `{ key, contentType? }`                                                  | `{ uploadId, key, partSize, maxParts }`                               |
+| `POST /multipart/sign`                   | `{ key, uploadId, partNumbers: number[], expiresIn? }`                   | `{ urls: { partNumber, url }[], expiresAt }`                          |
+| `POST /multipart/complete`               | `{ key, uploadId, parts: { partNumber, etag }[] }`                       | `{ key, etag, location }`                                             |
+| `POST /multipart/abort`                  | `{ key, uploadId }`                                                      | `{ ok: true }`                                                        |
+| `DELETE /objects`                        | `{ keys: string[] }`                                                     | `{ deleted: string[]; errors: { key, message }[] }`                   |
+| `POST /copy`                             | `{ src, dst }`                                                           | `{ etag }`                                                            |
 
 Scope prefix:
 
@@ -107,14 +114,14 @@ A regression suite at `packages/bucket-api-contract-tests/` runs the same set of
 
 Admin BFF — registered in [`garage-admin-console/api/src/app.ts`](garage-admin-console/api/src/app.ts):
 
-| Route                                                       | Auth | Purpose                                                      |
-| ----------------------------------------------------------- | ---- | ------------------------------------------------------------ |
-| `POST /api/auth/login`                                      | No   | Returns JWT                                                  |
-| `GET  /api/health`                                          | No   | Health check                                                 |
-| `GET/POST /api/clusters`                                    | JWT  | List / add clusters (tokens excluded from list)              |
-| `PUT/DELETE /api/clusters/:id`                              | JWT  | Update / remove cluster                                      |
-| `ALL  /api/proxy/:clusterId/*splat`                         | JWT  | Pass-through to Garage admin API                             |
-| `* /api/clusters/:clusterId/buckets/:bucket/*` (Bucket API) | JWT  | list, object, download, presign, upload, objects, copy       |
+| Route                                                       | Auth | Purpose                                                |
+| ----------------------------------------------------------- | ---- | ------------------------------------------------------ |
+| `POST /api/auth/login`                                      | No   | Returns JWT                                            |
+| `GET  /api/health`                                          | No   | Health check                                           |
+| `GET/POST /api/clusters`                                    | JWT  | List / add clusters (tokens excluded from list)        |
+| `PUT/DELETE /api/clusters/:id`                              | JWT  | Update / remove cluster                                |
+| `ALL  /api/proxy/:clusterId/*splat`                         | JWT  | Pass-through to Garage admin API                       |
+| `* /api/clusters/:clusterId/buckets/:bucket/*` (Bucket API) | JWT  | list, object, download, presign, upload, objects, copy |
 
 S3 Browser BFF — registered in [`s3-browser/api/src/app.ts`](s3-browser/api/src/app.ts):
 

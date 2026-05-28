@@ -18,7 +18,11 @@ export default createBucketRouter({
     }
     const resolved = await clientForConnection(connId);
     if (!resolved) throw new BucketAccessError(404, 'Connection not found');
-    return { client: resolved.client, bucketName: bucket };
+    return {
+      client: resolved.client,
+      bucketName: bucket,
+      cacheKey: `${connId}:${bucket}`,
+    };
   },
   logger,
 });

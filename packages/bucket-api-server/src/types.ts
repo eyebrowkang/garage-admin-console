@@ -4,6 +4,13 @@ import type { Request } from 'express';
 export interface BucketContext {
   client: S3Client;
   bucketName: string;
+  /**
+   * Stable identity for the (endpoint, bucket) pair. Used to cache
+   * idempotent setup operations (CORS rules) across requests. Resolvers
+   * should derive this from the durable owner id, e.g. `${clusterId}:${bucket}`
+   * or `${connectionId}:${bucket}`. If omitted, the bucket name is used.
+   */
+  cacheKey?: string;
 }
 
 export type ResolveContextFn = (req: Request) => Promise<BucketContext>;

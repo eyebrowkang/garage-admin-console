@@ -59,7 +59,11 @@ router.use(
 
       try {
         const key = await resolveBucketKey(clusterId, accessKeyId);
-        return { client: buildS3Client(key), bucketName: bucket };
+        return {
+          client: buildS3Client(key),
+          bucketName: bucket,
+          cacheKey: `${clusterId}:${bucket}`,
+        };
       } catch (err) {
         if (err instanceof BucketAccessError) throw err;
         logger.error({ err, clusterId, bucket, accessKeyId }, 'failed to resolve bucket key');
