@@ -217,7 +217,7 @@ export function AdminTokenList() {
         title="Admin Tokens"
         description="Manage cluster admin tokens and inspect their scopes from a single control plane."
         actions={
-          <Button size="sm" onClick={() => setCreateDialogOpen(true)}>
+          <Button onClick={() => setCreateDialogOpen(true)}>
             <AddActionIcon className="h-4 w-4" />
             Create Token
           </Button>

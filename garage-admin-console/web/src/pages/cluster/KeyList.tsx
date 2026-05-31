@@ -279,9 +279,7 @@ export function KeyList() {
               }}
             >
               <DialogTrigger asChild>
-                <Button size="sm" variant="outline">
-                  Import Key
-                </Button>
+                <Button variant="outline">Import Key</Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
@@ -349,7 +347,7 @@ export function KeyList() {
               }}
             >
               <DialogTrigger asChild>
-                <Button size="sm">
+                <Button>
                   <AddActionIcon className="h-4 w-4" /> Create Key
                 </Button>
               </DialogTrigger>

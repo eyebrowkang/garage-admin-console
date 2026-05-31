@@ -195,7 +195,7 @@ export function BucketList() {
             }}
           >
             <DialogTrigger asChild>
-              <Button size="sm">
+              <Button>
                 <AddActionIcon className="h-4 w-4" /> Create Bucket
               </Button>
             </DialogTrigger>

@@ -285,7 +285,7 @@ export default function Dashboard() {
           >
             <DialogTrigger asChild>
               <Button>
-                <AddActionIcon className="mr-2 h-4 w-4" /> Connect Cluster
+                <AddActionIcon className="h-4 w-4" /> Connect Cluster
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[500px]">
