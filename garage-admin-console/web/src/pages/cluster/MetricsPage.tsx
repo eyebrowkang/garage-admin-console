@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
 import { RefreshCw } from 'lucide-react';
 import {
@@ -19,33 +19,21 @@ import { getApiErrorMessage } from '@garage/web-shared';
 
 export function MetricsPage() {
   const { id } = useParams<{ id: string }>();
-  const [data, setData] = useState('');
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
 
-  const fetchMetrics = useCallback(async () => {
-    if (!id) return;
-    setIsLoading(true);
-    setError('');
-    try {
-      const res = await api.get<string>(proxyPath(id, '/metrics'), {
-        responseType: 'text',
-      });
-      setData(res.data);
-    } catch (err) {
-      setError(getApiErrorMessage(err, 'Failed to load metrics.'));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [id]);
-
-  useEffect(() => {
-    fetchMetrics();
-  }, [fetchMetrics]);
+  const { data, error, isLoading, isFetching, refetch } = useQuery({
+    queryKey: ['cluster', id, 'metrics'],
+    queryFn: async () => {
+      const res = await api.get<string>(proxyPath(id!, '/metrics'), { responseType: 'text' });
+      return res.data;
+    },
+    enabled: !!id,
+  });
 
   if (!id) {
     return null;
   }
+
+  const errorMessage = error ? getApiErrorMessage(error, 'Failed to load metrics.') : '';
 
   return (
     <div className="space-y-6">
@@ -53,17 +41,17 @@ export function MetricsPage() {
         title="Metrics"
         description="Raw Prometheus metrics exposed by the cluster's admin API."
         actions={
-          <Button variant="outline" size="sm" onClick={fetchMetrics} disabled={isLoading}>
-            <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+            <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
         }
       />
 
-      {error && (
+      {errorMessage && (
         <Alert variant="destructive">
           <AlertTitle>Failed to load metrics</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription>{errorMessage}</AlertDescription>
         </Alert>
       )}
 
@@ -76,7 +64,7 @@ export function MetricsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {isLoading && !data ? (
+          {isLoading ? (
             <InlineLoadingState label="Loading metrics..." />
           ) : (
             <pre className="max-h-[600px] overflow-auto whitespace-pre rounded-lg border bg-muted/40 p-4 font-mono text-xs leading-relaxed">
