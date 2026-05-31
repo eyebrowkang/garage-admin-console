@@ -2,6 +2,7 @@
   "name": "garage-admin-console",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "license": "AGPL-3.0-only",
   "packageManager": "pnpm@11.3.0",
   "engines": {
@@ -23,7 +24,13 @@
     "typecheck": "pnpm -r --if-present typecheck && pnpm --filter @garage-admin/web exec tsc --noEmit && pnpm --filter @s3-browser/web exec tsc --noEmit"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.60.0",
-    "playwright": "^1.60.0"
+    "eslint": "^10.4.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.6.0",
+    "playwright": "^1.60.0",
+    "typescript-eslint": "^8.59.4"
   }
 }
