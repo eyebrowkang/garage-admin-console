@@ -35,17 +35,19 @@
   --muted: 32 35% 95%;
   --muted-foreground: 24 10% 40%;
 
-  --accent: 32 35% 95%;
+  --accent: 32 48% 92%;
   --accent-foreground: 24 20% 18%;
 
   /* Semantic */
   --destructive: 0 78% 56%;
   --destructive-foreground: 0 0% 100%;
 
-  --success: 142 71% 41%;
+  /* Calibrated dark enough to pass WCAG AA as text/borders on light tints,
+   * while staying vivid enough for solid fills (white foreground). */
+  --success: 142 72% 29%;
   --success-foreground: 0 0% 100%;
 
-  --warning: 271 60% 56%;
+  --warning: 263 70% 50%;
   --warning-foreground: 0 0% 100%;
 
   /* Borders, inputs, focus rings */
