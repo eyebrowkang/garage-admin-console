@@ -88,7 +88,9 @@ function PresignDialogBody({
           {url && (
             <div className="flex items-center gap-2">
               <Input value={url} readOnly onFocus={(e) => e.currentTarget.select()} />
-              <Button variant="outline" onClick={copy}>{copied ? 'Copied!' : 'Copy'}</Button>
+              <Button variant="outline" onClick={copy}>
+                {copied ? 'Copied!' : 'Copy'}
+              </Button>
             </div>
           )}
           {error && <p className="text-sm text-destructive">{error}</p>}

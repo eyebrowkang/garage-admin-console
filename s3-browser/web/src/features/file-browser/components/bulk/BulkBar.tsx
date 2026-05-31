@@ -27,8 +27,7 @@ export function BulkBar({ visibleKeys, totalLoaded }: BulkBarProps) {
   const checkboxRef = useRef<HTMLInputElement>(null);
   const download = useDownload(http, (msg) => showToast('err', msg));
 
-  const allSelected =
-    visibleKeys.length > 0 && visibleKeys.every((k) => selectedKeys.has(k));
+  const allSelected = visibleKeys.length > 0 && visibleKeys.every((k) => selectedKeys.has(k));
   const someSelected = selectedKeys.size > 0 && !allSelected;
 
   useEffect(() => {

@@ -412,13 +412,13 @@ export function TreePane() {
     >
       <div className="flex h-11 shrink-0 items-center px-4 gap-2">
         <button
-            className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
-            onClick={() => setTreeCollapsed(true)}
-            title="Collapse file tree"
-            aria-label="Collapse file tree"
-          >
-            <SidebarExpandIcon size={15} />
-          </button>
+          className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
+          onClick={() => setTreeCollapsed(true)}
+          title="Collapse file tree"
+          aria-label="Collapse file tree"
+        >
+          <SidebarExpandIcon size={15} />
+        </button>
         <span className="inline-flex items-center gap-2 text-[14px] font-bold tracking-wider text-muted-foreground">
           Files
         </span>

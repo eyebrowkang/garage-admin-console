@@ -17,13 +17,7 @@ export function RenameDialog() {
   const { dialogs, closeRename } = useBrowser();
   const { renameItem } = dialogs;
   if (!renameItem) return null;
-  return (
-    <RenameDialogBody
-      open={!!renameItem}
-      item={renameItem}
-      onClose={closeRename}
-    />
-  );
+  return <RenameDialogBody open={!!renameItem} item={renameItem} onClose={closeRename} />;
 }
 
 function RenameDialogBody({
@@ -66,7 +60,10 @@ function RenameDialogBody({
           <DialogTitle>Rename file</DialogTitle>
           <DialogDescription>
             {isFile ? (
-              <>Renaming <code className="text-xs bg-muted rounded px-1">{item.name}</code> via copy + delete.</>
+              <>
+                Renaming <code className="text-xs bg-muted rounded px-1">{item.name}</code> via copy
+                + delete.
+              </>
             ) : (
               'Folder rename is not supported.'
             )}
@@ -80,7 +77,9 @@ function RenameDialogBody({
               autoFocus
               value={value}
               onChange={(e) => setValue(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && canSubmit) submit(); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && canSubmit) submit();
+              }}
               disabled={busy || !isFile}
             />
             {trimmed.includes('/') && (
@@ -89,7 +88,9 @@ function RenameDialogBody({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={busy}>Cancel</Button>
+          <Button variant="outline" onClick={onClose} disabled={busy}>
+            Cancel
+          </Button>
           <Button onClick={submit} disabled={!canSubmit || busy}>
             {busy ? 'Renaming…' : 'Rename'}
           </Button>

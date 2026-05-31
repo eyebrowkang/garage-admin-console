@@ -1,4 +1,4 @@
-import { CopyIcon, SyncIcon, SidebarCollapseIcon} from '@primer/octicons-react';
+import { CopyIcon, SyncIcon, SidebarCollapseIcon } from '@primer/octicons-react';
 import { cn } from '@garage/ui';
 import { useBrowser } from '../../context';
 
@@ -34,7 +34,10 @@ export function Breadcrumb() {
       {(treeCollapsed || (isNarrow && !treeDrawerOpen)) && (
         <button
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
-          onClick={() => {setTreeDrawerOpen(true); setTreeCollapsed(false);}}
+          onClick={() => {
+            setTreeDrawerOpen(true);
+            setTreeCollapsed(false);
+          }}
           title="Open file tree"
           aria-label="Open file tree"
         >

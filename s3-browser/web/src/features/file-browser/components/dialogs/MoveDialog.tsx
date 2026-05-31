@@ -56,7 +56,8 @@ function MoveDialogBody({
         <DialogHeader>
           <DialogTitle>Move file</DialogTitle>
           <DialogDescription>
-            Moving <code className="text-xs bg-muted rounded px-1">{item.name}</code> — enter the destination key.
+            Moving <code className="text-xs bg-muted rounded px-1">{item.name}</code> — enter the
+            destination key.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3 py-2">
@@ -67,14 +68,18 @@ function MoveDialogBody({
               autoFocus
               value={dest}
               onChange={(e) => setDest(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && canSubmit) submit(); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && canSubmit) submit();
+              }}
               placeholder="folder/new-name.txt"
               disabled={busy}
             />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={busy}>Cancel</Button>
+          <Button variant="outline" onClick={onClose} disabled={busy}>
+            Cancel
+          </Button>
           <Button onClick={submit} disabled={!canSubmit || busy}>
             {busy ? 'Moving…' : 'Move'}
           </Button>

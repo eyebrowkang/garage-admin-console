@@ -20,7 +20,10 @@ export function NewFolderDialog() {
       open={dialogs.newFolderOpen}
       prefix={currentPrefix}
       onClose={closeNewFolder}
-      onComplete={() => { closeNewFolder(); refresh(currentPrefix); }}
+      onComplete={() => {
+        closeNewFolder();
+        refresh(currentPrefix);
+      }}
     />
   );
 }
@@ -81,7 +84,9 @@ function NewFolderDialogBody({
               autoFocus
               value={name}
               onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && canSubmit) submit(); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && canSubmit) submit();
+              }}
               placeholder="my-folder"
               disabled={busy}
             />
@@ -90,7 +95,9 @@ function NewFolderDialogBody({
           {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={busy}>Cancel</Button>
+          <Button variant="outline" onClick={onClose} disabled={busy}>
+            Cancel
+          </Button>
           <Button onClick={submit} disabled={!canSubmit || busy}>
             {busy ? 'Creating…' : 'Create folder'}
           </Button>
