@@ -21,7 +21,8 @@ garage-admin-console/                         # monorepo root
 │   └── web/                                  # SPA (React + Rsbuild) — MF Remote
 ├── packages/
 │   ├── tokens/                               # @garage/tokens — CSS variables + palette
-│   ├── ui/                                   # @garage/ui — shadcn primitives lifted out
+│   ├── ui/                                   # @garage/ui — shadcn primitives + Toaster/useToast + LoginForm; theme.css/base.css
+│   ├── web-shared/                           # @garage/web-shared — api-client + query-client factories, formatters, getApiErrorMessage
 │   └── bucket-api-contract-tests/            # @garage/bucket-api-contract-tests — regression suite
 ├── designs/                                  # historical design notes (archive)
 ├── e2e/                                      # Playwright tests for Admin Console
@@ -264,3 +265,4 @@ The major version tracks the upstream Garage Admin API version (e.g. API v2 → 
 - Prettier: 100-char width, single quotes, trailing commas, semicolons, 2-space indent
 - ESLint 9 flat config with TypeScript rules; React Hooks + React Refresh plugins on frontends
 - All packages use ES modules and strict TypeScript
+- **Shared frontend bases — keep both web apps aligned, don't fork them.** Both `web` apps extend the repo-root [`tsconfig.base.json`](tsconfig.base.json) and [`eslint.config.base.js`](eslint.config.base.js), and import the shared design system from `@garage/ui` (`style.css` + `theme.css` + `base.css`, plus `Toaster`/`useToast`/`LoginForm`/`cn`) and shared non-UI logic from `@garage/web-shared` (`createApiClient`, `createAppQueryClient`, formatters, `getApiErrorMessage`). Put new shared UI in `@garage/ui`, new shared logic in `@garage/web-shared` — never copy a util/component into both apps. `react-refresh` lint stays admin-only (Vite host); the S3 Browser remote omits it because its MF entries co-locate non-component exports.
