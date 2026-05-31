@@ -2,7 +2,7 @@
  * BucketView — full-bleed shell hosting the federated FileBrowser.
  *
  * Layout intent: the FileBrowser is the page. The shell only carries the back
- * affordance + endpoint hint, and breaks out of the App's max-w-7xl + padding
+ * affordance + endpoint hint, and breaks out of the App's max-w-full + padding
  * so the browser can use the full viewport width.
  *
  * The in-bucket path lives in the URL via a splat segment:
@@ -14,8 +14,8 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useState } from 'react';
-import { ArrowLeft, Loader2 } from 'lucide-react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { Alert, AlertDescription, AlertTitle, Button } from '@garage/ui';
 
@@ -92,7 +92,7 @@ export function BucketView() {
     );
   }
 
-  // Break out of <main>'s max-w-7xl + padding so the file browser claims the
+  // Break out of <main>'s max-w-full + padding so the file browser claims the
   // full viewport width / height. Header is h-14 (3.5rem); the footer falls
   // below the fold, which is fine for a file-browser-dominant page.
   return (
@@ -115,12 +115,22 @@ export function BucketView() {
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <span
-          className="truncate font-mono text-[12px] text-muted-foreground"
-          title={`${connection.name} · ${connection.endpoint}`}
-        >
-          {connection.endpoint}
-        </span>
+        <nav aria-label="Breadcrumb" className="flex min-w-0 flex-1 items-center gap-1 text-xs">
+          <Link
+            to="/"
+            className="shrink-0 font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Dashboard
+          </Link>
+          <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground/60" aria-hidden="true" />
+          <Link
+            to={`/connections/${id}`}
+            className="max-w-[240px] truncate font-medium text-foreground transition-colors hover:text-primary"
+            title={`${connection.name} · ${connection.endpoint}`}
+          >
+            {connection.name}
+          </Link>
+        </nav>
       </div>
 
       <div className="min-h-0 flex-1 overflow-hidden">

@@ -70,7 +70,7 @@ export function TextPreview({ fileKey, http, forceText }: TextPreviewProps) {
   return (
     <div className="flex flex-col gap-2">
       {forceText && (
-        <p className="text-[11px] text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+        <p className="text-[11px] text-warning bg-warning/10 border border-warning/30 rounded px-2 py-1">
           Rendering as plain text. Binary content may appear as unreadable characters.
         </p>
       )}

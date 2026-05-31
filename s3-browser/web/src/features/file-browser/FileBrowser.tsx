@@ -144,12 +144,15 @@ function FileBrowserLayout() {
         <div
           className={cn(
             'fixed left-1/2 bottom-5 -translate-x-1/2 z-50',
-            'inline-flex items-center gap-2 px-4 py-2 rounded-full shadow-xl text-white text-[12.5px] font-medium',
+            'inline-flex items-center gap-2 rounded-full border border-border bg-popover px-4 py-2 text-xs font-medium text-foreground shadow-lg',
             'pointer-events-none animate-in slide-in-from-bottom-2 duration-200',
-            toast.kind === 'ok' ? 'bg-[hsl(24_23%_12%)]' : 'bg-destructive',
           )}
         >
-          {toast.kind === 'ok' ? <CheckIcon size={14} /> : <AlertFillIcon size={14} />}
+          {toast.kind === 'ok' ? (
+            <CheckIcon size={14} className="text-success" />
+          ) : (
+            <AlertFillIcon size={14} className="text-destructive" />
+          )}
           {toast.message}
         </div>
       )}

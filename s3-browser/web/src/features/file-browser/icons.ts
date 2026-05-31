@@ -32,24 +32,24 @@ export { FileDirectoryFillIcon };
 
 export const iconColorClass: Record<FileKind | 'folder', string> = {
   folder: 'text-primary',
-  image: 'text-green-700',
+  image: 'text-muted-foreground',
   text: 'text-muted-foreground',
-  json: 'text-purple-700',
+  json: 'text-muted-foreground',
   markdown: 'text-muted-foreground',
-  csv: 'text-green-700',
-  code: 'text-purple-700',
-  archive: 'text-purple-700',
+  csv: 'text-muted-foreground',
+  code: 'text-muted-foreground',
+  archive: 'text-muted-foreground',
   unknown: 'text-muted-foreground',
 };
 
 export const iconBgClass: Record<FileKind | 'folder', string> = {
   folder: 'bg-primary/10',
-  image: 'bg-green-50',
+  image: 'bg-muted/60',
   text: 'bg-muted/60',
-  json: 'bg-purple-50',
+  json: 'bg-muted/60',
   markdown: 'bg-muted/60',
-  csv: 'bg-green-50',
-  code: 'bg-purple-50',
-  archive: 'bg-purple-50',
+  csv: 'bg-muted/60',
+  code: 'bg-muted/60',
+  archive: 'bg-muted/60',
   unknown: 'bg-muted/60',
 };

@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import type { AxiosInstance } from 'axios';
-import { basename } from '@/lib/format';
+import { basename } from '@garage/web-shared';
 import { LARGE_FILE_THRESHOLD_BYTES } from '@/lib/multipart-upload';
 
 interface ObjectMetadata {

@@ -10,7 +10,7 @@ import {
   Input,
   Label,
 } from '@garage/ui';
-import { basename } from '@/lib/format';
+import { basename } from '@garage/web-shared';
 import { useBrowser } from '../../context';
 import type { AxiosInstance } from 'axios';
 import type { ListResult } from '@/lib/types';

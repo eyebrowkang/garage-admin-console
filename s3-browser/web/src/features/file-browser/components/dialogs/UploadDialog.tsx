@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@garage/ui';
-import { formatBytes } from '@/lib/format';
+import { formatBytes } from '@garage/web-shared';
 import { useBrowser } from '../../context';
 import { LARGE_FILE_THRESHOLD_BYTES, runUploadJob } from '@/lib/multipart-upload';
 

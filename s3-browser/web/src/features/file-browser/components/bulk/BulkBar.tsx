@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { CopyIcon, DownloadIcon, TrashIcon } from '@primer/octicons-react';
 import { Button, cn } from '@garage/ui';
-import { basename } from '@/lib/format';
+import { basename } from '@garage/web-shared';
 import { useBrowser } from '../../context';
 import { useDownload } from '../../hooks/useDownload';
 import type { ListItem } from '../../types';

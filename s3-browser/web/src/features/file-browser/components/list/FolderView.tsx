@@ -8,7 +8,7 @@ import { BulkBar } from '../bulk/BulkBar';
 import { ListView } from './ListView';
 import { GridView } from './GridView';
 import { classifyError, isRecoverable } from '../../types';
-import { fileKind } from '@/lib/format';
+import { fileKind } from '@garage/web-shared';
 import type { ListItem } from '../../types';
 
 function sortItems(items: ListItem[], key: string, dir: 'asc' | 'desc'): ListItem[] {

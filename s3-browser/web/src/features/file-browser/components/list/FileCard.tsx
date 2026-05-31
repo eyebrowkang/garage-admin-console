@@ -1,6 +1,6 @@
 import { createElement } from 'react';
 import { cn } from '@garage/ui';
-import { fileKind, formatBytes } from '@/lib/format';
+import { fileKind, formatBytes } from '@garage/web-shared';
 import { getFileKindIcon, iconBgClass, iconColorClass } from '../../icons';
 import { useBrowser } from '../../context';
 import type { ListItem } from '../../types';

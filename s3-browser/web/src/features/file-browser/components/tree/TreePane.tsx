@@ -18,7 +18,7 @@ import {
   XIcon,
 } from '@primer/octicons-react';
 import { cn } from '@garage/ui';
-import { fileKind } from '@/lib/format';
+import { fileKind } from '@garage/web-shared';
 import type { ListItem, TreeNodeData } from '../../types';
 import { useBrowser } from '../../context';
 import { fetchPrefixPages, pagesToItems, treePrefixQueryKey } from '../../hooks/usePrefixQuery';

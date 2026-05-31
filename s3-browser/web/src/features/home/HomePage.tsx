@@ -45,6 +45,7 @@ import {
 
 import { api } from '@/lib/api';
 import { connectionDisplayMeta, formatShortDate } from '@/lib/connection-display';
+import { toast } from '@garage/ui';
 import type { Bucket as BucketInfo, Connection } from '@/lib/types';
 
 interface ConnectionFormData {
@@ -83,8 +84,8 @@ const statusConfig = {
     label: 'Healthy',
     icon: CheckCircle2,
     badge: 'success' as const,
-    iconClass: 'text-green-600',
-    bgClass: 'bg-green-50 border-green-200',
+    iconClass: 'text-success',
+    bgClass: 'bg-success/10 border-success/30',
   },
   unreachable: {
     label: 'Unreachable',
@@ -182,10 +183,11 @@ export function HomePage() {
       const res = await api.post<Connection>('/connections', payload);
       return res.data;
     },
-    onSuccess: () => {
+    onSuccess: (created) => {
       qc.invalidateQueries({ queryKey: ['connections'] });
       setAddOpen(false);
       setFormError('');
+      toast({ title: 'Connection added', description: created.name, variant: 'success' });
     },
     onError: (err: Error) => setFormError(err.message || 'Failed to create connection.'),
   });
@@ -201,9 +203,17 @@ export function HomePage() {
       const res = await api.put<Connection>(`/connections/${id}`, data);
       return res.data;
     },
-    onSuccess: () => {
+    onSuccess: (updated) => {
       qc.invalidateQueries({ queryKey: ['connections'] });
       setEditTarget(null);
+      toast({ title: 'Connection updated', description: updated.name, variant: 'success' });
+    },
+    onError: (err: Error) => {
+      toast({
+        title: 'Failed to update connection',
+        description: err.message,
+        variant: 'destructive',
+      });
     },
   });
 
@@ -213,7 +223,16 @@ export function HomePage() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['connections'] });
+      const name = deleteTarget?.name;
       setDeleteTarget(null);
+      toast({ title: 'Connection removed', description: name, variant: 'success' });
+    },
+    onError: (err: Error) => {
+      toast({
+        title: 'Failed to remove connection',
+        description: err.message,
+        variant: 'destructive',
+      });
     },
   });
 
@@ -283,11 +302,15 @@ export function HomePage() {
               </p>
             </div>
             <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4 sm:gap-3 md:col-span-3">
-              <SummaryStat label="Healthy" value={summary.healthy} tone="text-green-700" />
+              <SummaryStat
+                label="Healthy"
+                value={summary.healthy}
+                tone={summary.healthy > 0 ? 'text-success' : undefined}
+              />
               <SummaryStat
                 label="Unreachable"
                 value={summary.unreachable}
-                tone="text-destructive"
+                tone={summary.unreachable > 0 ? 'text-destructive' : undefined}
               />
               <SummaryStat label="Checking" value={summary.checking} />
               <SummaryStat label="Buckets" value={summary.buckets} />
@@ -314,9 +337,7 @@ export function HomePage() {
                 : null;
             const onOpen = () => {
               if (onlyBucket) {
-                navigate(
-                  `/connections/${connection.id}/b/${encodeURIComponent(onlyBucket)}`,
-                );
+                navigate(`/connections/${connection.id}/b/${encodeURIComponent(onlyBucket)}`);
               } else {
                 navigate(`/connections/${connection.id}`);
               }
@@ -337,8 +358,8 @@ export function HomePage() {
 
       {/* Initial load skeleton */}
       {list.isLoading && (
-        <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
-          {Array.from({ length: 2 }).map((_, i) => (
+        <div className="grid gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
             <Card key={i} className="border-border/70">
               <CardContent className="h-44 animate-pulse bg-muted/30" />
             </Card>
@@ -535,7 +556,7 @@ function ConnectionCard({
 
         {/* Actions — same shape and h-9 sizing as admin's cluster cards */}
         <div className="flex flex-wrap items-center gap-2 pt-1">
-          <Button size="sm" className="h-9" onClick={onOpen} disabled={status.status !== 'healthy'}>
+          <Button size="sm" className="h-9" onClick={onOpen}>
             <ArrowRight className="mr-2 h-4 w-4" />
             Open
           </Button>
@@ -573,7 +594,7 @@ function MetricTile({
     <div className="rounded-lg border bg-card p-2">
       <div className="flex items-center gap-1 text-xs text-muted-foreground">
         <Icon className="h-3.5 w-3.5" />
-        <span className="hidden sm:inline">{label}</span>
+        <span className="sr-only sm:not-sr-only">{label}</span>
       </div>
       <div className="truncate text-sm font-semibold">{value}</div>
     </div>

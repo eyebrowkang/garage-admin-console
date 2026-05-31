@@ -3,7 +3,7 @@
  *
  * Layout mirrors garage-admin-console/web/src/layouts/MainLayout:
  *   - header: sticky border-b bar with logo + Sign Out
- *   - main:   max-w-7xl, react-router routes for Home / Connection / Bucket
+ *   - main:   max-w-full, react-router routes for Home / Connection / Bucket
  *   - footer: repo link + license
  *
  * React Router owns the URL state so refreshes restore both the current view
@@ -28,6 +28,7 @@ import { LoginPage } from '@/features/auth/LoginPage';
 import { HomePage } from '@/features/home/HomePage';
 import { ConnectionView } from '@/features/connection/ConnectionView';
 import { BucketView } from '@/features/bucket/BucketView';
+import { Toaster } from '@garage/ui';
 
 export function App() {
   const [authed, setAuthed] = useState(() => readStoredToken() !== null);
@@ -92,7 +93,7 @@ export function App() {
         </main>
 
         <footer className="border-t mt-auto">
-          <div className="max-w-7xl mx-auto px-4 lg:px-8 py-4 flex items-center justify-center text-xs text-muted-foreground">
+          <div className="max-w-full mx-auto px-4 lg:px-8 py-4 flex items-center justify-center text-xs text-muted-foreground">
             <a
               href="https://github.com/eyebrowkang/garage-admin-console"
               target="_blank"
@@ -106,6 +107,7 @@ export function App() {
           </div>
         </footer>
       </div>
+      <Toaster />
     </BrowserRouter>
   );
 }

@@ -7,29 +7,20 @@
  */
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { createAppQueryClient } from '@garage/web-shared';
+import '@fontsource/manrope/400.css';
+import '@fontsource/manrope/500.css';
+import '@fontsource/manrope/600.css';
+import '@fontsource/manrope/700.css';
+import '@fontsource/manrope/800.css';
 // All stylesheet imports (tokens + ui + tailwind base) flow through index.css
 // so Tailwind v4 resolves them in a single pass.
 import './index.css';
 
 import { App } from './App';
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 30000,
-      refetchOnWindowFocus: false,
-      retry: (failureCount, error) => {
-        // Don't retry on auth errors
-        if (error && typeof error === 'object' && 'response' in error) {
-          const status = (error as { response?: { status?: number } }).response?.status;
-          if (status === 401 || status === 403) return false;
-        }
-        return failureCount < 3;
-      },
-    },
-  },
-});
+const queryClient = createAppQueryClient();
 
 const rootEl = document.getElementById('root');
 if (!rootEl) throw new Error('#root not found');

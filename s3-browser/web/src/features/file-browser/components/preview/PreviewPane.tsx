@@ -9,7 +9,7 @@ import {
   XIcon,
 } from '@primer/octicons-react';
 import { Button, cn } from '@garage/ui';
-import { fileKind, formatBytes, formatDate, isTextLikeKind } from '@/lib/format';
+import { fileKind, formatBytes, formatDate, isTextLikeKind } from '@garage/web-shared';
 import type { S3Object } from '@/lib/types';
 import type { FileItem } from '../../types';
 import { getFileKindIcon, iconBgClass, iconColorClass } from '../../icons';
