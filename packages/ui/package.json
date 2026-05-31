@@ -6,17 +6,22 @@
   "license": "AGPL-3.0-only",
   "type": "module",
   "sideEffects": [
-    "./dist/style.css"
+    "./dist/style.css",
+    "./src/styles/theme.css",
+    "./src/styles/base.css"
   ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./style.css": "./dist/style.css"
+    "./style.css": "./dist/style.css",
+    "./theme.css": "./src/styles/theme.css",
+    "./base.css": "./src/styles/base.css"
   },
   "files": [
-    "dist"
+    "dist",
+    "src/styles"
   ],
   "scripts": {
     "build:js": "tsup",
