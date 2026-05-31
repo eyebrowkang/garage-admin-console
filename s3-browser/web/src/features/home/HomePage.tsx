@@ -39,6 +39,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  Checkbox,
   Input,
   Label,
 } from '@garage/ui';
@@ -225,11 +226,11 @@ export function HomePage() {
       qc.invalidateQueries({ queryKey: ['connections'] });
       const name = deleteTarget?.name;
       setDeleteTarget(null);
-      toast({ title: 'Connection removed', description: name, variant: 'success' });
+      toast({ title: 'Connection disconnected', description: name, variant: 'success' });
     },
     onError: (err: Error) => {
       toast({
-        title: 'Failed to remove connection',
+        title: 'Failed to disconnect connection',
         description: err.message,
         variant: 'destructive',
       });
@@ -446,10 +447,10 @@ export function HomePage() {
       >
         <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-[440px]">
           <DialogHeader>
-            <DialogTitle>Remove Connection</DialogTitle>
+            <DialogTitle>Disconnect Connection</DialogTitle>
             <DialogDescription>
-              Remove “{deleteTarget?.name}” from this console? Buckets and objects in the underlying
-              S3 endpoint are not touched.
+              Disconnect “{deleteTarget?.name}” from this console? Buckets and objects in the
+              underlying S3 endpoint are not touched.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -461,7 +462,7 @@ export function HomePage() {
               disabled={deleteMut.isPending}
               onClick={() => deleteTarget && deleteMut.mutate(deleteTarget.id)}
             >
-              {deleteMut.isPending ? 'Removing…' : 'Remove'}
+              {deleteMut.isPending ? 'Disconnecting…' : 'Disconnect'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -570,10 +571,10 @@ function ConnectionCard({
             size="sm"
             className="h-9 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
             onClick={onDelete}
-            aria-label="Remove connection"
+            aria-label="Disconnect connection"
           >
             <Link2Off className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">Remove</span>
+            <span className="hidden sm:inline">Disconnect</span>
           </Button>
         </div>
       </CardContent>
@@ -684,15 +685,13 @@ function ConnectionForm({
                 onChange={(e) => setForm({ ...form, region: e.target.value })}
               />
             </div>
-            <div className="flex items-end gap-2 pb-2">
-              <input
-                id="forcePathStyle"
-                type="checkbox"
-                checked={form.forcePathStyle}
-                onChange={(e) => setForm({ ...form, forcePathStyle: e.target.checked })}
-                className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-              />
-              <label htmlFor="forcePathStyle" className="text-sm">
+            <div className="flex items-end pb-2.5">
+              <label className="flex cursor-pointer select-none items-center gap-2 text-sm">
+                <Checkbox
+                  checked={form.forcePathStyle}
+                  onCheckedChange={(c) => setForm({ ...form, forcePathStyle: c })}
+                  aria-label="Path-style addressing"
+                />
                 Path-style addressing
               </label>
             </div>
