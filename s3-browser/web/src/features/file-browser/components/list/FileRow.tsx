@@ -1,6 +1,6 @@
 import { createElement } from 'react';
 import { cn } from '@garage/ui';
-import { fileKind, formatBytes, formatDate } from '@garage/web-shared';
+import { fileKind, formatBytes, formatDateTime } from '@garage/web-shared';
 import { getFileKindIcon, iconBgClass, iconColorClass } from '../../icons';
 import { useBrowser } from '../../context';
 import type { ListItem } from '../../types';
@@ -104,7 +104,7 @@ export function FileRow({ item, isSelected, showCheckbox, visibleKeys, style }: 
 
       {/* modified */}
       <span className="text-[12px] text-muted-foreground">
-        {item.type === 'file' ? formatDate(item.object.lastModified) : '—'}
+        {item.type === 'file' ? formatDateTime(item.object.lastModified) : '—'}
       </span>
 
       {/* actions */}

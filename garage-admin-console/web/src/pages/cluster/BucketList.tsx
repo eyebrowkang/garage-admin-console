@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from '@garage/ui';
 import { api, proxyPath } from '@/lib/api';
-import { formatDateTime24h, formatShortId, getApiErrorMessage } from '@garage/web-shared';
+import { formatDateTime, formatShortId, getApiErrorMessage } from '@garage/web-shared';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { AliasMiniChip } from '@/components/cluster/AliasMiniChip';
 import { CopyButton } from '@/components/cluster/CopyButton';
@@ -385,7 +385,7 @@ export function BucketList() {
                   </div>
                 </TableCell>
                 <TableCell className="text-xs text-muted-foreground">
-                  {formatDateTime24h(bucket.created)}
+                  {formatDateTime(bucket.created)}
                 </TableCell>
                 <TableCell>
                   <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>

@@ -415,7 +415,7 @@ export function WorkerManager() {
                         </TableCell>
                         <TableCell className="text-xs">{formatShortId(worker.nodeId, 8)}</TableCell>
                         <TableCell>{getStateBadge(worker.state)}</TableCell>
-                        <TableCell className="tabular-nums">{worker.queueLength ?? '-'}</TableCell>
+                        <TableCell className="tabular-nums">{worker.queueLength ?? '—'}</TableCell>
                         <TableCell>
                           <div className="tabular-nums font-medium">{worker.errors}</div>
                           <div className="text-xs text-muted-foreground">
@@ -426,13 +426,13 @@ export function WorkerManager() {
                           {worker.progress ? (
                             <span className="text-xs">{worker.progress}</span>
                           ) : (
-                            '-'
+                            '—'
                           )}
                         </TableCell>
                         <TableCell className="tabular-nums">
                           {worker.tranquility !== undefined && worker.tranquility !== null
                             ? `${worker.tranquility}ms`
-                            : '-'}
+                            : '—'}
                         </TableCell>
                         <TableCell>
                           <Button
@@ -473,7 +473,7 @@ export function WorkerManager() {
           <SheetHeader>
             <SheetTitle>{selectedWorker?.name}</SheetTitle>
             <SheetDescription className="text-xs">
-              Node: {selectedWorker?.nodeId ? formatShortId(selectedWorker.nodeId, 12) : '-'}
+              Node: {selectedWorker?.nodeId ? formatShortId(selectedWorker.nodeId, 12) : '—'}
             </SheetDescription>
           </SheetHeader>
           <div className="mt-6 space-y-6">
@@ -493,7 +493,7 @@ export function WorkerManager() {
                       </div>
                       <div>
                         <div className="text-sm text-muted-foreground">Queue length</div>
-                        <div className="font-medium tabular-nums">{info.queueLength ?? '-'}</div>
+                        <div className="font-medium tabular-nums">{info.queueLength ?? '—'}</div>
                       </div>
                       <div>
                         <div className="text-sm text-muted-foreground">Errors</div>
@@ -506,7 +506,7 @@ export function WorkerManager() {
                       <div>
                         <div className="text-sm text-muted-foreground">Persistent errors</div>
                         <div className="font-medium tabular-nums">
-                          {info.persistentErrors ?? '-'}
+                          {info.persistentErrors ?? '—'}
                         </div>
                       </div>
                       <div>
@@ -514,12 +514,12 @@ export function WorkerManager() {
                         <div className="font-medium tabular-nums">
                           {info.tranquility !== undefined && info.tranquility !== null
                             ? `${info.tranquility}ms`
-                            : '-'}
+                            : '—'}
                         </div>
                       </div>
                       <div className="sm:col-span-2">
                         <div className="text-sm text-muted-foreground">Progress</div>
-                        <div className="font-medium">{info.progress || '-'}</div>
+                        <div className="font-medium">{info.progress || '—'}</div>
                       </div>
                     </div>
                     {info.lastError && (

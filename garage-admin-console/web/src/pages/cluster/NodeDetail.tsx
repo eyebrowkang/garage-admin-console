@@ -256,7 +256,7 @@ export function NodeDetail() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-lg font-medium">{node.garageVersion || '-'}</div>
+            <div className="text-lg font-medium">{node.garageVersion || '—'}</div>
           </CardContent>
         </Card>
 

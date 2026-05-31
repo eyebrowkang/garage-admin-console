@@ -196,7 +196,7 @@ export function ClusterNodeList() {
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <NodeIcon className="h-4 w-4" />
             Layout version:{' '}
-            <span className="font-medium text-foreground">{data?.layoutVersion ?? '-'}</span>
+            <span className="font-medium text-foreground">{data?.layoutVersion ?? '—'}</span>
           </div>
         }
         actions={
@@ -296,7 +296,7 @@ node_id@address`}
                     <CopyButton value={node.id} label="Node ID" compact />
                   </div>
                 </TableCell>
-                <TableCell>{node.hostname || '-'}</TableCell>
+                <TableCell>{node.hostname || '—'}</TableCell>
                 <TableCell className="text-xs text-muted-foreground">
                   {node.addr ? (
                     <div className="inline-flex items-center gap-1">
@@ -304,7 +304,7 @@ node_id@address`}
                       <CopyButton value={node.addr} label="Node address" compact />
                     </div>
                   ) : (
-                    '-'
+                    '—'
                   )}
                 </TableCell>
                 <TableCell>
@@ -350,15 +350,15 @@ node_id@address`}
                 <TableCell className="text-xs text-muted-foreground">
                   {node.dataPartition
                     ? `${formatBytes(node.dataPartition.available)} / ${formatBytes(node.dataPartition.total)}`
-                    : '-'}
+                    : '—'}
                 </TableCell>
                 <TableCell className="text-xs text-muted-foreground">
                   {node.metadataPartition
                     ? `${formatBytes(node.metadataPartition.available)} / ${formatBytes(node.metadataPartition.total)}`
-                    : '-'}
+                    : '—'}
                 </TableCell>
                 <TableCell className="text-xs text-muted-foreground">
-                  {node.garageVersion || '-'}
+                  {node.garageVersion || '—'}
                 </TableCell>
               </TableRow>
             ))}

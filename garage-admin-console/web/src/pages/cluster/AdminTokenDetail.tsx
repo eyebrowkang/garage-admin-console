@@ -40,7 +40,7 @@ import { DetailPageHeader } from '@/components/cluster/DetailPageHeader';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
 import { DeleteActionIcon, EditActionIcon } from '@/lib/action-icons';
 import { TokenIcon } from '@/lib/entity-icons';
-import { formatDateTime24h, getApiErrorMessage } from '@garage/web-shared';
+import { formatDateTime, getApiErrorMessage } from '@garage/web-shared';
 import { toast } from '@garage/ui';
 
 const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
@@ -275,11 +275,11 @@ export function AdminTokenDetail() {
             )}
             <div>
               <div className="text-sm text-muted-foreground">Created</div>
-              <div>{formatDateTime24h(token.created) || '-'}</div>
+              <div>{formatDateTime(token.created)}</div>
             </div>
             <div>
               <div className="text-sm text-muted-foreground">Expires</div>
-              <div>{token.expiration ? formatDateTime24h(token.expiration) : 'Never'}</div>
+              <div>{token.expiration ? formatDateTime(token.expiration) : 'Never'}</div>
             </div>
           </div>
         </CardContent>

@@ -9,7 +9,7 @@ import {
   XIcon,
 } from '@primer/octicons-react';
 import { Button, cn } from '@garage/ui';
-import { fileKind, formatBytes, formatDate, isTextLikeKind } from '@garage/web-shared';
+import { fileKind, formatBytes, formatDateTime, isTextLikeKind } from '@garage/web-shared';
 import type { S3Object } from '@/lib/types';
 import type { FileItem } from '../../types';
 import { getFileKindIcon, iconBgClass, iconColorClass } from '../../icons';
@@ -264,7 +264,7 @@ function MetadataPanel({
       ['Key', object.key],
       ['Size', formatBytes(object.size ?? listingSize)],
       ['Content-Type', object.contentType ?? '—'],
-      ['Last Modified', formatDate(object.lastModified)],
+      ['Last Modified', formatDateTime(object.lastModified)],
       ['ETag', object.etag || '—'],
       ['Storage Class', object.storageClass ?? '—'],
     ],

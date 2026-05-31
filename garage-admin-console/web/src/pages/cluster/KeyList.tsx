@@ -30,7 +30,7 @@ import {
   AlertTitle,
 } from '@garage/ui';
 import { api, proxyPath } from '@/lib/api';
-import { formatDateTime24h, formatShortId, getApiErrorMessage } from '@garage/web-shared';
+import { formatDateTime, formatShortId, getApiErrorMessage } from '@garage/web-shared';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { CopyButton } from '@/components/cluster/CopyButton';
 import { TableEmptyState } from '@/components/cluster/TableEmptyState';
@@ -549,7 +549,7 @@ export function KeyList() {
                     <CopyButton value={k.id} label="Access key ID" compact />
                   </div>
                 </TableCell>
-                <TableCell>{k.name || '-'}</TableCell>
+                <TableCell>{k.name || '—'}</TableCell>
                 <TableCell>
                   {k.expired ? (
                     <Badge variant="destructive">Expired</Badge>
@@ -558,10 +558,10 @@ export function KeyList() {
                   )}
                 </TableCell>
                 <TableCell className="text-xs text-muted-foreground">
-                  {formatDateTime24h(k.created)}
+                  {formatDateTime(k.created)}
                 </TableCell>
                 <TableCell className="text-xs text-muted-foreground">
-                  {formatDateTime24h(k.expiration)}
+                  {formatDateTime(k.expiration)}
                 </TableCell>
                 <TableCell>
                   <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
@@ -635,7 +635,7 @@ export function KeyList() {
                 <div className="text-xs text-muted-foreground">Secret Access Key</div>
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-sm text-foreground break-all">
-                    {createdKey.secretAccessKey || '-'}
+                    {createdKey.secretAccessKey || '—'}
                   </span>
                   {createdKey.secretAccessKey && (
                     <Button

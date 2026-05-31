@@ -258,7 +258,7 @@ export function ClusterOverview() {
               <div>
                 <div className="text-xs text-muted-foreground">Connected Nodes</div>
                 <div className="font-semibold text-foreground tabular-nums">
-                  {health ? `${health.connectedNodes}/${health.knownNodes}` : '-'}
+                  {health ? `${health.connectedNodes}/${health.knownNodes}` : '—'}
                 </div>
               </div>
             </div>
@@ -269,7 +269,7 @@ export function ClusterOverview() {
               <div>
                 <div className="text-xs text-muted-foreground">Storage Nodes</div>
                 <div className="font-semibold text-foreground tabular-nums">
-                  {health ? `${health.storageNodesUp}/${health.storageNodes}` : '-'}
+                  {health ? `${health.storageNodesUp}/${health.storageNodes}` : '—'}
                 </div>
               </div>
             </div>
@@ -280,7 +280,7 @@ export function ClusterOverview() {
               <div>
                 <div className="text-xs text-muted-foreground">Partitions OK</div>
                 <div className="font-semibold text-foreground tabular-nums">
-                  {health ? `${health.partitionsAllOk}/${health.partitions}` : '-'}
+                  {health ? `${health.partitionsAllOk}/${health.partitions}` : '—'}
                 </div>
               </div>
             </div>
@@ -291,20 +291,20 @@ export function ClusterOverview() {
               <div>
                 <div className="text-xs text-muted-foreground">Quorum OK</div>
                 <div className="font-semibold text-foreground tabular-nums">
-                  {health ? `${health.partitionsQuorum}/${health.partitions}` : '-'}
+                  {health ? `${health.partitionsQuorum}/${health.partitions}` : '—'}
                 </div>
               </div>
             </div>
           </div>
           <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
             <span className="rounded-full border bg-card px-2 py-1">
-              Nodes up: {status ? nodesUp : '-'}
+              Nodes up: {status ? nodesUp : '—'}
             </span>
             <span className="rounded-full border bg-card px-2 py-1">
-              Nodes down: {status ? nodesDown : '-'}
+              Nodes down: {status ? nodesDown : '—'}
             </span>
             <span className="rounded-full border bg-card px-2 py-1">
-              Draining: {status ? nodesDraining : '-'}
+              Draining: {status ? nodesDraining : '—'}
             </span>
           </div>
         </CardContent>
@@ -322,16 +322,16 @@ export function ClusterOverview() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-1">
               <div className="text-sm text-muted-foreground">Layout Version</div>
-              <div className="text-xl font-semibold">{hasLayout ? `v${layout?.version}` : '-'}</div>
+              <div className="text-xl font-semibold">{hasLayout ? `v${layout?.version}` : '—'}</div>
             </div>
             <div className="space-y-1">
               <div className="text-sm text-muted-foreground">Roles in Layout</div>
-              <div className="text-xl font-semibold">{hasLayout ? layout?.roles?.length : '-'}</div>
+              <div className="text-xl font-semibold">{hasLayout ? layout?.roles?.length : '—'}</div>
             </div>
             <div className="space-y-1">
               <div className="text-sm text-muted-foreground">Partition Size</div>
               <div className="text-xl font-semibold">
-                {hasLayout ? formatBytes(layout?.partitionSize ?? 0) : '-'}
+                {hasLayout ? formatBytes(layout?.partitionSize ?? 0) : '—'}
               </div>
             </div>
             <div className="space-y-1">
@@ -339,7 +339,7 @@ export function ClusterOverview() {
               <div className="text-xl font-semibold">
                 {hasLayout
                   ? (layout?.stagedRoleChanges?.length ?? 0) + (layout?.stagedParameters ? 1 : 0)
-                  : '-'}
+                  : '—'}
               </div>
             </div>
           </div>

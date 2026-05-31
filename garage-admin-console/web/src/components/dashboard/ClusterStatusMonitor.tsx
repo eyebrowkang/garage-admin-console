@@ -253,7 +253,7 @@ export function ClusterStatusMonitor({
                       <span className="hidden sm:inline">Nodes</span>
                     </div>
                     <div className="text-sm font-semibold">
-                      {nodes.length > 0 ? `${up}/${nodes.length}` : '-'}
+                      {nodes.length > 0 ? `${up}/${nodes.length}` : '—'}
                     </div>
                   </div>
                   <div className="rounded-lg border bg-card p-2">
@@ -264,7 +264,7 @@ export function ClusterStatusMonitor({
                     <div className="text-sm font-semibold">
                       {item.health
                         ? `${item.health.partitionsAllOk}/${item.health.partitions}`
-                        : '-'}
+                        : '—'}
                     </div>
                   </div>
                   <div className="rounded-lg border bg-card p-2">
@@ -274,7 +274,7 @@ export function ClusterStatusMonitor({
                     </div>
                     <div className="flex items-center gap-1.5">
                       <span className="text-sm font-semibold">
-                        {pressure === null ? '-' : `${pressure.toFixed(0)}%`}
+                        {pressure === null ? '—' : `${pressure.toFixed(0)}%`}
                       </span>
                       <Badge variant={pressureVariant} className="text-[10px] px-1.5 py-0">
                         {pressure === null

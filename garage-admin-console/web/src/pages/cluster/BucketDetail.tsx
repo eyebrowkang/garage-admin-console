@@ -52,7 +52,7 @@ import { JsonViewer } from '@/components/cluster/JsonViewer';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
 import { DeleteActionIcon } from '@/lib/action-icons';
 import { KeyIcon } from '@/lib/entity-icons';
-import { formatBytes, formatShortId, getApiErrorMessage } from '@garage/web-shared';
+import { formatBytes, formatNum, formatShortId, getApiErrorMessage } from '@garage/web-shared';
 import { toast } from '@garage/ui';
 
 export function BucketDetail() {
@@ -351,7 +351,7 @@ export function BucketDetail() {
           <div className="grid gap-3 md:grid-cols-4">
             <div className="rounded-lg border bg-muted/30 p-3">
               <div className="text-xs text-muted-foreground">Objects</div>
-              <div className="text-xl font-semibold">{bucket.objects.toLocaleString()}</div>
+              <div className="text-xl font-semibold">{formatNum(bucket.objects)}</div>
             </div>
             <div className="rounded-lg border bg-muted/30 p-3">
               <div className="text-xs text-muted-foreground">Total Size</div>
@@ -516,7 +516,7 @@ export function BucketDetail() {
                         <CopyButton value={key.accessKeyId} label="Access key ID" compact />
                       </div>
                     </TableCell>
-                    <TableCell>{key.name || '-'}</TableCell>
+                    <TableCell>{key.name || '—'}</TableCell>
                     <TableCell className="text-center">
                       {key.permissions.read ? (
                         <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
@@ -606,11 +606,11 @@ export function BucketDetail() {
             </div>
             <div>
               <div className="text-sm text-muted-foreground">Index Document</div>
-              <div className="font-medium">{bucket.websiteConfig?.indexDocument || '-'}</div>
+              <div className="font-medium">{bucket.websiteConfig?.indexDocument || '—'}</div>
             </div>
             <div>
               <div className="text-sm text-muted-foreground">Error Document</div>
-              <div className="font-medium">{bucket.websiteConfig?.errorDocument || '-'}</div>
+              <div className="font-medium">{bucket.websiteConfig?.errorDocument || '—'}</div>
             </div>
           </div>
         </CardContent>
@@ -647,7 +647,7 @@ export function BucketDetail() {
             <div>
               <div className="text-sm text-muted-foreground">Max Objects</div>
               <div className="font-medium">
-                {bucket.quotas.maxObjects?.toLocaleString() || 'Unlimited'}
+                {bucket.quotas.maxObjects ? formatNum(bucket.quotas.maxObjects) : 'Unlimited'}
               </div>
             </div>
             <div>

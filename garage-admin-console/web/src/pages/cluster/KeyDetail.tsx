@@ -45,7 +45,7 @@ import { InlineLoadingState } from '@/components/cluster/InlineLoadingState';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
 import { AddActionIcon, DeleteActionIcon, EditActionIcon } from '@/lib/action-icons';
 import { BucketIcon, KeyIcon } from '@/lib/entity-icons';
-import { formatDateTime24h, formatShortId, getApiErrorMessage } from '@garage/web-shared';
+import { formatDateTime, formatShortId, getApiErrorMessage } from '@garage/web-shared';
 import { toast } from '@garage/ui';
 import type { GetKeyInfoResponse, UpdateKeyRequest } from '@/types/garage';
 
@@ -387,7 +387,7 @@ export function KeyDetail() {
             </div>
             <div>
               <div className="text-sm text-muted-foreground">Name</div>
-              <div className="font-medium">{keyInfo.name || '-'}</div>
+              <div className="font-medium">{keyInfo.name || '—'}</div>
             </div>
             <div>
               <div className="text-sm text-muted-foreground">Create Bucket</div>
@@ -401,11 +401,11 @@ export function KeyDetail() {
             </div>
             <div>
               <div className="text-sm text-muted-foreground">Created</div>
-              <div>{formatDateTime24h(keyInfo.created)}</div>
+              <div>{formatDateTime(keyInfo.created)}</div>
             </div>
             <div>
               <div className="text-sm text-muted-foreground">Expiration</div>
-              <div>{keyInfo.expiration ? formatDateTime24h(keyInfo.expiration) : 'Never'}</div>
+              <div>{keyInfo.expiration ? formatDateTime(keyInfo.expiration) : 'Never'}</div>
             </div>
           </div>
 
@@ -637,7 +637,7 @@ export function KeyDetail() {
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Current: {keyInfo.expiration ? formatDateTime24h(keyInfo.expiration) : 'Never'}
+                  Current: {keyInfo.expiration ? formatDateTime(keyInfo.expiration) : 'Never'}
                 </p>
                 {editExpirationInvalid && (
                   <p className="text-xs text-destructive">Invalid date and time.</p>

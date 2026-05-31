@@ -71,10 +71,10 @@ type EditableNode = {
 type ZoneMode = 'maximum' | 'atLeast';
 
 const formatZoneRedundancy = (value?: GetClusterLayoutResponse['parameters']['zoneRedundancy']) => {
-  if (!value) return '-';
+  if (!value) return '—';
   if (value === 'maximum') return 'Maximum';
   if ('atLeast' in value) return `At least ${value.atLeast}`;
-  return '-';
+  return '—';
 };
 
 export function LayoutManager() {
@@ -414,12 +414,12 @@ export function LayoutManager() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <div>
               <div className="text-sm text-muted-foreground">Current Version</div>
-              <div className="text-xl font-semibold">{layout?.version ?? '-'}</div>
+              <div className="text-xl font-semibold">{layout?.version ?? '—'}</div>
             </div>
             <div>
               <div className="text-sm text-muted-foreground">Partition Size</div>
               <div className="text-xl font-semibold">
-                {layout ? formatBytes(layout.partitionSize) : '-'}
+                {layout ? formatBytes(layout.partitionSize) : '—'}
               </div>
             </div>
             <div>
@@ -553,7 +553,7 @@ export function LayoutManager() {
                     <TableRow key={node.id}>
                       <TableCell className="text-xs">{formatShortId(node.id, 10)}</TableCell>
                       <TableCell>{node.hostname || 'Unknown'}</TableCell>
-                      <TableCell>{role?.zone || '-'}</TableCell>
+                      <TableCell>{role?.zone || '—'}</TableCell>
                       <TableCell>
                         {role?.tags?.length ? (
                           <div className="flex flex-wrap gap-1">
@@ -567,7 +567,7 @@ export function LayoutManager() {
                           <span className="text-xs text-muted-foreground">-</span>
                         )}
                       </TableCell>
-                      <TableCell>{role ? formatBytes(role.capacity ?? null) : '-'}</TableCell>
+                      <TableCell>{role ? formatBytes(role.capacity ?? null) : '—'}</TableCell>
                       <TableCell>
                         {role ? (
                           <Badge variant="success">Active</Badge>
@@ -861,8 +861,8 @@ export function LayoutManager() {
             </div>
             {skipResult && (
               <div className="text-sm text-warning space-y-1">
-                <div>ACK updated: {skipResult.ackUpdated.join(', ') || '-'}</div>
-                <div>SYNC updated: {skipResult.syncUpdated.join(', ') || '-'}</div>
+                <div>ACK updated: {skipResult.ackUpdated.join(', ') || '—'}</div>
+                <div>SYNC updated: {skipResult.syncUpdated.join(', ') || '—'}</div>
               </div>
             )}
           </div>

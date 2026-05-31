@@ -46,7 +46,7 @@ import { SecretReveal } from '@/components/cluster/SecretReveal';
 import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
 import { TableLoadingState } from '@/components/cluster/TableLoadingState';
 import { AddActionIcon, DeleteActionIcon } from '@/lib/action-icons';
-import { formatDateTime24h, formatShortId, getApiErrorMessage } from '@garage/web-shared';
+import { formatDateTime, formatShortId, getApiErrorMessage } from '@garage/web-shared';
 import { TokenIcon } from '@/lib/entity-icons';
 import { toast } from '@garage/ui';
 import type { CreateAdminTokenResponse } from '@/types/garage';
@@ -164,7 +164,7 @@ export function AdminTokenList() {
     );
   }, [tokens, searchQuery]);
 
-  const formatExpiration = (value?: string | null) => (value ? formatDateTime24h(value) : 'Never');
+  const formatExpiration = (value?: string | null) => (value ? formatDateTime(value) : 'Never');
 
   const renderScopeSummary = (scope: string[]) => {
     if (scope.includes('*')) {
@@ -266,7 +266,7 @@ export function AdminTokenList() {
               </div>
               <div>
                 <div className="text-sm text-muted-foreground">Created</div>
-                <div>{formatDateTime24h(currentToken.created) || '-'}</div>
+                <div>{formatDateTime(currentToken.created)}</div>
               </div>
               <div>
                 <div className="text-sm text-muted-foreground">Expires</div>
@@ -353,7 +353,7 @@ export function AdminTokenList() {
                     </TableCell>
                     <TableCell>{renderScopeSummary(token.scope)}</TableCell>
                     <TableCell className="text-muted-foreground">
-                      {formatDateTime24h(token.created) || '-'}
+                      {formatDateTime(token.created)}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {formatExpiration(token.expiration)}

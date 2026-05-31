@@ -44,7 +44,7 @@ import {
   RefreshActionIcon,
   SearchActionIcon,
 } from '@/lib/action-icons';
-import { formatDateTime24h, formatShortId, getApiErrorMessage } from '@garage/web-shared';
+import { formatDateTime, formatShortId, getApiErrorMessage } from '@garage/web-shared';
 import { BlockIcon } from '@/lib/entity-icons';
 import { toast } from '@garage/ui';
 import type { BlockError } from '@/types/garage';
@@ -283,10 +283,10 @@ export function BlockManager() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
-                        {blockError.lastTry ? formatDateTime24h(blockError.lastTry) : '-'}
+                        {blockError.lastTry ? formatDateTime(blockError.lastTry) : '—'}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
-                        {blockError.nextTry ? formatDateTime24h(blockError.nextTry) : '-'}
+                        {blockError.nextTry ? formatDateTime(blockError.nextTry) : '—'}
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">

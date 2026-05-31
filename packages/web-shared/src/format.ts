@@ -1,15 +1,19 @@
 /**
  * Display formatters shared by both apps. Pure functions — no React, no DOM.
  *
- * `formatBytes` is decimal (1000-based, SI units kB/MB/…), unified from the
- * Admin Console's implementation so cluster capacity and S3 object sizes read
- * identically across the suite. (S3 Browser previously used 1024-based KB/MB.)
+ * Conventions:
+ * - Every formatter is pinned to `en-US` so output is identical regardless of
+ *   the viewer's browser locale.
+ * - Missing / invalid values render as an em dash (—), the canonical "no data"
+ *   glyph used throughout both apps.
+ * - `formatBytes` is decimal (1000-based, SI units kB/MB/…) so cluster capacity
+ *   and S3 object sizes read identically across the suite.
  */
 
 const BYTE_UNITS = ['B', 'kB', 'MB', 'GB', 'TB', 'PB'];
 
 export function formatBytes(bytes?: number | null): string {
-  if (bytes === null || bytes === undefined || Number.isNaN(bytes)) return '-';
+  if (bytes === null || bytes === undefined || Number.isNaN(bytes)) return '—';
   let value = bytes;
   let unitIndex = 0;
   while (value >= 1000 && unitIndex < BYTE_UNITS.length - 1) {
@@ -20,28 +24,18 @@ export function formatBytes(bytes?: number | null): string {
   return `${value.toFixed(precision)} ${BYTE_UNITS[unitIndex]}`;
 }
 
-function formatDateTimeParts(date: Date, hour12: boolean): string {
-  const d = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  const t = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12 });
-  return `${d}, ${t}`;
-}
-
+/** Human en-US date + time, e.g. "May 31, 2026 · 14:30" (24-hour clock). */
 export function formatDateTime(value?: string | null): string {
-  if (!value) return '-';
+  if (!value) return '—';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return formatDateTimeParts(date, true);
-}
-
-export function formatDateTime24h(value?: string | null): string {
-  if (!value) return '-';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return formatDateTimeParts(date, false);
+  const d = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const t = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+  return `${d} · ${t}`;
 }
 
 export function formatRelativeSeconds(seconds?: number | null): string {
-  if (seconds === null || seconds === undefined) return '-';
+  if (seconds === null || seconds === undefined) return '—';
   const totalSeconds = Math.max(0, Math.floor(seconds));
   if (totalSeconds < 60) return `${totalSeconds}s ago`;
   const minutes = Math.floor(totalSeconds / 60);
@@ -55,24 +49,6 @@ export function formatRelativeSeconds(seconds?: number | null): string {
 export function formatShortId(id: string, length = 8): string {
   if (id.length <= length) return id;
   return `${id.slice(0, length)}...`;
-}
-
-/** Compact "MMM D, YYYY · HH:MM" used by the S3 file browser. */
-export function formatDate(iso?: string | null): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '—';
-  const date = d.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-  const time = d.toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  });
-  return `${date} · ${time}`;
 }
 
 export function formatNum(n: number): string {
