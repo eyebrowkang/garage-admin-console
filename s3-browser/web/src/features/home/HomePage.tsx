@@ -188,7 +188,7 @@ export function HomePage() {
       qc.invalidateQueries({ queryKey: ['connections'] });
       setAddOpen(false);
       setFormError('');
-      toast({ title: 'Connection added', description: created.name, variant: 'success' });
+      toast({ title: 'Connected', description: created.name, variant: 'success' });
     },
     onError: (err: Error) => setFormError(err.message || 'Failed to create connection.'),
   });
@@ -258,14 +258,14 @@ export function HomePage() {
           >
             <DialogTrigger asChild>
               <Button>
-                <Plus className="mr-2 h-4 w-4" /> Add Connection
+                <Plus className="h-4 w-4" /> Connect
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-[540px]">
               <DialogHeader>
-                <DialogTitle>Add S3 Connection</DialogTitle>
+                <DialogTitle>Connect to S3</DialogTitle>
                 <DialogDescription>
-                  Add an S3-compatible endpoint to manage. Credentials are encrypted at rest.
+                  Connect an S3-compatible endpoint to manage. Credentials are encrypted at rest.
                 </DialogDescription>
               </DialogHeader>
               <ConnectionForm
@@ -752,7 +752,7 @@ function ConnectionForm({
           {testState === 'testing' ? 'Testing…' : 'Test Connection'}
         </Button>
         <Button onClick={() => onSubmit(form)} disabled={!canSubmit || busy}>
-          {busy ? (isEdit ? 'Saving…' : 'Adding…') : isEdit ? 'Save Changes' : 'Add Connection'}
+          {busy ? (isEdit ? 'Saving…' : 'Connecting…') : isEdit ? 'Save Changes' : 'Connect'}
         </Button>
       </DialogFooter>
     </>
