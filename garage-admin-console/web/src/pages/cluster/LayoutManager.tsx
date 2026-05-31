@@ -35,8 +35,7 @@ import {
 } from '@garage/ui';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import { api, proxyPath } from '@/lib/api';
-import { formatBytes, formatShortId } from '@/lib/format';
-import { getApiErrorMessage } from '@/lib/errors';
+import { formatBytes, formatShortId, getApiErrorMessage } from '@garage/web-shared';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
@@ -47,7 +46,7 @@ import {
   RevertActionIcon,
   SaveActionIcon,
 } from '@/lib/action-icons';
-import { toast } from '@/hooks/use-toast';
+import { toast } from '@garage/ui';
 import { useClusterContext } from '@/contexts/ClusterContext';
 import type {
   ApplyClusterLayoutResponse,
@@ -273,7 +272,7 @@ export function LayoutManager() {
     onSuccess: (data) => {
       setSkipResult(data);
       setActionError('');
-      toast({ title: 'Skip request submitted' });
+      toast({ title: 'Skip request submitted', variant: 'success' });
       setSkipVersionInput('');
     },
     onError: (err) => {
@@ -834,9 +833,9 @@ export function LayoutManager() {
             </div>
           )}
 
-          <div className="rounded-md border border-violet-200 bg-violet-50 p-4 space-y-3">
-            <div className="font-medium text-violet-900">Skip Dead Nodes</div>
-            <p className="text-sm text-violet-800">
+          <div className="rounded-md border border-warning/30 bg-warning/10 p-4 space-y-3">
+            <div className="font-medium text-warning">Skip Dead Nodes</div>
+            <p className="text-sm text-warning">
               Force progress in layout update trackers. Use only if nodes are permanently lost.
             </p>
             <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
@@ -847,7 +846,7 @@ export function LayoutManager() {
                   value={skipVersion}
                   onChange={(e) => setSkipVersionInput(e.target.value)}
                 />
-                <label className="flex items-center gap-2 text-sm text-violet-900">
+                <label className="flex items-center gap-2 text-sm text-warning">
                   <Checkbox checked={allowMissingData} onCheckedChange={setAllowMissingData} />
                   Allow missing data (unsafe)
                 </label>
@@ -861,7 +860,7 @@ export function LayoutManager() {
               </Button>
             </div>
             {skipResult && (
-              <div className="text-sm text-violet-900 space-y-1">
+              <div className="text-sm text-warning space-y-1">
                 <div>ACK updated: {skipResult.ackUpdated.join(', ') || '-'}</div>
                 <div>SYNC updated: {skipResult.syncUpdated.join(', ') || '-'}</div>
               </div>

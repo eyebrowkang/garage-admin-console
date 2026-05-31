@@ -40,9 +40,8 @@ import { InlineLoadingState } from '@/components/cluster/InlineLoadingState';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
 import { RepairActionIcon, SnapshotActionIcon } from '@/lib/action-icons';
 import { NodeIcon } from '@/lib/entity-icons';
-import { formatBytes, formatRelativeSeconds } from '@/lib/format';
-import { getApiErrorMessage } from '@/lib/errors';
-import { toast } from '@/hooks/use-toast';
+import { formatBytes, formatRelativeSeconds, getApiErrorMessage } from '@garage/web-shared';
+import { toast } from '@garage/ui';
 import type { RepairType, ScrubCommand } from '@/types/garage';
 
 const REPAIR_OPERATIONS = [
@@ -140,7 +139,11 @@ export function NodeDetail() {
   const handleSnapshot = async () => {
     try {
       await snapshotMutation.mutateAsync(nid);
-      toast({ title: 'Snapshot created', description: 'Metadata snapshot has been created' });
+      toast({
+        title: 'Snapshot created',
+        description: 'Metadata snapshot has been created',
+        variant: 'success',
+      });
       setSnapshotDialogOpen(false);
     } catch (err) {
       toast({

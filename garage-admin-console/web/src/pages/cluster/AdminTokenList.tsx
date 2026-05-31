@@ -46,10 +46,9 @@ import { SecretReveal } from '@/components/cluster/SecretReveal';
 import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
 import { TableLoadingState } from '@/components/cluster/TableLoadingState';
 import { AddActionIcon, DeleteActionIcon } from '@/lib/action-icons';
-import { formatDateTime24h, formatShortId } from '@/lib/format';
-import { getApiErrorMessage } from '@/lib/errors';
+import { formatDateTime24h, formatShortId, getApiErrorMessage } from '@garage/web-shared';
 import { TokenIcon } from '@/lib/entity-icons';
-import { toast } from '@/hooks/use-toast';
+import { toast } from '@garage/ui';
 import type { CreateAdminTokenResponse } from '@/types/garage';
 
 const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
@@ -169,7 +168,7 @@ export function AdminTokenList() {
 
   const renderScopeSummary = (scope: string[]) => {
     if (scope.includes('*')) {
-      return <span className="text-violet-700 font-medium">Full access (*)</span>;
+      return <span className="text-warning font-medium">Full access (*)</span>;
     }
     if (scope.length === 0) {
       return <span className="text-muted-foreground">No scope</span>;
@@ -188,7 +187,7 @@ export function AdminTokenList() {
     if (!deleteConfirm) return;
     try {
       await deleteMutation.mutateAsync(deleteConfirm.id);
-      toast({ title: 'Token deleted' });
+      toast({ title: 'Token deleted', variant: 'success' });
       setDeleteConfirm(null);
     } catch (err) {
       toast({
@@ -430,7 +429,7 @@ export function AdminTokenList() {
                 <Label>Allowed endpoints (one per line)</Label>
                 <Textarea
                   className="min-h-[120px] resize-y text-xs"
-                  placeholder="e.g.\nGetClusterStatus\nListBuckets"
+                  placeholder="e.g. GetClusterStatus, ListBuckets"
                   value={createScopeInput}
                   onChange={(e) => setCreateScopeInput(e.target.value)}
                 />

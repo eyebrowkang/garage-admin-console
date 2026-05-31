@@ -40,7 +40,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@garage/ui';
-import { api } from '@/lib/api';
+import { api, readStoredToken } from '@/lib/api';
 import type { FileBrowserProps } from 's3Browser/FileBrowser';
 import { selectDefaultKey, type AuthorizedKey } from './bucket-key-selection';
 
@@ -94,7 +94,7 @@ export function BucketObjectBrowser({
     keyId: string;
   } | null>(null);
 
-  const token = typeof window !== 'undefined' ? (window.localStorage.getItem('token') ?? '') : '';
+  const token = readStoredToken() ?? '';
   const baseUrl = `/api/clusters/${clusterId}/buckets/${encodeURIComponent(bucketAlias)}`;
   const selectionScope = `${clusterId}:${bucketAlias}`;
   const lsKey = useMemo(() => localStorageKey(clusterId, bucketAlias), [bucketAlias, clusterId]);
@@ -311,21 +311,31 @@ class RemoteErrorBoundary extends Component<{ children: ReactNode }, BoundarySta
   render(): ReactNode {
     if (!this.state.error) return this.props.children;
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
+      <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
           <AlertTriangle className="h-6 w-6" />
         </div>
-        <div className="space-y-1">
+        <div className="max-w-md space-y-1">
           <h3 className="text-base font-semibold">S3 Browser unavailable</h3>
           <p className="text-sm text-muted-foreground">
-            Couldn&rsquo;t load the embedded file browser. The rest of this page still works.
+            Couldn&rsquo;t load the embedded file browser. The rest of this page still works — you
+            can manage bucket settings normally.
           </p>
-          <p className="text-xs text-muted-foreground">{this.state.error.message}</p>
         </div>
-        <Button variant="outline" size="sm" onClick={this.retry}>
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Retry
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={this.retry}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Retry
+          </Button>
+        </div>
+        <details className="mt-2 w-full max-w-md text-left">
+          <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
+            Technical details
+          </summary>
+          <pre className="mt-2 max-h-32 overflow-auto rounded-md border bg-muted/40 p-2 text-[11px] leading-relaxed text-muted-foreground whitespace-pre-wrap break-words">
+            {this.state.error.message}
+          </pre>
+        </details>
       </div>
     );
   }

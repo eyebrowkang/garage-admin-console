@@ -1,5 +1,5 @@
 import { CopyButton } from '@/components/cluster/CopyButton';
-import { cn } from '@/lib/utils';
+import { cn } from '@garage/ui';
 
 interface AliasMiniChipProps {
   value: string;

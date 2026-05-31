@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { Activity, AlertTriangle, CheckCircle2, HardDrive, XCircle } from 'lucide-react';
 import { Card, CardContent, Badge, Button } from '@garage/ui';
 import { DisconnectActionIcon, EditActionIcon, OpenActionIcon } from '@/lib/action-icons';
-import { formatBytes } from '@/lib/format';
+import { formatBytes } from '@garage/web-shared';
 import { NodeIcon } from '@/lib/entity-icons';
 import type {
   ClusterSummary,
@@ -29,15 +29,15 @@ const statusConfig = {
     label: 'Healthy',
     icon: CheckCircle2,
     badge: 'success' as const,
-    iconClass: 'text-green-600',
-    bgClass: 'bg-green-50 border-green-200',
+    iconClass: 'text-success',
+    bgClass: 'bg-success/10 border-success/30',
   },
   degraded: {
     label: 'Degraded',
     icon: AlertTriangle,
     badge: 'warning' as const,
-    iconClass: 'text-violet-700',
-    bgClass: 'bg-violet-50 border-violet-200',
+    iconClass: 'text-warning',
+    bgClass: 'bg-warning/10 border-warning/30',
   },
   unavailable: {
     label: 'Unavailable',
@@ -157,19 +157,31 @@ export function ClusterStatusMonitor({
           <div className="grid grid-cols-2 gap-2 sm:gap-3 text-sm sm:grid-cols-4 md:col-span-3">
             <div className="rounded-lg border bg-card px-2 py-1.5 sm:px-3 sm:py-2">
               <div className="text-xs text-muted-foreground">Healthy</div>
-              <div className="text-xl sm:text-2xl font-semibold tracking-tight text-green-700">
+              <div
+                className={`text-xl sm:text-2xl font-semibold tracking-tight ${
+                  healthy > 0 ? 'text-success' : 'text-muted-foreground'
+                }`}
+              >
                 {healthy}
               </div>
             </div>
             <div className="rounded-lg border bg-card px-2 py-1.5 sm:px-3 sm:py-2">
               <div className="text-xs text-muted-foreground">Warnings</div>
-              <div className="text-xl sm:text-2xl font-semibold tracking-tight text-violet-700">
+              <div
+                className={`text-xl sm:text-2xl font-semibold tracking-tight ${
+                  warning > 0 ? 'text-warning' : 'text-muted-foreground'
+                }`}
+              >
                 {warning}
               </div>
             </div>
             <div className="rounded-lg border bg-card px-2 py-1.5 sm:px-3 sm:py-2">
               <div className="text-xs text-muted-foreground">Errors</div>
-              <div className="text-xl sm:text-2xl font-semibold tracking-tight text-destructive">
+              <div
+                className={`text-xl sm:text-2xl font-semibold tracking-tight ${
+                  error > 0 ? 'text-destructive' : 'text-muted-foreground'
+                }`}
+              >
                 {error}
               </div>
             </div>

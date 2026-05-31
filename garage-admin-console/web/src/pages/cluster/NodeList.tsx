@@ -27,15 +27,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@garage/ui';
-import { formatBytes, formatRelativeSeconds, formatShortId } from '@/lib/format';
-import { getApiErrorMessage } from '@/lib/errors';
+import {
+  formatBytes,
+  formatRelativeSeconds,
+  formatShortId,
+  getApiErrorMessage,
+} from '@garage/web-shared';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { CopyButton } from '@/components/cluster/CopyButton';
 import { TableEmptyState } from '@/components/cluster/TableEmptyState';
 import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
 import { TableLoadingState } from '@/components/cluster/TableLoadingState';
 import { ConnectActionIcon, RepairActionIcon, SnapshotActionIcon } from '@/lib/action-icons';
-import { toast } from '@/hooks/use-toast';
+import { toast } from '@garage/ui';
 import { NodeIcon } from '@/lib/entity-icons';
 import { useClusterContext } from '@/contexts/ClusterContext';
 import {
@@ -124,7 +128,7 @@ export function ClusterNodeList() {
     setConnectError('');
     try {
       await connectMutation.mutateAsync(entries);
-      toast({ title: 'Connect request sent' });
+      toast({ title: 'Connect request sent', variant: 'success' });
       setConnectDialogOpen(false);
       setConnectNodesInput('');
     } catch (err) {
@@ -135,7 +139,11 @@ export function ClusterNodeList() {
   const handleSnapshotAll = async () => {
     try {
       await snapshotMutation.mutateAsync('*');
-      toast({ title: 'Snapshot created', description: 'Metadata snapshots requested.' });
+      toast({
+        title: 'Snapshot created',
+        description: 'Metadata snapshots requested.',
+        variant: 'success',
+      });
       setSnapshotConfirmOpen(false);
     } catch (err) {
       toast({

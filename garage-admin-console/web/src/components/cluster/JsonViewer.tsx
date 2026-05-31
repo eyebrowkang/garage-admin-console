@@ -39,7 +39,7 @@ export function JsonViewer({ data, collapsed = false }: JsonViewerProps) {
           JSON
         </button>
         <div className="flex items-center gap-2">
-          {copied && <span className="text-xs text-green-600">Copied!</span>}
+          {copied && <span className="text-xs text-success">Copied!</span>}
           <Button variant="ghost" size="sm" onClick={handleCopy}>
             <Copy className="h-3 w-3" />
             Copy

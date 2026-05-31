@@ -52,9 +52,8 @@ import { JsonViewer } from '@/components/cluster/JsonViewer';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
 import { DeleteActionIcon } from '@/lib/action-icons';
 import { KeyIcon } from '@/lib/entity-icons';
-import { formatBytes, formatShortId } from '@/lib/format';
-import { getApiErrorMessage } from '@/lib/errors';
-import { toast } from '@/hooks/use-toast';
+import { formatBytes, formatShortId, getApiErrorMessage } from '@garage/web-shared';
+import { toast } from '@garage/ui';
 
 export function BucketDetail() {
   const { bid } = useParams<{ bid: string }>();
@@ -172,7 +171,7 @@ export function BucketDetail() {
           errorDocument: websiteEnabled && errorDocument ? errorDocument : null,
         },
       });
-      toast({ title: 'Website access updated' });
+      toast({ title: 'Website access updated', variant: 'success' });
       setWebsiteDialogOpen(false);
     } catch (err) {
       toast({
@@ -198,7 +197,11 @@ export function BucketDetail() {
         alias: newAlias.trim(),
         accessKeyId: aliasType === 'local' ? aliasAccessKeyId : undefined,
       });
-      toast({ title: 'Alias added', description: `Added alias "${newAlias}"` });
+      toast({
+        title: 'Alias added',
+        description: `Added alias "${newAlias}"`,
+        variant: 'success',
+      });
       setAliasDialogOpen(false);
       setNewAlias('');
     } catch (err) {
@@ -218,7 +221,11 @@ export function BucketDetail() {
         alias: removeAliasConfirm.alias,
         accessKeyId: removeAliasConfirm.accessKeyId,
       });
-      toast({ title: 'Alias removed', description: `Removed alias "${removeAliasConfirm.alias}"` });
+      toast({
+        title: 'Alias removed',
+        description: `Removed alias "${removeAliasConfirm.alias}"`,
+        variant: 'success',
+      });
       setRemoveAliasConfirm(null);
     } catch (err) {
       toast({
@@ -269,7 +276,7 @@ export function BucketDetail() {
           maxSize: maxSize ? parseInt(maxSize, 10) * 1_000_000_000 : null,
         },
       });
-      toast({ title: 'Quotas updated' });
+      toast({ title: 'Quotas updated', variant: 'success' });
       setQuotasDialogOpen(false);
     } catch (err) {
       toast({
@@ -315,7 +322,7 @@ export function BucketDetail() {
           permissions: toDeny,
         });
       }
-      toast({ title: 'Permissions updated' });
+      toast({ title: 'Permissions updated', variant: 'success' });
       setPermDialogOpen(false);
       setPermKey(null);
     } catch (err) {

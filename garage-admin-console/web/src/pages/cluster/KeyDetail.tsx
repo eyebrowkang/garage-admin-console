@@ -45,9 +45,8 @@ import { InlineLoadingState } from '@/components/cluster/InlineLoadingState';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
 import { AddActionIcon, DeleteActionIcon, EditActionIcon } from '@/lib/action-icons';
 import { BucketIcon, KeyIcon } from '@/lib/entity-icons';
-import { formatDateTime24h, formatShortId } from '@/lib/format';
-import { getApiErrorMessage } from '@/lib/errors';
-import { toast } from '@/hooks/use-toast';
+import { formatDateTime24h, formatShortId, getApiErrorMessage } from '@garage/web-shared';
+import { toast } from '@garage/ui';
 import type { GetKeyInfoResponse, UpdateKeyRequest } from '@/types/garage';
 
 const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
@@ -115,7 +114,7 @@ export function KeyDetail() {
     if (!secretKey) return;
     try {
       await navigator.clipboard.writeText(secretKey);
-      toast({ title: 'Secret copied' });
+      toast({ title: 'Secret copied', variant: 'success' });
     } catch (err) {
       toast({
         title: 'Failed to copy secret',
@@ -219,7 +218,11 @@ export function KeyDetail() {
     }
     try {
       await updateKeyMutation.mutateAsync(payload);
-      toast({ title: 'Key updated', description: 'Key settings have been updated' });
+      toast({
+        title: 'Key updated',
+        description: 'Key settings have been updated',
+        variant: 'success',
+      });
       setEditDialogOpen(false);
     } catch (err) {
       setEditError(getApiErrorMessage(err));
@@ -234,7 +237,7 @@ export function KeyDetail() {
   const handleDelete = async () => {
     try {
       await deleteKeyMutation.mutateAsync(kid);
-      toast({ title: 'Key deleted' });
+      toast({ title: 'Key deleted', variant: 'success' });
       navigate(`/clusters/${clusterId}/keys`);
     } catch (err) {
       toast({
@@ -278,7 +281,7 @@ export function KeyDetail() {
           permissions: toDeny,
         });
       }
-      toast({ title: 'Permissions updated' });
+      toast({ title: 'Permissions updated', variant: 'success' });
       setPermDialogOpen(false);
       setEditingBucketPerm(null);
     } catch (err) {
@@ -314,7 +317,7 @@ export function KeyDetail() {
         accessKeyId: kid,
         permissions: { read: grantRead, write: grantWrite, owner: grantOwner },
       });
-      toast({ title: 'Access granted' });
+      toast({ title: 'Access granted', variant: 'success' });
     } catch (err) {
       toast({
         title: 'Failed to grant access',

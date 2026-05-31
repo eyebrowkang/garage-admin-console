@@ -44,10 +44,9 @@ import {
   RefreshActionIcon,
   SearchActionIcon,
 } from '@/lib/action-icons';
-import { formatDateTime24h, formatShortId } from '@/lib/format';
-import { getApiErrorMessage } from '@/lib/errors';
+import { formatDateTime24h, formatShortId, getApiErrorMessage } from '@garage/web-shared';
 import { BlockIcon } from '@/lib/entity-icons';
-import { toast } from '@/hooks/use-toast';
+import { toast } from '@garage/ui';
 import type { BlockError } from '@/types/garage';
 
 export function BlockManager() {
@@ -264,7 +263,7 @@ export function BlockManager() {
                     <TableRow key={`${blockError.nodeId}-${blockError.blockHash}`}>
                       <TableCell>
                         <button
-                          className="text-xs text-primary hover:underline"
+                          className="text-xs text-foreground hover:underline"
                           onClick={() => {
                             openBlockInfo(blockError.blockHash, blockError.nodeId);
                           }}

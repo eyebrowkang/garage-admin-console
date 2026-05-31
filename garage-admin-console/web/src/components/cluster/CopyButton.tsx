@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react';
 import { Check } from 'lucide-react';
 import { Button } from '@garage/ui';
 import { CopyActionIcon } from '@/lib/action-icons';
-import { cn } from '@/lib/utils';
-import { toast } from '@/hooks/use-toast';
+import { cn, toast } from '@garage/ui';
 
 interface CopyButtonProps {
   value?: string | null;

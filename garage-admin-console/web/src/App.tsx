@@ -1,9 +1,11 @@
 import React, { Suspense, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { createAppQueryClient } from '@garage/web-shared';
+import { readStoredToken } from '@/lib/api';
 import { MainLayout } from './layouts/MainLayout';
 import { ClusterLayout } from './layouts/ClusterLayout';
-import { Toaster } from '@/components/ui/toaster';
+import { Toaster } from '@garage/ui';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -49,25 +51,10 @@ const MetricsPage = React.lazy(() =>
   import('./pages/cluster/MetricsPage').then((m) => ({ default: m.MetricsPage })),
 );
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 30000,
-      refetchOnWindowFocus: false,
-      retry: (failureCount, error) => {
-        // Don't retry on auth errors
-        if (error && typeof error === 'object' && 'response' in error) {
-          const status = (error as { response?: { status?: number } }).response?.status;
-          if (status === 401 || status === 403) return false;
-        }
-        return failureCount < 3;
-      },
-    },
-  },
-});
+const queryClient = createAppQueryClient();
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const token = localStorage.getItem('token');
+  const token = readStoredToken();
   if (!token) return <Navigate to="/login" replace />;
   return <>{children}</>;
 }

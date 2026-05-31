@@ -17,7 +17,6 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
-  Badge,
   Button,
   Alert,
   AlertDescription,
@@ -28,8 +27,7 @@ import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
 import { useClusterContext } from '@/contexts/ClusterContext';
 import { useNodes } from '@/hooks/useNodes';
 import { api, proxyPath } from '@/lib/api';
-import { formatBytes } from '@/lib/format';
-import { getApiErrorMessage } from '@/lib/errors';
+import { formatBytes, getApiErrorMessage } from '@garage/web-shared';
 import { NodeIcon } from '@/lib/entity-icons';
 import type {
   GetClusterHealthResponse,
@@ -102,41 +100,41 @@ export function ClusterOverview() {
 
   const statusConfig = {
     healthy: {
-      color: 'text-green-600',
-      bgColor: 'bg-green-50',
-      borderColor: 'border-green-200',
+      color: 'text-success',
+      bgColor: 'bg-success/10',
+      borderColor: 'border-success/30',
       icon: CheckCircle2,
       label: 'Healthy',
       badge: 'success' as const,
     },
     degraded: {
-      color: 'text-violet-700',
-      bgColor: 'bg-violet-50',
-      borderColor: 'border-violet-200',
+      color: 'text-warning',
+      bgColor: 'bg-warning/10',
+      borderColor: 'border-warning/30',
       icon: AlertTriangle,
       label: 'Degraded',
       badge: 'warning' as const,
     },
     unavailable: {
-      color: 'text-red-600',
-      bgColor: 'bg-red-50',
-      borderColor: 'border-red-200',
+      color: 'text-destructive',
+      bgColor: 'bg-destructive/10',
+      borderColor: 'border-destructive/30',
       icon: XCircle,
       label: 'Unavailable',
       badge: 'destructive' as const,
     },
     unreachable: {
-      color: 'text-red-600',
-      bgColor: 'bg-red-50',
-      borderColor: 'border-red-200',
+      color: 'text-destructive',
+      bgColor: 'bg-destructive/10',
+      borderColor: 'border-destructive/30',
       icon: XCircle,
       label: 'Unreachable',
       badge: 'destructive' as const,
     },
     unknown: {
-      color: 'text-slate-600',
-      bgColor: 'bg-slate-50',
-      borderColor: 'border-slate-200',
+      color: 'text-muted-foreground',
+      bgColor: 'bg-muted',
+      borderColor: 'border-border',
       icon: Activity,
       label: 'Checking',
       badge: 'secondary' as const,
@@ -250,65 +248,62 @@ export function ClusterOverview() {
               <CardDescription>{statusMessage}</CardDescription>
             </div>
           </div>
-          <Badge variant={config.badge} className="text-sm px-3 py-1">
-            {config.label}
-          </Badge>
         </CardHeader>
         <CardContent className="relative z-10 space-y-4">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="flex items-center gap-3 rounded-lg bg-slate-50 px-3 py-2">
-              <div className="h-8 w-8 rounded-lg bg-white flex items-center justify-center shadow-sm">
+            <div className="flex items-center gap-3 rounded-lg bg-muted px-3 py-2">
+              <div className="h-8 w-8 rounded-lg bg-card flex items-center justify-center shadow-sm">
                 <Activity className="h-4 w-4 text-slate-500" />
               </div>
               <div>
                 <div className="text-xs text-muted-foreground">Connected Nodes</div>
-                <div className="font-semibold text-slate-900 tabular-nums">
+                <div className="font-semibold text-foreground tabular-nums">
                   {health ? `${health.connectedNodes}/${health.knownNodes}` : '-'}
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-3 rounded-lg bg-slate-50 px-3 py-2">
-              <div className="h-8 w-8 rounded-lg bg-white flex items-center justify-center shadow-sm">
+            <div className="flex items-center gap-3 rounded-lg bg-muted px-3 py-2">
+              <div className="h-8 w-8 rounded-lg bg-card flex items-center justify-center shadow-sm">
                 <NodeIcon className="h-4 w-4 text-slate-500" />
               </div>
               <div>
                 <div className="text-xs text-muted-foreground">Storage Nodes</div>
-                <div className="font-semibold text-slate-900 tabular-nums">
+                <div className="font-semibold text-foreground tabular-nums">
                   {health ? `${health.storageNodesUp}/${health.storageNodes}` : '-'}
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-3 rounded-lg bg-slate-50 px-3 py-2">
-              <div className="h-8 w-8 rounded-lg bg-white flex items-center justify-center shadow-sm">
+            <div className="flex items-center gap-3 rounded-lg bg-muted px-3 py-2">
+              <div className="h-8 w-8 rounded-lg bg-card flex items-center justify-center shadow-sm">
                 <Layers className="h-4 w-4 text-slate-500" />
               </div>
               <div>
                 <div className="text-xs text-muted-foreground">Partitions OK</div>
-                <div className="font-semibold text-slate-900 tabular-nums">
+                <div className="font-semibold text-foreground tabular-nums">
                   {health ? `${health.partitionsAllOk}/${health.partitions}` : '-'}
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-3 rounded-lg bg-slate-50 px-3 py-2">
-              <div className="h-8 w-8 rounded-lg bg-white flex items-center justify-center shadow-sm">
+            <div className="flex items-center gap-3 rounded-lg bg-muted px-3 py-2">
+              <div className="h-8 w-8 rounded-lg bg-card flex items-center justify-center shadow-sm">
                 <ShieldCheck className="h-4 w-4 text-slate-500" />
               </div>
               <div>
                 <div className="text-xs text-muted-foreground">Quorum OK</div>
-                <div className="font-semibold text-slate-900 tabular-nums">
+                <div className="font-semibold text-foreground tabular-nums">
                   {health ? `${health.partitionsQuorum}/${health.partitions}` : '-'}
                 </div>
               </div>
             </div>
           </div>
           <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-            <span className="rounded-full border bg-white px-2 py-1">
+            <span className="rounded-full border bg-card px-2 py-1">
               Nodes up: {status ? nodesUp : '-'}
             </span>
-            <span className="rounded-full border bg-white px-2 py-1">
+            <span className="rounded-full border bg-card px-2 py-1">
               Nodes down: {status ? nodesDown : '-'}
             </span>
-            <span className="rounded-full border bg-white px-2 py-1">
+            <span className="rounded-full border bg-card px-2 py-1">
               Draining: {status ? nodesDraining : '-'}
             </span>
           </div>

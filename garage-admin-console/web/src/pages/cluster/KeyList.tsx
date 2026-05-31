@@ -30,8 +30,7 @@ import {
   AlertTitle,
 } from '@garage/ui';
 import { api, proxyPath } from '@/lib/api';
-import { formatDateTime24h, formatShortId } from '@/lib/format';
-import { getApiErrorMessage } from '@/lib/errors';
+import { formatDateTime24h, formatShortId, getApiErrorMessage } from '@garage/web-shared';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { CopyButton } from '@/components/cluster/CopyButton';
 import { TableEmptyState } from '@/components/cluster/TableEmptyState';
@@ -40,7 +39,7 @@ import { TableLoadingState } from '@/components/cluster/TableLoadingState';
 import { useClusterContext } from '@/contexts/ClusterContext';
 import { AddActionIcon, CopyActionIcon, DeleteActionIcon } from '@/lib/action-icons';
 import { KeyIcon } from '@/lib/entity-icons';
-import { toast } from '@/hooks/use-toast';
+import { toast } from '@garage/ui';
 import { useKeys, useImportKey } from '@/hooks/useKeys';
 import type { CreateKeyRequest, GetKeyInfoResponse } from '@/types/garage';
 
@@ -161,7 +160,7 @@ export function KeyList() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['keys', clusterId] });
       setDeleteConfirm(null);
-      toast({ title: 'Key deleted' });
+      toast({ title: 'Key deleted', variant: 'success' });
     },
     onError: (err) => {
       toast({
@@ -213,7 +212,7 @@ export function KeyList() {
       queryClient.invalidateQueries({ queryKey: ['keys', clusterId] });
       setIsImportDialogOpen(false);
       resetImportForm();
-      toast({ title: 'Key imported' });
+      toast({ title: 'Key imported', variant: 'success' });
     } catch (err) {
       setImportError(getApiErrorMessage(err, 'Failed to import key.'));
     }
@@ -631,7 +630,7 @@ export function KeyList() {
                   </Button>
                 </div>
                 {copiedValue === createdKey.accessKeyId && (
-                  <div className="text-xs text-green-600 mt-1">Copied!</div>
+                  <div className="text-xs text-success mt-1">Copied!</div>
                 )}
               </div>
               <div className="rounded-lg border bg-muted/40 p-3">
@@ -651,7 +650,7 @@ export function KeyList() {
                   )}
                 </div>
                 {createdKey.secretAccessKey && copiedValue === createdKey.secretAccessKey && (
-                  <div className="text-xs text-green-600 mt-1">Copied!</div>
+                  <div className="text-xs text-success mt-1">Copied!</div>
                 )}
               </div>
               <div className="text-xs text-muted-foreground">

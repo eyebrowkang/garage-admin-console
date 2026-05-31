@@ -28,8 +28,7 @@ import {
   SelectValue,
 } from '@garage/ui';
 import { api, proxyPath } from '@/lib/api';
-import { formatDateTime24h, formatShortId } from '@/lib/format';
-import { getApiErrorMessage } from '@/lib/errors';
+import { formatDateTime24h, formatShortId, getApiErrorMessage } from '@garage/web-shared';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { AliasMiniChip } from '@/components/cluster/AliasMiniChip';
 import { CopyButton } from '@/components/cluster/CopyButton';
@@ -40,7 +39,7 @@ import { TableLoadingState } from '@/components/cluster/TableLoadingState';
 import { useClusterContext } from '@/contexts/ClusterContext';
 import { AddActionIcon, DeleteActionIcon } from '@/lib/action-icons';
 import { BucketIcon } from '@/lib/entity-icons';
-import { toast } from '@/hooks/use-toast';
+import { toast } from '@garage/ui';
 import { useBuckets } from '@/hooks/useBuckets';
 import { useKeys } from '@/hooks/useKeys';
 import type { CreateBucketRequest } from '@/types/garage';
@@ -114,7 +113,7 @@ export function BucketList() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['buckets', clusterId] });
       setDeleteConfirm(null);
-      toast({ title: 'Bucket deleted' });
+      toast({ title: 'Bucket deleted', variant: 'success' });
     },
     onError: (err) => {
       toast({

@@ -19,11 +19,11 @@ import {
 } from '@garage/ui';
 import { AddActionIcon } from '@/lib/action-icons';
 import { api, proxyPath } from '@/lib/api';
-import { getApiErrorMessage } from '@/lib/errors';
+import { getApiErrorMessage } from '@garage/web-shared';
 import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
 import { ClusterStatusMonitor } from '@/components/dashboard/ClusterStatusMonitor';
 import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
-import { toast } from '@/hooks/use-toast';
+import { toast } from '@garage/ui';
 import { useClusters } from '@/hooks/useClusters';
 import type {
   ClusterSummary,
@@ -148,7 +148,7 @@ export default function Dashboard() {
       setIsCreateDialogOpen(false);
       setClusterForm(emptyForm);
       setFormError('');
-      toast({ title: 'Cluster connected' });
+      toast({ title: 'Cluster connected', variant: 'success' });
     },
     onError: (err) => {
       setFormError(getApiErrorMessage(err, 'Failed to connect cluster.'));
@@ -167,7 +167,7 @@ export default function Dashboard() {
       setEditForm(emptyForm);
       setEditCluster(null);
       setEditError('');
-      toast({ title: 'Cluster updated' });
+      toast({ title: 'Cluster updated', variant: 'success' });
     },
     onError: (err) => {
       setEditError(getApiErrorMessage(err, 'Failed to update cluster.'));
@@ -181,7 +181,7 @@ export default function Dashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clusters'] });
       setDeleteConfirm(null);
-      toast({ title: 'Cluster disconnected' });
+      toast({ title: 'Cluster disconnected', variant: 'success' });
     },
     onError: (err) => {
       toast({
@@ -268,7 +268,7 @@ export default function Dashboard() {
     );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <ModulePageHeader
         title="Dashboard"
         description="Cluster-level overview first. Open a cluster for deeper operations and diagnostics."

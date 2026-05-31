@@ -40,9 +40,8 @@ import { DetailPageHeader } from '@/components/cluster/DetailPageHeader';
 import { PageLoadingState } from '@/components/cluster/PageLoadingState';
 import { DeleteActionIcon, EditActionIcon } from '@/lib/action-icons';
 import { TokenIcon } from '@/lib/entity-icons';
-import { formatDateTime24h } from '@/lib/format';
-import { getApiErrorMessage } from '@/lib/errors';
-import { toast } from '@/hooks/use-toast';
+import { formatDateTime24h, getApiErrorMessage } from '@garage/web-shared';
+import { toast } from '@garage/ui';
 
 const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 const MINUTE_OPTIONS = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
@@ -167,7 +166,7 @@ export function AdminTokenDetail() {
             : {}),
       };
       await updateMutation.mutateAsync(payload);
-      toast({ title: 'Token updated' });
+      toast({ title: 'Token updated', variant: 'success' });
       setEditDialogOpen(false);
       setEditError('');
     } catch (err) {
@@ -182,7 +181,7 @@ export function AdminTokenDetail() {
   const handleDelete = async () => {
     try {
       await deleteMutation.mutateAsync(tid);
-      toast({ title: 'Token deleted' });
+      toast({ title: 'Token deleted', variant: 'success' });
       navigate(`/clusters/${clusterId}/tokens`);
     } catch (err) {
       toast({
@@ -372,7 +371,7 @@ export function AdminTokenDetail() {
                 <Label>Allowed endpoints (one per line)</Label>
                 <Textarea
                   className="min-h-[120px] resize-y text-xs"
-                  placeholder="e.g.\nGetClusterStatus\nListBuckets"
+                  placeholder="e.g. GetClusterStatus, ListBuckets"
                   value={editScopeInput}
                   onChange={(e) => setEditScopeInput(e.target.value)}
                 />
