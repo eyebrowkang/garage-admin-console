@@ -20,18 +20,24 @@ export function formatBytes(bytes?: number | null): string {
   return `${value.toFixed(precision)} ${BYTE_UNITS[unitIndex]}`;
 }
 
+function formatDateTimeParts(date: Date, hour12: boolean): string {
+  const d = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const t = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12 });
+  return `${d}, ${t}`;
+}
+
 export function formatDateTime(value?: string | null): string {
   if (!value) return '-';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString();
+  return formatDateTimeParts(date, true);
 }
 
 export function formatDateTime24h(value?: string | null): string {
   if (!value) return '-';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString(undefined, { hour12: false });
+  return formatDateTimeParts(date, false);
 }
 
 export function formatRelativeSeconds(seconds?: number | null): string {
