@@ -1,15 +1,10 @@
 import express, { type Router } from 'express';
 import { createBucketRouter, BucketAccessError } from '@garage/bucket-api-server';
+import { getParam } from '@garage/server-config';
 
 import { logger } from '../logger.js';
 import { resolveBucketKey, getAuthorizedBucketKeys } from '../lib/garage-keys.js';
 import { buildS3Client } from '../lib/s3-client.js';
-
-function getParam(params: Record<string, string | string[] | undefined>, name: string): string {
-  const val = params[name];
-  if (Array.isArray(val)) return val[0] ?? '';
-  return val ?? '';
-}
 
 const router: Router = express.Router({ mergeParams: true });
 

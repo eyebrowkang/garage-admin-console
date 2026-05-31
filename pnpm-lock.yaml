@@ -54,6 +54,9 @@ importers:
       '@garage/crypto':
         specifier: workspace:*
         version: link:../../packages/crypto
+      '@garage/server-config':
+        specifier: workspace:*
+        version: link:../../packages/server-config
       '@libsql/client':
         specifier: ^0.17.3
         version: 0.17.3
@@ -362,6 +365,15 @@ importers:
         specifier: ~6.0.3
         version: 6.0.3
 
+  packages/server-config:
+    devDependencies:
+      '@types/node':
+        specifier: ^25.9.1
+        version: 25.9.1
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
   packages/tokens:
     devDependencies:
       tsup:
@@ -470,6 +482,9 @@ importers:
       '@garage/crypto':
         specifier: workspace:*
         version: link:../../packages/crypto
+      '@garage/server-config':
+        specifier: workspace:*
+        version: link:../../packages/server-config
       '@libsql/client':
         specifier: ^0.17.3
         version: 0.17.3
