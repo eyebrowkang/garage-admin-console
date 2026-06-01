@@ -7,9 +7,18 @@
  * a refresh.
  */
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Database, Folder, RefreshCw, Loader2 } from 'lucide-react';
+import { Database, Folder, RefreshCw, Loader2 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Alert, AlertDescription, AlertTitle, Badge, Button, Card, CardContent } from '@garage/ui';
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  DetailPageHeader,
+} from '@garage/ui';
 
 import { api } from '@/lib/api';
 import { formatDate } from '@garage/web-shared';
@@ -71,29 +80,16 @@ export function ConnectionView() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-2 sm:gap-3 border-b border-border/70 pb-3 sm:pb-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex min-w-0 items-start gap-2.5 sm:gap-3">
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-8 w-8 shrink-0"
-            onClick={() => navigate('/')}
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div className="min-w-0 space-y-0.5 sm:space-y-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-lg sm:text-xl font-semibold tracking-tight">{connection.name}</h1>
-              <Badge variant="secondary" className="font-normal">
-                {provider} · {connection.region}
-              </Badge>
-            </div>
-            <p className="break-all text-xs sm:text-sm text-muted-foreground">
-              {connection.endpoint}
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 sm:justify-end pl-10 sm:pl-0">
+      <DetailPageHeader
+        onBack={() => navigate('/')}
+        title={connection.name}
+        badges={
+          <Badge variant="secondary" className="font-normal">
+            {provider} · {connection.region}
+          </Badge>
+        }
+        subtitle={connection.endpoint}
+        actions={
           <Button
             variant="outline"
             size="sm"
@@ -104,8 +100,8 @@ export function ConnectionView() {
             <RefreshCw className={`mr-2 h-4 w-4 ${list.isFetching ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       {list.error && (
         <Alert variant="destructive">
