@@ -236,7 +236,7 @@ Within each module the same drill-down applies — list pages stay information-l
 **S3 Browser web**:
 
 - [`s3-browser/web/rsbuild.config.ts`](s3-browser/web/rsbuild.config.ts) — MF Remote config, build-time `dts`, `bridge.enableBridgeRouter: false`
-- [`s3-browser/web/src/features/file-browser/FileBrowser.tsx`](s3-browser/web/src/features/file-browser/FileBrowser.tsx) — the federated primary surface
+- [`s3-browser/web/src/file-browser/FileBrowser.tsx`](s3-browser/web/src/file-browser/FileBrowser.tsx) — the federated primary surface
 - [`s3-browser/web/src/{export-app,export-file-browser}.tsx`](s3-browser/web/src/export-file-browser.tsx) — MF entry points
 
 ## Docker
