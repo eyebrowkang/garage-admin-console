@@ -1,15 +1,9 @@
 import { createElement, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import {
-  AlertIcon,
-  CopyIcon,
-  DownloadIcon,
-  EyeIcon,
-  LinkExternalIcon,
-  XIcon,
-} from '@primer/octicons-react';
+import { AlertCircle, Eye, X } from 'lucide-react';
 import { Button, cn } from '@garage/ui';
 import { fileKind, formatBytes, formatDateTime, isTextLikeKind } from '@garage/web-shared';
+import { CopyActionIcon, DownloadActionIcon, OpenExternalActionIcon } from '@/lib/action-icons';
 import type { S3Object } from '@/lib/types';
 import type { FileItem } from '../../types';
 import { getFileKindIcon, iconBgClass, iconColorClass } from '../../icons';
@@ -83,7 +77,7 @@ function PreviewPaneInner({ activeFile }: { activeFile: FileItem }) {
           className="h-8 gap-1.5"
           onClick={() => openPresign(activeFile)}
         >
-          <LinkExternalIcon size={14} />
+          <OpenExternalActionIcon size={14} />
           Share
         </Button>
         <DownloadButton
@@ -99,7 +93,7 @@ function PreviewPaneInner({ activeFile }: { activeFile: FileItem }) {
           title="Close preview"
           aria-label="Close preview"
         >
-          <XIcon size={16} />
+          <X size={16} />
         </button>
       </div>
 
@@ -136,7 +130,7 @@ function PreviewPaneInner({ activeFile }: { activeFile: FileItem }) {
                   className="justify-start gap-2"
                   onClick={() => copyText('S3 URI', `s3://${bucket}/${object.key}`)}
                 >
-                  <CopyIcon size={14} /> Copy S3 URI
+                  <CopyActionIcon size={14} /> Copy S3 URI
                 </Button>
                 <Button
                   variant="outline"
@@ -144,7 +138,7 @@ function PreviewPaneInner({ activeFile }: { activeFile: FileItem }) {
                   className="justify-start gap-2"
                   onClick={() => copyText('Key', object.key)}
                 >
-                  <CopyIcon size={14} /> Copy key
+                  <CopyActionIcon size={14} /> Copy key
                 </Button>
               </div>
             </section>
@@ -161,7 +155,7 @@ function PreviewPaneInner({ activeFile }: { activeFile: FileItem }) {
                   className="mt-3 w-full justify-start gap-2"
                   onClick={() => setForceText(true)}
                 >
-                  <EyeIcon size={14} />
+                  <Eye size={14} />
                   View as plain text
                 </Button>
               </section>
@@ -218,7 +212,7 @@ function PreviewContent({
       message="This object type is unknown, so no object bytes were fetched."
       action={
         <Button variant="outline" size="sm" onClick={onForceText}>
-          <EyeIcon size={14} />
+          <Eye size={14} />
           View as plain text
         </Button>
       }
@@ -238,7 +232,7 @@ function NoPreview({
   return (
     <div className="flex min-h-[340px] flex-col items-center justify-center gap-4 rounded-md border border-dashed border-border bg-muted/20 p-8 text-center">
       <div className="flex h-12 w-12 items-center justify-center rounded-md bg-muted text-muted-foreground">
-        <AlertIcon size={22} />
+        <AlertCircle size={22} />
       </div>
       <div className="max-w-md">
         <h3 className="text-base font-semibold text-foreground">{title}</h3>
@@ -362,7 +356,7 @@ function DownloadButton({
 
   return (
     <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={handleDownload}>
-      <DownloadIcon size={14} /> Download
+      <DownloadActionIcon size={14} /> Download
     </Button>
   );
 }

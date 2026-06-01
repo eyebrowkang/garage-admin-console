@@ -1,13 +1,6 @@
 import { useRef } from 'react';
-import {
-  FileDirectoryIcon,
-  SearchIcon,
-  ListUnorderedIcon,
-  AppsIcon,
-  UploadIcon,
-  KebabHorizontalIcon,
-  ChecklistIcon,
-} from '@primer/octicons-react';
+import { FileDirectoryIcon } from '@primer/octicons-react';
+import { LayoutGrid, List } from 'lucide-react';
 import {
   Button,
   cn,
@@ -22,6 +15,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@garage/ui';
+import {
+  MoreActionIcon,
+  SearchActionIcon,
+  SelectActionIcon,
+  UploadActionIcon,
+} from '@/lib/action-icons';
 import { useBrowser } from '../../context';
 import type { FilterKind } from '../../types';
 
@@ -57,7 +56,7 @@ export function Toolbar({ totalLoaded }: { totalLoaded: number }) {
   return (
     <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border/60 bg-card/20 px-5 py-3">
       <div className="relative flex h-10 min-w-[240px] flex-1 items-center rounded-md border border-border bg-card px-3 shadow-sm transition-shadow focus-within:ring-2 focus-within:ring-ring/30 md:max-w-[440px]">
-        <SearchIcon size={14} className="text-muted-foreground mr-2 shrink-0" />
+        <SearchActionIcon size={14} className="text-muted-foreground mr-2 shrink-0" />
         <input
           ref={searchRef}
           className="min-w-0 flex-1 border-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
@@ -116,7 +115,7 @@ export function Toolbar({ totalLoaded }: { totalLoaded: number }) {
           title="List view"
           aria-label="List view"
         >
-          <ListUnorderedIcon size={14} />
+          <List size={14} />
           <span className="hidden sm:inline">List</span>
         </button>
         <button
@@ -130,7 +129,7 @@ export function Toolbar({ totalLoaded }: { totalLoaded: number }) {
           title="Grid view"
           aria-label="Grid view"
         >
-          <AppsIcon size={14} />
+          <LayoutGrid size={14} />
           <span className="hidden sm:inline">Grid</span>
         </button>
       </div>
@@ -150,7 +149,7 @@ export function Toolbar({ totalLoaded }: { totalLoaded: number }) {
         onClick={() => openUpload()}
         className="h-10 gap-1.5 rounded-md px-4 text-sm"
       >
-        <UploadIcon size={14} />
+        <UploadActionIcon size={14} />
         <span>Upload</span>
       </Button>
 
@@ -158,12 +157,12 @@ export function Toolbar({ totalLoaded }: { totalLoaded: number }) {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm" className="h-10 w-10 rounded-md p-0 shadow-sm">
-            <KebabHorizontalIcon size={14} />
+            <MoreActionIcon size={14} />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
           <DropdownMenuItem onClick={() => setMultiSelectMode(!multiSelectMode)}>
-            <ChecklistIcon size={14} className="mr-2" />
+            <SelectActionIcon size={14} className="mr-2" />
             {multiSelectMode ? 'Exit multi-select' : 'Select multiple'}
           </DropdownMenuItem>
           <DropdownMenuSeparator />

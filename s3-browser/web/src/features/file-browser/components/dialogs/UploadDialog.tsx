@@ -1,5 +1,6 @@
 import { useState, useRef, type ChangeEvent } from 'react';
-import { UploadIcon, FileIcon, XIcon, ZapIcon } from '@primer/octicons-react';
+import { FileIcon } from '@primer/octicons-react';
+import { X, Zap } from 'lucide-react';
 import {
   Button,
   Dialog,
@@ -10,6 +11,7 @@ import {
   DialogTitle,
 } from '@garage/ui';
 import { formatBytes } from '@garage/web-shared';
+import { UploadActionIcon } from '@/lib/action-icons';
 import { useBrowser } from '../../context';
 import { LARGE_FILE_THRESHOLD_BYTES, runUploadJob } from '@/lib/multipart-upload';
 
@@ -139,7 +141,7 @@ function UploadDialogBody({
               }
             }}
           >
-            <UploadIcon size={28} />
+            <UploadActionIcon size={28} />
             <p className="text-sm font-semibold text-foreground">
               Drop files here or click to browse
             </p>
@@ -192,7 +194,7 @@ function UploadDialogBody({
                           className="inline-flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-primary shrink-0"
                           title="Uploads directly to S3 in parts"
                         >
-                          <ZapIcon size={10} />
+                          <Zap size={10} />
                           direct
                         </span>
                       )}
@@ -204,7 +206,7 @@ function UploadDialogBody({
                           className="w-5 h-5 flex items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                           onClick={() => setPicked((prev) => prev.filter((_, j) => j !== i))}
                         >
-                          <XIcon size={12} />
+                          <X size={12} />
                         </button>
                       )}
                     </li>

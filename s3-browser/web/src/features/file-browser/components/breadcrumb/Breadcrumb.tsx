@@ -1,5 +1,6 @@
-import { CopyIcon, SyncIcon, SidebarCollapseIcon } from '@primer/octicons-react';
+import { PanelLeftOpen } from 'lucide-react';
 import { cn } from '@garage/ui';
+import { CopyActionIcon, RefreshActionIcon } from '@/lib/action-icons';
 import { useBrowser } from '../../context';
 
 export function Breadcrumb() {
@@ -41,7 +42,7 @@ export function Breadcrumb() {
           title="Open file tree"
           aria-label="Open file tree"
         >
-          <SidebarCollapseIcon size={15} />
+          <PanelLeftOpen size={15} />
         </button>
       )}
 
@@ -100,7 +101,7 @@ export function Breadcrumb() {
           title="Copy current key"
           aria-label="Copy current key"
         >
-          <CopyIcon size={14} />
+          <CopyActionIcon size={14} />
         </button>
       )}
 
@@ -112,7 +113,7 @@ export function Breadcrumb() {
         title="Refresh"
         aria-label="Refresh current folder"
       >
-        <SyncIcon size={14} />
+        <RefreshActionIcon size={14} />
       </button>
     </div>
   );

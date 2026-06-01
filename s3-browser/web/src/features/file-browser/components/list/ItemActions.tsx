@@ -1,14 +1,4 @@
-import {
-  CopyIcon,
-  DownloadIcon,
-  FileMovedIcon,
-  HashIcon,
-  KebabHorizontalIcon,
-  LinkExternalIcon,
-  LinkIcon,
-  PencilIcon,
-  TrashIcon,
-} from '@primer/octicons-react';
+import { Hash, Link2 } from 'lucide-react';
 import {
   cn,
   DropdownMenu,
@@ -17,6 +7,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@garage/ui';
+import {
+  CopyActionIcon,
+  DeleteActionIcon,
+  DownloadActionIcon,
+  MoreActionIcon,
+  MoveActionIcon,
+  OpenExternalActionIcon,
+  RenameActionIcon,
+} from '@/lib/action-icons';
 import { useBrowser } from '../../context';
 import { useDownload } from '../../hooks/useDownload';
 import type { ListItem } from '../../types';
@@ -89,10 +88,10 @@ export function ItemActions({ item, itemKey, className, menuClassName }: ItemAct
           )}
         >
           <ActionButton label="Download" onClick={handleDownload}>
-            <DownloadIcon size={14} />
+            <DownloadActionIcon size={14} />
           </ActionButton>
           <ActionButton label="Share link" onClick={handleShare}>
-            <LinkExternalIcon size={14} />
+            <OpenExternalActionIcon size={14} />
           </ActionButton>
         </div>
       )}
@@ -111,7 +110,7 @@ export function ItemActions({ item, itemKey, className, menuClassName }: ItemAct
             title="More actions"
             aria-label="More actions"
           >
-            <KebabHorizontalIcon size={14} />
+            <MoreActionIcon size={14} />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
@@ -123,7 +122,7 @@ export function ItemActions({ item, itemKey, className, menuClassName }: ItemAct
                   openRename(item);
                 }}
               >
-                <PencilIcon />
+                <RenameActionIcon />
                 Rename
               </DropdownMenuItem>
               <DropdownMenuItem
@@ -132,7 +131,7 @@ export function ItemActions({ item, itemKey, className, menuClassName }: ItemAct
                   openMove(item);
                 }}
               >
-                <FileMovedIcon />
+                <MoveActionIcon />
                 Move to...
               </DropdownMenuItem>
               <DropdownMenuItem
@@ -141,7 +140,7 @@ export function ItemActions({ item, itemKey, className, menuClassName }: ItemAct
                   openCopy(item);
                 }}
               >
-                <CopyIcon />
+                <CopyActionIcon />
                 Copy to...
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -153,7 +152,7 @@ export function ItemActions({ item, itemKey, className, menuClassName }: ItemAct
               void copyText('Key', itemKey);
             }}
           >
-            <HashIcon />
+            <Hash />
             Copy key
           </DropdownMenuItem>
           <DropdownMenuItem
@@ -162,7 +161,7 @@ export function ItemActions({ item, itemKey, className, menuClassName }: ItemAct
               void copyText('S3 URI', `s3://${bucket}/${itemKey}`);
             }}
           >
-            <LinkIcon />
+            <Link2 />
             Copy S3 URI
           </DropdownMenuItem>
           <DropdownMenuSeparator />
@@ -173,7 +172,7 @@ export function ItemActions({ item, itemKey, className, menuClassName }: ItemAct
               openDelete([item]);
             }}
           >
-            <TrashIcon />
+            <DeleteActionIcon />
             Delete
           </DropdownMenuItem>
         </DropdownMenuContent>

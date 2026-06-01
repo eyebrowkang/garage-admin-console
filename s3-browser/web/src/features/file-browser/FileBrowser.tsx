@@ -7,7 +7,7 @@
  *   - no reads of auth tokens or credentials from localStorage/window/env
  */
 import { useMemo } from 'react';
-import { AlertFillIcon, AppsIcon, CheckIcon, ListUnorderedIcon } from '@primer/octicons-react';
+import { AlertCircle, Check, LayoutGrid, List } from 'lucide-react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cn } from '@garage/ui';
 import { BrowserProvider, useBrowser } from './context';
@@ -97,7 +97,7 @@ export function FileBrowserViewToggle({
         onClick={() => onChange('list')}
         title="List view"
       >
-        <ListUnorderedIcon size={14} />
+        <List size={14} />
       </button>
       <button
         className={cn(
@@ -109,7 +109,7 @@ export function FileBrowserViewToggle({
         onClick={() => onChange('grid')}
         title="Grid view"
       >
-        <AppsIcon size={14} />
+        <LayoutGrid size={14} />
       </button>
     </div>
   );
@@ -149,9 +149,9 @@ function FileBrowserLayout() {
           )}
         >
           {toast.kind === 'ok' ? (
-            <CheckIcon size={14} className="text-success" />
+            <Check size={14} className="text-success" />
           ) : (
-            <AlertFillIcon size={14} className="text-destructive" />
+            <AlertCircle size={14} className="text-destructive" />
           )}
           {toast.message}
         </div>

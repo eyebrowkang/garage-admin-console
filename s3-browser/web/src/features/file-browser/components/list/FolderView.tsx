@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { FileDirectoryIcon, SearchIcon, AlertIcon, SyncIcon } from '@primer/octicons-react';
+import { FileDirectoryIcon } from '@primer/octicons-react';
+import { AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '@garage/ui';
+import { RefreshActionIcon, SearchActionIcon } from '@/lib/action-icons';
 import { useBrowser } from '../../context';
 import { usePrefixQuery } from '../../hooks/usePrefixQuery';
 import { Toolbar } from '../toolbar/Toolbar';
@@ -142,7 +144,7 @@ export function FolderView() {
 
         {isLoading && (
           <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground">
-            <SyncIcon size={24} className="animate-spin" />
+            <Loader2 size={24} className="animate-spin" />
             <p className="text-sm">Loading…</p>
           </div>
         )}
@@ -150,7 +152,7 @@ export function FolderView() {
         {appErr && !isLoading && (
           <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center text-muted-foreground">
             <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-destructive/10 text-destructive">
-              <AlertIcon size={24} />
+              <AlertCircle size={24} />
             </div>
             <div>
               <h3 className="mb-1 text-base font-semibold text-foreground">
@@ -160,7 +162,7 @@ export function FolderView() {
             </div>
             {isRecoverable(appErr) && (
               <Button variant="outline" size="sm" onClick={() => refetch()}>
-                <SyncIcon size={14} className="mr-1.5" /> Retry
+                <RefreshActionIcon size={14} className="mr-1.5" /> Retry
               </Button>
             )}
           </div>
@@ -170,7 +172,7 @@ export function FolderView() {
           <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center text-muted-foreground">
             <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-primary/10 text-primary">
               {filterQuery || filterKind !== 'all' ? (
-                <SearchIcon size={24} />
+                <SearchActionIcon size={24} />
               ) : (
                 <FileDirectoryIcon size={24} />
               )}
@@ -212,7 +214,7 @@ export function FolderView() {
           <Button variant="outline" size="sm" onClick={loadMore} disabled={isFetchingNextPage}>
             {isFetchingNextPage ? (
               <>
-                <SyncIcon size={13} className="mr-1.5 animate-spin" /> Loading…
+                <Loader2 size={13} className="mr-1.5 animate-spin" /> Loading…
               </>
             ) : (
               'Load more'

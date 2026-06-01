@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { ArrowUpIcon, ArrowDownIcon, SortDescIcon } from '@primer/octicons-react';
+import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import { cn } from '@garage/ui';
 import { useBrowser } from '../../context';
 import { FileRow } from './FileRow';
@@ -39,12 +39,12 @@ function SortButton({
       {label}
       {isActive ? (
         dir === 'asc' ? (
-          <ArrowUpIcon size={10} />
+          <ArrowUp size={10} />
         ) : (
-          <ArrowDownIcon size={10} />
+          <ArrowDown size={10} />
         )
       ) : (
-        <SortDescIcon size={10} className="opacity-30" />
+        <ArrowUpDown size={10} className="opacity-30" />
       )}
     </button>
   );

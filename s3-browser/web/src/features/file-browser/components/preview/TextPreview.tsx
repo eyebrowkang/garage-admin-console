@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { SyncIcon, AlertIcon } from '@primer/octicons-react';
+import { AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '@garage/ui';
 import type { AxiosInstance } from 'axios';
 
@@ -52,7 +52,7 @@ export function TextPreview({ fileKey, http, forceText }: TextPreviewProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-32 text-muted-foreground gap-2">
-        <SyncIcon size={16} className="animate-spin" />
+        <Loader2 size={16} className="animate-spin" />
         <span className="text-sm">Loading preview…</span>
       </div>
     );
@@ -61,7 +61,7 @@ export function TextPreview({ fileKey, http, forceText }: TextPreviewProps) {
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center h-32 gap-2 text-muted-foreground">
-        <AlertIcon size={16} />
+        <AlertCircle size={16} />
         <span className="text-sm">{error}</span>
       </div>
     );

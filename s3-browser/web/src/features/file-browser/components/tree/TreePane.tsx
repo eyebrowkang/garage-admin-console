@@ -9,16 +9,10 @@ import {
 } from 'react';
 import { Tree, type NodeRendererProps, type TreeApi } from 'react-arborist';
 import { useQueries } from '@tanstack/react-query';
-import {
-  ChevronDownIcon,
-  ChevronRightIcon,
-  KebabHorizontalIcon,
-  SyncIcon,
-  SidebarExpandIcon,
-  XIcon,
-} from '@primer/octicons-react';
+import { ChevronDown, ChevronRight, Loader2, PanelLeftClose, X } from 'lucide-react';
 import { cn } from '@garage/ui';
 import { fileKind } from '@garage/web-shared';
+import { MoreActionIcon } from '@/lib/action-icons';
 import { readPersistedNumber, writePersistedNumber } from '@/lib/persistence';
 import type { ListItem, TreeNodeData } from '../../types';
 import { useBrowser } from '../../context';
@@ -166,11 +160,11 @@ function TreeNodeRow({ node, style }: NodeRendererProps<TreeNodeData>) {
         aria-label={node.isOpen ? 'Collapse folder' : 'Expand folder'}
       >
         {isLoading ? (
-          <SyncIcon size={11} className="animate-spin" />
+          <Loader2 size={11} className="animate-spin" />
         ) : node.isOpen ? (
-          <ChevronDownIcon size={12} />
+          <ChevronDown size={12} />
         ) : (
-          <ChevronRightIcon size={12} />
+          <ChevronRight size={12} />
         )}
       </button>
 
@@ -185,7 +179,7 @@ function TreeNodeRow({ node, style }: NodeRendererProps<TreeNodeData>) {
             isError && 'text-destructive',
           )}
         >
-          {isError ? <KebabHorizontalIcon size={14} /> : createElement(Icon, { size: 15 })}
+          {isError ? <MoreActionIcon size={14} /> : createElement(Icon, { size: 15 })}
         </span>
         <span className={cn('truncate', isActive && 'font-semibold')}>
           {node.data.name}
@@ -361,7 +355,7 @@ export function TreePane() {
                 title="Close file tree"
                 aria-label="Close file tree"
               >
-                <XIcon size={14} />
+                <X size={14} />
               </button>
             </div>
           </div>
@@ -416,7 +410,7 @@ export function TreePane() {
           title="Collapse file tree"
           aria-label="Collapse file tree"
         >
-          <SidebarExpandIcon size={15} />
+          <PanelLeftClose size={15} />
         </button>
         <span className="inline-flex items-center gap-2 text-[14px] font-bold tracking-wider text-muted-foreground">
           Files

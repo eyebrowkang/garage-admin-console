@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { CopyIcon, DownloadIcon, TrashIcon } from '@primer/octicons-react';
+import { CopyActionIcon, DownloadActionIcon, DeleteActionIcon } from '@/lib/action-icons';
 import { Button, cn } from '@garage/ui';
 import { basename } from '@garage/web-shared';
 import { useBrowser } from '../../context';
@@ -117,7 +117,7 @@ export function BulkBar({ visibleKeys, totalLoaded }: BulkBarProps) {
         disabled={fileCount === 0}
         title={fileCount === 0 ? 'No files selected' : `Download ${fileCount} file(s)`}
       >
-        <DownloadIcon size={13} className="mr-1.5" />
+        <DownloadActionIcon size={13} className="mr-1.5" />
         Download
       </Button>
 
@@ -128,7 +128,7 @@ export function BulkBar({ visibleKeys, totalLoaded }: BulkBarProps) {
         onClick={handleCopyKeys}
         disabled={!hasSelection}
       >
-        <CopyIcon size={13} className="mr-1.5" />
+        <CopyActionIcon size={13} className="mr-1.5" />
         Copy keys
       </Button>
 
@@ -143,7 +143,7 @@ export function BulkBar({ visibleKeys, totalLoaded }: BulkBarProps) {
         onClick={handleDelete}
         disabled={!hasSelection}
       >
-        <TrashIcon size={13} className="mr-1.5" />
+        <DeleteActionIcon size={13} className="mr-1.5" />
         Delete
       </Button>
 
