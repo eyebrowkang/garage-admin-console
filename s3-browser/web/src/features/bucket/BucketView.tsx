@@ -51,8 +51,8 @@ export function BucketView() {
   });
   const connection = connectionsQ.data?.find((c) => c.id === id) ?? null;
 
-  const [viewMode, setViewMode] = useState<FileBrowserViewMode>(
-    () => (readPersistedString('s3-browser.fb.viewMode', 'list') === 'grid' ? 'grid' : 'list'),
+  const [viewMode, setViewMode] = useState<FileBrowserViewMode>(() =>
+    readPersistedString('s3-browser.fb.viewMode', 'list') === 'grid' ? 'grid' : 'list',
   );
 
   useEffect(() => {
