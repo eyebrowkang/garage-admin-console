@@ -1,4 +1,4 @@
-import { Skeleton } from '@garage/ui';
+import { Skeleton } from './skeleton';
 
 interface PageLoadingStateProps {
   label?: string;

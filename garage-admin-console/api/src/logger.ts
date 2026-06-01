@@ -1,29 +1,8 @@
-import pino from 'pino';
+import { createServiceLoggers } from '@garage/server-config';
 import { env } from './config/env.js';
 
-const base = { service: 'garage-admin-console-api' };
-
-const transport = env.logPretty
-  ? pino.transport({
-      target: 'pino-pretty',
-      options: {
-        colorize: true,
-        singleLine: true,
-        translateTime: 'SYS:standard',
-        ignore: 'pid,hostname',
-      },
-    })
-  : undefined;
-
-const createLogger = (component: string, level: string) =>
-  pino(
-    {
-      level,
-      base: { ...base, component },
-      timestamp: pino.stdTimeFunctions.isoTime,
-    },
-    transport,
-  );
-
-export const logger = createLogger('system', env.logLevel);
-export const httpLogger = createLogger('http', 'info');
+export const { logger, httpLogger, createLogger } = createServiceLoggers({
+  service: 'garage-admin-console-api',
+  logLevel: env.logLevel,
+  logPretty: env.logPretty,
+});

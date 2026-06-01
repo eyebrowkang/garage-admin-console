@@ -20,9 +20,9 @@ import {
 import { AddActionIcon } from '@/lib/action-icons';
 import { api, proxyPath } from '@/lib/api';
 import { getApiErrorMessage } from '@garage/web-shared';
-import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
+import { ConfirmDialog } from '@garage/ui';
 import { ClusterStatusMonitor } from '@/components/dashboard/ClusterStatusMonitor';
-import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
+import { ModulePageHeader } from '@garage/ui';
 import { toast } from '@garage/ui';
 import { useClusters } from '@/hooks/useClusters';
 import type {

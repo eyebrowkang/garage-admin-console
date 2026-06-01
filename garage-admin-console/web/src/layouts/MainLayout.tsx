@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { LogOut } from 'lucide-react';
 import { Button } from '@garage/ui';
 import { writeStoredToken } from '@/lib/api';
-import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
+import { ConfirmDialog } from '@garage/ui';
 
 export function MainLayout() {
   const navigate = useNavigate();

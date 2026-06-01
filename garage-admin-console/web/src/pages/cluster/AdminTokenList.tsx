@@ -41,9 +41,9 @@ import {
   useCreateAdminToken,
   useDeleteAdminToken,
 } from '@/hooks/useAdminTokens';
-import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
+import { ConfirmDialog } from '@garage/ui';
 import { SecretReveal } from '@/components/cluster/SecretReveal';
-import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
+import { ModulePageHeader } from '@garage/ui';
 import { TableLoadingState } from '@/components/cluster/TableLoadingState';
 import { AddActionIcon, DeleteActionIcon } from '@/lib/action-icons';
 import { formatDateTime, formatShortId, getApiErrorMessage } from '@garage/web-shared';

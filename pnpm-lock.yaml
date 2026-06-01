@@ -42,12 +42,6 @@ importers:
 
   garage-admin-console/api:
     dependencies:
-      '@aws-sdk/client-s3':
-        specifier: ^3.1053.0
-        version: 3.1053.0
-      '@aws-sdk/s3-request-presigner':
-        specifier: ^3.1053.0
-        version: 3.1053.0
       '@garage/bucket-api-server':
         specifier: workspace:*
         version: link:../../packages/bucket-api-server
@@ -366,7 +360,38 @@ importers:
         version: 6.0.3
 
   packages/server-config:
+    dependencies:
+      '@libsql/client':
+        specifier: ^0.17.3
+        version: 0.17.3
+      drizzle-orm:
+        specifier: ^0.45.2
+        version: 0.45.2(@libsql/client@0.17.3)
+      express:
+        specifier: ^5.2.1
+        version: 5.2.1
+      jsonwebtoken:
+        specifier: ^9.0.3
+        version: 9.0.3
+      morgan:
+        specifier: ^1.10.1
+        version: 1.10.1
+      pino:
+        specifier: ^10.3.1
+        version: 10.3.1
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
     devDependencies:
+      '@types/express':
+        specifier: ^5.0.6
+        version: 5.0.6
+      '@types/jsonwebtoken':
+        specifier: ^9.0.10
+        version: 9.0.10
+      '@types/morgan':
+        specifier: ^1.9.10
+        version: 1.9.10
       '@types/node':
         specifier: ^25.9.1
         version: 25.9.1
@@ -471,10 +496,7 @@ importers:
   s3-browser/api:
     dependencies:
       '@aws-sdk/client-s3':
-        specifier: ^3.918.0
-        version: 3.1053.0
-      '@aws-sdk/s3-request-presigner':
-        specifier: ^3.918.0
+        specifier: ^3.1053.0
         version: 3.1053.0
       '@garage/bucket-api-server':
         specifier: workspace:*

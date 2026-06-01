@@ -1,12 +1,14 @@
+import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { TableRow, TableCell } from '@garage/ui';
+
+import { TableCell, TableRow } from './table';
 
 interface TableEmptyStateProps {
   icon: LucideIcon;
   title: string;
   description: string;
   colSpan: number;
-  action?: React.ReactNode;
+  action?: ReactNode;
 }
 
 export function TableEmptyState({
@@ -25,7 +27,7 @@ export function TableEmptyState({
           </div>
           <div className="space-y-1">
             <h3 className="font-medium text-foreground">{title}</h3>
-            <p className="text-sm text-muted-foreground max-w-sm mx-auto">{description}</p>
+            <p className="mx-auto max-w-sm text-sm text-muted-foreground">{description}</p>
           </div>
           {action && <div className="pt-2">{action}</div>}
         </div>

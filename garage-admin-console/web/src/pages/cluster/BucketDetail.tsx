@@ -43,13 +43,13 @@ import {
   useInspectObject,
 } from '@/hooks/useBuckets';
 import { useAllowBucketKey, useDenyBucketKey } from '@/hooks/usePermissions';
-import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
-import { CopyButton } from '@/components/cluster/CopyButton';
+import { ConfirmDialog } from '@garage/ui';
+import { CopyButton } from '@garage/ui';
 import { DetailPageHeader } from '@/components/cluster/DetailPageHeader';
 import { BucketObjectBrowser } from '@/components/cluster/BucketObjectBrowser';
 import { isMfExplicitlyConfigured } from '@/mf-init';
 import { JsonViewer } from '@/components/cluster/JsonViewer';
-import { PageLoadingState } from '@/components/cluster/PageLoadingState';
+import { PageLoadingState } from '@garage/ui';
 import { DeleteActionIcon } from '@/lib/action-icons';
 import { KeyIcon } from '@/lib/entity-icons';
 import { formatBytes, formatNum, formatShortId, getApiErrorMessage } from '@garage/web-shared';

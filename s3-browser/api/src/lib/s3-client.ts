@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm';
-import { S3Client, type S3ClientConfig } from '@aws-sdk/client-s3';
+import { createS3Client, type S3Client } from '@garage/bucket-api-server';
 
 import db from '../db/index.js';
 import { connections } from '../db/schema.js';
@@ -36,7 +36,7 @@ export async function loadConnection(id: string): Promise<ResolvedConnection | n
  * client instance — connection pooling lives inside the underlying HTTP agent.
  */
 export function buildS3Client(conn: ResolvedConnection): S3Client {
-  const config: S3ClientConfig = {
+  return createS3Client({
     region: conn.region,
     endpoint: conn.endpoint,
     forcePathStyle: conn.forcePathStyle,
@@ -44,13 +44,7 @@ export function buildS3Client(conn: ResolvedConnection): S3Client {
       accessKeyId: conn.accessKeyId,
       secretAccessKey: conn.secretAccessKey,
     },
-    // AWS SDK v3 defaults to adding a CRC32 checksum on uploads. Keep this
-    // opt-in for S3-compatible endpoints; the upload route already provides
-    // a concrete ContentLength so AWS S3 doesn't need chunked checksum mode.
-    requestChecksumCalculation: 'WHEN_REQUIRED',
-    responseChecksumValidation: 'WHEN_REQUIRED',
-  };
-  return new S3Client(config);
+  });
 }
 
 /**

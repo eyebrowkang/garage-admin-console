@@ -33,11 +33,11 @@ import {
   useCreateMetadataSnapshot,
   useLaunchRepairOperation,
 } from '@/hooks/useNodes';
-import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
-import { CopyButton } from '@/components/cluster/CopyButton';
+import { ConfirmDialog } from '@garage/ui';
+import { CopyButton } from '@garage/ui';
 import { DetailPageHeader } from '@/components/cluster/DetailPageHeader';
-import { InlineLoadingState } from '@/components/cluster/InlineLoadingState';
-import { PageLoadingState } from '@/components/cluster/PageLoadingState';
+import { InlineLoadingState } from '@garage/ui';
+import { PageLoadingState } from '@garage/ui';
 import { RepairActionIcon, SnapshotActionIcon } from '@/lib/action-icons';
 import { NodeIcon } from '@/lib/entity-icons';
 import { formatBytes, formatRelativeSeconds, getApiErrorMessage } from '@garage/web-shared';

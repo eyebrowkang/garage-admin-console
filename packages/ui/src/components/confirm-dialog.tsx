@@ -1,4 +1,7 @@
 import { useState } from 'react';
+import { AlertTriangle } from 'lucide-react';
+
+import { Button } from './button';
 import {
   Dialog,
   DialogContent,
@@ -6,11 +9,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  Button,
-  Input,
-  Label,
-} from '@garage/ui';
-import { AlertTriangle } from 'lucide-react';
+} from './dialog';
+import { Input } from './input';
+import { Label } from './label';
 
 export type ConfirmTier = 'simple' | 'danger' | 'type-to-confirm';
 
@@ -54,12 +55,11 @@ export function ConfirmDialog({
   };
 
   const isTypeToConfirmValid = tier !== 'type-to-confirm' || typedValue === typeToConfirmValue;
-
   const isDanger = tier === 'danger' || tier === 'type-to-confirm';
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-[425px] overflow-hidden">
+      <DialogContent className="max-w-[calc(100%-2rem)] overflow-hidden sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 break-words [overflow-wrap:anywhere]">
             {isDanger && <AlertTriangle className="h-5 w-5 text-destructive" />}

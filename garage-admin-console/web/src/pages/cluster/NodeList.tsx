@@ -33,10 +33,10 @@ import {
   formatShortId,
   getApiErrorMessage,
 } from '@garage/web-shared';
-import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
-import { CopyButton } from '@/components/cluster/CopyButton';
-import { TableEmptyState } from '@/components/cluster/TableEmptyState';
-import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
+import { ConfirmDialog } from '@garage/ui';
+import { CopyButton } from '@garage/ui';
+import { TableEmptyState } from '@garage/ui';
+import { ModulePageHeader } from '@garage/ui';
 import { TableLoadingState } from '@/components/cluster/TableLoadingState';
 import { ConnectActionIcon, RepairActionIcon, SnapshotActionIcon } from '@/lib/action-icons';
 import { toast } from '@garage/ui';

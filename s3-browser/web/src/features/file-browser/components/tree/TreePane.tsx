@@ -352,7 +352,7 @@ export function TreePane() {
         />
         <aside className="absolute left-0 top-0 z-40 flex h-full w-[min(86vw,360px)] flex-col border-r border-border bg-card shadow-2xl animate-in slide-in-from-left duration-150">
           <div className="flex h-11 shrink-0 items-center justify-between border-b border-border/60 px-4">
-            <span className="inline-flex items-center gap-2 text-[14px] font-fold tracking-wider text-muted-foreground">
+            <span className="inline-flex items-center gap-2 text-[14px] font-bold tracking-wider text-muted-foreground">
               Files
             </span>
             <div className="flex items-center gap-0.5">

@@ -36,9 +36,9 @@ import {
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import { api, proxyPath } from '@/lib/api';
 import { formatBytes, formatShortId, getApiErrorMessage } from '@garage/web-shared';
-import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
-import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
-import { PageLoadingState } from '@/components/cluster/PageLoadingState';
+import { ConfirmDialog } from '@garage/ui';
+import { ModulePageHeader } from '@garage/ui';
+import { PageLoadingState } from '@garage/ui';
 import {
   AddActionIcon,
   DeleteActionIcon,

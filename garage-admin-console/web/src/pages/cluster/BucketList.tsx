@@ -29,12 +29,12 @@ import {
 } from '@garage/ui';
 import { api, proxyPath } from '@/lib/api';
 import { formatDateTime, formatShortId, getApiErrorMessage } from '@garage/web-shared';
-import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
+import { ConfirmDialog } from '@garage/ui';
 import { AliasMiniChip } from '@/components/cluster/AliasMiniChip';
-import { CopyButton } from '@/components/cluster/CopyButton';
-import { TableEmptyState } from '@/components/cluster/TableEmptyState';
-import { InlineLoadingState } from '@/components/cluster/InlineLoadingState';
-import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
+import { CopyButton } from '@garage/ui';
+import { TableEmptyState } from '@garage/ui';
+import { InlineLoadingState } from '@garage/ui';
+import { ModulePageHeader } from '@garage/ui';
 import { TableLoadingState } from '@/components/cluster/TableLoadingState';
 import { useClusterContext } from '@/contexts/ClusterContext';
 import { AddActionIcon, DeleteActionIcon } from '@/lib/action-icons';

@@ -34,10 +34,10 @@ import {
   usePurgeBlocks,
 } from '@/hooks/useBlocks';
 import { NodeSelector } from '@/components/cluster/NodeSelector';
-import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
-import { InlineLoadingState } from '@/components/cluster/InlineLoadingState';
+import { ConfirmDialog } from '@garage/ui';
+import { InlineLoadingState } from '@garage/ui';
 import { JsonViewer } from '@/components/cluster/JsonViewer';
-import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
+import { ModulePageHeader } from '@garage/ui';
 import {
   DeleteActionIcon,
   InfoActionIcon,

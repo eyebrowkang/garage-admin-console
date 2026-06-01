@@ -35,9 +35,9 @@ import {
   useUpdateAdminToken,
   useDeleteAdminToken,
 } from '@/hooks/useAdminTokens';
-import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
+import { ConfirmDialog } from '@garage/ui';
 import { DetailPageHeader } from '@/components/cluster/DetailPageHeader';
-import { PageLoadingState } from '@/components/cluster/PageLoadingState';
+import { PageLoadingState } from '@garage/ui';
 import { DeleteActionIcon, EditActionIcon } from '@/lib/action-icons';
 import { TokenIcon } from '@/lib/entity-icons';
 import { formatDateTime, getApiErrorMessage } from '@garage/web-shared';

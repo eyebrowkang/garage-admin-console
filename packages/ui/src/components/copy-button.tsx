@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Check } from 'lucide-react';
-import { Button } from '@garage/ui';
-import { CopyActionIcon } from '@/lib/action-icons';
-import { cn, toast } from '@garage/ui';
+import { Check, Copy } from 'lucide-react';
+
+import { toast } from '../hooks/use-toast';
+import { cn } from '../lib/cn';
+import { Button } from './button';
 
 interface CopyButtonProps {
   value?: string | null;
@@ -48,8 +49,8 @@ export function CopyButton({
       size="icon"
       className={cn(
         compact
-          ? 'h-6 w-6 p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted'
-          : 'h-8 w-8 p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted',
+          ? 'h-6 w-6 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground'
+          : 'h-8 w-8 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground',
         className,
       )}
       onClick={(e) => {
@@ -63,7 +64,7 @@ export function CopyButton({
       {copied ? (
         <Check className={compact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
       ) : (
-        <CopyActionIcon className={compact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
+        <Copy className={compact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
       )}
     </Button>
   );

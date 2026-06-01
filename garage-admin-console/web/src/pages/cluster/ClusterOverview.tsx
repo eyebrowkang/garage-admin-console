@@ -22,8 +22,8 @@ import {
   AlertDescription,
   AlertTitle,
 } from '@garage/ui';
-import { InlineLoadingState } from '@/components/cluster/InlineLoadingState';
-import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
+import { InlineLoadingState } from '@garage/ui';
+import { ModulePageHeader } from '@garage/ui';
 import { useClusterContext } from '@/contexts/ClusterContext';
 import { useNodes } from '@/hooks/useNodes';
 import { api, proxyPath } from '@/lib/api';

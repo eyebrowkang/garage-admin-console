@@ -4,7 +4,7 @@ import { readStoredToken } from '@/lib/api';
 import { MainLayout } from './layouts/MainLayout';
 import { ClusterLayout } from './layouts/ClusterLayout';
 import { Toaster } from '@garage/ui';
-import { PageLoadingState } from '@/components/cluster/PageLoadingState';
+import { PageLoadingState } from '@garage/ui';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 

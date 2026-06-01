@@ -45,8 +45,8 @@ import {
   useSetWorkerVariable,
 } from '@/hooks/useWorkers';
 import { NodeSelector } from '@/components/cluster/NodeSelector';
-import { InlineLoadingState } from '@/components/cluster/InlineLoadingState';
-import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
+import { InlineLoadingState } from '@garage/ui';
+import { ModulePageHeader } from '@garage/ui';
 import { RefreshActionIcon, SettingsActionIcon } from '@/lib/action-icons';
 import { formatRelativeSeconds, formatShortId, getApiErrorMessage } from '@garage/web-shared';
 import { toast } from '@garage/ui';

@@ -13,7 +13,7 @@ import { cn } from '@garage/ui';
 import { useClusters } from '@/hooks/useClusters';
 import { useBlockErrors } from '@/hooks/useBlocks';
 import { ClusterContext } from '@/contexts/ClusterContext';
-import { PageLoadingState } from '@/components/cluster/PageLoadingState';
+import { PageLoadingState } from '@garage/ui';
 import { BlockIcon, BucketIcon, KeyIcon, NodeIcon, TokenIcon } from '@/lib/entity-icons';
 import { Button } from '@garage/ui';
 

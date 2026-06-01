@@ -1,4 +1,4 @@
-import { CopyButton } from '@/components/cluster/CopyButton';
+import { CopyButton } from '@garage/ui';
 import { cn } from '@garage/ui';
 
 interface AliasMiniChipProps {

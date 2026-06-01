@@ -12,8 +12,8 @@ import {
   AlertTitle,
   AlertDescription,
 } from '@garage/ui';
-import { InlineLoadingState } from '@/components/cluster/InlineLoadingState';
-import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
+import { InlineLoadingState } from '@garage/ui';
+import { ModulePageHeader } from '@garage/ui';
 import { api, proxyPath } from '@/lib/api';
 import { getApiErrorMessage } from '@garage/web-shared';
 

@@ -1,3 +1,22 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import { createClient } from '@libsql/client';
+import { drizzle, type LibSQLDatabase } from 'drizzle-orm/libsql';
+import { migrate } from 'drizzle-orm/libsql/migrator';
+import express, {
+  Router,
+  type NextFunction,
+  type Request,
+  type RequestHandler,
+  type Response,
+  type Router as ExpressRouter,
+} from 'express';
+import jwt, { type JwtPayload, type SignOptions } from 'jsonwebtoken';
+import morgan from 'morgan';
+import pino from 'pino';
+import { z } from 'zod';
+
 /**
  * The validated environment shared by both BFFs. The two products differ only
  * in their default port, so the rest of the loader is identical.
@@ -107,4 +126,156 @@ export function getParam(
   const val = params[name];
   if (Array.isArray(val)) return val[0] ?? '';
   return val ?? '';
+}
+
+type AuthenticatedRequest = Request & { user?: string | JwtPayload | undefined };
+
+export function createAuthenticateToken(jwtSecret: string) {
+  return function authenticateToken(req: Request, res: Response, next: NextFunction) {
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.split(' ')[1];
+
+    if (!token) return res.sendStatus(401);
+
+    jwt.verify(token, jwtSecret, (err, user) => {
+      if (err || !user) return res.sendStatus(401);
+      (req as AuthenticatedRequest).user = user;
+      next();
+    });
+  };
+}
+
+const LoginSchema = z.object({
+  password: z.string(),
+});
+
+export interface CreateAuthRouterOptions {
+  adminPassword: string;
+  jwtSecret: string;
+  tokenExpiresIn?: SignOptions['expiresIn'];
+}
+
+export function createAuthRouter({
+  adminPassword,
+  jwtSecret,
+  tokenExpiresIn = '1d',
+}: CreateAuthRouterOptions): ExpressRouter {
+  const router = Router();
+
+  router.post('/login', (req, res) => {
+    try {
+      const { password } = LoginSchema.parse(req.body);
+
+      if (password !== adminPassword) {
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+
+      const token = jwt.sign({ role: 'admin' }, jwtSecret, { expiresIn: tokenExpiresIn });
+      res.json({ token });
+    } catch {
+      res.status(400).json({ error: 'Invalid request' });
+    }
+  });
+
+  return router;
+}
+
+export interface CreateServiceLoggersOptions {
+  service: string;
+  logLevel: string;
+  logPretty: boolean;
+}
+
+export function createServiceLoggers({
+  service,
+  logLevel,
+  logPretty,
+}: CreateServiceLoggersOptions) {
+  const transport = logPretty
+    ? pino.transport({
+        target: 'pino-pretty',
+        options: {
+          colorize: true,
+          singleLine: true,
+          translateTime: 'SYS:standard',
+          ignore: 'pid,hostname',
+        },
+      })
+    : undefined;
+
+  const createLogger = (component: string, level: string) =>
+    pino(
+      {
+        level,
+        base: { service, component },
+        timestamp: pino.stdTimeFunctions.isoTime,
+      },
+      transport,
+    );
+
+  return {
+    logger: createLogger('system', logLevel),
+    httpLogger: createLogger('http', 'info'),
+    createLogger,
+  };
+}
+
+const ANSI_COLOR_PATTERN = /\x1b\[[0-9;]*m/g;
+
+function stripAnsi(value: string): string {
+  return value.replace(ANSI_COLOR_PATTERN, '');
+}
+
+export function createHttpLogMiddleware(
+  format: string | null,
+  httpLogger: Pick<pino.Logger, 'info'>,
+): RequestHandler | null {
+  if (!format) return null;
+
+  return morgan(format, {
+    stream: {
+      write: (message) => {
+        const cleaned = stripAnsi(message).trim();
+        if (cleaned) {
+          httpLogger.info(cleaned);
+        }
+      },
+    },
+  }) as RequestHandler;
+}
+
+export function createMultipartAwareJsonParser(): RequestHandler {
+  return express.json({
+    strict: false,
+    type: (req) => {
+      const contentType = req.headers['content-type'] ?? '';
+      return !contentType.toLowerCase().startsWith('multipart/form-data');
+    },
+  });
+}
+
+export interface CreateLibsqlDbOptions {
+  dataDir?: string;
+  filename?: string;
+}
+
+export function createLibsqlDb<TSchema extends Record<string, unknown>>(
+  schema: TSchema,
+  { dataDir = process.env.DATA_DIR ?? process.cwd(), filename = 'data.db' }: CreateLibsqlDbOptions = {},
+) {
+  const dbPath = path.resolve(dataDir, filename);
+  const client = createClient({ url: `file:${dbPath}` });
+  return drizzle({ client, schema });
+}
+
+export function getMigrationsFolder(importMetaUrl: string): string {
+  const dirname = path.dirname(fileURLToPath(importMetaUrl));
+  return path.resolve(dirname, '../../drizzle');
+}
+
+export async function runLibsqlMigrations<TSchema extends Record<string, unknown>>(
+  db: LibSQLDatabase<TSchema>,
+  importMetaUrl: string,
+) {
+  await migrate(db, { migrationsFolder: getMigrationsFolder(importMetaUrl) });
 }
