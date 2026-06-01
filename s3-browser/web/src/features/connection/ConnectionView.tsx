@@ -7,7 +7,7 @@
  * a refresh.
  */
 import { useQuery } from '@tanstack/react-query';
-import { Database, Folder, RefreshCw, Loader2 } from 'lucide-react';
+import { Database, Folder, RefreshCw } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Alert,
@@ -18,6 +18,7 @@ import {
   Card,
   CardContent,
   DetailPageHeader,
+  InlineLoadingState,
 } from '@garage/ui';
 
 import { api } from '@/lib/api';
@@ -69,9 +70,8 @@ export function ConnectionView() {
 
   if (!connection) {
     return (
-      <div className="flex h-40 items-center justify-center gap-2 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" />
-        Loading connection…
+      <div className="flex h-40 items-center justify-center">
+        <InlineLoadingState label="Loading connection…" />
       </div>
     );
   }

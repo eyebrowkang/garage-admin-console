@@ -14,10 +14,10 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useState } from 'react';
-import { ArrowLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { ArrowLeft, ChevronRight } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
-import { Alert, AlertDescription, AlertTitle, Button } from '@garage/ui';
+import { Alert, AlertDescription, AlertTitle, Button, InlineLoadingState } from '@garage/ui';
 
 import { api, buildBucketBackend } from '@/lib/api';
 import { readPersistedString, writePersistedString } from '@/lib/persistence';
@@ -76,9 +76,8 @@ export function BucketView() {
   }
   if (!connection || !id || !bucketName) {
     return (
-      <div className="flex h-40 items-center justify-center gap-2 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" />
-        Loading bucket…
+      <div className="flex h-40 items-center justify-center">
+        <InlineLoadingState label="Loading bucket…" />
       </div>
     );
   }
