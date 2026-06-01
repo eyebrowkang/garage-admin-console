@@ -48,7 +48,12 @@ function shapeObject(o: ShapeInput) {
 
 function sendError(res: Response, err: unknown) {
   const message = err instanceof Error ? err.message : 'Unknown error';
-  res.status(502).json({ error: message });
+  // Forward the upstream S3 status when it's a meaningful HTTP error (403, 404,
+  // 400, …) so callers can react to it; fall back to 502 for network failures
+  // and anything without a usable status code.
+  const upstream = (err as { $metadata?: { httpStatusCode?: number } })?.$metadata?.httpStatusCode;
+  const status = typeof upstream === 'number' && upstream >= 400 && upstream <= 599 ? upstream : 502;
+  res.status(status).json({ error: message });
 }
 
 const defaultLogger: Logger = {
