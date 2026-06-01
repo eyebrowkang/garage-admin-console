@@ -1,4 +1,4 @@
-import type { FileKind } from '@garage/web-shared';
+import { getApiErrorMessage, type FileKind } from '@garage/web-shared';
 import type { S3Object } from '@/lib/types';
 
 // FileKind's single source of truth is @garage/web-shared (its fileKind()
@@ -29,11 +29,14 @@ export interface AppError {
 }
 
 export function classifyError(err: unknown): AppError {
-  if (err && typeof err === 'object' && 'response' in err) {
-    const e = err as { response?: { status?: number }; message?: string };
-    return { message: e.message ?? 'Request failed', status: e.response?.status };
-  }
-  return { message: (err as Error)?.message ?? 'Unknown error' };
+  // Message extraction is shared with the rest of the suite (getApiErrorMessage
+  // understands every shape both BFFs return); only the status is kept locally
+  // for the retry-vs-not decision below.
+  const status =
+    err && typeof err === 'object' && 'response' in err
+      ? (err as { response?: { status?: number } }).response?.status
+      : undefined;
+  return { message: getApiErrorMessage(err), status };
 }
 
 export function isRecoverable(err: AppError): boolean {
