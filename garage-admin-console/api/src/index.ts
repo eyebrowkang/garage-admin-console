@@ -69,7 +69,10 @@ function mountS3BrowserProxy() {
       // pipe() does not forward source errors, so an upstream failure after
       // headers are flushed would otherwise throw as an unhandled 'error'.
       upstream.on('error', (streamError) => {
-        logger.warn({ error: streamError, target: targetUrl.href }, 'S3 Browser MF proxy stream error');
+        logger.warn(
+          { error: streamError, target: targetUrl.href },
+          'S3 Browser MF proxy stream error',
+        );
         res.destroy();
       });
       upstream.pipe(res);
