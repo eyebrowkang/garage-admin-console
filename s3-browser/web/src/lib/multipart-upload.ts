@@ -14,8 +14,12 @@
  * existing POST /upload proxy — the BFF still holds the credentials.
  */
 import type { AxiosInstance } from 'axios';
+import { LARGE_FILE_THRESHOLD_BYTES } from '@garage/bucket-api-server/constants';
 
-export const LARGE_FILE_THRESHOLD_BYTES = 10 * 1024 * 1024;
+// Re-exported so file-browser components keep importing the threshold from
+// here; the BFF enforces the same value server-side (413 on oversized proxy
+// uploads), so it must stay a single source of truth.
+export { LARGE_FILE_THRESHOLD_BYTES };
 
 interface UploadedItem {
   key: string;

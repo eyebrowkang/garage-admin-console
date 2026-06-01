@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@fontsource/manrope": "^5.2.8",
+    "@garage/bucket-api-server": "workspace:*",
     "@garage/tokens": "workspace:*",
     "@garage/ui": "workspace:*",
     "@garage/web-shared": "workspace:*",

@@ -595,6 +595,9 @@ importers:
       '@fontsource/manrope':
         specifier: ^5.2.8
         version: 5.2.8
+      '@garage/bucket-api-server':
+        specifier: workspace:*
+        version: link:../../packages/bucket-api-server
       '@garage/tokens':
         specifier: workspace:*
         version: link:../../packages/tokens
