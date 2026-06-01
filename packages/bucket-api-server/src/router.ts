@@ -322,9 +322,14 @@ export function createBucketRouter({
           const cleanPrefix = prefix.replace(/^\/+|\/+$/g, '');
           const key = cleanPrefix ? `${cleanPrefix}/${info.filename}` : info.filename;
 
+          // Per-file abort: tripped on 'limit' so the (truncated) bytes spooled
+          // so far are never PutObject'd to the bucket.
+          const fileAbort = new AbortController();
+
           fileStream.on('limit', () => {
             oversized = true;
             aborted = true;
+            fileAbort.abort();
             fileStream.resume();
             if (!res.headersSent) {
               res.status(413).json({
@@ -340,6 +345,7 @@ export function createBucketRouter({
             key,
             body: fileStream,
             contentType: info.mimeType,
+            signal: fileAbort.signal,
           })
             .then(({ etag, size }) => {
               if (oversized) return; // discard truncated upload
