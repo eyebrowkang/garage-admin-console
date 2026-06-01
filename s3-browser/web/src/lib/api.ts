@@ -8,8 +8,10 @@
  */
 import { createApiClient } from '@garage/web-shared';
 
+export const API_BASE_URL = import.meta.env.PUBLIC_API_BASE_URL || '/api';
+
 const { api, readStoredToken, writeStoredToken } = createApiClient({
-  baseURL: '/api',
+  baseURL: API_BASE_URL,
   tokenKey: 's3-browser.jwt',
   // The standalone composition controls its own auth surface (a render flag,
   // not a route guard), so we don't redirect — just drop the dead token.
@@ -27,7 +29,7 @@ export { api, readStoredToken, writeStoredToken };
  */
 export function buildBucketBackend(connectionId: string, bucket: string) {
   return {
-    baseUrl: `/api/connections/${connectionId}/buckets/${bucket}`,
+    baseUrl: `${API_BASE_URL}/connections/${connectionId}/buckets/${bucket}`,
     authToken: readStoredToken() ?? '',
   };
 }
