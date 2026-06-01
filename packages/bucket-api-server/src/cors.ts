@@ -51,8 +51,7 @@ function ruleExposesEtag(rule: CORSRule): boolean {
 }
 
 function ruleAllowsAnyHeader(rule: CORSRule): boolean {
-  const headers = rule.AllowedHeaders ?? [];
-  return headers.includes('*') || headers.some((h) => h === '*');
+  return (rule.AllowedHeaders ?? []).includes('*');
 }
 
 function isCoveredByExistingRule(rules: CORSRule[]): boolean {
