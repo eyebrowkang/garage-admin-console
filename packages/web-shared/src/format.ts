@@ -24,6 +24,14 @@ export function formatBytes(bytes?: number | null): string {
   return `${value.toFixed(precision)} ${BYTE_UNITS[unitIndex]}`;
 }
 
+/** Human en-US date only, e.g. "May 31, 2026". */
+export function formatDate(value?: string | null): string {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
 /** Human en-US date + time, e.g. "May 31, 2026 · 14:30" (24-hour clock). */
 export function formatDateTime(value?: string | null): string {
   if (!value) return '—';

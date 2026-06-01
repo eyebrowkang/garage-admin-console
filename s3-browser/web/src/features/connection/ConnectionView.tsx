@@ -12,7 +12,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Alert, AlertDescription, AlertTitle, Badge, Button, Card, CardContent } from '@garage/ui';
 
 import { api } from '@/lib/api';
-import { connectionDisplayMeta, formatShortDate } from '@/lib/connection-display';
+import { formatDate } from '@garage/web-shared';
+import { connectionDisplayMeta } from '@/lib/connection-display';
 import type { Bucket as BucketInfo, Connection } from '@/lib/types';
 
 export function ConnectionView() {
@@ -172,7 +173,7 @@ function BucketCard({ bucket, onOpen }: { bucket: BucketInfo; onOpen: () => void
           </div>
           {bucket.creationDate && (
             <div className="mt-0.5 text-xs text-muted-foreground">
-              Created {formatShortDate(bucket.creationDate)}
+              Created {formatDate(bucket.creationDate)}
             </div>
           )}
         </div>

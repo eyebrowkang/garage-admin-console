@@ -41,8 +41,9 @@ import {
   DialogTrigger,
 } from '@garage/ui';
 
+import { formatDate } from '@garage/web-shared';
 import { api } from '@/lib/api';
-import { connectionDisplayMeta, formatShortDate } from '@/lib/connection-display';
+import { connectionDisplayMeta } from '@/lib/connection-display';
 import {
   ConnectionForm,
   EMPTY_FORM,
@@ -531,7 +532,7 @@ function ConnectionCard({
           <span>
             {connection.forcePathStyle ? 'Path-style' : 'Virtual-host-style'} ·{' '}
             <span className="font-medium text-foreground">
-              Updated {formatShortDate(connection.updatedAt)}
+              Updated {formatDate(connection.updatedAt)}
             </span>
           </span>
         </div>
