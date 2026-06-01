@@ -1,4 +1,10 @@
+import type { FileKind } from '@garage/web-shared';
 import type { S3Object } from '@/lib/types';
+
+// FileKind's single source of truth is @garage/web-shared (its fileKind()
+// helper returns this type). Re-exported here so file-browser code can keep
+// importing it from the feature-local barrel.
+export type { FileKind };
 
 export type ListItem =
   | { type: 'folder'; name: string; prefix: string }
@@ -14,16 +20,6 @@ export interface SortState {
 }
 
 export type ViewMode = 'list' | 'grid';
-
-export type FileKind =
-  | 'image'
-  | 'text'
-  | 'json'
-  | 'markdown'
-  | 'csv'
-  | 'code'
-  | 'archive'
-  | 'unknown';
 
 export type FilterKind = FileKind | 'all' | 'folder';
 
