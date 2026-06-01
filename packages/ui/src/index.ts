@@ -8,6 +8,7 @@ export * from './components/card';
 export * from './components/checkbox';
 export * from './components/confirm-dialog';
 export * from './components/copy-button';
+export * from './components/detail-page-header';
 export * from './components/dialog';
 export * from './components/dropdown-menu';
 export * from './components/inline-loading-state';
