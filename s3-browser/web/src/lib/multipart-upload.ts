@@ -73,6 +73,10 @@ function putPartWithProgress(
   return new Promise<string>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     let lastLoaded = 0;
+    let onAbort: (() => void) | undefined;
+    const removeAbortListener = () => {
+      if (signal && onAbort) signal.removeEventListener('abort', onAbort);
+    };
     xhr.upload.onprogress = (evt) => {
       if (!evt.lengthComputable) return;
       const delta = evt.loaded - lastLoaded;
@@ -80,6 +84,7 @@ function putPartWithProgress(
       if (delta > 0) onLoaded(delta);
     };
     xhr.onload = () => {
+      removeAbortListener();
       if (xhr.status >= 200 && xhr.status < 300) {
         // Make up the rest of the progress in case onprogress didn't reach 100%.
         const remaining = body.size - lastLoaded;
@@ -98,16 +103,22 @@ function putPartWithProgress(
         reject(new Error(`Part PUT failed: ${xhr.status} ${xhr.statusText}`));
       }
     };
-    xhr.onerror = () => reject(new Error('Network error during part PUT'));
-    xhr.onabort = () => reject(new DOMException('Aborted', 'AbortError'));
+    xhr.onerror = () => {
+      removeAbortListener();
+      reject(new Error('Network error during part PUT'));
+    };
+    xhr.onabort = () => {
+      removeAbortListener();
+      reject(new DOMException('Aborted', 'AbortError'));
+    };
 
     if (signal) {
       if (signal.aborted) {
         reject(new DOMException('Aborted', 'AbortError'));
         return;
       }
-      const onAbort = () => xhr.abort();
-      signal.addEventListener('abort', onAbort, { once: true });
+      onAbort = () => xhr.abort();
+      signal.addEventListener('abort', onAbort);
     }
 
     xhr.open('PUT', url);
