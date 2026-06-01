@@ -24,10 +24,10 @@ import {
   DialogTitle,
 } from '@garage/ui';
 import { readStoredToken, writeStoredToken } from '@/lib/api';
-import { LoginPage } from '@/features/auth/LoginPage';
-import { HomePage } from '@/features/home/HomePage';
-import { ConnectionView } from '@/features/connection/ConnectionView';
-import { BucketView } from '@/features/bucket/BucketView';
+import { LoginPage } from '@/pages/LoginPage';
+import { HomePage } from '@/pages/HomePage';
+import { ConnectionView } from '@/pages/ConnectionView';
+import { BucketView } from '@/pages/BucketView';
 import { Toaster } from '@garage/ui';
 
 export function App() {

@@ -12,5 +12,5 @@
  */
 import './embeddable.css';
 
-export { FileBrowser as default } from './features/file-browser/FileBrowser';
-export type { FileBrowserProps, FileBrowserViewMode } from './features/file-browser/FileBrowser';
+export { FileBrowser as default } from './file-browser/FileBrowser';
+export type { FileBrowserProps, FileBrowserViewMode } from './file-browser/FileBrowser';

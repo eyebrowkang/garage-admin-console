@@ -37,7 +37,7 @@
 
 /* Restrict Tailwind's source scan to FileBrowser's own subtree so the chunk
  * stays small and focused — we don't need utilities for App.tsx / LoginPage. */
-@source '../src/features/file-browser/**/*.{ts,tsx}';
+@source '../src/file-browser/**/*.{ts,tsx}';
 
 /*
  * Theme tokens the utility compiler needs to generate concrete utilities.

@@ -22,7 +22,7 @@ import { Alert, AlertDescription, AlertTitle, Button, InlineLoadingState } from 
 import { api, buildBucketBackend } from '@/lib/api';
 import { readPersistedString, writePersistedString } from '@/lib/persistence';
 import type { Connection } from '@/lib/types';
-import { FileBrowser, type FileBrowserViewMode } from '@/features/file-browser/FileBrowser';
+import { FileBrowser, type FileBrowserViewMode } from '@/file-browser/FileBrowser';
 
 export function BucketView() {
   const { id, bucket, '*': splat = '' } = useParams<{ id: string; bucket: string; '*': string }>();

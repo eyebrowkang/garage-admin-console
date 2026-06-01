@@ -1,7 +1,7 @@
 /**
  * Semantic action icons for the S3 Browser, mirroring the Admin Console's
  * lib/action-icons. Octicons stay reserved for file/folder *content* glyphs
- * (see features/file-browser/icons.ts) — every generic action/chrome icon is
+ * (see file-browser/icons.ts) — every generic action/chrome icon is
  * lucide, the same family @garage/ui ships with.
  */
 import {

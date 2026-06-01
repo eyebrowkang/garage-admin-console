@@ -49,7 +49,7 @@ import {
   EMPTY_FORM,
   normalizeEndpoint,
   type ConnectionFormData,
-} from './ConnectionForm';
+} from '@/components/ConnectionForm';
 import { toast } from '@garage/ui';
 import type { Bucket as BucketInfo, Connection } from '@/lib/types';
 
