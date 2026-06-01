@@ -1,7 +1,5 @@
 import React, { Suspense, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { QueryClientProvider } from '@tanstack/react-query';
-import { createAppQueryClient } from '@garage/web-shared';
 import { readStoredToken } from '@/lib/api';
 import { MainLayout } from './layouts/MainLayout';
 import { ClusterLayout } from './layouts/ClusterLayout';
@@ -51,8 +49,6 @@ const MetricsPage = React.lazy(() =>
   import('./pages/cluster/MetricsPage').then((m) => ({ default: m.MetricsPage })),
 );
 
-const queryClient = createAppQueryClient();
-
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const token = readStoredToken();
   if (!token) return <Navigate to="/login" replace />;
@@ -75,7 +71,7 @@ function LazyFallback() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
+    <>
       <Router>
         <ScrollToTop />
         <Routes>
@@ -118,7 +114,7 @@ function App() {
         </Routes>
       </Router>
       <Toaster />
-    </QueryClientProvider>
+    </>
   );
 }
 

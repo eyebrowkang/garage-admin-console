@@ -11,6 +11,17 @@
  * (The federated FileBrowser ships its own utility CSS via embeddable.css; the
  * standalone build scans these sources directly, so it doesn't need it.)
  */
+/*
+ * Manrope — the shared design-system typeface (identical weights to the Admin
+ * Console). Imported here, not from the JS entry, so every stylesheet flows
+ * through index.css in a single Tailwind v4 pass.
+ */
+@import '@fontsource/manrope/400.css';
+@import '@fontsource/manrope/500.css';
+@import '@fontsource/manrope/600.css';
+@import '@fontsource/manrope/700.css';
+@import '@fontsource/manrope/800.css';
+
 @import '@garage/tokens/style.css';
 @import '@garage/ui/style.css';
 @import 'tailwindcss';
