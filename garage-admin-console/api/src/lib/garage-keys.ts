@@ -181,8 +181,9 @@ export async function getAuthorizedBucketKeys(
  * Calls Garage GetKeyInfo to retrieve the secret — Garage is the truth source.
  * The DB never holds S3 secrets.
  *
- * Cache is keyed on (clusterId, accessKeyId) so the same S3Client instance
- * serves all buckets the key has access to.
+ * The resolved key is cached on (clusterId, accessKeyId); the S3Client built
+ * from it is itself cached downstream (see getCachedS3Client), so the same
+ * client instance serves all buckets the key has access to.
  *
  * Throws BucketAccessError:
  *   - 404: cluster or access key not found

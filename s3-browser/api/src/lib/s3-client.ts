@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm';
-import { createS3Client, type S3Client } from '@garage/bucket-api-server';
+import { getCachedS3Client, type S3Client } from '@garage/bucket-api-server';
 
 import db from '../db/index.js';
 import { connections } from '../db/schema.js';
@@ -32,11 +32,12 @@ export async function loadConnection(id: string): Promise<ResolvedConnection | n
 }
 
 /**
- * Build an S3 client from a stored connection. Each request gets its own
- * client instance — connection pooling lives inside the underlying HTTP agent.
+ * Build an S3 client from a stored connection. Clients are cached and reused
+ * across requests (keyed by the connection's full credential identity), so a
+ * credential change transparently produces a fresh client.
  */
 export function buildS3Client(conn: ResolvedConnection): S3Client {
-  return createS3Client({
+  return getCachedS3Client({
     region: conn.region,
     endpoint: conn.endpoint,
     forcePathStyle: conn.forcePathStyle,
