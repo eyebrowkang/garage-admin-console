@@ -46,8 +46,13 @@ const TTL_MS = 10 * 60 * 1000; // 10 minutes
 const cache = new Map<string, CacheEntry>();
 
 function cacheKey(clusterId: string, accessKeyId: string): string {
-  return `${clusterId}::${accessKeyId}`;
+  // Encode both parts so a separator character in either can't collide two
+  // distinct (clusterId, accessKeyId) pairs onto the same cache key.
+  return `${encodeURIComponent(clusterId)}:${encodeURIComponent(accessKeyId)}`;
 }
+
+// De-dupes concurrent cache misses for the same key into one GetKeyInfo call.
+const inflight = new Map<string, Promise<ResolvedBucketKey>>();
 
 interface ClusterRow {
   id: string;
@@ -194,10 +199,28 @@ export async function resolveBucketKey(
   accessKeyId: string,
 ): Promise<ResolvedBucketKey> {
   const ck = cacheKey(clusterId, accessKeyId);
-  const now = Date.now();
   const cached = cache.get(ck);
-  if (cached && cached.expiresAt > now) return cached.resolved;
+  if (cached && cached.expiresAt > Date.now()) return cached.resolved;
 
+  // Collapse a burst of concurrent misses (e.g. a FileBrowser firing several
+  // requests at once after the TTL lapses) into a single GetKeyInfo call.
+  const existing = inflight.get(ck);
+  if (existing) return existing;
+
+  const work = fetchAndCacheKey(clusterId, accessKeyId, ck);
+  inflight.set(ck, work);
+  try {
+    return await work;
+  } finally {
+    inflight.delete(ck);
+  }
+}
+
+async function fetchAndCacheKey(
+  clusterId: string,
+  accessKeyId: string,
+  ck: string,
+): Promise<ResolvedBucketKey> {
   const cluster = await loadCluster(clusterId);
   if (!cluster) throw new BucketAccessError(404, 'Cluster not found');
 
@@ -240,11 +263,13 @@ export async function resolveBucketKey(
     secretAccessKey: info.secretAccessKey,
   };
 
-  cache.set(ck, { resolved, expiresAt: now + TTL_MS });
+  cache.set(ck, { resolved, expiresAt: Date.now() + TTL_MS });
   return resolved;
 }
 
-/** Test hook: clear the cache so vitest runs are deterministic. */
+/** Test hook: clear the cache so vitest runs are deterministic. No-op in production. */
 export function _resetBucketKeyCacheForTests(): void {
+  if (process.env.NODE_ENV === 'production') return;
   cache.clear();
+  inflight.clear();
 }
