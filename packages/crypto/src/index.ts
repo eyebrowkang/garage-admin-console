@@ -23,6 +23,10 @@ export function createCrypto(encryptionKey: string | Buffer): {
     },
 
     decrypt(text: string): string {
+      // Empty in → empty out: the empty string is the sentinel for "no value",
+      // which is how optional encrypted columns (e.g. metricToken) are stored.
+      // A non-empty but malformed value, by contrast, is a real error and
+      // throws below rather than being silently swallowed.
       if (!text) return '';
       const parts = text.split(':');
       if (parts.length !== 3) throw new Error('Invalid encrypted string format');
