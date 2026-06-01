@@ -65,7 +65,14 @@ function mountS3BrowserProxy() {
         return;
       }
 
-      Readable.fromWeb(response.body as Parameters<typeof Readable.fromWeb>[0]).pipe(res);
+      const upstream = Readable.fromWeb(response.body as Parameters<typeof Readable.fromWeb>[0]);
+      // pipe() does not forward source errors, so an upstream failure after
+      // headers are flushed would otherwise throw as an unhandled 'error'.
+      upstream.on('error', (streamError) => {
+        logger.warn({ error: streamError, target: targetUrl.href }, 'S3 Browser MF proxy stream error');
+        res.destroy();
+      });
+      upstream.pipe(res);
     } catch (error) {
       logger.warn({ error, target: targetUrl.href }, 'S3 Browser MF proxy request failed');
       if (!res.headersSent) {
