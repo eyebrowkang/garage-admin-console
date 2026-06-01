@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowUpDown, ArrowUp, ArrowDown, Search } from 'lucide-react';
 import {
@@ -171,11 +171,18 @@ export function KeyList() {
     },
   });
 
+  // Reset the "copied" indicator after a delay, clearing the timer on unmount
+  // or re-copy so it never fires setState on an unmounted component.
+  useEffect(() => {
+    if (!copiedValue) return;
+    const timer = window.setTimeout(() => setCopiedValue(null), 1500);
+    return () => window.clearTimeout(timer);
+  }, [copiedValue]);
+
   const handleCopy = async (value: string) => {
     try {
       await navigator.clipboard.writeText(value);
       setCopiedValue(value);
-      setTimeout(() => setCopiedValue(null), 1500);
     } catch {
       // ignore clipboard errors
     }
