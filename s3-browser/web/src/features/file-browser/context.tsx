@@ -128,8 +128,8 @@ export function BrowserProvider({
     filterKind: 'all' as const,
     sortState: { key: 'name' as SortKey, dir: 'asc' as const },
     viewMode: (viewModeProp ??
-      (readPersistedBool('s3b.fb.viewGrid', false) ? 'grid' : 'list')) as ViewMode,
-    treeCollapsed: readPersistedBool('s3b.fb.treeCollapsed', false),
+      (readPersistedBool('s3-browser.fb.viewGrid', false) ? 'grid' : 'list')) as ViewMode,
+    treeCollapsed: readPersistedBool('s3-browser.fb.treeCollapsed', false),
     treeDrawerOpen: false,
     dialogs: EMPTY_DIALOGS,
     toast: null,
@@ -164,7 +164,7 @@ export function BrowserProvider({
   const setViewMode = useCallback(
     (mode: ViewMode) => {
       dispatch({ type: 'SET_VIEW_MODE', mode });
-      writePersistedBool('s3b.fb.viewGrid', mode === 'grid');
+      writePersistedBool('s3-browser.fb.viewGrid', mode === 'grid');
       onViewModeChange?.(mode);
     },
     [onViewModeChange],
@@ -172,7 +172,7 @@ export function BrowserProvider({
 
   const setTreeCollapsed = useCallback((collapsed: boolean) => {
     dispatch({ type: 'SET_TREE_COLLAPSED', collapsed });
-    writePersistedBool('s3b.fb.treeCollapsed', collapsed);
+    writePersistedBool('s3-browser.fb.treeCollapsed', collapsed);
   }, []);
 
   const isNarrow = useMediaQuery(NARROW_QUERY);

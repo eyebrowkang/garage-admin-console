@@ -196,7 +196,7 @@ function TreeNodeRow({ node, style }: NodeRendererProps<TreeNodeData>) {
 
 function readPersistedWidth(): number {
   if (typeof window === 'undefined') return DEFAULT_WIDTH;
-  const raw = window.localStorage.getItem('s3b.fb.treeWidth');
+  const raw = window.localStorage.getItem('s3-browser.fb.treeWidth');
   const value = raw ? Number.parseInt(raw, 10) : DEFAULT_WIDTH;
   if (!Number.isFinite(value)) return DEFAULT_WIDTH;
   return Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, value));
@@ -336,7 +336,7 @@ export function TreePane() {
     if (!dragStart.current) return;
     dragStart.current = null;
     e.currentTarget.releasePointerCapture(e.pointerId);
-    window.localStorage.setItem('s3b.fb.treeWidth', String(width));
+    window.localStorage.setItem('s3-browser.fb.treeWidth', String(width));
   };
 
   // ---------- Narrow viewport: render as overlay drawer ----------

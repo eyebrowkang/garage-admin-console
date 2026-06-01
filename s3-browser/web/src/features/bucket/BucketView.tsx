@@ -53,7 +53,7 @@ export function BucketView() {
   const [viewMode, setViewMode] = useState<FileBrowserViewMode>(() => {
     if (typeof window === 'undefined') return 'list';
     try {
-      const stored = window.localStorage.getItem('s3b.fb.viewMode');
+      const stored = window.localStorage.getItem('s3-browser.fb.viewMode');
       return stored === 'grid' ? 'grid' : 'list';
     } catch {
       return 'list';
@@ -62,7 +62,7 @@ export function BucketView() {
 
   useEffect(() => {
     try {
-      window.localStorage.setItem('s3b.fb.viewMode', viewMode);
+      window.localStorage.setItem('s3-browser.fb.viewMode', viewMode);
     } catch {
       // ignore
     }

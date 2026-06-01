@@ -4,7 +4,7 @@ export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 const client = createApiClient({
   baseURL: API_BASE_URL,
-  tokenKey: 'token',
+  tokenKey: 'garage-admin.jwt',
   onUnauthorized: (error) => {
     // Proxy sub-requests can 401/403 without the session being dead — leave
     // those to the caller. For everything else, drop the token and bounce to
