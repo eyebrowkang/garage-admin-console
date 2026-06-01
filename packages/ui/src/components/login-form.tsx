@@ -74,7 +74,7 @@ export function LoginForm({
 
   return (
     <div className="relative flex flex-col min-h-screen items-center justify-center px-4 py-10">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,148,41,0.16),transparent_55%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,hsl(var(--primary)/0.16),transparent_55%)]" />
 
       <Card className="relative w-full max-w-md border-primary/25 shadow-lg">
         <CardHeader className="space-y-3 text-center">
