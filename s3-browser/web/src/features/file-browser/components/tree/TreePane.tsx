@@ -19,6 +19,7 @@ import {
 } from '@primer/octicons-react';
 import { cn } from '@garage/ui';
 import { fileKind } from '@garage/web-shared';
+import { readPersistedNumber, writePersistedNumber } from '@/lib/persistence';
 import type { ListItem, TreeNodeData } from '../../types';
 import { useBrowser } from '../../context';
 import { fetchPrefixPages, pagesToItems, treePrefixQueryKey } from '../../hooks/usePrefixQuery';
@@ -29,6 +30,7 @@ const FILE_ID_PREFIX = 'file:';
 const DEFAULT_WIDTH = 256;
 const MIN_WIDTH = 184;
 const MAX_WIDTH = 420;
+const TREE_WIDTH_KEY = 's3-browser.fb.treeWidth';
 
 function prefixToId(prefix: string): string {
   return prefix === '' ? ROOT_ID : prefix;
@@ -195,10 +197,7 @@ function TreeNodeRow({ node, style }: NodeRendererProps<TreeNodeData>) {
 }
 
 function readPersistedWidth(): number {
-  if (typeof window === 'undefined') return DEFAULT_WIDTH;
-  const raw = window.localStorage.getItem('s3-browser.fb.treeWidth');
-  const value = raw ? Number.parseInt(raw, 10) : DEFAULT_WIDTH;
-  if (!Number.isFinite(value)) return DEFAULT_WIDTH;
+  const value = readPersistedNumber(TREE_WIDTH_KEY, DEFAULT_WIDTH);
   return Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, value));
 }
 
@@ -336,7 +335,7 @@ export function TreePane() {
     if (!dragStart.current) return;
     dragStart.current = null;
     e.currentTarget.releasePointerCapture(e.pointerId);
-    window.localStorage.setItem('s3-browser.fb.treeWidth', String(width));
+    writePersistedNumber(TREE_WIDTH_KEY, width);
   };
 
   // ---------- Narrow viewport: render as overlay drawer ----------

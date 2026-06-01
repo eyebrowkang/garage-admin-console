@@ -20,6 +20,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Alert, AlertDescription, AlertTitle, Button } from '@garage/ui';
 
 import { api, buildBucketBackend } from '@/lib/api';
+import { readPersistedString, writePersistedString } from '@/lib/persistence';
 import type { Connection } from '@/lib/types';
 import { FileBrowser, type FileBrowserViewMode } from '@/features/file-browser/FileBrowser';
 
@@ -50,22 +51,12 @@ export function BucketView() {
   });
   const connection = connectionsQ.data?.find((c) => c.id === id) ?? null;
 
-  const [viewMode, setViewMode] = useState<FileBrowserViewMode>(() => {
-    if (typeof window === 'undefined') return 'list';
-    try {
-      const stored = window.localStorage.getItem('s3-browser.fb.viewMode');
-      return stored === 'grid' ? 'grid' : 'list';
-    } catch {
-      return 'list';
-    }
-  });
+  const [viewMode, setViewMode] = useState<FileBrowserViewMode>(
+    () => (readPersistedString('s3-browser.fb.viewMode', 'list') === 'grid' ? 'grid' : 'list'),
+  );
 
   useEffect(() => {
-    try {
-      window.localStorage.setItem('s3-browser.fb.viewMode', viewMode);
-    } catch {
-      // ignore
-    }
+    writePersistedString('s3-browser.fb.viewMode', viewMode);
   }, [viewMode]);
 
   if (!connectionsQ.isLoading && !connection) {

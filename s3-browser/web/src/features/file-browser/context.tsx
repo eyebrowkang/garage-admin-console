@@ -13,7 +13,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { FileItem, FilterKind, ListItem, SortKey, SortState, ViewMode } from './types';
 import { useMediaQuery } from './hooks/useMediaQuery';
 import type { FileBrowserProps } from './FileBrowser';
-import { readPersistedBool, writePersistedBool } from './persistence';
+import { readPersistedBool, writePersistedBool } from '@/lib/persistence';
 import { EMPTY_DIALOGS, reducer, type DialogsState } from './state';
 
 const NARROW_QUERY = '(max-width: 767px)';
