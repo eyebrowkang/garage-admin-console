@@ -39,6 +39,16 @@ type ClusterFormState = {
   s3Endpoint: string;
 };
 
+// Update payload sent to the API. s3Endpoint accepts null to clear it, which
+// the form's all-string state can't express on its own.
+type ClusterUpdatePayload = {
+  name?: string;
+  endpoint?: string;
+  adminToken?: string;
+  metricToken?: string;
+  s3Endpoint?: string | null;
+};
+
 const normalizeEndpoint = (value: string) => value.trim().replace(/\/+$/, '');
 
 const emptyForm: ClusterFormState = {
@@ -94,18 +104,11 @@ export default function Dashboard() {
     })),
   });
 
-  // Build maps for quick lookup
-  const healthById = new Map<string, GetClusterHealthResponse | undefined>();
-  const statusById = new Map<string, GetClusterStatusResponse | undefined>();
-  clusters.forEach((cluster, index) => {
-    healthById.set(cluster.id, healthQueries[index]?.data);
-    statusById.set(cluster.id, statusQueries[index]?.data);
-  });
-
-  // Build clusters with status for monitoring
+  // Build clusters with status for monitoring. useQueries preserves input
+  // order, so the per-cluster results line up with `clusters` by index.
   const clustersWithStatus = clusters.map((cluster, index) => {
     const healthQuery = healthQueries[index];
-    const health = healthById.get(cluster.id);
+    const health = healthQuery?.data;
     const healthError = healthQuery?.error;
     const healthStatus = health?.status ?? (healthError ? 'unreachable' : 'unknown');
     const isLoading = !health && !healthError;
@@ -113,7 +116,7 @@ export default function Dashboard() {
     return {
       cluster,
       health,
-      status: statusById.get(cluster.id),
+      status: statusQueries[index]?.data,
       healthStatus: healthStatus as
         | 'healthy'
         | 'degraded'
@@ -156,7 +159,7 @@ export default function Dashboard() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<ClusterFormState> }) => {
+    mutationFn: async ({ id, data }: { id: string; data: ClusterUpdatePayload }) => {
       await api.put(`/clusters/${id}`, data);
     },
     onSuccess: (_, variables) => {
@@ -217,7 +220,7 @@ export default function Dashboard() {
   const handleEditSave = () => {
     if (!editCluster) return;
 
-    const payload: Partial<ClusterFormState> = {};
+    const payload: ClusterUpdatePayload = {};
     const name = editForm.name.trim();
     const endpoint = normalizeEndpoint(editForm.endpoint);
 
@@ -248,8 +251,7 @@ export default function Dashboard() {
 
     const newS3Endpoint = editForm.s3Endpoint.trim() || null;
     if (newS3Endpoint !== (editCluster.s3Endpoint ?? null)) {
-      // API accepts null to clear; use a cast since the form state type is string.
-      (payload as Record<string, unknown>).s3Endpoint = newS3Endpoint;
+      payload.s3Endpoint = newS3Endpoint;
     }
 
     if (Object.keys(payload).length === 0) {
