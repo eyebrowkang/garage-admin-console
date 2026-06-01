@@ -43,7 +43,7 @@ import {
 
 import { formatDate } from '@garage/web-shared';
 import { api } from '@/lib/api';
-import { connectionDisplayMeta } from '@/lib/connection-display';
+import { connectionProvider } from '@/lib/connection-display';
 import {
   ConnectionForm,
   EMPTY_FORM,
@@ -475,7 +475,7 @@ function ConnectionCard({
   onEdit: () => void;
   onDelete: () => void;
 }) {
-  const meta = connectionDisplayMeta(connection);
+  const provider = connectionProvider(connection);
   const config = statusConfig[status.status];
   const StatusIcon = config.icon;
   const bucketCount = status.buckets?.length ?? 0;
@@ -504,7 +504,7 @@ function ConnectionCard({
 
         {/* Metrics row — icon + label, matches admin tile shape */}
         <div className="grid gap-2 grid-cols-3">
-          <MetricTile icon={Globe} label="Provider" value={meta.provider} />
+          <MetricTile icon={Globe} label="Provider" value={provider} />
           <MetricTile icon={HardDrive} label="Region" value={connection.region} />
           <MetricTile
             icon={Server}

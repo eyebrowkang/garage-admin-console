@@ -13,7 +13,7 @@ import { Alert, AlertDescription, AlertTitle, Badge, Button, Card, CardContent }
 
 import { api } from '@/lib/api';
 import { formatDate } from '@garage/web-shared';
-import { connectionDisplayMeta } from '@/lib/connection-display';
+import { connectionProvider } from '@/lib/connection-display';
 import type { Bucket as BucketInfo, Connection } from '@/lib/types';
 
 export function ConnectionView() {
@@ -67,7 +67,7 @@ export function ConnectionView() {
     );
   }
 
-  const meta = connectionDisplayMeta(connection);
+  const provider = connectionProvider(connection);
 
   return (
     <div className="space-y-6">
@@ -85,7 +85,7 @@ export function ConnectionView() {
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-lg sm:text-xl font-semibold tracking-tight">{connection.name}</h1>
               <Badge variant="secondary" className="font-normal">
-                {meta.provider} · {connection.region}
+                {provider} · {connection.region}
               </Badge>
             </div>
             <p className="break-all text-xs sm:text-sm text-muted-foreground">
