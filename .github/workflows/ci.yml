@@ -56,6 +56,9 @@ jobs:
           pnpm build:packages
           pnpm -r --filter @garage-admin/api --filter @garage-admin/web --filter @s3-browser/api --filter @s3-browser/web --if-present build
 
+      - name: Check CSS cascade invariants
+        run: pnpm check:css
+
       - name: Typecheck
         run: pnpm typecheck
 

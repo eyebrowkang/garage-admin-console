@@ -20,6 +20,7 @@
     "lint:fix": "pnpm -r --if-present lint:fix",
     "format": "pnpm -r --if-present format",
     "format:check": "pnpm -r --if-present format:check",
+    "check:css": "node scripts/check-css-cascade.mjs",
     "test": "pnpm -F @garage/bucket-api-server test:run && pnpm -C garage-admin-console/api test:run && pnpm -C garage-admin-console/web test:run",
     "typecheck": "pnpm -r --if-present typecheck && pnpm --filter @garage-admin/web exec tsc --noEmit && pnpm --filter @s3-browser/web exec tsc --noEmit"
   },
