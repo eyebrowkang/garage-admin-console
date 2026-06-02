@@ -7,7 +7,7 @@ commits, versioning) see [CONTRIBUTING.md](../CONTRIBUTING.md).
 ## Prerequisites
 
 - **Node.js** 24.x or later
-- **pnpm** 10.x or later
+- **pnpm** 11.x (the repo pins `pnpm@11.3.0` via `packageManager`)
 
 ## Initial setup
 
@@ -71,7 +71,8 @@ Vite (Admin) and Rsbuild (S3 Browser) proxy `/api/*` to their respective BFFs.
 ## Developing the embedded FileBrowser
 
 To work on the federated `FileBrowser` *inside* the Admin Console bucket detail
-page, run all four processes (three terminals):
+page, run all four processes — three terminals, or `pnpm dev:all` to launch them
+in parallel from one:
 
 ```bash
 pnpm dev                        # T1 — Admin BFF :3001 + Vite host :5173
@@ -88,11 +89,10 @@ Hot reload: changes under `s3-browser/web/src/` re-export the remote (a host pag
 refresh picks up the new bundle); changes to the host's `BucketObjectBrowser.tsx`
 update via Vite HMR directly.
 
-> `s3-browser/web/rsbuild.config.ts` sets `dev.assetPrefix: '/'` — required
-> because the SPA fallback (`historyApiFallback: true`) is active. Without an
-> absolute asset prefix, a deep URL like `/connections/abc` would resolve script
-> tags to `/connections/static/...`, which the fallback returns as HTML and
-> breaks the page.
+> The S3 Browser dev server pins `dev.assetPrefix` to its own origin
+> (`http://localhost:5174`) so the host loads `remoteEntry.js`'s chunks from
+> `:5174` rather than the host's `:5173`. See `s3-browser/web/rsbuild.config.ts`
+> (and that workspace's README) for the full rationale.
 
 ## Common tasks
 

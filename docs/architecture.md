@@ -54,11 +54,13 @@ Console's bucket detail page.
 3. **Encrypted credentials.** Garage admin tokens (`Cluster.adminToken`) and S3
    keypairs (`Connection.{accessKeyId,secretAccessKey}`) are AES-256-GCM
    encrypted at rest via the shared [`@garage/crypto`](../packages/crypto/) helper.
-4. **Per-bucket short-lived S3 keys in embedded mode.** The Admin BFF mints a
-   per-(cluster, bucket) S3 keypair via Garage `CreateKey + AllowBucketKey`,
-   cached in-memory with a 10-minute TTL
+4. **Host-selected S3 keys in embedded mode.** The Admin BFF does not create
+   keys. The host UI picks an existing access key authorized on the bucket and
+   forwards it as `X-Garage-Access-Key-Id`; the BFF resolves that key's secret
+   on demand via Garage `GetKeyInfo`, caching it per `(clusterId, accessKeyId)`
+   with a 10-minute TTL
    ([`src/lib/garage-keys.ts`](../garage-admin-console/api/src/lib/garage-keys.ts)).
-   Restart re-mints.
+   Restart just re-resolves from Garage.
 5. **Single admin password per BFF.** Simple auth model; JWTs issued with 24h
    expiry. The two BFFs are independent auth realms by default (no shared JWT
    secret).
@@ -94,7 +96,7 @@ garage-admin-console/                  # monorepo root
 
 Each workspace has its own README with deeper, package-specific notes.
 
-## Admin BFF (`garage-admin-console/api`)
+## Admin BFF
 
 Routes (registered in [`src/app.ts`](../garage-admin-console/api/src/app.ts)):
 
@@ -118,7 +120,7 @@ Key files: [`src/lib/garage-keys.ts`](../garage-admin-console/api/src/lib/garage
 [`src/routes/buckets.ts`](../garage-admin-console/api/src/routes/buckets.ts),
 [`src/encryption.ts`](../garage-admin-console/api/src/encryption.ts) (re-exports `@garage/crypto`).
 
-## Admin Web (`garage-admin-console/web`)
+## Admin Web
 
 React Router v7 (in [`src/App.tsx`](../garage-admin-console/web/src/App.tsx)):
 `/login`, `/` (Dashboard), `/clusters/:id/*` → `ClusterLayout` with a sidebar
@@ -131,7 +133,7 @@ Blocks / Metrics). `BucketDetail` mounts the federated `BucketObjectBrowser`.
   client with JWT injection, 401/403 → `/login`, and a `proxyPath()` helper.
 - This package is the **MF Host**; see [Module Federation](#module-federation).
 
-## S3 Browser BFF (`s3-browser/api`)
+## S3 Browser BFF
 
 Routes (registered in [`src/app.ts`](../s3-browser/api/src/app.ts)):
 
@@ -149,7 +151,7 @@ Key files: [`src/lib/s3-client.ts`](../s3-browser/api/src/lib/s3-client.ts)
 (`loadConnection()` + `buildS3Client()`),
 [`src/routes/buckets.ts`](../s3-browser/api/src/routes/buckets.ts).
 
-## S3 Browser Web (`s3-browser/web`)
+## S3 Browser Web
 
 React Router v7 in the standalone shell; the federated `FileBrowser` itself is
 kept **router-free** so embedders don't have to pull in react-router.
@@ -226,19 +228,15 @@ Each has its own README:
 > [`tsconfig.base.json`](../tsconfig.base.json) and
 > [`eslint.config.base.js`](../eslint.config.base.js).
 
-### The `@garage/ui` CSS import order
+### The `@garage/ui` CSS cascade
 
-The host's `index.css` MUST import in this order so Tailwind v4 resolves them
-together (splitting them across CSS and JS makes Tailwind tree-shake utility
-classes referenced by `@garage/ui` but unused in the host's own source — the
-visible symptom is buttons rendering with dark text on the orange background):
-
-```css
-@import '@garage/tokens/style.css';
-@import '@garage/ui/style.css';
-@import 'tailwindcss';
-@layer base { * { @apply border-border; } }
-```
+Each app's `src/index.css` pulls in `@garage/tokens`, `@garage/ui`, and Tailwind
+v4 as one stylesheet under an explicit `@layer` order (with a `@source`
+directive so Tailwind scans `@garage/ui`'s components), so utility classes used
+only inside `@garage/ui` aren't tree-shaken out of the host build. The exact
+ordering is load-bearing and guarded in CI by `scripts/check-css-cascade.mjs`
+(`pnpm check:css`) — the source of truth is each app's
+[`src/index.css`](../garage-admin-console/web/src/index.css).
 
 ## Database schemas
 

@@ -12,7 +12,7 @@ import { Button, Card, LoginForm, Toaster, useToast, cn } from '@garage/ui';
 - `peerDependencies`: `react`, `react-dom`. `dependencies`: `@garage/tokens`.
 - Import the stylesheet **together with** tokens and Tailwind in one CSS file —
   see the import-order note in
-  [docs/architecture.md](../../docs/architecture.md#the-garageui-css-import-order).
+  [docs/architecture.md](../../docs/architecture.md#the-garageui-css-cascade).
 
 Put new shared UI here (not in a web app's source tree); rebuild with
 `pnpm -F @garage/ui build` after adding or changing a primitive.

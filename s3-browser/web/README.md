@@ -2,35 +2,16 @@
 
 S3 Browser frontend SPA — runs standalone AND is the **Module Federation Remote** consumed by `@garage-admin/web`.
 
-**Tech stack**: React 19, TypeScript, Rsbuild, TanStack Query, `@garage/ui` + `@garage/tokens`, `@module-federation/rsbuild-plugin`, `@module-federation/bridge-react`.
+**Tech stack:** React 19, TypeScript, Rsbuild, TanStack Query, `@garage/ui` + `@garage/tokens` + `@garage/web-shared`, `@module-federation/rsbuild-plugin`, `@module-federation/bridge-react`.
 
 ## Roles
 
-- **Standalone product** — log in, manage S3 connections, browse buckets and objects against any S3-compatible endpoint. Runs as a normal SPA.
-- **Module Federation Remote** — exposes `./FileBrowser` (the primary surface) and `./export-app` (full app via Bridge). Embedded by `@garage-admin/web`'s BucketDetail page.
+- **Standalone product** — log in, manage S3 connections, browse buckets/objects against any S3-compatible endpoint.
+- **MF Remote** — exposes `./FileBrowser` (the primary surface) and `./export-app` (the full app via Bridge). Embedded by the Admin Console's BucketDetail page.
 
-## Development
-
-```bash
-pnpm -C s3-browser/web dev          # http://localhost:5174
-pnpm -C s3-browser/web build        # production build + MF manifest
-```
-
-The dev server proxies `/api/*` to `http://localhost:3002` (the S3 Browser BFF).
-
-When the dev server is running, the MF manifest is published at `/mf-manifest.json` and the remote entry at `/remoteEntry.js` on whichever host you use to access port `5174`. The Admin Console (`@garage-admin/web`) picks these up automatically via `VITE_S3_BROWSER_MF_URL`, or derives the same hostname in development when that variable is unset.
-
-## Docker
-
-The web build is shipped inside the single `ghcr.io/eyebrowkang/s3-browser:latest` product image. That image can run in two modes:
-
-- default standalone mode: API + SPA + MF remote;
-- `S3_BROWSER_STATIC_ONLY=true`: static SPA/MF remote only, for embedded Admin deployments.
-
-```bash
-docker build -f docker/s3-browser.Dockerfile -t s3-browser .
-docker run -p 3002:3002 -e S3_BROWSER_STATIC_ONLY=true s3-browser
-```
+Local dev + the embedded-FileBrowser workflow → [docs/development.md](../../docs/development.md).
+Docker → [docs/deployment.md](../../docs/deployment.md).
+Standalone routing + how the host consumes the remote → [docs/architecture.md](../../docs/architecture.md#s3-browser-web).
 
 ## MF Remote configuration
 
@@ -53,25 +34,24 @@ pluginModuleFederation({
 });
 ```
 
-- Only React + ReactDOM are runtime-shared. `@garage/ui` / `@garage/tokens` are bundled into the remote (build-time deps) so the host can swap design-token versions without coordinating a redeploy.
-- `assetPrefix: 'auto'` keeps dev and production MF assets resolved from the remote origin, so cross-origin Admin embeds do not leak asset requests back to the Admin host.
-- `dts` is enabled for `rsbuild build` only. Production builds emit remote types so hosts can consume `FileBrowserProps` from `@mf-types/`, while dev avoids the local DTS broker WebSocket. The Admin Console keeps a hand-rolled shim at [`garage-admin-console/web/src/types/s3-browser.d.ts`](../../garage-admin-console/web/src/types/s3-browser.d.ts) as a fallback.
+- Only React + ReactDOM are runtime-shared; `@garage/ui` / `@garage/tokens` are bundled into the remote so the host can ship its own design-token version without coordinating a redeploy.
+- **Asset prefix:** the production build uses `output.assetPrefix: 'auto'`; the **dev** server pins `dev.assetPrefix` to its own origin (`S3_BROWSER_DEV_ORIGIN ?? 'http://localhost:5174'`) so a cross-origin host loads `remoteEntry.js`'s chunks from `:5174`, not the host's `:5173`.
+- `dts` is enabled for `rsbuild build` only — production emits remote types so hosts can consume `FileBrowserProps` from `@mf-types/`; dev avoids the local DTS broker WebSocket. The Admin Console keeps a hand-rolled shim at [`garage-admin-console/web/src/types/s3-browser.d.ts`](../../garage-admin-console/web/src/types/s3-browser.d.ts) as a fallback.
 - `enableBridgeRouter: false` — `./FileBrowser` doesn't use react-router; the host owns navigation.
 
 ## The federated `FileBrowser` component
 
-[`src/file-browser/FileBrowser.tsx`](src/file-browser/FileBrowser.tsx). Conventions to preserve so the component stays embeddable:
-
-- Does not import `@aws-sdk/*`. All S3 details live in the BFF.
-- Does not import `react-router-dom`. Path state is parent-controlled (`path: string[]` + `onPathChange`).
-- Reads auth tokens only from `props.backend.{baseUrl, authToken}` — never from `localStorage`, `window`, or env vars.
-- Owns its own embedded `QueryClient` so it stays self-contained.
+[`src/file-browser/FileBrowser.tsx`](src/file-browser/FileBrowser.tsx) is the public contract of the remote. Conventions that keep it embeddable: no `@aws-sdk/*` imports (S3 lives in the BFF); no `react-router-dom` (path state is parent-controlled); credentials only from `props.backend`; it owns its own `QueryClient`.
 
 ```ts
 export type FileBrowserViewMode = 'list' | 'grid';
 
 export interface FileBrowserProps {
-  backend: { baseUrl: string; authToken: string }; // baseUrl already encodes the bucket
+  backend: {
+    baseUrl: string; // already encodes the bucket
+    authToken: string;
+    headers?: Record<string, string>; // forwarded on every request (e.g. X-Garage-Access-Key-Id)
+  };
   bucket: string;
   path: string[];
   onPathChange: (path: string[]) => void;
@@ -79,21 +59,7 @@ export interface FileBrowserProps {
   onViewModeChange?: (m: FileBrowserViewMode) => void;
   density?: 'compact' | 'comfortable';
   showPreview?: boolean;
-  onSelect?: (items: S3Object[]) => void;
+  onSelect?: (items: unknown[]) => void;
   onError?: (err: Error) => void;
 }
 ```
-
-## Standalone shell
-
-React Router v7 in the standalone shell — the FileBrowser itself stays router-free.
-
-- `/` ([`pages/HomePage.tsx`](src/pages/HomePage.tsx)) — Connection Dashboard with fleet summary + connection cards + add/edit/delete
-- `/connections/:id` ([`pages/ConnectionView.tsx`](src/pages/ConnectionView.tsx)) — bucket grid for one connection
-- `/connections/:id/b/:bucket/*` ([`pages/BucketView.tsx`](src/pages/BucketView.tsx)) — wraps `FileBrowser`; the splat encodes the in-bucket folder path so refresh + back/forward restore the exact location
-
-The shell consumes the same `@garage/ui` + `@garage/tokens` palette as the Admin Console, so embedded and standalone modes are visually identical.
-
-## Documentation
-
-- The [`docs/`](../../docs/) guides — [architecture.md](../../docs/architecture.md), [development.md](../../docs/development.md)

@@ -29,8 +29,9 @@ in two:
   use a presigned `getObject` URL; the browser talks to the S3 endpoint directly.
   On the first such request per `(endpoint, bucket)`, the BFF idempotently
   appends a permissive CORS rule (`AllowedOrigins:['*']`,
-  `AllowedMethods:['GET','PUT','HEAD','POST']`, `ExposeHeaders:['ETag']`) without
-  disturbing pre-existing rules.
+  `AllowedMethods:['GET','PUT','HEAD','POST']`, `AllowedHeaders:['*']`,
+  `ExposeHeaders:['ETag']`, `MaxAgeSeconds:3000`) without disturbing pre-existing
+  rules.
 
 ## Routes (relative to the bucket scope)
 

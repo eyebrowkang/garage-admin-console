@@ -7,7 +7,7 @@ Thanks for your interest in contributing! This guide will help you get started.
 ### Prerequisites
 
 - Node.js 24+
-- pnpm 10+
+- pnpm 11+ (the repo pins `pnpm@11.3.0`)
 
 ### Setup
 
