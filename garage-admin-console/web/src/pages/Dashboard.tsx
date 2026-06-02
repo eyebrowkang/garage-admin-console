@@ -262,13 +262,6 @@ export default function Dashboard() {
     updateMutation.mutate({ id: editCluster.id, data: payload });
   };
 
-  if (isLoading)
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-
   return (
     <div className="mx-auto w-full max-w-6xl space-y-4">
       <ModulePageHeader
@@ -350,6 +343,18 @@ export default function Dashboard() {
         </Alert>
       )}
 
+      {/* Initial load skeleton — mirrors the S3 Browser HomePage card grid so
+          the two dashboards load identically (skeleton, not a bare spinner). */}
+      {isLoading && (
+        <div className="grid gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Card key={i} className="border-border/70">
+              <CardContent className="h-44 animate-pulse bg-muted/30" />
+            </Card>
+          ))}
+        </div>
+      )}
+
       {/* Cluster Status Monitor */}
       {clusters.length > 0 && (
         <ClusterStatusMonitor
@@ -361,7 +366,7 @@ export default function Dashboard() {
       )}
 
       {/* Empty State */}
-      {clusters.length === 0 && (
+      {!isLoading && clusters.length === 0 && (
         <Card className="border-dashed border-2 bg-muted/30">
           <CardContent className="h-64 flex flex-col items-center justify-center text-center p-8 space-y-4">
             <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">

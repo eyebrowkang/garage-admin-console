@@ -32,7 +32,7 @@ export function ViewToggle({ value, onChange, className }: ViewToggleProps) {
             aria-pressed={active}
             onClick={() => onChange(optionValue)}
             className={cn(
-              'inline-flex h-7 w-7 items-center justify-center rounded-[0.3rem] transition-colors',
+              'inline-flex h-8 w-8 items-center justify-center rounded-[0.3rem] transition-colors',
               active
                 ? 'bg-primary text-primary-foreground shadow-sm'
                 : 'text-muted-foreground hover:bg-muted hover:text-foreground',

@@ -59,7 +59,7 @@ export function ConfirmDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-[calc(100%-2rem)] overflow-hidden sm:max-w-[425px]">
+      <DialogContent className="overflow-hidden sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 break-words [overflow-wrap:anywhere]">
             {isDanger && <AlertTriangle className="h-5 w-5 text-destructive" />}

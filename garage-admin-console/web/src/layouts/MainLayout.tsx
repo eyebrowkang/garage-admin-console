@@ -32,10 +32,11 @@ export function MainLayout() {
           <Button
             variant="outline"
             size="sm"
+            aria-label="Sign out"
             className="h-9 px-3 text-muted-foreground hover:text-foreground transition-colors"
             onClick={() => setConfirmOpen(true)}
           >
-            <LogOut className="h-4 w-4 mr-2" />
+            <LogOut className="h-4 w-4 sm:mr-2" />
             <span className="hidden sm:inline">Sign Out</span>
           </Button>
         </div>

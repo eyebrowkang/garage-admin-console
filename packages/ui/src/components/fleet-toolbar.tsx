@@ -34,7 +34,10 @@ export function FleetToolbar({
       </p>
       <div className="flex items-center gap-2">
         {children}
-        <ViewToggle value={view} onChange={onViewChange} />
+        {/* Mobile is card-only — the list/card toggle only appears from md up. */}
+        <div className="hidden md:flex">
+          <ViewToggle value={view} onChange={onViewChange} />
+        </div>
       </div>
     </div>
   );

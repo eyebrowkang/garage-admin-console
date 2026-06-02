@@ -4,7 +4,7 @@
  * Visual contract mirrors garage-admin-console/web/src/pages/Dashboard.tsx +
  * ClusterStatusMonitor so the two products read as the same suite: a neutral
  * FleetSummaryCard, a FleetToolbar (count + list/card toggle), StatusCard
- * entities carrying status only via a left accent bar + badge, an Open primary
+ * entities carrying status via a full subtle border + badge, an Open primary
  * action with Edit/Disconnect tucked into a `⋯` menu, and a dashed
  * "+ add another" cell when the fleet holds a single endpoint.
  */
@@ -33,10 +33,10 @@ import {
   Button,
   Card,
   CardContent,
+  ConfirmDialog,
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -50,8 +50,10 @@ import {
   FleetListRow,
   FleetSummaryCard,
   FleetToolbar,
+  FleetViewTransition,
   ModulePageHeader,
   StatusCard,
+  useMediaQuery,
   useViewMode,
   type StatusAccent,
   type SummaryStat,
@@ -94,16 +96,24 @@ const statusConfig: Record<
 // `auto`) to keep the empty-header and populated-row actions cells the same
 // width — otherwise the columns drift out of alignment.
 const LIST_GRID =
-  'grid-cols-[minmax(0,1fr)_8rem] md:grid-cols-[minmax(7rem,1.3fr)_minmax(0,1.6fr)_7rem_6rem_5rem_8rem]';
+  'grid-cols-[minmax(0,1fr)_8rem] md:grid-cols-[minmax(7rem,1.2fr)_minmax(0,1.4fr)_7.5rem_4.5rem_4.5rem_6rem_7.5rem]';
 
 export function HomePage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Connection | null>(null);
+  // Visibility is tracked apart from the target so closing keeps the form mounted
+  // through the exit animation (matches the Add dialog); editTarget is only
+  // replaced when a new edit opens, never cleared mid-close.
+  const [editOpen, setEditOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Connection | null>(null);
   const [formError, setFormError] = useState('');
   const [view, setView] = useViewMode('s3browser.home.view');
+  // Mobile is card-only: the list view sheds metric columns on small screens, so
+  // below md we ignore the stored preference and always render cards.
+  const isDesktop = useMediaQuery('(min-width: 768px)');
+  const effectiveView = isDesktop ? view : 'card';
 
   const list = useQuery({
     queryKey: ['connections'],
@@ -222,7 +232,7 @@ export function HomePage() {
     },
     onSuccess: (updated) => {
       qc.invalidateQueries({ queryKey: ['connections'] });
-      setEditTarget(null);
+      setEditOpen(false);
       toast({ title: 'Connection updated', description: updated.name, variant: 'success' });
     },
     onError: (err: Error) => {
@@ -266,6 +276,11 @@ export function HomePage() {
       : `/connections/${connection.id}`;
   };
 
+  const openEdit = (connection: Connection) => {
+    setEditTarget(connection);
+    setEditOpen(true);
+  };
+
   return (
     <div className="mx-auto w-full max-w-6xl space-y-4">
       <ModulePageHeader
@@ -284,7 +299,7 @@ export function HomePage() {
                 <Plus className="h-4 w-4" /> Connect
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-[540px]">
+            <DialogContent className="sm:max-w-[540px]">
               <DialogHeader>
                 <DialogTitle>Connect to S3</DialogTitle>
                 <DialogDescription>
@@ -328,56 +343,60 @@ export function HomePage() {
         />
       )}
 
-      {/* Card view */}
-      {connections.length > 0 && view === 'card' && (
-        <div className="grid gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {connections.map((connection) => {
-            const status = statusById.get(connection.id) ?? {
-              isLoading: true,
-              status: 'checking' as const,
-            };
-            return (
-              <ConnectionCard
-                key={connection.id}
-                connection={connection}
-                status={status}
-                onOpen={() => navigate(openTarget(connection, status))}
-                onEdit={() => setEditTarget(connection)}
-                onDelete={() => setDeleteTarget(connection)}
+      {/* Card / list views — wrapped so switching layout fades the new one in. */}
+      {connections.length > 0 && (
+        <FleetViewTransition view={effectiveView}>
+          {effectiveView === 'card' ? (
+            <div className="grid gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {connections.map((connection) => {
+                const status = statusById.get(connection.id) ?? {
+                  isLoading: true,
+                  status: 'checking' as const,
+                };
+                return (
+                  <ConnectionCard
+                    key={connection.id}
+                    connection={connection}
+                    status={status}
+                    onOpen={() => navigate(openTarget(connection, status))}
+                    onEdit={() => openEdit(connection)}
+                    onDelete={() => setDeleteTarget(connection)}
+                  />
+                );
+              })}
+              {connections.length === 1 && (
+                <AddPlaceholderCard
+                  label="Connect another endpoint"
+                  onClick={() => setAddOpen(true)}
+                />
+              )}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <FleetListHeader
+                primaryLabel="Connection"
+                metricLabels={['Endpoint', 'Provider', 'Region', 'Buckets', 'Style']}
+                gridClassName={LIST_GRID}
               />
-            );
-          })}
-          {connections.length === 1 && (
-            <AddPlaceholderCard label="Connect another endpoint" onClick={() => setAddOpen(true)} />
+              {connections.map((connection) => {
+                const status = statusById.get(connection.id) ?? {
+                  isLoading: true,
+                  status: 'checking' as const,
+                };
+                return (
+                  <ConnectionRow
+                    key={connection.id}
+                    connection={connection}
+                    status={status}
+                    onOpen={() => navigate(openTarget(connection, status))}
+                    onEdit={() => openEdit(connection)}
+                    onDelete={() => setDeleteTarget(connection)}
+                  />
+                );
+              })}
+            </div>
           )}
-        </div>
-      )}
-
-      {/* List view */}
-      {connections.length > 0 && view === 'list' && (
-        <div className="space-y-2">
-          <FleetListHeader
-            primaryLabel="Connection"
-            metricLabels={['Endpoint', 'Provider', 'Region', 'Buckets']}
-            gridClassName={LIST_GRID}
-          />
-          {connections.map((connection) => {
-            const status = statusById.get(connection.id) ?? {
-              isLoading: true,
-              status: 'checking' as const,
-            };
-            return (
-              <ConnectionRow
-                key={connection.id}
-                connection={connection}
-                status={status}
-                onOpen={() => navigate(openTarget(connection, status))}
-                onEdit={() => setEditTarget(connection)}
-                onDelete={() => setDeleteTarget(connection)}
-              />
-            );
-          })}
-        </div>
+        </FleetViewTransition>
       )}
 
       {/* Initial load skeleton */}
@@ -411,12 +430,12 @@ export function HomePage() {
 
       {/* Edit dialog */}
       <Dialog
-        open={editTarget !== null}
+        open={editOpen}
         onOpenChange={(o) => {
-          if (!o) setEditTarget(null);
+          if (!o) setEditOpen(false);
         }}
       >
-        <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-[540px]">
+        <DialogContent className="sm:max-w-[540px]">
           <DialogHeader>
             <DialogTitle>Edit Connection</DialogTitle>
             <DialogDescription>
@@ -425,6 +444,7 @@ export function HomePage() {
           </DialogHeader>
           {editTarget && (
             <ConnectionForm
+              key={editTarget.id}
               initial={{
                 name: editTarget.name,
                 endpoint: editTarget.endpoint,
@@ -450,46 +470,28 @@ export function HomePage() {
                 if (d.accessKeyId) patch.accessKeyId = d.accessKeyId;
                 if (d.secretAccessKey) patch.secretAccessKey = d.secretAccessKey;
                 const nextBucket = d.bucket.trim();
-                const prevBucket = editTarget.bucket ?? '';
+                const prevBucket = editing.bucket ?? '';
                 if (nextBucket !== prevBucket) {
                   patch.bucket = nextBucket ? nextBucket : null;
                 }
-                updateMut.mutate({ id: editTarget.id, data: patch });
+                updateMut.mutate({ id: editing.id, data: patch });
               }}
             />
           )}
         </DialogContent>
       </Dialog>
 
-      {/* Delete confirm */}
-      <Dialog
+      {/* Delete confirm — shared ConfirmDialog (danger tier), mirrors the admin Dashboard. */}
+      <ConfirmDialog
         open={deleteTarget !== null}
-        onOpenChange={(o) => {
-          if (!o) setDeleteTarget(null);
-        }}
-      >
-        <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-[440px]">
-          <DialogHeader>
-            <DialogTitle>Disconnect Connection</DialogTitle>
-            <DialogDescription>
-              Disconnect “{deleteTarget?.name}” from this console? Buckets and objects in the
-              underlying S3 endpoint are not touched.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={deleteMut.isPending}
-              onClick={() => deleteTarget && deleteMut.mutate(deleteTarget.id)}
-            >
-              {deleteMut.isPending ? 'Disconnecting…' : 'Disconnect'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
+        title="Disconnect Connection"
+        description={`Disconnect “${deleteTarget?.name}” from this console? Buckets and objects in the underlying S3 endpoint are not touched.`}
+        tier="danger"
+        confirmText="Disconnect"
+        onConfirm={() => deleteTarget && deleteMut.mutate(deleteTarget.id)}
+        isLoading={deleteMut.isPending}
+      />
     </div>
   );
 }
@@ -662,6 +664,7 @@ function ConnectionRow({
         <FleetCell key="provider" value={provider} />,
         <FleetCell key="region" value={connection.region} />,
         <FleetCell key="buckets" value={bucketsValue(connection, status)} />,
+        <FleetCell key="style" value={connection.forcePathStyle ? 'Path-style' : 'Virtual-host'} />,
       ]}
       actions={
         <>
@@ -687,9 +690,9 @@ function MetricTile({
 }) {
   return (
     <div className="rounded-lg border border-border/60 bg-muted/30 p-2">
-      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-        <Icon className="h-3.5 w-3.5" />
-        <span className="sr-only sm:not-sr-only">{label}</span>
+      <div className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+        <Icon className="h-3.5 w-3.5 shrink-0" />
+        <span className="truncate">{label}</span>
       </div>
       <div className="truncate text-sm font-semibold tabular-nums">{value}</div>
     </div>

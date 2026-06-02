@@ -1,5 +1,6 @@
 export { cn } from './lib/cn';
 export { useToast, toast } from './hooks/use-toast';
+export * from './hooks/use-media-query';
 export * from './hooks/use-view-mode';
 
 export * from './components/add-placeholder-card';
@@ -16,6 +17,7 @@ export * from './components/dropdown-menu';
 export * from './components/fleet-list';
 export * from './components/fleet-summary-card';
 export * from './components/fleet-toolbar';
+export * from './components/fleet-view-transition';
 export * from './components/inline-loading-state';
 export * from './components/input';
 export * from './components/label';

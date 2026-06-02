@@ -23,8 +23,10 @@ import {
   FleetListRow,
   FleetSummaryCard,
   FleetToolbar,
+  FleetViewTransition,
   Meter,
   StatusCard,
+  useMediaQuery,
   useViewMode,
   type MeterTone,
   type StatusAccent,
@@ -36,7 +38,7 @@ import {
 // width (never content-sized `auto`) — otherwise the empty header actions cell
 // and the populated row actions cell size differently and the columns drift.
 const LIST_GRID =
-  'grid-cols-[minmax(0,1fr)_8rem] md:grid-cols-[minmax(7rem,1.3fr)_minmax(0,1.7fr)_4.5rem_5.5rem_8.5rem_8rem]';
+  'grid-cols-[minmax(0,1fr)_8rem] md:grid-cols-[minmax(7rem,1.25fr)_minmax(0,1.5fr)_4rem_5rem_7.5rem_5.5rem_7.5rem]';
 import { DisconnectActionIcon, EditActionIcon, OpenActionIcon } from '@/lib/action-icons';
 import { formatBytes } from '@garage/web-shared';
 import { NodeIcon } from '@/lib/entity-icons';
@@ -80,6 +82,15 @@ function pressureTone(pressure: number | null): MeterTone {
   if (pressure >= 85) return 'destructive';
   if (pressure >= 70) return 'warning';
   return 'success';
+}
+
+// Nodes / partitions read "all good" at 100%; anything missing is a warning,
+// none up a problem. Used for the per-tile ratio meters.
+function ratioTone(pct: number | null): MeterTone {
+  if (pct === null) return 'neutral';
+  if (pct >= 100) return 'success';
+  if (pct > 0) return 'warning';
+  return 'destructive';
 }
 
 function getPressurePercent(status?: GetClusterStatusResponse) {
@@ -151,12 +162,26 @@ function deriveCluster(item: ClusterWithStatus) {
     .map((node) => node.role?.capacity)
     .filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
   const minCapacity = capacityValues.length > 0 ? Math.min(...capacityValues) : null;
-  const nodesLabel = nodes.length > 0 ? `${up}/${nodes.length}` : '—';
+  const nodesTotal = nodes.length;
+  const partitionsOk = item.health?.partitionsAllOk ?? null;
+  const partitionsTotal = item.health?.partitions ?? null;
+  const nodesLabel = nodesTotal > 0 ? `${up}/${nodesTotal}` : '—';
   const partitionsLabel = item.health
     ? `${item.health.partitionsAllOk}/${item.health.partitions}`
     : '—';
 
-  return { config, nodes, pressure, minCapacity, nodesLabel, partitionsLabel };
+  return {
+    config,
+    nodes,
+    up,
+    nodesTotal,
+    pressure,
+    minCapacity,
+    partitionsOk,
+    partitionsTotal,
+    nodesLabel,
+    partitionsLabel,
+  };
 }
 
 export function ClusterStatusMonitor({
@@ -166,6 +191,10 @@ export function ClusterStatusMonitor({
   onAddCluster,
 }: ClusterStatusMonitorProps) {
   const [view, setView] = useViewMode('garage.dashboard.view');
+  // Mobile is card-only: the list view sheds metric columns on small screens, so
+  // below md we ignore the stored preference and always render cards.
+  const isDesktop = useMediaQuery('(min-width: 768px)');
+  const effectiveView = isDesktop ? view : 'card';
 
   if (clustersWithStatus.length === 0) return null;
 
@@ -231,37 +260,39 @@ export function ClusterStatusMonitor({
         onViewChange={setView}
       />
 
-      {view === 'card' ? (
-        <div className="grid gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {clustersWithStatus.map((item) => (
-            <ClusterCard
-              key={item.cluster.id}
-              item={item}
-              onEdit={() => onEditCluster(item.cluster)}
-              onDelete={() => onDeleteCluster(item.cluster)}
+      <FleetViewTransition view={effectiveView}>
+        {effectiveView === 'card' ? (
+          <div className="grid gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {clustersWithStatus.map((item) => (
+              <ClusterCard
+                key={item.cluster.id}
+                item={item}
+                onEdit={() => onEditCluster(item.cluster)}
+                onDelete={() => onDeleteCluster(item.cluster)}
+              />
+            ))}
+            {clustersWithStatus.length === 1 && (
+              <AddPlaceholderCard label="Connect another cluster" onClick={onAddCluster} />
+            )}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <FleetListHeader
+              primaryLabel="Cluster"
+              metricLabels={['Endpoint', 'Nodes', 'Partitions', 'Pressure', 'Capacity']}
+              gridClassName={LIST_GRID}
             />
-          ))}
-          {clustersWithStatus.length === 1 && (
-            <AddPlaceholderCard label="Connect another cluster" onClick={onAddCluster} />
-          )}
-        </div>
-      ) : (
-        <div className="space-y-2">
-          <FleetListHeader
-            primaryLabel="Cluster"
-            metricLabels={['Endpoint', 'Nodes', 'Partitions', 'Pressure']}
-            gridClassName={LIST_GRID}
-          />
-          {clustersWithStatus.map((item) => (
-            <ClusterRow
-              key={item.cluster.id}
-              item={item}
-              onEdit={() => onEditCluster(item.cluster)}
-              onDelete={() => onDeleteCluster(item.cluster)}
-            />
-          ))}
-        </div>
-      )}
+            {clustersWithStatus.map((item) => (
+              <ClusterRow
+                key={item.cluster.id}
+                item={item}
+                onEdit={() => onEditCluster(item.cluster)}
+                onDelete={() => onDeleteCluster(item.cluster)}
+              />
+            ))}
+          </div>
+        )}
+      </FleetViewTransition>
     </>
   );
 }
@@ -303,8 +334,22 @@ function ClusterCard({
   onEdit: () => void;
   onDelete: () => void;
 }) {
-  const { config, nodes, pressure, minCapacity, nodesLabel, partitionsLabel } = deriveCluster(item);
+  const {
+    config,
+    nodes,
+    up,
+    nodesTotal,
+    pressure,
+    minCapacity,
+    partitionsOk,
+    partitionsTotal,
+    nodesLabel,
+    partitionsLabel,
+  } = deriveCluster(item);
   const StatusIcon = config.icon;
+  const nodesPct = nodesTotal > 0 ? (up / nodesTotal) * 100 : null;
+  const partitionsPct =
+    partitionsTotal && partitionsTotal > 0 ? ((partitionsOk ?? 0) / partitionsTotal) * 100 : null;
 
   return (
     <StatusCard accent={config.accent}>
@@ -333,8 +378,20 @@ function ClusterCard({
 
         {/* Metrics row */}
         <div className="grid grid-cols-3 gap-2">
-          <MetricTile icon={NodeIcon} label="Nodes" value={nodesLabel} />
-          <MetricTile icon={Boxes} label="Partitions" value={partitionsLabel} />
+          <MetricTile
+            icon={NodeIcon}
+            label="Nodes"
+            value={nodesLabel}
+            meterValue={nodesPct}
+            meterTone={ratioTone(nodesPct)}
+          />
+          <MetricTile
+            icon={Boxes}
+            label="Partitions"
+            value={partitionsLabel}
+            meterValue={partitionsPct}
+            meterTone={ratioTone(partitionsPct)}
+          />
           <PressureTile pressure={pressure} />
         </div>
 
@@ -375,7 +432,7 @@ function ClusterRow({
   onEdit: () => void;
   onDelete: () => void;
 }) {
-  const { config, pressure, nodesLabel, partitionsLabel } = deriveCluster(item);
+  const { config, pressure, minCapacity, nodesLabel, partitionsLabel } = deriveCluster(item);
   const StatusIcon = config.icon;
 
   const to = `/clusters/${item.cluster.id}`;
@@ -409,6 +466,7 @@ function ClusterRow({
         <FleetCell key="nodes" value={nodesLabel} />,
         <FleetCell key="partitions" value={partitionsLabel} />,
         <PressureCell key="pressure" pressure={pressure} />,
+        <FleetCell key="capacity" value={minCapacity !== null ? formatBytes(minCapacity) : '—'} />,
       ]}
       actions={
         <>
@@ -429,18 +487,25 @@ function MetricTile({
   icon: Icon,
   label,
   value,
+  meterValue,
+  meterTone,
 }: {
   icon: LucideIcon;
   label: string;
   value: string;
+  meterValue?: number | null;
+  meterTone?: MeterTone;
 }) {
   return (
     <div className="rounded-lg border border-border/60 bg-muted/30 p-2">
-      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-        <Icon className="h-3.5 w-3.5" />
-        <span className="hidden sm:inline">{label}</span>
+      <div className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+        <Icon className="h-3.5 w-3.5 shrink-0" />
+        <span className="truncate">{label}</span>
       </div>
       <div className="text-sm font-semibold tabular-nums">{value}</div>
+      {meterValue != null && (
+        <Meter value={meterValue} tone={meterTone} ariaLabel={label} className="mt-1.5" />
+      )}
     </div>
   );
 }
@@ -448,9 +513,9 @@ function MetricTile({
 function PressureTile({ pressure }: { pressure: number | null }) {
   return (
     <div className="rounded-lg border border-border/60 bg-muted/30 p-2">
-      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-        <Gauge className="h-3.5 w-3.5" />
-        <span className="hidden sm:inline">Pressure</span>
+      <div className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+        <Gauge className="h-3.5 w-3.5 shrink-0" />
+        <span className="truncate">Pressure</span>
       </div>
       <div className="text-sm font-semibold tabular-nums">
         {pressure === null ? '—' : `${pressure.toFixed(0)}%`}
