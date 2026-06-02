@@ -13,6 +13,7 @@ export * from './components/copy-button';
 export * from './components/detail-page-header';
 export * from './components/dialog';
 export * from './components/dropdown-menu';
+export * from './components/fleet-list';
 export * from './components/fleet-summary-card';
 export * from './components/fleet-toolbar';
 export * from './components/inline-loading-state';

@@ -16,7 +16,6 @@ import {
   ArrowRight,
   CheckCircle2,
   Edit2,
-  Globe,
   HardDrive,
   Link2Off,
   MoreHorizontal,
@@ -46,6 +45,9 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  FleetCell,
+  FleetListHeader,
+  FleetListRow,
   FleetSummaryCard,
   FleetToolbar,
   ModulePageHeader,
@@ -86,6 +88,13 @@ const statusConfig: Record<
   unreachable: { label: 'Unreachable', icon: XCircle, badge: 'destructive', accent: 'destructive' },
   checking: { label: 'Checking', icon: Activity, badge: 'secondary', accent: 'neutral' },
 };
+
+// Shared column template for the connection list table. Header strip and rows
+// are separate grid containers, so columns are fixed/`fr` (never content-sized
+// `auto`) to keep the empty-header and populated-row actions cells the same
+// width — otherwise the columns drift out of alignment.
+const LIST_GRID =
+  'grid-cols-[minmax(0,1fr)_8rem] md:grid-cols-[minmax(7rem,1.3fr)_minmax(0,1.6fr)_7rem_6rem_5rem_8rem]';
 
 export function HomePage() {
   const navigate = useNavigate();
@@ -258,7 +267,7 @@ export function HomePage() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="mx-auto w-full max-w-6xl space-y-4">
       <ModulePageHeader
         title="Dashboard"
         description="Endpoint-level overview first. Open a connection for bucket browsing and object operations."
@@ -301,21 +310,22 @@ export function HomePage() {
         </Alert>
       )}
 
-      {/* Fleet summary + toolbar */}
+      {/* Aggregate summary only earns its space once the fleet is worth summarising;
+          at 1–2 connections it merely restates the cards below. */}
+      {connections.length >= 3 && (
+        <FleetSummaryCard
+          title="Connection Fleet Summary"
+          description="Reachability and bucket counts across all configured endpoints."
+          stats={stats}
+        />
+      )}
       {connections.length > 0 && (
-        <>
-          <FleetSummaryCard
-            title="Connection Fleet Summary"
-            description="Reachability and bucket counts across all configured endpoints."
-            stats={stats}
-          />
-          <FleetToolbar
-            label="Connections"
-            count={connections.length}
-            view={view}
-            onViewChange={setView}
-          />
-        </>
+        <FleetToolbar
+          label="Connections"
+          count={connections.length}
+          view={view}
+          onViewChange={setView}
+        />
       )}
 
       {/* Card view */}
@@ -346,6 +356,11 @@ export function HomePage() {
       {/* List view */}
       {connections.length > 0 && view === 'list' && (
         <div className="space-y-2">
+          <FleetListHeader
+            primaryLabel="Connection"
+            metricLabels={['Endpoint', 'Provider', 'Region', 'Buckets']}
+            gridClassName={LIST_GRID}
+          />
           {connections.map((connection) => {
             const status = statusById.get(connection.id) ?? {
               isLoading: true,
@@ -486,7 +501,7 @@ function ConnectionActionsMenu({ onEdit, onDelete }: { onEdit: () => void; onDel
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 text-muted-foreground"
+          className="h-8 w-8 text-foreground/70 hover:bg-muted hover:text-foreground"
           aria-label="More connection actions"
         >
           <MoreHorizontal className="h-4 w-4" />
@@ -534,16 +549,21 @@ function ConnectionCard({
   return (
     <StatusCard accent={config.accent}>
       <div className="space-y-3 p-3 sm:p-5">
-        {/* Header row: name + endpoint, status badge, overflow menu */}
+        {/* Header row: name + provider chip + endpoint, status badge, overflow menu */}
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <button
-              onClick={onOpen}
-              className="inline-flex items-center gap-2 text-left text-base font-semibold transition-colors hover:text-primary"
-            >
-              {connection.name}
-            </button>
-            <div className="mt-0.5 truncate text-xs text-muted-foreground">
+            <div className="flex min-w-0 items-center gap-2">
+              <button
+                onClick={onOpen}
+                className="truncate text-left text-base font-semibold transition-colors hover:text-primary"
+              >
+                {connection.name}
+              </button>
+              <Badge variant="outline" className="shrink-0 font-normal text-muted-foreground">
+                {provider}
+              </Badge>
+            </div>
+            <div className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
               {connection.endpoint}
             </div>
           </div>
@@ -556,9 +576,8 @@ function ConnectionCard({
           </div>
         </div>
 
-        {/* Metrics row */}
-        <div className="grid grid-cols-3 gap-2">
-          <MetricTile icon={Globe} label="Provider" value={provider} />
+        {/* Metrics row — provider moved to the chip above, so two roomy tiles. */}
+        <div className="grid grid-cols-2 gap-2">
           <MetricTile icon={HardDrive} label="Region" value={connection.region} />
           <MetricTile
             icon={Server}
@@ -587,7 +606,7 @@ function ConnectionCard({
 
         {/* Primary action — Edit/Disconnect live in the overflow menu above */}
         <div className="pt-1">
-          <Button size="sm" className="h-9" onClick={onOpen}>
+          <Button size="sm" variant="outline" className="h-9" onClick={onOpen}>
             <ArrowRight className="mr-2 h-4 w-4" />
             Open
           </Button>
@@ -615,10 +634,11 @@ function ConnectionRow({
   const StatusIcon = config.icon;
 
   return (
-    <StatusCard accent={config.accent}>
-      <div className="flex items-center gap-3 p-2.5 sm:p-3">
-        {/* Name + endpoint + status */}
-        <div className="min-w-0 flex-1">
+    <FleetListRow
+      accent={config.accent}
+      gridClassName={LIST_GRID}
+      identity={
+        <div className="min-w-0">
           <div className="flex items-center gap-2">
             <button
               onClick={onOpen}
@@ -631,30 +651,28 @@ function ConnectionRow({
               <span className="hidden sm:inline">{config.label}</span>
             </Badge>
           </div>
-          <div className="truncate text-xs text-muted-foreground">{connection.endpoint}</div>
+          {/* Endpoint owns its own column on md+, so surface it here only on mobile. */}
+          <div className="mt-0.5 truncate font-mono text-xs text-muted-foreground md:hidden">
+            {connection.endpoint}
+          </div>
         </div>
-
-        {/* Metrics — collapse on narrow widths */}
-        <div className="hidden items-center gap-6 lg:flex">
-          <RowMetric icon={Globe} label="Provider" value={provider} />
-          <RowMetric icon={HardDrive} label="Region" value={connection.region} />
-          <RowMetric
-            icon={Server}
-            label={connection.bucket ? 'Scoped' : 'Buckets'}
-            value={bucketsValue(connection, status)}
-          />
-        </div>
-
-        {/* Actions */}
-        <div className="flex shrink-0 items-center gap-1">
-          <Button size="sm" className="h-8" onClick={onOpen}>
+      }
+      metrics={[
+        <FleetCell key="endpoint" mono value={connection.endpoint} />,
+        <FleetCell key="provider" value={provider} />,
+        <FleetCell key="region" value={connection.region} />,
+        <FleetCell key="buckets" value={bucketsValue(connection, status)} />,
+      ]}
+      actions={
+        <>
+          <Button size="sm" variant="outline" className="h-8" onClick={onOpen}>
             <ArrowRight className="mr-1.5 h-4 w-4" />
             Open
           </Button>
           <ConnectionActionsMenu onEdit={onEdit} onDelete={onDelete} />
-        </div>
-      </div>
-    </StatusCard>
+        </>
+      }
+    />
   );
 }
 
@@ -673,27 +691,7 @@ function MetricTile({
         <Icon className="h-3.5 w-3.5" />
         <span className="sr-only sm:not-sr-only">{label}</span>
       </div>
-      <div className="truncate text-sm font-semibold">{value}</div>
-    </div>
-  );
-}
-
-function RowMetric({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="min-w-[3.5rem]">
-      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-        <Icon className="h-3.5 w-3.5" />
-        {label}
-      </div>
-      <div className="max-w-[9rem] truncate text-sm font-semibold">{value}</div>
+      <div className="truncate text-sm font-semibold tabular-nums">{value}</div>
     </div>
   );
 }

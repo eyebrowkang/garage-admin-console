@@ -25,8 +25,8 @@ export function ModulePageHeader({
       )}
     >
       <div className="min-w-0 space-y-0.5 sm:space-y-1">
-        <h1 className="text-lg font-semibold tracking-tight sm:text-xl">{title}</h1>
-        <p className="text-xs text-muted-foreground sm:text-sm">{description}</p>
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{title}</h1>
+        <p className="max-w-prose text-sm text-muted-foreground">{description}</p>
         {meta && <div className="pt-1">{meta}</div>}
       </div>
       {actions && (

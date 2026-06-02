@@ -36,6 +36,15 @@ const TONE_TEXT: Record<SummaryTone, string> = {
   destructive: 'text-destructive',
 };
 
+// Emphasized tiles pick up a faint wash + matching hairline so an active metric
+// reads as a distinct chip instead of one more flat grey box. Calm tiles stay
+// neutral, so a healthy fleet still looks quiet.
+const TONE_TILE: Record<SummaryTone, string> = {
+  success: 'border-success/30 bg-success/5',
+  warning: 'border-warning/30 bg-warning/5',
+  destructive: 'border-destructive/30 bg-destructive/5',
+};
+
 /**
  * Neutral fleet overview: a title block plus a calm grid of summary stats. The
  * card itself stays on `bg-card` (no colour wash) so it sits flush with the page
@@ -71,19 +80,20 @@ function SummaryStatTile({ stat }: { stat: SummaryStat }) {
       ? TONE_TEXT[tone]
       : 'text-muted-foreground'
     : 'text-foreground';
+  const tileClass = tone && emphasized ? TONE_TILE[tone] : 'border-border/60 bg-muted/40';
   const showIcon = Boolean(tone && emphasized && Icon);
 
   return (
-    <div className="rounded-lg border border-border/60 bg-muted/40 px-2 py-1.5 sm:px-3 sm:py-2">
-      <div className="text-xs text-muted-foreground">{label}</div>
+    <div className={cn('rounded-lg border px-2.5 py-2 transition-colors sm:px-3', tileClass)}>
+      <div className="text-xs font-medium text-muted-foreground">{label}</div>
       <div
         className={cn(
-          'flex items-center gap-1.5 text-xl font-semibold tracking-tight sm:text-2xl',
+          'flex items-center gap-1.5 text-2xl font-bold tabular-nums leading-tight tracking-tight sm:text-[1.75rem]',
           numberClass,
         )}
       >
-        {showIcon && Icon && <Icon className="h-4 w-4 sm:h-[1.125rem] sm:w-[1.125rem]" />}
-        <span>{value}</span>
+        {showIcon && Icon && <Icon className="h-5 w-5 shrink-0" />}
+        <span className="truncate">{value}</span>
       </div>
       {hint && <div className="text-[11px] text-muted-foreground">{hint}</div>}
     </div>

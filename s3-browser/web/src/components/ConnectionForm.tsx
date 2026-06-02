@@ -84,7 +84,9 @@ export function ConnectionForm({ initial, mode, error, busy, onSubmit }: Connect
 
   return (
     <>
-      <div className="max-h-[min(70vh,560px)] overflow-y-auto pr-1">
+      {/* px-1 -mx-1: symmetric inset gives the focus ring room so this scroll box
+          (overflow-y-auto coerces overflow-x to clip) never slices the ring's left edge. */}
+      <div className="-mx-1 max-h-[min(70vh,560px)] overflow-y-auto px-1">
         <div className="grid gap-4 py-2">
           <div className="grid gap-1.5">
             <Label htmlFor="conn-name">Friendly Name</Label>
@@ -104,7 +106,9 @@ export function ConnectionForm({ initial, mode, error, busy, onSubmit }: Connect
               onChange={(e) => setForm({ ...form, endpoint: e.target.value })}
             />
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          {/* sm:items-end bottom-aligns the h-9 checkbox row with the Region input
+              (not its label), so they line up without a magic padding nudge. */}
+          <div className="grid gap-3 sm:grid-cols-2 sm:items-end">
             <div className="grid gap-1.5">
               <Label htmlFor="conn-region">Region</Label>
               <Input
@@ -113,16 +117,14 @@ export function ConnectionForm({ initial, mode, error, busy, onSubmit }: Connect
                 onChange={(e) => setForm({ ...form, region: e.target.value })}
               />
             </div>
-            <div className="flex items-end pb-2.5">
-              <label className="flex cursor-pointer select-none items-center gap-2 text-sm">
-                <Checkbox
-                  checked={form.forcePathStyle}
-                  onCheckedChange={(checked) => setForm({ ...form, forcePathStyle: checked })}
-                  aria-label="Path-style addressing"
-                />
-                Path-style addressing
-              </label>
-            </div>
+            <label className="flex h-9 cursor-pointer select-none items-center gap-2 text-sm">
+              <Checkbox
+                checked={form.forcePathStyle}
+                onCheckedChange={(checked) => setForm({ ...form, forcePathStyle: checked })}
+                aria-label="Path-style addressing"
+              />
+              Path-style addressing
+            </label>
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="conn-key">Access Key ID{isEdit ? ' (optional)' : ''}</Label>

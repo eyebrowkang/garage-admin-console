@@ -270,7 +270,7 @@ export default function Dashboard() {
     );
 
   return (
-    <div className="space-y-4">
+    <div className="mx-auto w-full max-w-6xl space-y-4">
       <ModulePageHeader
         title="Dashboard"
         description="Cluster-level overview first. Open a cluster for deeper operations and diagnostics."
@@ -409,79 +409,84 @@ function ClusterForm({
 }) {
   const isEdit = mode === 'edit';
   return (
-    <div className="grid gap-4 py-4">
-      <div className="grid gap-2">
-        <Label htmlFor="name">Friendly Name</Label>
-        <Input
-          id="name"
-          value={form.name}
-          onChange={(e) => setForm({ ...form, name: e.target.value })}
-          placeholder="Production Cluster"
-        />
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor="endpoint">Endpoint URL</Label>
-        <Input
-          id="endpoint"
-          value={form.endpoint}
-          onChange={(e) => setForm({ ...form, endpoint: e.target.value })}
-          placeholder="http://10.0.0.1:3903"
-        />
-      </div>
-      <>
+    // Scroll within the dialog on short viewports (mirrors the S3 ConnectionForm).
+    // px-1 -mx-1 keeps fields aligned while giving the focus ring room so the
+    // overflow box never clips its left edge.
+    <div className="-mx-1 max-h-[min(70vh,560px)] overflow-y-auto px-1">
+      <div className="grid gap-4 py-4">
         <div className="grid gap-2">
-          <Label htmlFor="token">Admin Token{isEdit ? ' (optional)' : ''}</Label>
+          <Label htmlFor="name">Friendly Name</Label>
           <Input
-            id="token"
-            type="password"
-            value={form.adminToken}
-            onChange={(e) => setForm({ ...form, adminToken: e.target.value })}
-            placeholder={isEdit ? 'Leave blank to keep current token' : 'Garage Admin API Token'}
+            id="name"
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            placeholder="Production Cluster"
           />
-          {isEdit && (
-            <p className="text-xs text-muted-foreground">
-              Leave blank to keep the existing admin token.
-            </p>
-          )}
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="metric-token">
-            Metric Token (optional){isEdit ? ' — keep if blank' : ''}
-          </Label>
+          <Label htmlFor="endpoint">Endpoint URL</Label>
           <Input
-            id="metric-token"
-            type="password"
-            value={form.metricToken}
-            onChange={(e) => setForm({ ...form, metricToken: e.target.value })}
-            placeholder={
-              isEdit ? 'Leave blank to keep current metric token' : 'Token for /metrics endpoint'
-            }
+            id="endpoint"
+            value={form.endpoint}
+            onChange={(e) => setForm({ ...form, endpoint: e.target.value })}
+            placeholder="http://10.0.0.1:3903"
+          />
+        </div>
+        <>
+          <div className="grid gap-2">
+            <Label htmlFor="token">Admin Token{isEdit ? ' (optional)' : ''}</Label>
+            <Input
+              id="token"
+              type="password"
+              value={form.adminToken}
+              onChange={(e) => setForm({ ...form, adminToken: e.target.value })}
+              placeholder={isEdit ? 'Leave blank to keep current token' : 'Garage Admin API Token'}
+            />
+            {isEdit && (
+              <p className="text-xs text-muted-foreground">
+                Leave blank to keep the existing admin token.
+              </p>
+            )}
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="metric-token">
+              Metric Token (optional){isEdit ? ' — keep if blank' : ''}
+            </Label>
+            <Input
+              id="metric-token"
+              type="password"
+              value={form.metricToken}
+              onChange={(e) => setForm({ ...form, metricToken: e.target.value })}
+              placeholder={
+                isEdit ? 'Leave blank to keep current metric token' : 'Token for /metrics endpoint'
+              }
+            />
+            <p className="text-xs text-muted-foreground">
+              {isEdit
+                ? 'Leave blank to keep the existing token. Falls back to admin token if not set.'
+                : 'Falls back to admin token if not set.'}
+            </p>
+          </div>
+        </>
+        <div className="grid gap-2">
+          <Label htmlFor="s3-endpoint">S3 Endpoint (optional)</Label>
+          <Input
+            id="s3-endpoint"
+            value={form.s3Endpoint}
+            onChange={(e) => setForm({ ...form, s3Endpoint: e.target.value })}
+            placeholder="Auto: same host as Admin API, port 3900"
           />
           <p className="text-xs text-muted-foreground">
-            {isEdit
-              ? 'Leave blank to keep the existing token. Falls back to admin token if not set.'
-              : 'Falls back to admin token if not set.'}
+            Leave blank to use the Garage default (admin hostname : 3900).
           </p>
         </div>
-      </>
-      <div className="grid gap-2">
-        <Label htmlFor="s3-endpoint">S3 Endpoint (optional)</Label>
-        <Input
-          id="s3-endpoint"
-          value={form.s3Endpoint}
-          onChange={(e) => setForm({ ...form, s3Endpoint: e.target.value })}
-          placeholder="Auto: same host as Admin API, port 3900"
-        />
-        <p className="text-xs text-muted-foreground">
-          Leave blank to use the Garage default (admin hostname : 3900).
-        </p>
+        {error && (
+          <Alert variant="destructive">
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
       </div>
-      {error && (
-        <Alert variant="destructive">
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
     </div>
   );
 }

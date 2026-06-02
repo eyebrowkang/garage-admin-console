@@ -18,6 +18,9 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  FleetCell,
+  FleetListHeader,
+  FleetListRow,
   FleetSummaryCard,
   FleetToolbar,
   Meter,
@@ -27,6 +30,13 @@ import {
   type StatusAccent,
   type SummaryStat,
 } from '@garage/ui';
+
+// Shared column template for the cluster list table. The header strip and the
+// rows are separate grid containers, so every column must be a fixed or `fr`
+// width (never content-sized `auto`) — otherwise the empty header actions cell
+// and the populated row actions cell size differently and the columns drift.
+const LIST_GRID =
+  'grid-cols-[minmax(0,1fr)_8rem] md:grid-cols-[minmax(7rem,1.3fr)_minmax(0,1.7fr)_4.5rem_5.5rem_8.5rem_8rem]';
 import { DisconnectActionIcon, EditActionIcon, OpenActionIcon } from '@/lib/action-icons';
 import { formatBytes } from '@garage/web-shared';
 import { NodeIcon } from '@/lib/entity-icons';
@@ -200,13 +210,19 @@ export function ClusterStatusMonitor({
   // Render as a fragment (not a wrapping div) so the summary / toolbar / grid
   // become direct children of the page's `space-y-4` container — keeping the
   // dashboard DOM structurally identical to the S3 Browser HomePage.
+  // The aggregate summary only earns its space once the fleet is large enough to
+  // be worth summarising; at 1–2 clusters it just restates the cards below it.
+  const showSummary = clustersWithStatus.length >= 3;
+
   return (
     <>
-      <FleetSummaryCard
-        title="Cluster Fleet Summary"
-        description="Top-level health and capacity indicators for all connected clusters."
-        stats={stats}
-      />
+      {showSummary && (
+        <FleetSummaryCard
+          title="Cluster Fleet Summary"
+          description="Top-level health and capacity indicators for all connected clusters."
+          stats={stats}
+        />
+      )}
 
       <FleetToolbar
         label="Clusters"
@@ -231,6 +247,11 @@ export function ClusterStatusMonitor({
         </div>
       ) : (
         <div className="space-y-2">
+          <FleetListHeader
+            primaryLabel="Cluster"
+            metricLabels={['Endpoint', 'Nodes', 'Partitions', 'Pressure']}
+            gridClassName={LIST_GRID}
+          />
           {clustersWithStatus.map((item) => (
             <ClusterRow
               key={item.cluster.id}
@@ -252,7 +273,7 @@ function ClusterActionsMenu({ onEdit, onDelete }: { onEdit: () => void; onDelete
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 text-muted-foreground"
+          className="h-8 w-8 text-foreground/70 hover:bg-muted hover:text-foreground"
           aria-label="More cluster actions"
         >
           <MoreHorizontal className="h-4 w-4" />
@@ -297,7 +318,7 @@ function ClusterCard({
             >
               <span className="truncate">{item.cluster.name}</span>
             </Link>
-            <div className="mt-0.5 truncate text-xs text-muted-foreground">
+            <div className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
               {item.cluster.endpoint}
             </div>
           </div>
@@ -333,7 +354,7 @@ function ClusterCard({
 
         {/* Primary action — Edit/Disconnect live in the overflow menu above */}
         <div className="pt-1">
-          <Button asChild size="sm" className="h-9">
+          <Button asChild size="sm" variant="outline" className="h-9">
             <Link to={`/clusters/${item.cluster.id}`}>
               <OpenActionIcon className="mr-2 h-4 w-4" />
               Open
@@ -357,14 +378,17 @@ function ClusterRow({
   const { config, pressure, nodesLabel, partitionsLabel } = deriveCluster(item);
   const StatusIcon = config.icon;
 
+  const to = `/clusters/${item.cluster.id}`;
+
   return (
-    <StatusCard accent={config.accent}>
-      <div className="flex items-center gap-3 p-2.5 sm:p-3">
-        {/* Name + endpoint + status */}
-        <div className="min-w-0 flex-1">
+    <FleetListRow
+      accent={config.accent}
+      gridClassName={LIST_GRID}
+      identity={
+        <div className="min-w-0">
           <div className="flex items-center gap-2">
             <Link
-              to={`/clusters/${item.cluster.id}`}
+              to={to}
               className="truncate text-sm font-semibold transition-colors hover:text-primary"
             >
               {item.cluster.name}
@@ -374,46 +398,30 @@ function ClusterRow({
               <span className="hidden sm:inline">{config.label}</span>
             </Badge>
           </div>
-          <div className="truncate text-xs text-muted-foreground">{item.cluster.endpoint}</div>
-        </div>
-
-        {/* Metrics — collapse on narrow widths */}
-        <div className="hidden items-center gap-6 lg:flex">
-          <RowMetric icon={NodeIcon} label="Nodes" value={nodesLabel} />
-          <RowMetric icon={Boxes} label="Partitions" value={partitionsLabel} />
-          <div className="w-28">
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <Gauge className="h-3.5 w-3.5" />
-                Pressure
-              </span>
-              <span className="font-semibold text-foreground">
-                {pressure === null ? '—' : `${pressure.toFixed(0)}%`}
-              </span>
-            </div>
-            {pressure !== null && (
-              <Meter
-                value={pressure}
-                tone={pressureTone(pressure)}
-                ariaLabel="Storage pressure"
-                className="mt-1"
-              />
-            )}
+          {/* Endpoint owns its own column on md+, so surface it here only on mobile. */}
+          <div className="mt-0.5 truncate font-mono text-xs text-muted-foreground md:hidden">
+            {item.cluster.endpoint}
           </div>
         </div>
-
-        {/* Actions */}
-        <div className="flex shrink-0 items-center gap-1">
-          <Button asChild size="sm" className="h-8">
-            <Link to={`/clusters/${item.cluster.id}`}>
+      }
+      metrics={[
+        <FleetCell key="endpoint" mono value={item.cluster.endpoint} />,
+        <FleetCell key="nodes" value={nodesLabel} />,
+        <FleetCell key="partitions" value={partitionsLabel} />,
+        <PressureCell key="pressure" pressure={pressure} />,
+      ]}
+      actions={
+        <>
+          <Button asChild size="sm" variant="outline" className="h-8">
+            <Link to={to}>
               <OpenActionIcon className="mr-1.5 h-4 w-4" />
               Open
             </Link>
           </Button>
           <ClusterActionsMenu onEdit={onEdit} onDelete={onDelete} />
-        </div>
-      </div>
-    </StatusCard>
+        </>
+      }
+    />
   );
 }
 
@@ -432,7 +440,7 @@ function MetricTile({
         <Icon className="h-3.5 w-3.5" />
         <span className="hidden sm:inline">{label}</span>
       </div>
-      <div className="text-sm font-semibold">{value}</div>
+      <div className="text-sm font-semibold tabular-nums">{value}</div>
     </div>
   );
 }
@@ -444,7 +452,7 @@ function PressureTile({ pressure }: { pressure: number | null }) {
         <Gauge className="h-3.5 w-3.5" />
         <span className="hidden sm:inline">Pressure</span>
       </div>
-      <div className="text-sm font-semibold">
+      <div className="text-sm font-semibold tabular-nums">
         {pressure === null ? '—' : `${pressure.toFixed(0)}%`}
       </div>
       {pressure !== null && (
@@ -459,22 +467,21 @@ function PressureTile({ pressure }: { pressure: number | null }) {
   );
 }
 
-function RowMetric({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: string;
-}) {
+/** Inline pressure cell for the list table: percent + a compact meter. */
+function PressureCell({ pressure }: { pressure: number | null }) {
   return (
-    <div className="min-w-[3.5rem]">
-      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-        <Icon className="h-3.5 w-3.5" />
-        {label}
-      </div>
-      <div className="text-sm font-semibold">{value}</div>
+    <div className="flex items-center gap-2">
+      <span className="text-sm font-medium tabular-nums text-foreground">
+        {pressure === null ? '—' : `${pressure.toFixed(0)}%`}
+      </span>
+      {pressure !== null && (
+        <Meter
+          value={pressure}
+          tone={pressureTone(pressure)}
+          ariaLabel="Storage pressure"
+          className="w-14"
+        />
+      )}
     </div>
   );
 }
