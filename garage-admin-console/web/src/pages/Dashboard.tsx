@@ -287,7 +287,7 @@ export default function Dashboard() {
           >
             <DialogTrigger asChild>
               <Button>
-                <AddActionIcon className="h-4 w-4" /> Connect Cluster
+                <AddActionIcon className="h-4 w-4" /> Connect
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[500px]">
@@ -356,6 +356,7 @@ export default function Dashboard() {
           clustersWithStatus={clustersWithStatus}
           onEditCluster={openEditDialog}
           onDeleteCluster={setDeleteConfirm}
+          onAddCluster={() => setIsCreateDialogOpen(true)}
         />
       )}
 
