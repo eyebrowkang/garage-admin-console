@@ -50,8 +50,10 @@ pnpm -C s3-browser/web build                  # S3 Browser web (emits MF manifes
 
 pnpm lint                                     # Admin api + web (extend per-app if you add lint to s3-browser)
 pnpm format / format:check
-pnpm test                                     # Admin api + web vitest runs
-pnpm -C packages/bucket-api-contract-tests test:run  # regression suite (env-gated)
+pnpm test                                     # Full offline suite across every workspace
+pnpm test:coverage                            # Aggregated v8 coverage (informational, not a gate)
+pnpm -C packages/bucket-api-contract-tests test:run  # contract suite (env-gated; needs a live backend)
+# Testing strategy, layers, and how to run unit/integration/contract/E2E → see TESTING.md
 
 # Per-workspace
 pnpm -C garage-admin-console/api <script>
