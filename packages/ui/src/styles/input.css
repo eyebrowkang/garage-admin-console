@@ -8,6 +8,15 @@
  *
  * Consumers MUST also import `@garage/tokens/style.css` before this file
  * — that's what populates the underlying CSS variables.
+ *
+ * NOTE: do NOT add `--minify` to the build:css script. The CLI's minifier
+ * (Lightning CSS) downlevels Tailwind v4's native range media queries
+ * (`@media (width >= 40rem)`) to legacy `@media (min-width: 40rem)` using a
+ * conservative target it doesn't let us override. The two web apps re-minify
+ * this file with their own (modern, browserslist-driven) pipelines, so shipping
+ * it un-minified keeps the design-system breakpoint syntax identical to what
+ * each app generates from its own source — otherwise the same utility renders
+ * with two different media-query syntaxes across the suite.
  */
 
 @import 'tailwindcss';

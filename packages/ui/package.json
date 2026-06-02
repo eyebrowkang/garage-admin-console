@@ -25,7 +25,7 @@
   ],
   "scripts": {
     "build:js": "tsup",
-    "build:css": "tailwindcss -i src/styles/input.css -o dist/style.css --minify",
+    "build:css": "tailwindcss -i src/styles/input.css -o dist/style.css",
     "build": "pnpm build:js && pnpm build:css",
     "dev": "tsup --watch"
   },
