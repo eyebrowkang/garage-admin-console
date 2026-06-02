@@ -20,8 +20,10 @@ async function closeDialogIfOpen(page: Page) {
 export async function ensureClusterExists(page: Page) {
   const clusterLink = page.locator('main a[href^="/clusters/"]').first();
 
-  if (!(await clusterLink.isVisible({ timeout: 5000 }).catch(() => false))) {
-    await page.getByRole('button', { name: 'Connect Cluster' }).click();
+  if (!(await clusterLink.isVisible({ timeout: 10000 }).catch(() => false))) {
+    // The Dashboard header trigger is labelled "Connect" (exact, to avoid the
+    // empty-state "Connect Now" CTA and the dialog's "Connecting…" state).
+    await page.getByRole('button', { name: 'Connect', exact: true }).click();
 
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
