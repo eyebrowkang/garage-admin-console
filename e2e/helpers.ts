@@ -7,11 +7,14 @@ async function closeDialogIfOpen(page: Page) {
     return;
   }
 
+  // The create dialog auto-closes on success, so this explicit close is
+  // best-effort: tolerate the overlay intercepting clicks / the element
+  // detaching mid-animation, and just confirm the dialog ends up hidden.
   const closeButton = dialog.getByRole('button', { name: 'Close' }).first();
   if (await closeButton.isVisible({ timeout: 500 }).catch(() => false)) {
-    await closeButton.click();
+    await closeButton.click({ timeout: 2000 }).catch(() => {});
   } else {
-    await page.keyboard.press('Escape');
+    await page.keyboard.press('Escape').catch(() => {});
   }
 
   await expect(dialog).toBeHidden({ timeout: 5000 });

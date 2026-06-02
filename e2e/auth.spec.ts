@@ -19,9 +19,9 @@ test.describe('Authentication', () => {
   });
 
   test('redirects to login after logout', async ({ authenticatedPage }) => {
-    // Clear token to simulate logout
+    // Clear all client state (incl. the JWT under 'garage-admin.jwt') to log out.
     await authenticatedPage.evaluate(() => {
-      localStorage.removeItem('token');
+      localStorage.clear();
     });
 
     await authenticatedPage.goto('/');
