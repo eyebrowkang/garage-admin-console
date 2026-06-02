@@ -10,19 +10,25 @@
  */
 
 /*
- * Predeclare cascade layer order. The standard Tailwind v4 order is
- * (theme, base, components, utilities) — we slip `fb-utilities` between
- * `components` and `utilities` for the federated S3 Browser remote's
- * utility-only CSS (see s3-browser/web/src/embeddable.css):
+ * Predeclare the cascade layer order — the single source of truth for the whole
+ * page. Standard Tailwind v4 order is (theme, base, components, utilities); we
+ * add two custom layers around it:
  *
- *   - HIGHER than `base` so the remote's `.px-5`, `.flex`, etc. defeat
- *     preflight resets like `button { padding: 0 }` — without this, embedded
- *     FileBrowser elements lose their padding/sizing utilities entirely.
- *   - LOWER than the host's own `utilities` layer so host rules win on
- *     shared selectors (e.g. `aside.hidden.lg:block` would otherwise be
- *     hidden by the remote's later-loaded `.hidden`).
+ *   - `vendor` (lowest): the precompiled @garage/ui/style.css is imported INTO
+ *     this layer (see below). That makes this app's own Tailwind pass — which
+ *     @sources @garage/ui, so it re-emits every shared utility — authoritative,
+ *     winning over the prebuilt bundle DETERMINISTICALLY (by layer, not by
+ *     import order). Without it, a shared component's responsive utility
+ *     (ModulePageHeader's `sm:flex-row`) can be clobbered by this app's own
+ *     later-emitted base `.flex-col`.
+ *   - `fb-utilities` (between `components` and `utilities`): the federated S3
+ *     Browser remote's utility-only CSS (see s3-browser/web/src/embeddable.css):
+ *       · HIGHER than `base` so the remote's `.px-5`, `.flex`, etc. defeat
+ *         preflight resets like `button { padding: 0 }`.
+ *       · LOWER than the host's own `utilities` so host rules win on shared
+ *         selectors (e.g. `aside.hidden.lg:block`).
  */
-@layer theme, base, components, fb-utilities, utilities;
+@layer vendor, theme, base, components, fb-utilities, utilities;
 
 /*
  * Manrope — the shared design-system typeface (both apps load the identical
@@ -36,16 +42,20 @@
 @import '@fontsource/manrope/800.css';
 
 @import '@garage/tokens/style.css';
-@import '@garage/ui/style.css';
+/*
+ * The precompiled @garage/ui primitive bundle, parked in the low-priority
+ * `vendor` layer so this app's own utilities always win (see the @layer note
+ * above). It only needs to supply what this app does NOT compile itself —
+ * chiefly the tailwindcss-animate utilities (this app has no @plugin for them).
+ */
+@import '@garage/ui/style.css' layer(vendor);
 @import 'tailwindcss';
 /*
  * Scan @garage/ui component sources so THIS app's Tailwind pass emits their
- * utilities too. Without it, a responsive utility that lives only in a shared
- * component (e.g. ModulePageHeader's `flex-col sm:flex-row`) is provided solely
- * by the earlier-imported, prebuilt @garage/ui/style.css and gets overridden by
- * this app's own later-emitted base utilities (`.flex-col`) — the two flat
- * `utilities` layers resolve by source order. Generating the shared utilities
- * in this pass keeps Tailwind's base→responsive ordering global and correct.
+ * utilities too — in its own (higher) `utilities` layer, with Tailwind's
+ * base→responsive ordering intact. This is the half that actually fixes the
+ * cascade; the `layer(vendor)` import above is what keeps the prebuilt bundle
+ * from ever competing with it.
  */
 @source '../node_modules/@garage/ui/src/components';
 @import '@garage/ui/theme.css';
