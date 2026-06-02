@@ -25,5 +25,15 @@
 @import '@garage/tokens/style.css';
 @import '@garage/ui/style.css';
 @import 'tailwindcss';
+/*
+ * Scan @garage/ui component sources so THIS app's Tailwind pass emits their
+ * utilities too. Without it, a responsive utility that lives only in a shared
+ * component (e.g. ModulePageHeader's `flex-col sm:flex-row`) is provided solely
+ * by the earlier-imported, prebuilt @garage/ui/style.css and gets overridden by
+ * this app's own later-emitted base utilities (`.flex-col`) — the two flat
+ * `utilities` layers resolve by source order. Generating the shared utilities
+ * in this pass keeps Tailwind's base→responsive ordering global and correct.
+ */
+@source '../node_modules/@garage/ui/src/components';
 @import '@garage/ui/theme.css';
 @import '@garage/ui/base.css';
