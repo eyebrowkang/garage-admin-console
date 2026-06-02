@@ -1,9 +1,9 @@
 import path from 'node:path';
+import { DatabaseSync, type SQLInputValue } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
 
-import { createClient } from '@libsql/client';
-import { drizzle, type LibSQLDatabase } from 'drizzle-orm/libsql';
-import { migrate } from 'drizzle-orm/libsql/migrator';
+import { drizzle, type SqliteRemoteDatabase } from 'drizzle-orm/sqlite-proxy';
+import { migrate } from 'drizzle-orm/sqlite-proxy/migrator';
 import express, {
   Router,
   type NextFunction,
@@ -254,18 +254,54 @@ export function createMultipartAwareJsonParser(): RequestHandler {
   });
 }
 
-export interface CreateLibsqlDbOptions {
+export interface CreateSqliteDbOptions {
   dataDir?: string;
   filename?: string;
 }
 
-export function createLibsqlDb<TSchema extends Record<string, unknown>>(
+type SqliteProxyMethod = 'run' | 'all' | 'values' | 'get';
+type AnySqliteDatabase = SqliteRemoteDatabase<Record<string, unknown>>;
+
+const sqliteClients = new WeakMap<AnySqliteDatabase, DatabaseSync>();
+
+function bindParams(params: unknown[]): SQLInputValue[] {
+  return params as SQLInputValue[];
+}
+
+async function executeSqliteQuery(
+  client: DatabaseSync,
+  sql: string,
+  params: unknown[],
+  method: SqliteProxyMethod,
+): Promise<{ rows: any[] }> {
+  const statement = client.prepare(sql);
+  const boundParams = bindParams(params);
+
+  if (method === 'run') {
+    statement.run(...boundParams);
+    return { rows: [] };
+  }
+
+  statement.setReturnArrays(true);
+
+  if (method === 'get') {
+    return { rows: statement.get(...boundParams) as unknown as any[] };
+  }
+
+  return { rows: statement.all(...boundParams) as unknown as any[] };
+}
+
+export function createSqliteDb<TSchema extends Record<string, unknown>>(
   schema: TSchema,
-  { dataDir = process.env.DATA_DIR ?? process.cwd(), filename = 'data.db' }: CreateLibsqlDbOptions = {},
+  { dataDir = process.env.DATA_DIR ?? process.cwd(), filename = 'data.db' }: CreateSqliteDbOptions = {},
 ) {
   const dbPath = path.resolve(dataDir, filename);
-  const client = createClient({ url: `file:${dbPath}` });
-  return drizzle({ client, schema });
+  const client = new DatabaseSync(dbPath);
+  const db = drizzle((sql, params, method) => executeSqliteQuery(client, sql, params, method), {
+    schema,
+  });
+  sqliteClients.set(db as AnySqliteDatabase, client);
+  return db;
 }
 
 export function getMigrationsFolder(importMetaUrl: string): string {
@@ -273,9 +309,31 @@ export function getMigrationsFolder(importMetaUrl: string): string {
   return path.resolve(dirname, '../../drizzle');
 }
 
-export async function runLibsqlMigrations<TSchema extends Record<string, unknown>>(
-  db: LibSQLDatabase<TSchema>,
+export async function runSqliteMigrations<TSchema extends Record<string, unknown>>(
+  db: SqliteRemoteDatabase<TSchema>,
   importMetaUrl: string,
 ) {
-  await migrate(db, { migrationsFolder: getMigrationsFolder(importMetaUrl) });
+  await migrate(
+    db,
+    async (migrationQueries) => {
+      if (migrationQueries.length === 0) return;
+
+      const client = sqliteClients.get(db as AnySqliteDatabase);
+      if (!client) {
+        throw new Error('SQLite migrations can only run against a database created by createSqliteDb().');
+      }
+
+      client.exec('BEGIN');
+      try {
+        for (const query of migrationQueries) {
+          client.exec(query);
+        }
+        client.exec('COMMIT');
+      } catch (error) {
+        client.exec('ROLLBACK');
+        throw error;
+      }
+    },
+    { migrationsFolder: getMigrationsFolder(importMetaUrl) },
+  );
 }

@@ -5,7 +5,7 @@ import { defineConfig } from 'vitest/config';
  *
  * The day-to-day runner is `pnpm test` → `pnpm -r test:run`, which runs each
  * workspace's own vitest in its own working directory. That isolation matters
- * for the two BFFs, which each migrate a LibSQL file DB in their cwd — so they
+ * for the two BFFs, which each migrate a SQLite file DB in their cwd — so they
  * are intentionally excluded here (running both in one process would collide on
  * a shared data.db). Their HTTP contract is covered by their supertest suites
  * under `pnpm test`; this aggregate reports line coverage for the pure-logic,

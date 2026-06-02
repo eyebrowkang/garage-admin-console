@@ -22,7 +22,7 @@ pnpm e2e                  # Playwright E2E (needs a running stack + a Garage clu
 ```
 
 `pnpm test` runs `pnpm -r --if-present test:run`, so each workspace runs its own
-Vitest in its own working directory. The two BFF suites isolate their LibSQL
+Vitest in its own working directory. The two BFF suites isolate their SQLite
 file DB into a per-process temp dir (see each `src/test/setup.ts`), so they never
 collide on a shared `data.db` even when CI sets one `DATA_DIR`.
 
@@ -148,10 +148,10 @@ Rules of thumb:
 - **Shareable, read-only config can be shared** — JWT secret, admin password,
   the Garage admin token/endpoint, the encryption key. Keep them in one env
   file per concern and source them where needed.
-- **Stateful, writable resources must be isolated** — above all the LibSQL
+- **Stateful, writable resources must be isolated** — above all the SQLite
   `data.db`. Never let two services write the same DB file: tests use a
   per-process temp dir; for ad-hoc runs pass a distinct `DATA_DIR` and
-  `mkdir -p` it first (`createLibsqlDb` opens but does not create the directory).
+  `mkdir -p` it first (`createSqliteDb` opens but does not create the directory).
 - **CI sets no global `DATA_DIR`** — the per-process isolation above is the
   single source of truth, so a stray shared value can't reintroduce the
   collision the BFFs hit when they share one `data.db`.

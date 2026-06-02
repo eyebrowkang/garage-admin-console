@@ -21,7 +21,6 @@
     "test:run": "vitest run"
   },
   "dependencies": {
-    "@libsql/client": "^0.17.3",
     "drizzle-orm": "^0.45.2",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",

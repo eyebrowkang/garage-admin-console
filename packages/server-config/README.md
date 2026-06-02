@@ -10,7 +10,7 @@ Shared backend helpers for both BFFs — they differ only in their default port.
 | `createAuthRouter({ adminPassword, jwtSecret })` | `POST /login` → JWT |
 | `createServiceLoggers`, `createHttpLogMiddleware` | pino + morgan wiring |
 | `createMultipartAwareJsonParser` | JSON body parser that skips `multipart/form-data` (so busboy can stream) |
-| `createLibsqlDb`, `getMigrationsFolder`, `runLibsqlMigrations` | LibSQL client + Drizzle migration helpers |
+| `createSqliteDb`, `getMigrationsFolder`, `runSqliteMigrations` | SQLite database + Drizzle migration helpers |
 
 Validation logic is intentionally side-effect-free (callers load their own
 `.env` first), so `loadEnv` is trivially unit-testable.

@@ -29,7 +29,7 @@ Console's bucket detail page.
 ┌──────────────────────┐                ┌──────────────────────┐
 │ Admin BFF (:3001)    │                │ S3 Browser BFF (:3002)│
 │  - Express 5         │                │  - Express 5          │
-│  - Drizzle + LibSQL  │                │  - Drizzle + LibSQL   │
+│  - Drizzle + SQLite  │                │  - Drizzle + SQLite   │
 │  - AES-256-GCM       │                │  - AES-256-GCM        │
 │  - Garage proxy      │                │  - Per-connection S3  │
 │  - Per-bucket S3 keys│                │    client             │
@@ -73,7 +73,7 @@ Console's bucket detail page.
 ```
 garage-admin-console/                  # monorepo root
 ├── garage-admin-console/              # Admin Console product (production)
-│   ├── api/                           # BFF — Express + Drizzle + LibSQL (MF-agnostic)
+│   ├── api/                           # BFF — Express + Drizzle + SQLite (MF-agnostic)
 │   └── web/                           # SPA — React + Vite — Module Federation Host
 ├── s3-browser/                        # S3 Browser product
 │   ├── api/                           # BFF — same stack as Admin api
@@ -83,7 +83,7 @@ garage-admin-console/                  # monorepo root
 │   ├── ui/                            # @garage/ui — shadcn primitives, Toaster, LoginForm, cn
 │   ├── web-shared/                    # @garage/web-shared — api-client/query-client factories, formatters, getApiErrorMessage
 │   ├── crypto/                        # @garage/crypto — AES-256-GCM encrypt/decrypt (shared by both BFFs)
-│   ├── server-config/                 # @garage/server-config — env loader, auth router, libsql/migration helpers
+│   ├── server-config/                 # @garage/server-config — env loader, auth router, SQLite/migration helpers
 │   ├── bucket-api-server/             # @garage/bucket-api-server — shared Express router for the Bucket Backend API
 │   └── bucket-api-contract-tests/     # @garage/bucket-api-contract-tests — Bucket Backend API regression suite
 ├── docs/                              # this documentation
@@ -218,7 +218,7 @@ Each has its own README:
 | [`@garage/ui`](../packages/ui/) | shadcn/Radix primitives, `Toaster`/`useToast`, `LoginForm`, `cn` — built with tsup |
 | [`@garage/web-shared`](../packages/web-shared/) | `createApiClient` / `createAppQueryClient` factories, formatters, `getApiErrorMessage` |
 | [`@garage/crypto`](../packages/crypto/) | AES-256-GCM encrypt/decrypt, consumed by both BFFs' `encryption.ts` |
-| [`@garage/server-config`](../packages/server-config/) | Env loader, JWT auth router, libsql/migration helpers shared by both BFFs |
+| [`@garage/server-config`](../packages/server-config/) | Env loader, JWT auth router, SQLite/migration helpers shared by both BFFs |
 | [`@garage/bucket-api-server`](../packages/bucket-api-server/) | The `createBucketRouter(resolveContext)` factory — all S3/multipart logic for the Bucket Backend API |
 | [`@garage/bucket-api-contract-tests`](../packages/bucket-api-contract-tests/) | Regression suite that runs the contract against either BFF |
 
@@ -240,7 +240,7 @@ ordering is load-bearing and guarded in CI by `scripts/check-css-cascade.mjs`
 
 ## Database schemas
 
-Both BFFs use Drizzle on LibSQL; migrations live in each BFF's `drizzle/` and run
+Both BFFs use Drizzle ORM on SQLite; migrations live in each BFF's `drizzle/` and run
 automatically on startup. See [development.md](./development.md#database-management)
 for the schema workflow.
 

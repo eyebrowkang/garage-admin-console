@@ -64,7 +64,7 @@ jobs:
 
       - name: Test
         # No shared DATA_DIR: each workspace's vitest runs in its own cwd, and
-        # the two BFF suites isolate their LibSQL DB in a per-process temp dir
+        # the two BFF suites isolate their Sqlite DB in a per-process temp dir
         # (see each api/src/test/setup.ts). A single shared DATA_DIR would
         # collide both BFFs on one data.db and break migrations.
         run: pnpm test

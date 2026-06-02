@@ -1,8 +1,8 @@
 # @garage-admin/api
 
-Backend-For-Frontend (BFF) for the Garage Admin Console — Express 5 + Drizzle/LibSQL.
+Backend-For-Frontend (BFF) for the Garage Admin Console — Express 5 + Drizzle/SQLite.
 
-**Tech stack:** Express 5, TypeScript, Drizzle ORM + LibSQL, Zod, Axios, Pino + Morgan, busboy. (S3 access comes through `@garage/bucket-api-server`'s `getCachedS3Client`, not a direct `@aws-sdk/*` dependency.)
+**Tech stack:** Express 5, TypeScript, Drizzle ORM + SQLite, Zod, Axios, Pino + Morgan, busboy. (S3 access comes through `@garage/bucket-api-server`'s `getCachedS3Client`, not a direct `@aws-sdk/*` dependency.)
 
 ## What it does
 
