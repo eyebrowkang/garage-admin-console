@@ -1,13 +1,12 @@
 /**
- * Dashboard — lists every S3 connection as a Card with CRUD actions.
+ * Dashboard — lists every S3 connection as a card or row with CRUD actions.
  *
  * Visual contract mirrors garage-admin-console/web/src/pages/Dashboard.tsx +
- * ClusterStatusMonitor 1:1 so the two products read as the same suite:
- *   - ModulePageHeader-style title row
- *   - "Connection Fleet Summary" overview card (border-primary/30 bg-primary/5)
- *   - md:grid-cols-2 grid of connection cards, tinted by reachability
- *   - three metric tiles per card with lucide-icon labels
- *   - Open / Edit / Remove actions in the same h-9 button row
+ * ClusterStatusMonitor so the two products read as the same suite: a neutral
+ * FleetSummaryCard, a FleetToolbar (count + list/card toggle), StatusCard
+ * entities carrying status only via a left accent bar + badge, an Open primary
+ * action with Edit/Disconnect tucked into a `⋯` menu, and a dashed
+ * "+ add another" cell when the fleet holds a single endpoint.
  */
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -20,11 +19,14 @@ import {
   Globe,
   HardDrive,
   Link2Off,
+  MoreHorizontal,
   Plus,
   Server,
   XCircle,
+  type LucideIcon,
 } from 'lucide-react';
 import {
+  AddPlaceholderCard,
   Alert,
   AlertDescription,
   AlertTitle,
@@ -39,6 +41,18 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  FleetSummaryCard,
+  FleetToolbar,
+  ModulePageHeader,
+  StatusCard,
+  useViewMode,
+  type StatusAccent,
+  type SummaryStat,
 } from '@garage/ui';
 
 import { formatDate } from '@garage/web-shared';
@@ -62,28 +76,15 @@ interface ConnectionStatus {
   status: Status;
 }
 
-const statusConfig = {
-  healthy: {
-    label: 'Healthy',
-    icon: CheckCircle2,
-    badge: 'success' as const,
-    iconClass: 'text-success',
-    bgClass: 'bg-success/10 border-success/30',
-  },
-  unreachable: {
-    label: 'Unreachable',
-    icon: XCircle,
-    badge: 'destructive' as const,
-    iconClass: 'text-destructive',
-    bgClass: 'bg-destructive/5 border-destructive/30',
-  },
-  checking: {
-    label: 'Checking',
-    icon: Activity,
-    badge: 'secondary' as const,
-    iconClass: 'text-primary',
-    bgClass: 'bg-primary/5 border-primary/25',
-  },
+type BadgeVariant = 'secondary' | 'success' | 'destructive';
+
+const statusConfig: Record<
+  Status,
+  { label: string; icon: LucideIcon; badge: BadgeVariant; accent: StatusAccent }
+> = {
+  healthy: { label: 'Healthy', icon: CheckCircle2, badge: 'success', accent: 'success' },
+  unreachable: { label: 'Unreachable', icon: XCircle, badge: 'destructive', accent: 'destructive' },
+  checking: { label: 'Checking', icon: Activity, badge: 'secondary', accent: 'neutral' },
 };
 
 export function HomePage() {
@@ -93,6 +94,7 @@ export function HomePage() {
   const [editTarget, setEditTarget] = useState<Connection | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Connection | null>(null);
   const [formError, setFormError] = useState('');
+  const [view, setView] = useViewMode('s3browser.home.view');
 
   const list = useQuery({
     queryKey: ['connections'],
@@ -150,6 +152,29 @@ export function HomePage() {
     }
     return { healthy, unreachable, checking, buckets };
   })();
+
+  const stats: SummaryStat[] = [
+    {
+      label: 'Healthy',
+      value: summary.healthy,
+      tone: 'success',
+      icon: CheckCircle2,
+      emphasized: summary.healthy > 0,
+    },
+    {
+      label: 'Unreachable',
+      value: summary.unreachable,
+      tone: 'destructive',
+      icon: XCircle,
+      emphasized: summary.unreachable > 0,
+    },
+    {
+      label: 'Checking',
+      value: summary.checking,
+      hint: summary.checking > 0 ? 'Probing endpoints…' : undefined,
+    },
+    { label: 'Buckets', value: summary.buckets },
+  ];
 
   const createMut = useMutation({
     mutationFn: async (data: ConnectionFormData) => {
@@ -219,18 +244,25 @@ export function HomePage() {
     },
   });
 
+  // Skip the ConnectionView step when there's only one bucket — the detour adds
+  // a click without surfacing any choice. A scoped connection always has one.
+  const openTarget = (connection: Connection, status: ConnectionStatus) => {
+    const onlyBucket = connection.bucket
+      ? connection.bucket
+      : status.buckets?.length === 1
+        ? (status.buckets[0]?.name ?? null)
+        : null;
+    return onlyBucket
+      ? `/connections/${connection.id}/b/${encodeURIComponent(onlyBucket)}`
+      : `/connections/${connection.id}`;
+  };
+
   return (
     <div className="space-y-4">
-      {/* ModulePageHeader */}
-      <div className="flex flex-col gap-2 sm:gap-3 border-b border-border/70 pb-3 sm:pb-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0 space-y-0.5 sm:space-y-1">
-          <h1 className="text-lg sm:text-xl font-semibold tracking-tight">Dashboard</h1>
-          <p className="text-xs sm:text-sm text-muted-foreground">
-            Endpoint-level overview first. Open a connection for bucket browsing and object
-            operations.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 sm:justify-end shrink-0">
+      <ModulePageHeader
+        title="Dashboard"
+        description="Endpoint-level overview first. Open a connection for bucket browsing and object operations."
+        actions={
           <Dialog
             open={addOpen}
             onOpenChange={(o) => {
@@ -259,8 +291,8 @@ export function HomePage() {
               />
             </DialogContent>
           </Dialog>
-        </div>
-      </div>
+        }
+      />
 
       {list.error && (
         <Alert variant="destructive">
@@ -269,68 +301,62 @@ export function HomePage() {
         </Alert>
       )}
 
-      {/* Fleet summary — pixel match for ClusterStatusMonitor's overview card */}
+      {/* Fleet summary + toolbar */}
       {connections.length > 0 && (
-        <Card className="border-primary/30 bg-primary/5">
-          <CardContent className="grid gap-4 p-3 sm:p-5 md:grid-cols-5">
-            <div className="md:col-span-2">
-              <p className="text-xs font-medium uppercase tracking-wider text-primary/70">
-                Overview
-              </p>
-              <h2 className="mt-0.5 text-base sm:text-xl font-semibold">
-                Connection Fleet Summary
-              </h2>
-              <p className="mt-1 hidden text-sm text-muted-foreground sm:block">
-                Reachability and bucket counts across all configured endpoints.
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4 sm:gap-3 md:col-span-3">
-              <SummaryStat
-                label="Healthy"
-                value={summary.healthy}
-                tone={summary.healthy > 0 ? 'text-success' : undefined}
-              />
-              <SummaryStat
-                label="Unreachable"
-                value={summary.unreachable}
-                tone={summary.unreachable > 0 ? 'text-destructive' : undefined}
-              />
-              <SummaryStat label="Checking" value={summary.checking} />
-              <SummaryStat label="Buckets" value={summary.buckets} />
-            </div>
-          </CardContent>
-        </Card>
+        <>
+          <FleetSummaryCard
+            title="Connection Fleet Summary"
+            description="Reachability and bucket counts across all configured endpoints."
+            stats={stats}
+          />
+          <FleetToolbar
+            label="Connections"
+            count={connections.length}
+            view={view}
+            onViewChange={setView}
+          />
+        </>
       )}
 
-      {/* Connection grid */}
-      {connections.length > 0 && (
+      {/* Card view */}
+      {connections.length > 0 && view === 'card' && (
         <div className="grid gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-3">
           {connections.map((connection) => {
             const status = statusById.get(connection.id) ?? {
               isLoading: true,
               status: 'checking' as const,
             };
-            // Skip the ConnectionView step when there's only one bucket — the
-            // detour adds a click without surfacing any choice. A scoped
-            // connection (connection.bucket) always has exactly one bucket.
-            const onlyBucket = connection.bucket
-              ? connection.bucket
-              : status.buckets?.length === 1
-                ? (status.buckets[0]?.name ?? null)
-                : null;
-            const onOpen = () => {
-              if (onlyBucket) {
-                navigate(`/connections/${connection.id}/b/${encodeURIComponent(onlyBucket)}`);
-              } else {
-                navigate(`/connections/${connection.id}`);
-              }
-            };
             return (
               <ConnectionCard
                 key={connection.id}
                 connection={connection}
                 status={status}
-                onOpen={onOpen}
+                onOpen={() => navigate(openTarget(connection, status))}
+                onEdit={() => setEditTarget(connection)}
+                onDelete={() => setDeleteTarget(connection)}
+              />
+            );
+          })}
+          {connections.length === 1 && (
+            <AddPlaceholderCard label="Connect another endpoint" onClick={() => setAddOpen(true)} />
+          )}
+        </div>
+      )}
+
+      {/* List view */}
+      {connections.length > 0 && view === 'list' && (
+        <div className="space-y-2">
+          {connections.map((connection) => {
+            const status = statusById.get(connection.id) ?? {
+              isLoading: true,
+              status: 'checking' as const,
+            };
+            return (
+              <ConnectionRow
+                key={connection.id}
+                connection={connection}
+                status={status}
+                onOpen={() => navigate(openTarget(connection, status))}
                 onEdit={() => setEditTarget(connection)}
                 onDelete={() => setDeleteTarget(connection)}
               />
@@ -453,13 +479,38 @@ export function HomePage() {
   );
 }
 
-function SummaryStat({ label, value, tone }: { label: string; value: number; tone?: string }) {
+function ConnectionActionsMenu({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
   return (
-    <div className="rounded-lg border bg-card px-3 py-2">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className={`text-2xl font-semibold tracking-tight ${tone ?? ''}`}>{value}</div>
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-muted-foreground"
+          aria-label="More connection actions"
+        >
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={onEdit}>
+          <Edit2 className="h-4 w-4" />
+          Edit
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem destructive onClick={onDelete}>
+          <Link2Off className="h-4 w-4" />
+          Disconnect
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
+}
+
+function bucketsValue(connection: Connection, status: ConnectionStatus): string {
+  if (connection.bucket) return connection.bucket;
+  const bucketCount = status.buckets?.length ?? 0;
+  return status.status === 'healthy' ? String(bucketCount) : '—';
 }
 
 function ConnectionCard({
@@ -481,14 +532,14 @@ function ConnectionCard({
   const bucketCount = status.buckets?.length ?? 0;
 
   return (
-    <Card className={`border ${config.bgClass} transition-shadow hover:shadow-md`}>
-      <CardContent className="space-y-3 p-3 sm:p-5">
-        {/* Header row: name + endpoint + status badge — no avatar, mirrors admin */}
+    <StatusCard accent={config.accent}>
+      <div className="space-y-3 p-3 sm:p-5">
+        {/* Header row: name + endpoint, status badge, overflow menu */}
         <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <button
               onClick={onOpen}
-              className="inline-flex items-center gap-2 text-base font-semibold text-left hover:text-primary transition-colors"
+              className="inline-flex items-center gap-2 text-left text-base font-semibold transition-colors hover:text-primary"
             >
               {connection.name}
             </button>
@@ -496,26 +547,23 @@ function ConnectionCard({
               {connection.endpoint}
             </div>
           </div>
-          <Badge variant={config.badge} className="shrink-0">
-            <StatusIcon className={`mr-1 h-3.5 w-3.5 ${config.iconClass}`} />
-            {config.label}
-          </Badge>
+          <div className="flex shrink-0 items-center gap-1">
+            <Badge variant={config.badge}>
+              <StatusIcon className="mr-1 h-3.5 w-3.5" />
+              <span className="hidden sm:inline">{config.label}</span>
+            </Badge>
+            <ConnectionActionsMenu onEdit={onEdit} onDelete={onDelete} />
+          </div>
         </div>
 
-        {/* Metrics row — icon + label, matches admin tile shape */}
-        <div className="grid gap-2 grid-cols-3">
+        {/* Metrics row */}
+        <div className="grid grid-cols-3 gap-2">
           <MetricTile icon={Globe} label="Provider" value={provider} />
           <MetricTile icon={HardDrive} label="Region" value={connection.region} />
           <MetricTile
             icon={Server}
             label={connection.bucket ? 'Scoped' : 'Buckets'}
-            value={
-              connection.bucket
-                ? connection.bucket
-                : status.status === 'healthy'
-                  ? String(bucketCount)
-                  : '—'
-            }
+            value={bucketsValue(connection, status)}
           />
         </div>
 
@@ -537,30 +585,76 @@ function ConnectionCard({
           </span>
         </div>
 
-        {/* Actions — same shape and h-9 sizing as admin's cluster cards */}
-        <div className="flex flex-wrap items-center gap-2 pt-1">
+        {/* Primary action — Edit/Disconnect live in the overflow menu above */}
+        <div className="pt-1">
           <Button size="sm" className="h-9" onClick={onOpen}>
             <ArrowRight className="mr-2 h-4 w-4" />
             Open
           </Button>
-          <Button variant="outline" size="sm" className="h-9" onClick={onEdit}>
-            <Edit2 className="mr-2 h-4 w-4" />
-            Edit
-          </Button>
-          <div className="flex-1" />
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-9 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-            onClick={onDelete}
-            aria-label="Disconnect connection"
-          >
-            <Link2Off className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">Disconnect</span>
-          </Button>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </StatusCard>
+  );
+}
+
+function ConnectionRow({
+  connection,
+  status,
+  onOpen,
+  onEdit,
+  onDelete,
+}: {
+  connection: Connection;
+  status: ConnectionStatus;
+  onOpen: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const provider = connectionProvider(connection);
+  const config = statusConfig[status.status];
+  const StatusIcon = config.icon;
+
+  return (
+    <StatusCard accent={config.accent}>
+      <div className="flex items-center gap-3 p-2.5 sm:p-3">
+        {/* Name + endpoint + status */}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onOpen}
+              className="truncate text-sm font-semibold transition-colors hover:text-primary"
+            >
+              {connection.name}
+            </button>
+            <Badge variant={config.badge} className="shrink-0">
+              <StatusIcon className="mr-1 h-3.5 w-3.5" />
+              <span className="hidden sm:inline">{config.label}</span>
+            </Badge>
+          </div>
+          <div className="truncate text-xs text-muted-foreground">{connection.endpoint}</div>
+        </div>
+
+        {/* Metrics — collapse on narrow widths */}
+        <div className="hidden items-center gap-6 lg:flex">
+          <RowMetric icon={Globe} label="Provider" value={provider} />
+          <RowMetric icon={HardDrive} label="Region" value={connection.region} />
+          <RowMetric
+            icon={Server}
+            label={connection.bucket ? 'Scoped' : 'Buckets'}
+            value={bucketsValue(connection, status)}
+          />
+        </div>
+
+        {/* Actions */}
+        <div className="flex shrink-0 items-center gap-1">
+          <Button size="sm" className="h-8" onClick={onOpen}>
+            <ArrowRight className="mr-1.5 h-4 w-4" />
+            Open
+          </Button>
+          <ConnectionActionsMenu onEdit={onEdit} onDelete={onDelete} />
+        </div>
+      </div>
+    </StatusCard>
   );
 }
 
@@ -569,17 +663,37 @@ function MetricTile({
   label,
   value,
 }: {
-  icon: React.ComponentType<{ className?: string }>;
+  icon: LucideIcon;
   label: string;
   value: string;
 }) {
   return (
-    <div className="rounded-lg border bg-card p-2">
+    <div className="rounded-lg border border-border/60 bg-muted/30 p-2">
       <div className="flex items-center gap-1 text-xs text-muted-foreground">
         <Icon className="h-3.5 w-3.5" />
         <span className="sr-only sm:not-sr-only">{label}</span>
       </div>
       <div className="truncate text-sm font-semibold">{value}</div>
+    </div>
+  );
+}
+
+function RowMetric({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="min-w-[3.5rem]">
+      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+        <Icon className="h-3.5 w-3.5" />
+        {label}
+      </div>
+      <div className="max-w-[9rem] truncate text-sm font-semibold">{value}</div>
     </div>
   );
 }
