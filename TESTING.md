@@ -130,3 +130,28 @@ pnpm e2e
 
 The bucket/key specs create uniquely-named (`*-${Date.now()}`) resources on the
 target cluster and do not clean them up — point them at a disposable dev cluster.
+
+## Environment & resource isolation
+
+Each layer carries its own environment; anything stateful that can't be shared
+is isolated explicitly so concurrent runs never collide.
+
+| Layer | Env source | Isolation of writable state |
+| --- | --- | --- |
+| Unit | none (pure); `vi.spyOn(Date)` for clocks; `TZ=UTC` in web-shared | stateless |
+| Integration (BFF) | `api/src/test/setup.ts` (JWT / admin / encryption); upstream I/O mocked | **each BFF mints its own throwaway `DATA_DIR` via `mkdtempSync`** so the two never share a `data.db` |
+| Contract | gitignored `.env.contract.local`; needs a running BFF | run each flavor's BFF on its own port + `DATA_DIR` |
+| E2E | gitignored `.env.contract.local` (`ADMIN_PASSWORD`, `TEST_GARAGE_*`) | run Playwright's `pnpm dev` with a fresh, empty `DATA_DIR` so the admin DB is deterministic |
+
+Rules of thumb:
+
+- **Shareable, read-only config can be shared** — JWT secret, admin password,
+  the Garage admin token/endpoint, the encryption key. Keep them in one env
+  file per concern and source them where needed.
+- **Stateful, writable resources must be isolated** — above all the LibSQL
+  `data.db`. Never let two services write the same DB file: tests use a
+  per-process temp dir; for ad-hoc runs pass a distinct `DATA_DIR` and
+  `mkdir -p` it first (`createLibsqlDb` opens but does not create the directory).
+- **CI sets no global `DATA_DIR`** — the per-process isolation above is the
+  single source of truth, so a stray shared value can't reintroduce the
+  collision the BFFs hit when they share one `data.db`.
