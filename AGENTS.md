@@ -1,270 +1,81 @@
 # AGENTS.md
 
-Always use Context7 MCP when I need library/API documentation, code generation, setup or configuration steps without me having to explicitly ask.
+Agent-oriented map of this repo. Deep references live in [`docs/`](./docs/) —
+this file is the orientation layer plus the conventions you must not get wrong.
+
+Always use Context7 MCP when you need library/API documentation, code generation, or setup/configuration steps, without me having to explicitly ask.
 
 ## Project Overview
 
 A pnpm workspace shipping **two products that share a design system and a Bucket Backend API surface**:
 
 - **Garage Admin Console** (production) — web interface for managing [Garage](https://garagehq.deuxfleurs.fr/) object storage clusters. Tracks Garage Admin API v2.
-- **S3 Browser** — generic S3-protocol file browser. Runs standalone, AND can be **embedded into the Admin Console's bucket detail page via Module Federation 2.0** so users can manage objects without leaving the cluster UI.
+- **S3 Browser** — generic S3-protocol file browser. Runs standalone, AND can be **embedded into the Admin Console's bucket detail page via Module Federation 2.0** so users manage objects without leaving the cluster UI.
 
 ## Repository Layout
 
 ```
-garage-admin-console/                         # monorepo root
-├── garage-admin-console/                     # Admin Console product
-│   ├── api/                                  # BFF (Express + Drizzle + LibSQL)
-│   └── web/                                  # SPA (React + Vite) — MF Host
-├── s3-browser/                               # S3 Browser product
-│   ├── api/                                  # BFF (same stack as admin api)
-│   └── web/                                  # SPA (React + Rsbuild) — MF Remote
+garage-admin-console/                     # monorepo root
+├── garage-admin-console/{api,web}        # Admin Console — BFF (Express) + SPA (Vite, MF Host)
+├── s3-browser/{api,web}                  # S3 Browser — BFF + SPA (Rsbuild, MF Remote)
 ├── packages/
-│   ├── tokens/                               # @garage/tokens — CSS variables + palette
-│   ├── ui/                                   # @garage/ui — shadcn primitives + Toaster/useToast + LoginForm; theme.css/base.css
-│   ├── web-shared/                           # @garage/web-shared — api-client + query-client factories, formatters, getApiErrorMessage
-│   └── bucket-api-contract-tests/            # @garage/bucket-api-contract-tests — regression suite
-├── designs/                                  # historical design notes (archive)
-├── e2e/                                      # Playwright tests for Admin Console
-├── screenshots/                              # rendered Admin Console screenshots for README
-├── docker/                                   # Dockerfiles, compose, build ignores
-└── pnpm-workspace.yaml                       # garage-admin-console/*, s3-browser/*, packages/*
+│   ├── tokens, ui, web-shared            # shared frontend: design tokens, UI primitives, api/query/format logic
+│   ├── crypto, server-config             # shared backend: AES-256-GCM, env/auth/db helpers (both BFFs)
+│   ├── bucket-api-server                 # shared Express router for the Bucket Backend API
+│   └── bucket-api-contract-tests         # Bucket Backend API regression suite
+├── docs/                                 # architecture, development, bucket-api, testing, deployment
+├── designs/                              # historical design notes (local-only; gitignored, not in the repo)
+├── e2e/  screenshots/  docker/
 ```
+
+## Where things are documented
+
+| Topic | Doc |
+| --- | --- |
+| System design, BFFs, Module Federation, DB schemas | [docs/architecture.md](./docs/architecture.md) |
+| Setup, env vars, dev servers, common tasks, troubleshooting | [docs/development.md](./docs/development.md) |
+| The shared Bucket Backend API contract + conformance suite | [docs/bucket-api.md](./docs/bucket-api.md) |
+| Test strategy, conventions, coverage, offline vs. live | [docs/testing.md](./docs/testing.md) |
+| Docker images, production env vars | [docs/deployment.md](./docs/deployment.md) |
+| Branching, Conventional Commits, versioning, code style | [CONTRIBUTING.md](./CONTRIBUTING.md) |
 
 ## Commands
 
 ```bash
-pnpm install                                  # Install all workspaces
-
-# Dev — currently `pnpm dev` launches Admin Console only (api + web in parallel).
-# To also develop/debug the embedded FileBrowser inside the Admin Console,
-# run all four processes (three terminals):
-pnpm dev                                      # Admin: BFF :3001 + Vite :5173
-pnpm -C s3-browser/api dev                    # S3 Browser BFF :3002
-pnpm -C s3-browser/web dev                    # S3 Browser web :5174 (MF Remote — serves remoteEntry.js)
-# Admin Console auto-discovers the remote at http://<hostname>:5174 when VITE_S3_BROWSER_MF_URL is unset.
-
-pnpm build                                    # Build shared packages, then Admin api + web
-pnpm -C s3-browser/api build                  # S3 Browser BFF
-pnpm -C s3-browser/web build                  # S3 Browser web (emits MF manifest)
-
-pnpm lint                                     # Admin api + web (extend per-app if you add lint to s3-browser)
-pnpm format / format:check
-pnpm test                                     # Full offline suite across every workspace
-pnpm test:coverage                            # Aggregated v8 coverage (informational, not a gate)
-pnpm -C packages/bucket-api-contract-tests test:run  # contract suite (env-gated; needs a live backend)
-# Testing strategy, layers, and how to run unit/integration/contract/E2E → see TESTING.md
-
-# Per-workspace
-pnpm -C garage-admin-console/api <script>
-pnpm -C garage-admin-console/web <script>
-pnpm -C s3-browser/api <script>
-pnpm -C s3-browser/web <script>
-
-# Type checking
-pnpm -C garage-admin-console/api typecheck    # tsc --noEmit
-pnpm -C garage-admin-console/web exec tsc --noEmit
-pnpm -C s3-browser/api typecheck
-
-# E2E (Admin Console only today)
-npx playwright test
+pnpm install                                   # install all workspaces
+pnpm dev                                       # Admin BFF :3001 + Vite :5173
+pnpm -C s3-browser/api dev                     # S3 Browser BFF :3002
+pnpm -C s3-browser/web dev                     # S3 Browser web :5174 (MF Remote)
+pnpm build                                      # shared packages + Admin api + web
+pnpm lint  ·  pnpm format[:check]  ·  pnpm typecheck
+pnpm test                                       # full offline suite across every workspace
+pnpm test:coverage                              # aggregated v8 coverage (informational)
+pnpm e2e                                         # Playwright (Admin Console; needs a live backend)
+pnpm -C packages/bucket-api-contract-tests test:run   # contract suite (env-gated)
 ```
 
-## Architecture
+Per workspace: `pnpm -C <workspace> <script>`. The four-process embedded-MF dev
+workflow is in [docs/development.md](./docs/development.md#developing-the-embedded-filebrowser).
 
-### Data flow
+## Conventions you must not get wrong
 
-```
-Browser
-  ├─→ /api/auth, /api/clusters, /api/proxy/:id/*           (Admin BFF — :3001)
-  ├─→ /api/clusters/:id/buckets/:bucket/*                  (Admin BFF — Bucket Backend API)
-  └─→ /api/auth, /api/connections, /api/connections/:id/.. (S3 Browser BFF — :3002)
-```
-
-- Frontends NEVER call Garage / S3 endpoints directly. Every request hops through a BFF that holds encrypted credentials.
-- `Cluster.adminToken` / `Connection.{accessKeyId,secretAccessKey}` are AES-256-GCM encrypted at rest (`encryption.ts` is bit-identical between the two BFFs).
-- Embedded mode mints per-(cluster, bucket) S3 keypairs from the cluster's admin token via Garage `CreateKey + AllowBucketKey`, in-memory-cached with a 10-min TTL (see `garage-admin-console/api/src/lib/garage-keys.ts`).
-
-### Bucket Backend API
-
-The shared HTTP surface that BOTH BFFs implement so the same `FileBrowser` can run against either. The 10 MiB `LARGE_FILE_THRESHOLD_BYTES` constant (exported from `@garage/bucket-api-server`) splits the surface in two:
-
-- **Below the threshold** — small files upload through `POST /upload` and download through `GET /download`. The BFF proxies the bytes; S3 credentials never reach the browser. `POST /upload` rejects oversized files with 413 so callers can't accidentally proxy huge bodies.
-- **At or above the threshold** — uploads use the `POST /multipart/*` flow and downloads use a presigned `getObject` URL. The browser PUTs/GETs the S3 endpoint directly. On the first such request per `(endpoint, bucket)`, the BFF idempotently appends a permissive CORS rule (`AllowedOrigins:['*']`, `AllowedMethods:['GET','PUT','HEAD','POST']`, `ExposeHeaders:['ETag']`) without disturbing pre-existing rules.
-
-| Method + path (relative to bucket scope) | Body / query                                                             | Response                                                              |
-| ---------------------------------------- | ------------------------------------------------------------------------ | --------------------------------------------------------------------- |
-| `GET /list`                              | `?prefix=&delimiter=/&continuationToken=&maxKeys=`                       | `{ objects: S3Object[]; prefixes: string[]; nextContinuationToken? }` |
-| `GET /object`                            | `?key=`                                                                  | `S3Object` (HEAD-equivalent metadata)                                 |
-| `GET /download`                          | `?key=`                                                                  | Binary stream — `Content-Disposition: attachment`                     |
-| `POST /presign`                          | `{ key, operation, expiresIn, responseContentDisposition? }`             | `{ url, expiresAt }`                                                  |
-| `POST /upload`                           | `multipart/form-data` (one+ files, optional `prefix`); per-file ≤ 10 MiB | `{ uploaded: { key, etag, size }[] }` · 413 if oversized              |
-| `POST /multipart/create`                 | `{ key, contentType? }`                                                  | `{ uploadId, key, partSize, maxParts }`                               |
-| `POST /multipart/sign`                   | `{ key, uploadId, partNumbers: number[], expiresIn? }`                   | `{ urls: { partNumber, url }[], expiresAt }`                          |
-| `POST /multipart/complete`               | `{ key, uploadId, parts: { partNumber, etag }[] }`                       | `{ key, etag, location }`                                             |
-| `POST /multipart/abort`                  | `{ key, uploadId }`                                                      | `{ ok: true }`                                                        |
-| `DELETE /objects`                        | `{ keys: string[] }`                                                     | `{ deleted: string[]; errors: { key, message }[] }`                   |
-| `POST /copy`                             | `{ src, dst }`                                                           | `{ etag }`                                                            |
-
-Scope prefix:
-
-- Admin BFF: `/api/clusters/:clusterId/buckets/:bucket/...`
-- S3 Browser BFF: `/api/connections/:connId/buckets/:bucket/...`
-
-A regression suite at `packages/bucket-api-contract-tests/` runs the same set of HTTP cases against EITHER prefix via `TEST_BFF_FLAVOR=clusters | connections` — useful when extending or refactoring the routes to make sure both BFFs stay in sync.
-
-### API Routes
-
-Admin BFF — registered in [`garage-admin-console/api/src/app.ts`](garage-admin-console/api/src/app.ts):
-
-| Route                                                       | Auth | Purpose                                                |
-| ----------------------------------------------------------- | ---- | ------------------------------------------------------ |
-| `POST /api/auth/login`                                      | No   | Returns JWT                                            |
-| `GET  /api/health`                                          | No   | Health check                                           |
-| `GET/POST /api/clusters`                                    | JWT  | List / add clusters (tokens excluded from list)        |
-| `PUT/DELETE /api/clusters/:id`                              | JWT  | Update / remove cluster                                |
-| `ALL  /api/proxy/:clusterId/*splat`                         | JWT  | Pass-through to Garage admin API                       |
-| `* /api/clusters/:clusterId/buckets/:bucket/*` (Bucket API) | JWT  | list, object, download, presign, upload, objects, copy |
-
-S3 Browser BFF — registered in [`s3-browser/api/src/app.ts`](s3-browser/api/src/app.ts):
-
-| Route                                                       | Auth | Purpose                                                |
-| ----------------------------------------------------------- | ---- | ------------------------------------------------------ |
-| `POST /api/auth/login`                                      | No   | Returns JWT                                            |
-| `GET  /api/health`                                          | No   | Health check                                           |
-| `GET/POST/PUT/DELETE /api/connections[/:id]`                | JWT  | CRUD S3 connections                                    |
-| `POST /api/connections/test`                                | JWT  | Test credentials without saving                        |
-| `GET  /api/connections/:connId/buckets`                     | JWT  | S3 ListBuckets (helper)                                |
-| `* /api/connections/:connId/buckets/:bucket/*` (Bucket API) | JWT  | list, object, download, presign, upload, objects, copy |
-
-### Module Federation surface
-
-`s3-browser/web` (Rsbuild + `@module-federation/rsbuild-plugin`) exposes:
-
-| Key             | Source                                       | Wrapper                 |
-| --------------- | -------------------------------------------- | ----------------------- |
-| `./FileBrowser` | `s3-browser/web/src/export-file-browser.tsx` | none — plain React      |
-| `./export-app`  | `s3-browser/web/src/export-app.tsx`          | `createBridgeComponent` |
-
-`garage-admin-console/web` is the Host. It deliberately does NOT use `@module-federation/vite` — that plugin's build-time share registration races the Rsbuild-built remote's `consume_default_react` wrapper and trips React 19's "Invalid hook call" two-copies guard. Instead the host owns federation via `@module-federation/runtime`:
-
-- [`garage-admin-console/web/src/mf-init.ts`](garage-admin-console/web/src/mf-init.ts) calls `init()` at entry with explicit `lib: () => React/ReactDOM` references, exporting an `mfInstance` handle.
-- [`BucketObjectBrowser.tsx`](garage-admin-console/web/src/components/cluster/BucketObjectBrowser.tsx) consumes via `mfInstance.loadRemote('s3Browser/FileBrowser')` inside a `React.lazy` + `Suspense` + `ErrorBoundary`.
-- Remote URL is `VITE_S3_BROWSER_MF_URL`; in development, if unset, `mf-init.ts` derives it from the current browser hostname on port `5174`.
-
-### Database schemas
-
-**Admin BFF** — [`garage-admin-console/api/src/db/schema.ts`](garage-admin-console/api/src/db/schema.ts), Drizzle on LibSQL:
-
-- `Cluster`: `id, name, endpoint, adminToken (enc), metricToken (enc, opt), s3Endpoint (opt), s3Region (opt), s3ForcePathStyle (opt), createdAt, updatedAt`
-- `AppSettings`: `key, value`
-
-The `s3*` columns are optional — clusters that don't set them keep working everywhere except the embedded BucketObjectBrowser, which surfaces a graceful "S3 endpoint not configured" panel.
-
-**S3 Browser BFF** — [`s3-browser/api/src/db/schema.ts`](s3-browser/api/src/db/schema.ts):
-
-- `Connection`: `id, name, endpoint, region, forcePathStyle, accessKeyId (enc), secretAccessKey (enc), createdAt, updatedAt`
-- `AppSettings`: `key, value`
-
-Migrations live in each BFF's `drizzle/` directory and run automatically on startup.
-
-### Frontend structure
-
-**Admin Console** (`garage-admin-console/web/src/`) — React Router v7:
-
-- Routing (in `App.tsx`): `/login`, `/` (Dashboard), `/clusters/:id/*` (ClusterLayout + sidebar nav with Overview / Buckets / Keys / Layout / Nodes / Admin Tokens / Workers / Blocks / Metrics).
-- BucketDetail mounts the federated `BucketObjectBrowser`.
-- UI components from `@garage/ui` (shadcn primitives), tokens from `@garage/tokens`. Path alias `@` → `src/`.
-
-**S3 Browser** (`s3-browser/web/src/`) — React Router v7 in the standalone shell, with the federated `FileBrowser` itself kept router-free so embedders don't have to pull in react-router:
-
-- Standalone routes (in `App.tsx`): `/` (HomePage / connection cards), `/connections/:id` (ConnectionView / bucket list), `/connections/:id/b/:bucket/*` (BucketView mounts the FileBrowser; splat encodes the in-bucket folder path).
-- `FileBrowser` is controlled via `path` / `onPathChange` props — App resolves the splat to `path[]` and pushes new URLs on folder navigation, so refresh + back/forward work for free.
-- Uses the same `@garage/ui` + `@garage/tokens` set so embedded and standalone modes are visually consistent.
-- `index.css` mirrors the Admin Console layer order (`@import @garage/tokens/style.css; @import @garage/ui/style.css; @import 'tailwindcss';` then a `@layer base { * { @apply border-border; } }` so Tailwind v4's default `border` resolves to the soft warm tone).
-
-## Frontend UX/UI design principles
-
-### UX
-
-The overall approach progresses from simple to complex, layer by layer.
-
-The outermost layer is the Dashboard page, which lists every cluster (Admin Console) or every connection (S3 Browser). It should present key health, count, and capacity indicators.
-
-Clicking a cluster/connection enters its detail page. Admin Console uses a sidebar navigation; S3 Browser uses a stacked breadcrumb-back flow (Dashboard → Connection → Bucket).
-
-Within each module the same drill-down applies — list pages stay information-light, detail pages go deep (aliases, website access, permissions, object browser, etc.).
-
-### UI
-
-- Theme color is orange `rgb(255, 148, 41)`. Logos live in each web app's `public/`.
-- Light-themed only. Dark mode is out of scope.
-- Four colors only: theme orange · red (errors) · green (health) · purple (warnings). Don't add a fifth.
-- Consistency: pages at the same hierarchy level share style; different levels show slight differences.
-- Both apps consume `@garage/ui` + `@garage/tokens` so embedded mode looks identical to standalone.
+- **Keep both web apps aligned — don't fork them.** New shared UI goes in `@garage/ui`, new shared non-UI logic in `@garage/web-shared`; never copy a util/component into both apps. Both `web` apps extend the repo-root [`tsconfig.base.json`](./tsconfig.base.json) and [`eslint.config.base.js`](./eslint.config.base.js). `react-refresh` lint stays admin-only (the S3 Browser remote co-locates non-component exports in its MF entries).
+- **Module Federation: the Admin host owns federation via `@module-federation/runtime`.** Do NOT add `@module-federation/vite` to the host — it trips React 19's two-copies "Invalid hook call" guard. See [docs/architecture.md](./docs/architecture.md#module-federation).
+- **The Bucket Backend API is shared in `@garage/bucket-api-server`.** Change it there once; cover it in `bucket-api-contract-tests` so both BFFs stay in sync. See [docs/bucket-api.md](./docs/bucket-api.md).
+- **No `@aws-sdk/*` in any frontend.** The federated `FileBrowser` talks only to the Bucket Backend API and reads credentials from props, never from `localStorage`/`window`/env.
+- **UX/UI:** light theme only; **four colors only** — theme orange `rgb(255,148,41)` · red (errors) · green (health) · purple (warnings). List pages stay light, detail pages go deep.
+- **Git:** never commit directly to `main`; branch + PR. All commit messages / squash-merge PR titles follow [Conventional Commits](https://www.conventionalcommits.org/) (required by Release Please).
+- **Versioning:** the major version tracks the Garage Admin API version (v2 → `2.x.x`); within a major, `fix:` → patch, `feat:`/significant `refactor:` → minor.
+- **Code style:** Prettier (100-char, single quotes, trailing commas, semicolons, 2-space), ESLint 9 flat config, strict TypeScript, ES modules everywhere.
 
 ## Key Files
 
-**Shared**:
+**Shared:** [`packages/bucket-api-server/src/router.ts`](./packages/bucket-api-server/src/router.ts) (the `createBucketRouter` factory) · [`packages/crypto/src/index.ts`](./packages/crypto/src/index.ts) · [`packages/ui/src/index.ts`](./packages/ui/src/index.ts) · [`packages/web-shared/src/index.ts`](./packages/web-shared/src/index.ts)
 
-- [`packages/bucket-api-contract-tests/src/contract.test.ts`](packages/bucket-api-contract-tests/src/contract.test.ts) — regression suite that exercises both BFFs against the shared Bucket Backend API
-- [`packages/ui/src/index.ts`](packages/ui/src/index.ts) / [`packages/tokens/src/style.css`](packages/tokens/src/style.css)
+**Admin BFF:** [`api/src/app.ts`](./garage-admin-console/api/src/app.ts) · [`api/src/lib/garage-keys.ts`](./garage-admin-console/api/src/lib/garage-keys.ts) (per-bucket S3 key manager) · [`api/src/routes/buckets.ts`](./garage-admin-console/api/src/routes/buckets.ts) · [`api/src/db/schema.ts`](./garage-admin-console/api/src/db/schema.ts)
 
-**Admin BFF**:
+**Admin web:** [`web/src/mf-init.ts`](./garage-admin-console/web/src/mf-init.ts) (explicit MF init) · [`web/src/components/cluster/BucketObjectBrowser.tsx`](./garage-admin-console/web/src/components/cluster/BucketObjectBrowser.tsx) (embedded FileBrowser wrapper) · [`web/src/lib/api.ts`](./garage-admin-console/web/src/lib/api.ts) · [`web/src/types/s3-browser.d.ts`](./garage-admin-console/web/src/types/s3-browser.d.ts) (`FileBrowserProps` shim)
 
-- `garage-admin-console/web/public/garage-admin-v2.json` — Garage OpenAPI spec
-- [`garage-admin-console/api/src/app.ts`](garage-admin-console/api/src/app.ts) — Express setup, route mounting (multipart-aware JSON parser)
-- [`garage-admin-console/api/src/encryption.ts`](garage-admin-console/api/src/encryption.ts) — AES-256-GCM (mirrored in s3-browser/api)
-- [`garage-admin-console/api/src/lib/garage-keys.ts`](garage-admin-console/api/src/lib/garage-keys.ts) — per-bucket S3 key manager
-- [`garage-admin-console/api/src/lib/s3-client.ts`](garage-admin-console/api/src/lib/s3-client.ts) — `@aws-sdk/client-s3` factory
-- [`garage-admin-console/api/src/routes/buckets.ts`](garage-admin-console/api/src/routes/buckets.ts) — Bucket Backend API handlers
-- [`garage-admin-console/api/src/middleware/auth.middleware.ts`](garage-admin-console/api/src/middleware/auth.middleware.ts)
-- [`garage-admin-console/api/src/db/{index,schema,migrate}.ts`](garage-admin-console/api/src/db/schema.ts)
+**S3 Browser:** [`s3-browser/api/src/routes/buckets.ts`](./s3-browser/api/src/routes/buckets.ts) · [`s3-browser/web/rsbuild.config.ts`](./s3-browser/web/rsbuild.config.ts) (MF Remote config) · [`s3-browser/web/src/file-browser/FileBrowser.tsx`](./s3-browser/web/src/file-browser/FileBrowser.tsx) (the federated surface) · [`s3-browser/web/src/export-file-browser.tsx`](./s3-browser/web/src/export-file-browser.tsx)
 
-**Admin web**:
-
-- [`garage-admin-console/web/src/mf-init.ts`](garage-admin-console/web/src/mf-init.ts) — explicit MF runtime init
-- [`garage-admin-console/web/src/components/cluster/BucketObjectBrowser.tsx`](garage-admin-console/web/src/components/cluster/BucketObjectBrowser.tsx) — embedded FileBrowser wrapper
-- [`garage-admin-console/web/src/lib/api.ts`](garage-admin-console/web/src/lib/api.ts) — axios + `proxyPath()` helper
-- [`garage-admin-console/web/src/types/garage.ts`](garage-admin-console/web/src/types/garage.ts) — ClusterSummary + Garage response shapes
-- [`garage-admin-console/web/src/types/s3-browser.d.ts`](garage-admin-console/web/src/types/s3-browser.d.ts) — `FileBrowserProps` shim for tsc
-
-**S3 Browser BFF**:
-
-- [`s3-browser/api/src/app.ts`](s3-browser/api/src/app.ts)
-- [`s3-browser/api/src/lib/s3-client.ts`](s3-browser/api/src/lib/s3-client.ts) — builds `@aws-sdk/client-s3` from a stored Connection
-- [`s3-browser/api/src/routes/buckets.ts`](s3-browser/api/src/routes/buckets.ts) — Bucket Backend API handlers
-
-**S3 Browser web**:
-
-- [`s3-browser/web/rsbuild.config.ts`](s3-browser/web/rsbuild.config.ts) — MF Remote config, build-time `dts`, `bridge.enableBridgeRouter: false`
-- [`s3-browser/web/src/file-browser/FileBrowser.tsx`](s3-browser/web/src/file-browser/FileBrowser.tsx) — the federated primary surface
-- [`s3-browser/web/src/{export-app,export-file-browser}.tsx`](s3-browser/web/src/export-file-browser.tsx) — MF entry points
-
-## Docker
-
-Docker files live under `docker/`. `docker/garage-admin-console.Dockerfile` builds the **Admin Console** image (Express serves both API and the Vite-built SPA from one image). `docker/s3-browser.Dockerfile` builds one **S3 Browser** product image that can run standalone or in `S3_BROWSER_STATIC_ONLY=true` mode as the Admin-embedded MF remote. `docker/docker-compose.yml` demonstrates the combined deployment with only the Admin port published.
-
-Key production env vars on the Admin image: `JWT_SECRET`, `ENCRYPTION_KEY`, `ADMIN_PASSWORD`, `DATA_DIR` (default `/data`), `STATIC_DIR` (default `/app/static`), and optionally runtime `S3_BROWSER_MF_URL` plus `S3_BROWSER_MF_PROXY_TARGET` for combined deployments.
-
-## Environment Variables
-
-- **Admin BFF**: see [`garage-admin-console/api/.env.example`](garage-admin-console/api/.env.example). Validation in `src/config/env.ts`.
-- **Admin web**: see [`garage-admin-console/web/.env.example`](garage-admin-console/web/.env.example) — primarily `VITE_S3_BROWSER_MF_URL`.
-- **S3 Browser BFF**: see [`s3-browser/api/.env.example`](s3-browser/api/.env.example).
-
-## Git Workflow
-
-- **Never commit directly to `main`.** Always create a feature branch and open a pull request.
-- All commit messages and PR titles (for squash merges) must follow [Conventional Commits](https://www.conventionalcommits.org/) format (`type: description`). This is required for Release Please to generate changelogs and release PRs.
-
-## Versioning
-
-The major version tracks the upstream Garage Admin API version (e.g. API v2 → project `2.x.x`). Major bumps only happen when migrating to a new Garage API version. Within a major version: `fix:` → patch, `feat:` / significant `refactor:` → minor.
-
-## Code Style
-
-- Prettier: 100-char width, single quotes, trailing commas, semicolons, 2-space indent
-- ESLint 9 flat config with TypeScript rules; React Hooks + React Refresh plugins on frontends
-- All packages use ES modules and strict TypeScript
-- **Shared frontend bases — keep both web apps aligned, don't fork them.** Both `web` apps extend the repo-root [`tsconfig.base.json`](tsconfig.base.json) and [`eslint.config.base.js`](eslint.config.base.js), and import the shared design system from `@garage/ui` (`style.css` + `theme.css` + `base.css`, plus `Toaster`/`useToast`/`LoginForm`/`cn`) and shared non-UI logic from `@garage/web-shared` (`createApiClient`, `createAppQueryClient`, formatters, `getApiErrorMessage`). Put new shared UI in `@garage/ui`, new shared logic in `@garage/web-shared` — never copy a util/component into both apps. `react-refresh` lint stays admin-only (Vite host); the S3 Browser remote omits it because its MF entries co-locate non-component exports.
+**Garage spec:** [`garage-admin-console/web/public/garage-admin-v2.json`](./garage-admin-console/web/public/garage-admin-v2.json) (OpenAPI).

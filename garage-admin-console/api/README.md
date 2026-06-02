@@ -109,4 +109,5 @@ pnpm -C packages/bucket-api-contract-tests test:run
 
 ## Documentation
 
-See [`../../DEVELOPMENT.md`](../../DEVELOPMENT.md) for the full developer guide.
+See the [`docs/`](../../docs/) guides — start with
+[architecture.md](../../docs/architecture.md) and [development.md](../../docs/development.md).

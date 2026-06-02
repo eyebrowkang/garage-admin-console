@@ -49,4 +49,6 @@ Splitting these imports across CSS and JS (e.g. doing `import '@garage/ui/style.
 
 ## Documentation
 
-See [`../../DEVELOPMENT.md`](../../DEVELOPMENT.md) for project structure, component organization, custom hooks, testing, and the full Module Federation setup.
+See the [`docs/`](../../docs/) guides — [architecture.md](../../docs/architecture.md)
+(structure + the full Module Federation setup), [development.md](../../docs/development.md),
+and [testing.md](../../docs/testing.md).

@@ -94,7 +94,7 @@ set -a; . ./.env.contract.local; set +a
 
 Runs the shared Bucket Backend API cases against a **running** BFF. Full setup
 for both flavors and the complete env reference live in
-[`packages/bucket-api-contract-tests/README.md`](packages/bucket-api-contract-tests/README.md).
+[`packages/bucket-api-contract-tests/README.md`](../packages/bucket-api-contract-tests/README.md).
 Quick start (connections flavor — start `s3-browser/api`, then run):
 
 ```bash

@@ -79,4 +79,5 @@ If `TEST_CONNECTION_ID` is unset, the suite creates a throwaway connection from 
 
 ## Documentation
 
-See [`../../DEVELOPMENT.md`](../../DEVELOPMENT.md).
+See the [`docs/`](../../docs/) guides — especially
+[architecture.md](../../docs/architecture.md) and [bucket-api.md](../../docs/bucket-api.md).

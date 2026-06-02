@@ -26,7 +26,7 @@ pnpm -C garage-admin-console/api db:push    # initialize Admin database
 pnpm dev                                    # start Admin api :3001 + web :5173
 ```
 
-The repo is a pnpm workspace with two products (`garage-admin-console/`, `s3-browser/`) plus three shared packages (`packages/{tokens,ui,bucket-api-contract-tests}`). See [DEVELOPMENT.md](./DEVELOPMENT.md) for full architecture details.
+The repo is a pnpm workspace with two products (`garage-admin-console/`, `s3-browser/`) plus shared packages under `packages/`. See [docs/architecture.md](./docs/architecture.md) for full architecture details.
 
 To work on the S3 Browser side in parallel:
 

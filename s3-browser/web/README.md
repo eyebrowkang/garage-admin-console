@@ -60,7 +60,7 @@ pluginModuleFederation({
 
 ## The federated `FileBrowser` component
 
-[`src/features/file-browser/FileBrowser.tsx`](src/features/file-browser/FileBrowser.tsx). Conventions to preserve so the component stays embeddable:
+[`src/file-browser/FileBrowser.tsx`](src/file-browser/FileBrowser.tsx). Conventions to preserve so the component stays embeddable:
 
 - Does not import `@aws-sdk/*`. All S3 details live in the BFF.
 - Does not import `react-router-dom`. Path state is parent-controlled (`path: string[]` + `onPathChange`).
@@ -88,12 +88,12 @@ export interface FileBrowserProps {
 
 React Router v7 in the standalone shell — the FileBrowser itself stays router-free.
 
-- `/` ([`features/home/HomePage.tsx`](src/features/home/HomePage.tsx)) — Connection Dashboard with fleet summary + connection cards + add/edit/delete
-- `/connections/:id` ([`features/connection/ConnectionView.tsx`](src/features/connection/ConnectionView.tsx)) — bucket grid for one connection
-- `/connections/:id/b/:bucket/*` ([`features/bucket/BucketView.tsx`](src/features/bucket/BucketView.tsx)) — wraps `FileBrowser`; the splat encodes the in-bucket folder path so refresh + back/forward restore the exact location
+- `/` ([`pages/HomePage.tsx`](src/pages/HomePage.tsx)) — Connection Dashboard with fleet summary + connection cards + add/edit/delete
+- `/connections/:id` ([`pages/ConnectionView.tsx`](src/pages/ConnectionView.tsx)) — bucket grid for one connection
+- `/connections/:id/b/:bucket/*` ([`pages/BucketView.tsx`](src/pages/BucketView.tsx)) — wraps `FileBrowser`; the splat encodes the in-bucket folder path so refresh + back/forward restore the exact location
 
 The shell consumes the same `@garage/ui` + `@garage/tokens` palette as the Admin Console, so embedded and standalone modes are visually identical.
 
 ## Documentation
 
-- [`../../DEVELOPMENT.md`](../../DEVELOPMENT.md) — full developer guide
+- The [`docs/`](../../docs/) guides — [architecture.md](../../docs/architecture.md), [development.md](../../docs/development.md)
