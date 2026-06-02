@@ -27,7 +27,9 @@
     "build:js": "tsup",
     "build:css": "tailwindcss -i src/styles/input.css -o dist/style.css",
     "build": "pnpm build:js && pnpm build:css",
-    "dev": "tsup --watch"
+    "dev": "tsup --watch",
+    "test": "vitest",
+    "test:run": "vitest run"
   },
   "dependencies": {
     "@garage/tokens": "workspace:*",
@@ -50,10 +52,17 @@
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.3.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",
+    "jsdom": "^29.1.1",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
     "tailwindcss": "^4.3.0",
     "tsup": "^8.5.0",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "vitest": "^4.1.7"
   }
 }

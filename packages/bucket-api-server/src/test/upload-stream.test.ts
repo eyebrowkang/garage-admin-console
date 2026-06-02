@@ -56,4 +56,36 @@ describe('uploadStreamToS3', () => {
     expect(send).toHaveBeenCalledTimes(1);
     expect(result).toEqual({ etag: 'empty-etag', size: 0 });
   });
+
+  it('strips surrounding quotes from the returned ETag', async () => {
+    const send = vi.fn(async () => ({ ETag: '"abc123"' }));
+    const result = await uploadStreamToS3({
+      client: { send } as unknown as S3Client,
+      bucket: 'b',
+      key: 'k',
+      body: Readable.from(['data']),
+    });
+    expect(result.etag).toBe('abc123');
+  });
+});
+
+describe('uploadStreamToS3 — abort', () => {
+  it('throws and never calls send when the signal is already aborted', async () => {
+    const send = vi.fn();
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(
+      uploadStreamToS3({
+        client: { send } as unknown as S3Client,
+        bucket: 'bucket-a',
+        key: 'folder/partial.bin',
+        body: Readable.from(['truncated-bytes']),
+        signal: controller.signal,
+      }),
+    ).rejects.toThrow(/aborted/i);
+
+    // The half-spooled body must NOT be persisted to the bucket.
+    expect(send).not.toHaveBeenCalled();
+  });
 });

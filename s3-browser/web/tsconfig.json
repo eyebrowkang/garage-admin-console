@@ -7,5 +7,6 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "rsbuild.config.ts"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "rsbuild.config.ts"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/test/**/*"]
 }

@@ -21,7 +21,9 @@
     "format": "pnpm -r --if-present format",
     "format:check": "pnpm -r --if-present format:check",
     "check:css": "node scripts/check-css-cascade.mjs",
-    "test": "pnpm -F @garage/bucket-api-server test:run && pnpm -C garage-admin-console/api test:run && pnpm -C garage-admin-console/web test:run",
+    "test": "pnpm -r --if-present test:run",
+    "test:coverage": "vitest run --coverage",
+    "e2e": "playwright test",
     "typecheck": "pnpm -r --if-present typecheck && pnpm --filter @garage-admin/web exec tsc --noEmit && pnpm --filter @s3-browser/web exec tsc --noEmit"
   },
   "browserslist": [
@@ -33,11 +35,13 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.60.0",
+    "@vitest/coverage-v8": "^4.1.7",
     "eslint": "^10.4.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.6.0",
     "playwright": "^1.60.0",
-    "typescript-eslint": "^8.59.4"
+    "typescript-eslint": "^8.59.4",
+    "vitest": "^4.1.7"
   }
 }
