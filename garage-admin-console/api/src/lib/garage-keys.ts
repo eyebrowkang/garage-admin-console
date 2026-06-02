@@ -23,7 +23,7 @@ import { BucketAccessError } from '@garage/bucket-api-server';
 export { BucketAccessError };
 
 export interface ResolvedBucketKey {
-  /** S3-protocol endpoint, e.g. http://192.168.88.62:3900 */
+  /** S3-protocol endpoint, e.g. http://127.0.0.1:3900 */
   s3Endpoint: string;
   s3Region: string;
   s3ForcePathStyle: boolean;

@@ -28,7 +28,7 @@ export TEST_BFF_PASSWORD=admin
 export TEST_CONNECTION_ID=<connection-id>
 
 # …or let the suite create one for you on the fly:
-# export TEST_S3_ENDPOINT=http://192.168.88.62:3900
+# export TEST_S3_ENDPOINT=http://127.0.0.1:3900
 # export TEST_S3_ACCESS_KEY=…
 # export TEST_S3_SECRET_KEY=…
 # export TEST_S3_REGION=garage
