@@ -60,15 +60,14 @@ describe('empty-string sentinel', () => {
     expect(decrypt('')).toBe('');
   });
 
-  it('stores empty values as the literal "" sentinel, NOT as encrypt("")', () => {
+  it('round-trips an explicitly encrypted empty string', () => {
     // GCM over empty plaintext produces no ciphertext bytes, so encrypt('')
     // yields `iv:tag:` with an empty third component...
     const enc = encrypt('');
     expect(enc.split(':')[2]).toBe('');
-    // ...which decrypt deliberately rejects. Callers persist '' directly and
-    // rely on decrypt('') === '' for optional columns, never round-tripping
-    // encrypt('').
-    expect(() => decrypt(enc)).toThrow(/components/i);
+    // ...but the IV + auth tag still authenticate that empty message, so it
+    // decrypts back to '' instead of being rejected.
+    expect(decrypt(enc)).toBe('');
   });
 });
 

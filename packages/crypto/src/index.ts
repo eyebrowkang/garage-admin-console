@@ -31,7 +31,12 @@ export function createCrypto(encryptionKey: string | Buffer): {
       const parts = text.split(':');
       if (parts.length !== 3) throw new Error('Invalid encrypted string format');
       const [ivHex, authTagHex, encryptedHex] = parts;
-      if (!ivHex || !authTagHex || !encryptedHex) {
+      // IV and auth tag must be non-empty; the ciphertext segment may be empty
+      // (encrypt('') produces no ciphertext bytes — the GCM auth tag still
+      // authenticates that empty message, so it round-trips to ''). The
+      // `=== undefined` check narrows encryptedHex to `string` for the cipher
+      // call without rejecting an empty string.
+      if (!ivHex || !authTagHex || encryptedHex === undefined) {
         throw new Error('Invalid encrypted string components');
       }
       const iv = Buffer.from(ivHex, 'hex');
