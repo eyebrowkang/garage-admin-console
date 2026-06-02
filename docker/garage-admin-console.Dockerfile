@@ -5,8 +5,8 @@ RUN corepack enable
 
 WORKDIR /src
 
-# Install dependencies (cached layer) — copy every workspace's package.json
-# so pnpm can resolve the workspace graph before sources land.
+# Install dependencies (cached layer) — copy every package.json needed by this
+# image so pnpm can resolve the workspace graph before sources land.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
 COPY garage-admin-console/api/package.json garage-admin-console/api/
 COPY garage-admin-console/web/package.json garage-admin-console/web/
@@ -18,8 +18,15 @@ COPY packages/ui/package.json packages/ui/
 COPY packages/web-shared/package.json packages/web-shared/
 RUN pnpm install --frozen-lockfile
 
-# Copy source
-COPY packages/ packages/
+# Copy only the shared package sources used by this image. Keeping this set in
+# sync with the package.json files copied above prevents pnpm from discovering
+# a new workspace after install and auto-running another install before scripts.
+COPY packages/bucket-api-server/ packages/bucket-api-server/
+COPY packages/crypto/ packages/crypto/
+COPY packages/server-config/ packages/server-config/
+COPY packages/tokens/ packages/tokens/
+COPY packages/ui/ packages/ui/
+COPY packages/web-shared/ packages/web-shared/
 COPY garage-admin-console/api/ garage-admin-console/api/
 COPY garage-admin-console/web/ garage-admin-console/web/
 

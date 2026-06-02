@@ -16,7 +16,12 @@ COPY s3-browser/api/package.json s3-browser/api/
 COPY s3-browser/web/package.json s3-browser/web/
 RUN pnpm install --frozen-lockfile
 
-COPY packages/ packages/
+COPY packages/bucket-api-server/ packages/bucket-api-server/
+COPY packages/crypto/ packages/crypto/
+COPY packages/server-config/ packages/server-config/
+COPY packages/tokens/ packages/tokens/
+COPY packages/ui/ packages/ui/
+COPY packages/web-shared/ packages/web-shared/
 COPY s3-browser/api/ s3-browser/api/
 COPY s3-browser/web/ s3-browser/web/
 
