@@ -81,6 +81,9 @@ export function KeyDetail() {
     write: boolean;
     owner: boolean;
   } | null>(null);
+  const [selectedBucketIds, setSelectedBucketIds] = useState<Set<string>>(new Set());
+  const [bulkPerm, setBulkPerm] = useState<'read' | 'write' | 'owner'>('read');
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const { data: keyInfo, isLoading, error } = useKeyInfo(clusterId, kid || '');
   const bucketsQuery = useBuckets(clusterId);
@@ -345,6 +348,50 @@ export function KeyDetail() {
     setPermDialogOpen(true);
   };
 
+  const assignedBuckets = keyInfo.buckets ?? [];
+  const allBucketsSelected =
+    assignedBuckets.length > 0 && assignedBuckets.every((b) => selectedBucketIds.has(b.id));
+  const toggleBucketSelection = (bucketId: string) =>
+    setSelectedBucketIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(bucketId)) next.delete(bucketId);
+      else next.add(bucketId);
+      return next;
+    });
+  const toggleAllBuckets = () =>
+    setSelectedBucketIds(allBucketsSelected ? new Set() : new Set(assignedBuckets.map((b) => b.id)));
+
+  // Bulk grant/revoke one permission across every selected bucket for this key.
+  // No batch endpoint exists, so loop the per-bucket Allow/Deny mutations.
+  const handleBulkPermission = async (grant: boolean) => {
+    if (!kid || selectedBucketIds.size === 0) return;
+    setBulkBusy(true);
+    const permissions = {
+      read: bulkPerm === 'read',
+      write: bulkPerm === 'write',
+      owner: bulkPerm === 'owner',
+    };
+    const mutation = grant ? allowKeyMutation : denyKeyMutation;
+    let ok = 0;
+    let failed = 0;
+    for (const bucketId of selectedBucketIds) {
+      try {
+        await mutation.mutateAsync({ bucketId, accessKeyId: kid, permissions });
+        ok += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+    setBulkBusy(false);
+    setSelectedBucketIds(new Set());
+    toast({
+      title: `${grant ? 'Granted' : 'Revoked'} ${bulkPerm} on ${ok} bucket${ok === 1 ? '' : 's'}${
+        failed ? ` (${failed} failed)` : ''
+      }`,
+      variant: failed ? 'destructive' : 'success',
+    });
+  };
+
   return (
     <div className="space-y-4">
       <DetailPageHeader
@@ -498,11 +545,59 @@ export function KeyDetail() {
         <CardContent className="space-y-4">
           {keyInfo.buckets && keyInfo.buckets.length > 0 ? (
             <>
+              {selectedBucketIds.size > 0 && (
+                <div className="flex flex-col gap-2 rounded-lg border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="text-sm font-medium">{selectedBucketIds.size} selected</div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Select
+                      value={bulkPerm}
+                      onValueChange={(value) => setBulkPerm(value as 'read' | 'write' | 'owner')}
+                    >
+                      <SelectTrigger className="w-[130px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="read">Read</SelectItem>
+                        <SelectItem value="write">Write</SelectItem>
+                        <SelectItem value="owner">Owner</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleBulkPermission(true)}
+                      disabled={bulkBusy}
+                    >
+                      Grant
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-destructive"
+                      onClick={() => handleBulkPermission(false)}
+                      disabled={bulkBusy}
+                    >
+                      Revoke
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => setSelectedBucketIds(new Set())}>
+                      Clear
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               {/* Desktop / tablet: table */}
               <div className="hidden overflow-hidden rounded-lg border sm:block">
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-10">
+                        <Checkbox
+                          checked={allBucketsSelected}
+                          onCheckedChange={toggleAllBuckets}
+                          aria-label="Select all buckets"
+                        />
+                      </TableHead>
                       <TableHead>Bucket</TableHead>
                       <TableHead>Aliases</TableHead>
                       <TableHead className="text-center">Read</TableHead>
@@ -513,7 +608,17 @@ export function KeyDetail() {
                   </TableHeader>
                   <TableBody>
                     {keyInfo.buckets.map((bucket) => (
-                      <TableRow key={bucket.id}>
+                      <TableRow
+                        key={bucket.id}
+                        data-state={selectedBucketIds.has(bucket.id) ? 'selected' : undefined}
+                      >
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedBucketIds.has(bucket.id)}
+                            onCheckedChange={() => toggleBucketSelection(bucket.id)}
+                            aria-label={`Select bucket ${formatShortId(bucket.id, 12)}`}
+                          />
+                        </TableCell>
                         <TableCell className="font-mono text-xs">
                           {formatShortId(bucket.id, 12)}
                         </TableCell>
@@ -528,13 +633,25 @@ export function KeyDetail() {
                           </div>
                         </TableCell>
                         <TableCell className="text-center">
-                          <PermissionPill label="Yes" granted={bucket.permissions.read} />
+                          {bucket.permissions.read ? (
+                            <PermissionPill label="Yes" granted />
+                          ) : (
+                            <span className="text-xs text-muted-foreground">No</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-center">
-                          <PermissionPill label="Yes" granted={bucket.permissions.write} />
+                          {bucket.permissions.write ? (
+                            <PermissionPill label="Yes" granted />
+                          ) : (
+                            <span className="text-xs text-muted-foreground">No</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-center">
-                          <PermissionPill label="Yes" granted={bucket.permissions.owner} />
+                          {bucket.permissions.owner ? (
+                            <PermissionPill label="Yes" granted />
+                          ) : (
+                            <span className="text-xs text-muted-foreground">No</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-right">
                           <Button variant="ghost" size="sm" onClick={() => openBucketPerm(bucket)}>
@@ -553,19 +670,27 @@ export function KeyDetail() {
                 {keyInfo.buckets.map((bucket) => (
                   <div key={bucket.id} className="space-y-2.5 rounded-lg border p-3">
                     <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 space-y-1">
-                        <div className="truncate text-sm font-medium">
-                          {bucket.globalAliases[0] ||
-                            bucket.localAliases[0] ||
-                            formatShortId(bucket.id, 12)}
-                        </div>
-                        <div className="flex flex-wrap gap-1">
-                          {bucket.globalAliases.map((alias) => (
-                            <AliasMiniChip key={alias} value={alias} kind="global" />
-                          ))}
-                          {bucket.localAliases.map((alias) => (
-                            <AliasMiniChip key={alias} value={alias} kind="local" />
-                          ))}
+                      <div className="flex min-w-0 items-start gap-2.5">
+                        <Checkbox
+                          checked={selectedBucketIds.has(bucket.id)}
+                          onCheckedChange={() => toggleBucketSelection(bucket.id)}
+                          aria-label={`Select bucket ${formatShortId(bucket.id, 12)}`}
+                          className="mt-0.5"
+                        />
+                        <div className="min-w-0 space-y-1">
+                          <div className="truncate text-sm font-medium">
+                            {bucket.globalAliases[0] ||
+                              bucket.localAliases[0] ||
+                              formatShortId(bucket.id, 12)}
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {bucket.globalAliases.map((alias) => (
+                              <AliasMiniChip key={alias} value={alias} kind="global" />
+                            ))}
+                            {bucket.localAliases.map((alias) => (
+                              <AliasMiniChip key={alias} value={alias} kind="local" />
+                            ))}
+                          </div>
                         </div>
                       </div>
                       <Button
@@ -578,7 +703,7 @@ export function KeyDetail() {
                         Edit
                       </Button>
                     </div>
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex flex-wrap gap-1.5 pl-7">
                       <PermissionPill label="Read" granted={bucket.permissions.read} />
                       <PermissionPill label="Write" granted={bucket.permissions.write} />
                       <PermissionPill label="Owner" granted={bucket.permissions.owner} />

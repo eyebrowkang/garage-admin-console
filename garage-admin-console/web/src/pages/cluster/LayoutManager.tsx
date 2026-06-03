@@ -31,6 +31,7 @@ import {
   TabsList,
   TabsTrigger,
   TabsContent,
+  TabHotkeys,
 } from '@garage/ui';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import { api, proxyPath } from '@/lib/api';
@@ -428,9 +429,12 @@ export function LayoutManager() {
       )}
 
       <Tabs value={activeTab} onValueChange={handleTabChange}>
+        <TabHotkeys values={['overview', 'nodes', 'history']} onSelect={handleTabChange} />
         <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="nodes">
+          <TabsTrigger value="overview" title="Overview (press 1)">
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="nodes" title="Nodes (press 2)">
             Nodes
             {nodes.length > 0 && (
               <span className="rounded bg-muted px-1.5 text-xs text-muted-foreground">
@@ -438,7 +442,9 @@ export function LayoutManager() {
               </span>
             )}
           </TabsTrigger>
-          <TabsTrigger value="history">History</TabsTrigger>
+          <TabsTrigger value="history" title="History (press 3)">
+            History
+          </TabsTrigger>
         </TabsList>
 
         {/* ---------------- Overview ---------------- */}

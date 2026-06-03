@@ -23,6 +23,7 @@ import {
   TabsList,
   TabsTrigger,
   TabsContent,
+  TabHotkeys,
 } from '@garage/ui';
 import { useClusterContext } from '@/contexts/ClusterContext';
 import {
@@ -269,9 +270,14 @@ export function NodeDetail() {
       />
 
       <Tabs value={activeTab} onValueChange={handleTabChange}>
+        <TabHotkeys values={['overview', 'statistics']} onSelect={handleTabChange} />
         <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="statistics">Statistics</TabsTrigger>
+          <TabsTrigger value="overview" title="Overview (press 1)">
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="statistics" title="Statistics (press 2)">
+            Statistics
+          </TabsTrigger>
         </TabsList>
 
         {/* ---------------- Overview ---------------- */}
