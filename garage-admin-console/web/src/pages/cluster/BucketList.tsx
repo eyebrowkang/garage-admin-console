@@ -21,12 +21,13 @@ import {
   SelectValue,
   ResourceList,
   type ResourceListColumn,
+  CopyValue,
+  AliasOverflow,
+  EmptyValue,
 } from '@garage/ui';
 import { api, proxyPath } from '@/lib/api';
 import { formatDateTime, formatShortId, getApiErrorMessage } from '@garage/web-shared';
 import { ConfirmDialog } from '@garage/ui';
-import { AliasMiniChip } from '@/components/cluster/AliasMiniChip';
-import { CopyButton } from '@garage/ui';
 import { InlineLoadingState } from '@garage/ui';
 import { ModulePageHeader } from '@garage/ui';
 import { TableLoadingState } from '@/components/cluster/TableLoadingState';
@@ -157,46 +158,35 @@ export function BucketList() {
       mobileHidden: true,
       cellClassName: 'text-xs',
       cell: (b) => (
-        <div className="inline-flex items-center gap-1">
-          <span>{formatShortId(b.id, 10)}</span>
-          <CopyButton value={b.id} label="Bucket ID" compact />
-        </div>
+        <CopyValue value={b.id} label="Bucket ID" className="max-w-[26ch]">
+          {b.id}
+        </CopyValue>
       ),
     },
     {
       id: 'globalAliases',
       header: 'Global Aliases',
-      sortable: true,
-      sortAccessor: (b) => b.globalAliases[0] ?? '',
       cell: (b) => (
-        <div className="flex flex-wrap gap-1">
-          {b.globalAliases.length > 0 ? (
-            b.globalAliases.map((alias) => (
-              <AliasMiniChip key={alias} value={alias} kind="global" />
-            ))
-          ) : (
-            <span className="text-xs text-muted-foreground">-</span>
-          )}
-        </div>
+        <AliasOverflow
+          items={b.globalAliases.map((alias) => ({
+            key: alias,
+            value: alias,
+            label: 'Global alias',
+          }))}
+        />
       ),
     },
     {
       id: 'localAliases',
       header: 'Local Aliases',
       cell: (b) => (
-        <div className="flex flex-wrap gap-1">
-          {b.localAliases.length > 0 ? (
-            b.localAliases.map((alias) => (
-              <AliasMiniChip
-                key={`${alias.accessKeyId}-${alias.alias}`}
-                value={alias.alias}
-                kind="local"
-              />
-            ))
-          ) : (
-            <span className="text-xs text-muted-foreground">-</span>
-          )}
-        </div>
+        <AliasOverflow
+          items={b.localAliases.map((alias) => ({
+            key: `${alias.accessKeyId}-${alias.alias}`,
+            value: alias.alias,
+            label: 'Local alias',
+          }))}
+        />
       ),
     },
     {
@@ -205,7 +195,7 @@ export function BucketList() {
       sortable: true,
       sortAccessor: (b) => b.created ?? '',
       cellClassName: 'text-xs text-muted-foreground',
-      cell: (b) => formatDateTime(b.created),
+      cell: (b) => (b.created ? formatDateTime(b.created) : <EmptyValue />),
     },
   ];
 
@@ -347,10 +337,9 @@ export function BucketList() {
         onRowClick={(b) => navigate(`/clusters/${clusterId}/buckets/${b.id}`)}
         getRowLabel={(b) => `Open bucket ${b.globalAliases[0] || formatShortId(b.id, 10)}`}
         renderTitle={(b) => (
-          <div className="inline-flex items-center gap-1 text-sm">
-            <span>{formatShortId(b.id, 10)}</span>
-            <CopyButton value={b.id} label="Bucket ID" compact />
-          </div>
+          <CopyValue value={b.id} label="Bucket ID">
+            {b.id}
+          </CopyValue>
         )}
         search={{
           placeholder: 'Search by ID or alias...',

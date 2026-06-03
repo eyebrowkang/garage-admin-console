@@ -53,12 +53,12 @@ describe('formatDate', () => {
 });
 
 describe('formatDateTime', () => {
-  it('formats an ISO timestamp as US date + 24-hour time', () => {
-    expect(formatDateTime('2026-05-31T14:30:00Z')).toBe('May 31, 2026 · 14:30');
+  it('formats an ISO timestamp as YYYY-MM-DD HH:mm (24-hour)', () => {
+    expect(formatDateTime('2026-05-31T14:30:00Z')).toBe('2026-05-31 14:30');
   });
 
-  it('uses a 24-hour clock (no AM/PM)', () => {
-    expect(formatDateTime('2026-01-02T23:05:00Z')).toBe('Jan 2, 2026 · 23:05');
+  it('zero-pads month, day, hour, and minute', () => {
+    expect(formatDateTime('2026-01-02T03:05:00Z')).toBe('2026-01-02 03:05');
   });
 
   it('renders an em dash for missing input', () => {

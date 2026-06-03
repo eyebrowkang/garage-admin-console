@@ -22,6 +22,8 @@ import {
   SelectValue,
   ResourceList,
   type ResourceListColumn,
+  CopyValue,
+  EmptyValue,
 } from '@garage/ui';
 import {
   formatBytes,
@@ -30,7 +32,6 @@ import {
   getApiErrorMessage,
 } from '@garage/web-shared';
 import { ConfirmDialog } from '@garage/ui';
-import { CopyButton } from '@garage/ui';
 import { ModulePageHeader } from '@garage/ui';
 import { TableLoadingState } from '@/components/cluster/TableLoadingState';
 import { ConnectActionIcon, RepairActionIcon, SnapshotActionIcon } from '@/lib/action-icons';
@@ -176,10 +177,9 @@ export function ClusterNodeList() {
       mobileHidden: true,
       cellClassName: 'text-xs',
       cell: (n) => (
-        <div className="inline-flex items-center gap-1">
-          <span>{formatShortId(n.id, 10)}</span>
-          <CopyButton value={n.id} label="Node ID" compact />
-        </div>
+        <CopyValue value={n.id} label="Node ID" className="max-w-[26ch]">
+          {n.id}
+        </CopyValue>
       ),
     },
     {
@@ -187,7 +187,7 @@ export function ClusterNodeList() {
       header: 'Hostname',
       sortable: true,
       sortAccessor: (n) => n.hostname ?? '',
-      cell: (n) => n.hostname || '—',
+      cell: (n) => (n.hostname ? n.hostname : <EmptyValue />),
     },
     {
       id: 'addr',
@@ -195,12 +195,11 @@ export function ClusterNodeList() {
       cellClassName: 'text-xs text-muted-foreground',
       cell: (n) =>
         n.addr ? (
-          <div className="inline-flex items-center gap-1">
-            <span>{n.addr}</span>
-            <CopyButton value={n.addr} label="Node address" compact />
-          </div>
+          <CopyValue value={n.addr} label="Node address" className="max-w-[24ch]">
+            {n.addr}
+          </CopyValue>
         ) : (
-          '—'
+          <EmptyValue />
         ),
     },
     {
@@ -242,12 +241,12 @@ export function ClusterNodeList() {
                   </Badge>
                 ))
               ) : (
-                <span className="text-xs text-muted-foreground">No tags</span>
+                <EmptyValue label="No tags" className="text-xs" />
               )}
             </div>
           </div>
         ) : (
-          <span className="text-xs text-muted-foreground">Unassigned</span>
+          <EmptyValue label="Unassigned" className="text-xs" />
         ),
     },
     {
@@ -255,24 +254,28 @@ export function ClusterNodeList() {
       header: 'Data Disk',
       cellClassName: 'text-xs text-muted-foreground',
       cell: (n) =>
-        n.dataPartition
-          ? `${formatBytes(n.dataPartition.available)} / ${formatBytes(n.dataPartition.total)}`
-          : '—',
+        n.dataPartition ? (
+          `${formatBytes(n.dataPartition.available)} / ${formatBytes(n.dataPartition.total)}`
+        ) : (
+          <EmptyValue />
+        ),
     },
     {
       id: 'metadataDisk',
       header: 'Metadata Disk',
       cellClassName: 'text-xs text-muted-foreground',
       cell: (n) =>
-        n.metadataPartition
-          ? `${formatBytes(n.metadataPartition.available)} / ${formatBytes(n.metadataPartition.total)}`
-          : '—',
+        n.metadataPartition ? (
+          `${formatBytes(n.metadataPartition.available)} / ${formatBytes(n.metadataPartition.total)}`
+        ) : (
+          <EmptyValue />
+        ),
     },
     {
       id: 'version',
       header: 'Version',
       cellClassName: 'text-xs text-muted-foreground',
-      cell: (n) => n.garageVersion || '—',
+      cell: (n) => (n.garageVersion ? n.garageVersion : <EmptyValue />),
     },
   ];
 
@@ -380,10 +383,9 @@ node_id@address`}
         onRowClick={(n) => navigate(`/clusters/${clusterId}/nodes/${n.id}`)}
         getRowLabel={(n) => `Open node ${n.hostname || formatShortId(n.id, 10)}`}
         renderTitle={(n) => (
-          <div className="inline-flex items-center gap-1 text-sm">
-            <span>{n.hostname || formatShortId(n.id, 10)}</span>
-            <CopyButton value={n.id} label="Node ID" compact />
-          </div>
+          <CopyValue value={n.id} label="Node ID">
+            {n.hostname || n.id}
+          </CopyValue>
         )}
         search={{
           placeholder: 'Search by hostname, ID, address, zone, or tag...',

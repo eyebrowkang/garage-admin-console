@@ -30,6 +30,8 @@ import {
   AlertTitle,
   ResourceList,
   type ResourceListColumn,
+  CopyValue,
+  EmptyValue,
 } from '@garage/ui';
 import { api, proxyPath } from '@/lib/api';
 import { useClusterContext } from '@/contexts/ClusterContext';
@@ -243,8 +245,15 @@ export function AdminTokenList() {
               </Badge>
             )}
           </div>
-          <div className="text-xs text-muted-foreground mt-1">
-            ID: {t.id ? formatShortId(t.id, 14) : 'Unavailable'}
+          <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+            <span>ID:</span>
+            {t.id ? (
+              <CopyValue value={t.id} label="Token ID" className="max-w-[22ch]">
+                {t.id}
+              </CopyValue>
+            ) : (
+              <EmptyValue label="Unavailable" className="text-xs" />
+            )}
           </div>
         </div>
       ),
@@ -260,7 +269,7 @@ export function AdminTokenList() {
       sortable: true,
       sortAccessor: (t) => t.created ?? '',
       cellClassName: 'text-muted-foreground',
-      cell: (t) => formatDateTime(t.created),
+      cell: (t) => (t.created ? formatDateTime(t.created) : <EmptyValue />),
     },
     {
       id: 'expiration',
@@ -391,8 +400,15 @@ export function AdminTokenList() {
                 </Badge>
               )}
             </div>
-            <div className="text-xs font-normal text-muted-foreground">
-              ID: {t.id ? formatShortId(t.id, 14) : 'Unavailable'}
+            <div className="flex items-center gap-1 text-xs font-normal text-muted-foreground">
+              <span>ID:</span>
+              {t.id ? (
+                <CopyValue value={t.id} label="Token ID" className="max-w-[22ch]">
+                  {t.id}
+                </CopyValue>
+              ) : (
+                <EmptyValue label="Unavailable" className="text-xs" />
+              )}
             </div>
           </div>
         )}

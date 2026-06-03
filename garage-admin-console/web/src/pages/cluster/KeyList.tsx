@@ -23,11 +23,12 @@ import {
   AlertTitle,
   ResourceList,
   type ResourceListColumn,
+  CopyValue,
+  EmptyValue,
 } from '@garage/ui';
 import { api, proxyPath } from '@/lib/api';
 import { formatDateTime, formatShortId, getApiErrorMessage } from '@garage/web-shared';
 import { ConfirmDialog } from '@garage/ui';
-import { CopyButton } from '@garage/ui';
 import { ModulePageHeader } from '@garage/ui';
 import { TableLoadingState } from '@/components/cluster/TableLoadingState';
 import { useClusterContext } from '@/contexts/ClusterContext';
@@ -258,10 +259,9 @@ export function KeyList() {
       mobileHidden: true,
       cellClassName: 'text-xs',
       cell: (k) => (
-        <div className="inline-flex items-center gap-1">
-          <span>{formatShortId(k.id, 12)}</span>
-          <CopyButton value={k.id} label="Access key ID" compact />
-        </div>
+        <CopyValue value={k.id} label="Access key ID" className="max-w-[26ch]">
+          {k.id}
+        </CopyValue>
       ),
     },
     {
@@ -269,7 +269,7 @@ export function KeyList() {
       header: 'Name',
       sortable: true,
       sortAccessor: (k) => k.name ?? '',
-      cell: (k) => k.name || '—',
+      cell: (k) => (k.name ? k.name : <EmptyValue />),
     },
     {
       id: 'status',
@@ -287,7 +287,7 @@ export function KeyList() {
       sortable: true,
       sortAccessor: (k) => k.created ?? '',
       cellClassName: 'text-xs text-muted-foreground',
-      cell: (k) => formatDateTime(k.created),
+      cell: (k) => (k.created ? formatDateTime(k.created) : <EmptyValue />),
     },
     {
       id: 'expiration',
@@ -295,7 +295,7 @@ export function KeyList() {
       sortable: true,
       sortAccessor: (k) => k.expiration ?? '',
       cellClassName: 'text-xs text-muted-foreground',
-      cell: (k) => formatDateTime(k.expiration),
+      cell: (k) => (k.expiration ? formatDateTime(k.expiration) : <EmptyValue />),
     },
   ];
 
@@ -534,10 +534,9 @@ export function KeyList() {
         onRowClick={(k) => navigate(`/clusters/${clusterId}/keys/${k.id}`)}
         getRowLabel={(k) => `Open access key ${k.name || formatShortId(k.id, 12)}`}
         renderTitle={(k) => (
-          <div className="inline-flex items-center gap-1 text-sm">
-            <span>{formatShortId(k.id, 12)}</span>
-            <CopyButton value={k.id} label="Access key ID" compact />
-          </div>
+          <CopyValue value={k.id} label="Access key ID">
+            {k.id}
+          </CopyValue>
         )}
         search={{
           placeholder: 'Search by ID or name...',

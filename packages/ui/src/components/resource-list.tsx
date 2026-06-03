@@ -2,17 +2,19 @@ import {
   Fragment,
   useCallback,
   useMemo,
+  useRef,
   useState,
   type KeyboardEvent,
   type ReactNode,
 } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { ArrowDown, ArrowUp, ArrowUpDown, Search } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, MoreHorizontal, Search } from 'lucide-react';
 
 import { cn } from '../lib/cn';
 import { Button } from './button';
 import { Checkbox } from './checkbox';
 import { Input } from './input';
+import { Sheet, SheetContent, SheetTitle } from './sheet';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './table';
 
 /**
@@ -125,6 +127,8 @@ export function ResourceList<T>({
     defaultSort ?? null,
   );
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  // Mobile: the row whose action sheet is open (no hover affordance on touch).
+  const [actionItem, setActionItem] = useState<T | null>(null);
 
   const columnById = useMemo(() => {
     const map = new Map<string, ResourceListColumn<T>>();
@@ -245,32 +249,65 @@ export function ResourceList<T>({
     }
   };
 
+  // The floating selection bar stays mounted so it can slide out; while it's
+  // sliding away (selection just emptied) we keep showing the last selection so
+  // the label/actions don't flicker to "0" mid-animation.
+  const selectionVisible = selectedItems.length > 0;
+  const lastSelectionRef = useRef<T[]>([]);
+  if (selectionVisible) lastSelectionRef.current = selectedItems;
+  const barItems = selectionVisible ? selectedItems : lastSelectionRef.current;
+
   return (
     <div className={cn('space-y-3', className)}>
       {search && (
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={search.placeholder ?? 'Search...'}
-            className="pl-9"
-            aria-label={search.placeholder ?? 'Search'}
-          />
+        <div className="flex items-center gap-3">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={search.placeholder ?? 'Search...'}
+              className="pl-9"
+              aria-label={search.placeholder ?? 'Search'}
+            />
+          </div>
+          <span
+            className="shrink-0 whitespace-nowrap text-sm tabular-nums text-muted-foreground"
+            aria-live="polite"
+          >
+            {sorted.length} {sorted.length === 1 ? 'result' : 'results'}
+          </span>
         </div>
       )}
 
-      {selection && selectedItems.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2">
-          <span className="text-sm font-medium text-foreground">
-            {selectedItems.length} selected
-          </span>
-          <div className="flex flex-wrap items-center gap-2">
-            {selection.renderActions(selectedItems, clearSelection)}
+      {/* Selection actions float at the bottom of the viewport instead of sitting
+          in-flow above the table — so showing/hiding them never shifts the list.
+          Kept mounted (when selection is enabled) so it can slide in and out. */}
+      {selection && (
+        <div
+          className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
+          aria-hidden={!selectionVisible}
+        >
+          <div
+            role="region"
+            aria-label="Selection actions"
+            className={cn(
+              'pointer-events-auto flex max-w-[calc(100vw-2rem)] items-center gap-2 rounded-full border border-primary/30 bg-card px-2.5 py-2 shadow-lg transition-all duration-200 ease-out motion-reduce:transition-none',
+              selectionVisible
+                ? 'translate-y-0 opacity-100'
+                : 'pointer-events-none translate-y-[calc(100%+1.5rem)] opacity-0',
+            )}
+          >
+            <span className="whitespace-nowrap pl-1.5 text-sm font-medium text-foreground">
+              {barItems.length} selected
+            </span>
+            <div className="flex items-center gap-2">
+              {selection.renderActions(barItems, clearSelection)}
+            </div>
+            <Button variant="ghost" size="sm" onClick={clearSelection}>
+              Clear
+            </Button>
           </div>
-          <Button variant="ghost" size="sm" className="ml-auto" onClick={clearSelection}>
-            Clear
-          </Button>
         </div>
       )}
 
@@ -448,18 +485,46 @@ export function ResourceList<T>({
                       ))}
                   </dl>
                 </div>
+                {rowActions && (
+                  <button
+                    type="button"
+                    aria-label="Row actions"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActionItem(item);
+                    }}
+                    className="-mr-1 -mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground pointer-coarse:h-11 pointer-coarse:w-11"
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                  </button>
+                )}
               </div>
-              {rowActions && (
-                <div className="mt-3 flex flex-wrap justify-end gap-2 border-t pt-3" onClick={stop}>
-                  {rowActions(item)}
-                </div>
-              )}
             </div>
           );
         })}
 
         {isEmpty && <div className="rounded-lg border bg-card">{emptyBlock}</div>}
       </div>
+
+      {/* Mobile: each card's ⋯ opens this bottom sheet with the row's actions. */}
+      {rowActions && (
+        <Sheet open={!!actionItem} onOpenChange={(open) => !open && setActionItem(null)}>
+          <SheetContent
+            side="bottom"
+            aria-describedby={undefined}
+            className="rounded-t-2xl pb-[max(1.5rem,env(safe-area-inset-bottom))]"
+          >
+            <SheetTitle className="text-base">Actions</SheetTitle>
+            {actionItem && <div className="mt-1">{renderTitle(actionItem)}</div>}
+            <div
+              className="mt-4 flex flex-col gap-1 [&_button]:w-full [&_button]:justify-start"
+              onClick={() => setActionItem(null)}
+            >
+              {actionItem && rowActions(actionItem)}
+            </div>
+          </SheetContent>
+        </Sheet>
+      )}
     </div>
   );
 }

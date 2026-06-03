@@ -32,14 +32,16 @@ export function formatDate(value?: string | null): string {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-/** Human en-US date + time, e.g. "May 31, 2026 · 14:30" (24-hour clock). */
+/** Sortable local date + time, e.g. "2026-05-31 14:30" (ISO-style, 24-hour). */
 export function formatDateTime(value?: string | null): string {
   if (!value) return '—';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  const d = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  const t = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
-  return `${d} · ${t}`;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return (
+    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
+    ` ${pad(date.getHours())}:${pad(date.getMinutes())}`
+  );
 }
 
 export function formatRelativeSeconds(seconds?: number | null): string {
