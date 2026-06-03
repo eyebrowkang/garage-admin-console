@@ -532,6 +532,7 @@ export function KeyList() {
         getRowId={(k) => k.id}
         columns={columns}
         onRowClick={(k) => navigate(`/clusters/${clusterId}/keys/${k.id}`)}
+        getRowLabel={(k) => `Open access key ${k.name || formatShortId(k.id, 12)}`}
         renderTitle={(k) => (
           <div className="inline-flex items-center gap-1 text-sm">
             <span>{formatShortId(k.id, 12)}</span>

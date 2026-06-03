@@ -378,6 +378,7 @@ node_id@address`}
         getRowId={(n) => n.id}
         columns={columns}
         onRowClick={(n) => navigate(`/clusters/${clusterId}/nodes/${n.id}`)}
+        getRowLabel={(n) => `Open node ${n.hostname || formatShortId(n.id, 10)}`}
         renderTitle={(n) => (
           <div className="inline-flex items-center gap-1 text-sm">
             <span>{n.hostname || formatShortId(n.id, 10)}</span>

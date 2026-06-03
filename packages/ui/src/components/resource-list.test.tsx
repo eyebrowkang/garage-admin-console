@@ -1,6 +1,6 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { ResourceList, type ResourceListColumn } from './resource-list';
 import { Badge } from './badge';
@@ -84,20 +84,19 @@ describe('ResourceList', () => {
     expect(screen.getAllByText('Nothing here').length).toBeGreaterThan(0);
   });
 
-  it('toggles sort order when a sortable header is clicked', async () => {
+  it('toggles sort order via a keyboard-focusable header button', async () => {
     const user = userEvent.setup();
     renderList();
+    // The sortable header is a real button (keyboard-operable), inside the th.
+    const sortByName = () =>
+      within(screen.getByRole('table')).getByRole('button', { name: /Name/ });
     // Default: source order (Banana, Apple, Cherry).
     expect(tableRowNames()[0]).toContain('Banana');
     // Sort ascending by name.
-    await user.click(screen.getByRole('columnheader', { name: /Name/ }));
-    expect(tableRowNames().map((t) => t.replace(/\d/g, ''))).toEqual([
-      'Apple',
-      'Banana',
-      'Cherry',
-    ]);
+    await user.click(sortByName());
+    expect(tableRowNames().map((t) => t.replace(/\d/g, ''))).toEqual(['Apple', 'Banana', 'Cherry']);
     // Click again -> descending.
-    await user.click(screen.getByRole('columnheader', { name: /Name/ }));
+    await user.click(sortByName());
     expect(tableRowNames()[0]).toContain('Cherry');
   });
 
@@ -111,5 +110,32 @@ describe('ResourceList', () => {
     await user.click(screen.getByRole('checkbox', { name: /select all/i }));
     expect(screen.getByText('3 selected')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Delete 3' })).toBeInTheDocument();
+  });
+
+  it('exposes navigable rows as keyboard-focusable links with a label', () => {
+    renderList({ onRowClick: () => {}, getRowLabel: (r) => `Open ${r.name}` });
+    const row = within(screen.getByRole('table')).getByRole('link', { name: 'Open Apple' });
+    expect(row).toHaveAttribute('tabindex', '0');
+  });
+
+  it('activates row navigation on Enter, but not from a nested control', async () => {
+    const user = userEvent.setup();
+    const onRowClick = vi.fn();
+    renderList({
+      onRowClick,
+      getRowLabel: (r) => `Open ${r.name}`,
+      rowActions: () => <button type="button">Delete</button>,
+    });
+    const table = screen.getByRole('table');
+    // Enter on the row itself navigates.
+    const row = within(table).getByRole('link', { name: 'Open Banana' });
+    row.focus();
+    await user.keyboard('{Enter}');
+    expect(onRowClick).toHaveBeenCalledTimes(1);
+    // Enter on a nested Delete button does NOT also navigate.
+    onRowClick.mockClear();
+    within(row).getByRole('button', { name: 'Delete' }).focus();
+    await user.keyboard('{Enter}');
+    expect(onRowClick).not.toHaveBeenCalled();
   });
 });

@@ -345,6 +345,7 @@ export function BucketList() {
         getRowId={(b) => b.id}
         columns={columns}
         onRowClick={(b) => navigate(`/clusters/${clusterId}/buckets/${b.id}`)}
+        getRowLabel={(b) => `Open bucket ${b.globalAliases[0] || formatShortId(b.id, 10)}`}
         renderTitle={(b) => (
           <div className="inline-flex items-center gap-1 text-sm">
             <span>{formatShortId(b.id, 10)}</span>

@@ -370,6 +370,8 @@ export function AdminTokenList() {
         onRowClick={(t) => {
           if (t.id) navigate(`/clusters/${clusterId}/tokens/${t.id}`);
         }}
+        getRowLabel={(t) => `Open admin token ${t.name}`}
+        isRowInteractive={(t) => Boolean(t.id)}
         renderTitle={(t) => (
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">

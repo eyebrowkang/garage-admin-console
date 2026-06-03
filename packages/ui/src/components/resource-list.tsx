@@ -1,4 +1,11 @@
-import { Fragment, useCallback, useMemo, useState, type ReactNode } from 'react';
+import {
+  Fragment,
+  useCallback,
+  useMemo,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { ArrowDown, ArrowUp, ArrowUpDown, Search } from 'lucide-react';
 
@@ -65,6 +72,12 @@ export interface ResourceListProps<T> {
   renderTitle: (item: T) => ReactNode;
   /** Row / card click — typically navigation to a detail page. */
   onRowClick?: (item: T) => void;
+  /** Accessible label for a navigable row, e.g. "Open bucket photos". Used as the
+   * row's aria-label so keyboard/screen-reader users know where it leads. */
+  getRowLabel?: (item: T) => string;
+  /** Whether a row participates in click/keyboard navigation. Defaults to true
+   * whenever `onRowClick` is set; return false to make a specific row inert. */
+  isRowInteractive?: (item: T) => boolean;
   /** Built-in search; the shell renders the field and filters internally. */
   search?: {
     placeholder?: string;
@@ -98,6 +111,8 @@ export function ResourceList<T>({
   getRowId,
   renderTitle,
   onRowClick,
+  getRowLabel,
+  isRowInteractive,
   search,
   defaultSort,
   selection,
@@ -218,6 +233,18 @@ export function ResourceList<T>({
 
   const stop = (e: { stopPropagation: () => void }) => e.stopPropagation();
 
+  // A row is keyboard/SR-navigable when there's an onRowClick and the row opts in.
+  const rowInteractive = (item: T) =>
+    Boolean(onRowClick) && (isRowInteractive ? isRowInteractive(item) : true);
+  // Activate only when the key lands on the row itself, so Enter on a nested
+  // control (Delete, checkbox, copy) doesn't also fire row navigation.
+  const onRowKeyDown = (e: KeyboardEvent, item: T) => {
+    if (e.key === 'Enter' && e.target === e.currentTarget) {
+      e.preventDefault();
+      onRowClick?.(item);
+    }
+  };
+
   return (
     <div className={cn('space-y-3', className)}>
       {search && (
@@ -264,8 +291,7 @@ export function ResourceList<T>({
               {columns.map((col) => (
                 <TableHead
                   key={col.id}
-                  className={cn(col.sortable && 'cursor-pointer select-none', col.headClassName)}
-                  onClick={col.sortable ? () => toggleSort(col.id) : undefined}
+                  className={col.headClassName}
                   aria-sort={
                     col.sortable && sort?.columnId === col.id
                       ? sort.direction === 'asc'
@@ -274,8 +300,18 @@ export function ResourceList<T>({
                       : undefined
                   }
                 >
-                  {col.header}
-                  {col.sortable && renderSortIcon(col.id)}
+                  {col.sortable ? (
+                    <button
+                      type="button"
+                      onClick={() => toggleSort(col.id)}
+                      className="-mx-1 inline-flex items-center gap-1 rounded-sm px-1 py-0.5 text-xs font-medium uppercase tracking-wide transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      {col.header}
+                      {renderSortIcon(col.id)}
+                    </button>
+                  ) : (
+                    col.header
+                  )}
                 </TableHead>
               ))}
               {rowActions && <TableHead className="text-right">Actions</TableHead>}
@@ -285,12 +321,22 @@ export function ResourceList<T>({
             {sorted.map((item) => {
               const id = getRowId(item);
               const selected = selectedIds.has(id);
+              const interactive = rowInteractive(item);
               return (
                 <TableRow
                   key={id}
                   data-state={selected ? 'selected' : undefined}
-                  className={cn(onRowClick && 'cursor-pointer hover:bg-muted/50')}
-                  onClick={onRowClick ? () => onRowClick(item) : undefined}
+                  className={cn(
+                    // Focus indicator is a background tint, not a ring: <tr> boxes
+                    // don't reliably paint outline/box-shadow (the cells cover them).
+                    interactive &&
+                      'cursor-pointer hover:bg-muted/50 focus-visible:bg-primary/15 focus-visible:outline-none',
+                  )}
+                  onClick={interactive ? () => onRowClick?.(item) : undefined}
+                  role={interactive ? 'link' : undefined}
+                  tabIndex={interactive ? 0 : undefined}
+                  aria-label={interactive ? getRowLabel?.(item) : undefined}
+                  onKeyDown={interactive ? (e) => onRowKeyDown(e, item) : undefined}
                 >
                   {selection && (
                     <TableCell onClick={stop}>
@@ -363,15 +409,21 @@ export function ResourceList<T>({
         {sorted.map((item) => {
           const id = getRowId(item);
           const selected = selectedIds.has(id);
+          const interactive = rowInteractive(item);
           return (
             <div
               key={id}
               data-state={selected ? 'selected' : undefined}
               className={cn(
                 'rounded-lg border bg-card p-3 transition-colors data-[state=selected]:border-primary/40 data-[state=selected]:bg-primary/5',
-                onRowClick && 'active:bg-muted/50',
+                interactive &&
+                  'cursor-pointer active:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               )}
-              onClick={onRowClick ? () => onRowClick(item) : undefined}
+              onClick={interactive ? () => onRowClick?.(item) : undefined}
+              role={interactive ? 'link' : undefined}
+              tabIndex={interactive ? 0 : undefined}
+              aria-label={interactive ? getRowLabel?.(item) : undefined}
+              onKeyDown={interactive ? (e) => onRowKeyDown(e, item) : undefined}
             >
               <div className="flex items-start gap-3">
                 {selection && isSelectable(item) && (
