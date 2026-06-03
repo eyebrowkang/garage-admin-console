@@ -14,10 +14,21 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useState } from 'react';
-import { ArrowLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
-import { Alert, AlertDescription, AlertTitle, Button, InlineLoadingState } from '@garage/ui';
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbSeparator,
+  Button,
+  InlineLoadingState,
+} from '@garage/ui';
 
 import { api, buildBucketBackend } from '@/lib/api';
 import { readPersistedString, writePersistedString } from '@/lib/persistence';
@@ -105,22 +116,23 @@ export function BucketView() {
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <nav aria-label="Breadcrumb" className="flex min-w-0 flex-1 items-center gap-1 text-xs">
-          <Link
-            to="/"
-            className="shrink-0 font-medium text-muted-foreground transition-colors hover:text-foreground"
-          >
-            Dashboard
-          </Link>
-          <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground/60" aria-hidden="true" />
-          <Link
-            to={`/connections/${id}`}
-            className="max-w-[240px] truncate font-medium text-foreground transition-colors hover:text-primary"
-            title={`${connection.name} · ${connection.endpoint}`}
-          >
-            {connection.name}
-          </Link>
-        </nav>
+        <Breadcrumb className="min-w-0 flex-1">
+          <BreadcrumbList className="flex-nowrap text-xs sm:text-xs">
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild className="shrink-0">
+                <Link to="/">Dashboard</Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem className="min-w-0">
+              <BreadcrumbLink asChild className="max-w-[240px] truncate text-foreground hover:text-primary">
+                <Link to={`/connections/${id}`} title={`${connection.name} · ${connection.endpoint}`}>
+                  {connection.name}
+                </Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
       </div>
 
       <div className="min-h-0 flex-1 overflow-hidden">
