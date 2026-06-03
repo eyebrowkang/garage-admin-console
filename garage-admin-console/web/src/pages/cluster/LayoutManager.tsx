@@ -1,11 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
   Button,
   Table,
   TableBody,
@@ -19,7 +15,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   Input,
   Label,
   Badge,
@@ -32,6 +27,10 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
 } from '@garage/ui';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import { api, proxyPath } from '@/lib/api';
@@ -80,6 +79,7 @@ const formatZoneRedundancy = (value?: GetClusterLayoutResponse['parameters']['zo
 export function LayoutManager() {
   const { clusterId } = useClusterContext();
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [nodeDialogOpen, setNodeDialogOpen] = useState(false);
   const [selectedNode, setSelectedNode] = useState<EditableNode | null>(null);
   const [removeConfirm, setRemoveConfirm] = useState<{ id: string; hostname: string } | null>(null);
@@ -374,63 +374,95 @@ export function LayoutManager() {
     );
   }
 
+  const requestedTab = searchParams.get('tab');
+  const activeTab =
+    requestedTab === 'nodes' || requestedTab === 'history' ? requestedTab : 'overview';
+  const handleTabChange = (value: string) => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (value === 'overview') next.delete('tab');
+        else next.set('tab', value);
+        return next;
+      },
+      { replace: true },
+    );
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <ModulePageHeader
         title="Layout"
         description="Stage, preview, and apply cluster layout changes with explicit version control."
+        actions={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => previewMutation.mutate()}
+              disabled={!hasStagedChanges || previewMutation.isPending}
+            >
+              <InspectActionIcon className="h-4 w-4" />
+              {previewMutation.isPending ? 'Previewing...' : 'Preview'}
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setRevertConfirmOpen(true)}
+              disabled={!hasStagedChanges}
+            >
+              <RevertActionIcon className="h-4 w-4" /> Revert
+            </Button>
+            <Button size="sm" onClick={() => setApplyDialogOpen(true)} disabled={!hasStagedChanges}>
+              <SaveActionIcon className="h-4 w-4" /> Apply
+            </Button>
+          </>
+        }
       />
 
-      <Card>
-        <CardHeader>
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <CardTitle>Cluster Layout</CardTitle>
-              <CardDescription>Manage layout versions, roles, and redundancy</CardDescription>
+      {actionError && (
+        <Alert variant="destructive">
+          <AlertTitle>Action failed</AlertTitle>
+          <AlertDescription>{actionError}</AlertDescription>
+        </Alert>
+      )}
+
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="nodes">
+            Nodes
+            {nodes.length > 0 && (
+              <span className="rounded bg-muted px-1.5 text-xs text-muted-foreground">
+                {nodes.length}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="history">History</TabsTrigger>
+        </TabsList>
+
+        {/* ---------------- Overview ---------------- */}
+        <TabsContent value="overview" className="space-y-4">
+          <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border sm:grid-cols-4">
+            <div className="bg-card px-4 py-3">
+              <div className="text-xs text-muted-foreground">Current Version</div>
+              <div className="text-lg font-semibold tabular-nums">{layout?.version ?? '—'}</div>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                onClick={() => previewMutation.mutate()}
-                disabled={!hasStagedChanges || previewMutation.isPending}
-              >
-                <InspectActionIcon className="h-4 w-4" />
-                {previewMutation.isPending ? 'Previewing...' : 'Preview'}
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() => setRevertConfirmOpen(true)}
-                disabled={!hasStagedChanges}
-              >
-                <RevertActionIcon className="h-4 w-4" /> Revert
-              </Button>
-              <Button onClick={() => setApplyDialogOpen(true)} disabled={!hasStagedChanges}>
-                <SaveActionIcon className="h-4 w-4" /> Apply
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <div>
-              <div className="text-sm text-muted-foreground">Current Version</div>
-              <div className="text-xl font-semibold">{layout?.version ?? '—'}</div>
-            </div>
-            <div>
-              <div className="text-sm text-muted-foreground">Partition Size</div>
-              <div className="text-xl font-semibold">
+            <div className="bg-card px-4 py-3">
+              <div className="text-xs text-muted-foreground">Partition Size</div>
+              <div className="text-lg font-semibold tabular-nums">
                 {layout ? formatBytes(layout.partitionSize) : '—'}
               </div>
             </div>
-            <div>
-              <div className="text-sm text-muted-foreground">Zone Redundancy</div>
-              <div className="text-xl font-semibold">
+            <div className="bg-card px-4 py-3">
+              <div className="text-xs text-muted-foreground">Zone Redundancy</div>
+              <div className="text-lg font-semibold">
                 {formatZoneRedundancy(layout?.parameters?.zoneRedundancy)}
               </div>
             </div>
-            <div>
-              <div className="text-sm text-muted-foreground">Staged Changes</div>
-              <div className="text-xl font-semibold">
+            <div className="bg-card px-4 py-3">
+              <div className="text-xs text-muted-foreground">Staged Changes</div>
+              <div className="text-lg font-semibold tabular-nums">
                 {stagedChanges.length + (stagedParams ? 1 : 0)}
               </div>
             </div>
@@ -446,15 +478,8 @@ export function LayoutManager() {
             </Alert>
           )}
 
-          {actionError && (
-            <Alert variant="destructive">
-              <AlertTitle>Action failed</AlertTitle>
-              <AlertDescription>{actionError}</AlertDescription>
-            </Alert>
-          )}
-
           {hasStagedChanges && (
-            <div className="rounded-md border bg-muted/10 p-3 text-sm space-y-2">
+            <div className="space-y-2 rounded-md border bg-muted/10 p-3 text-sm">
               <div className="font-medium">Staged changes</div>
               {stagedParams && (
                 <div>
@@ -476,60 +501,57 @@ export function LayoutManager() {
               )}
             </div>
           )}
-        </CardContent>
-      </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Layout Parameters</CardTitle>
-          <CardDescription>Stage changes to the layout computation parameters</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_160px] md:items-end">
-            <div className="space-y-2">
-              <Label>Zone Redundancy</Label>
-              <div className="flex flex-wrap items-center gap-2">
-                <Select
-                  value={zoneMode}
-                  onValueChange={(value) => setZoneModeInput(value as ZoneMode)}
-                >
-                  <SelectTrigger className="w-[200px]">
-                    <SelectValue placeholder="Select mode" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="maximum">Maximum</SelectItem>
-                    <SelectItem value="atLeast">At least</SelectItem>
-                  </SelectContent>
-                </Select>
-                {zoneMode === 'atLeast' && (
-                  <Input
-                    type="number"
-                    min={1}
-                    value={zoneAtLeast}
-                    onChange={(e) => setZoneAtLeastInput(e.target.value)}
-                    className="w-[120px]"
-                  />
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Current: {formatZoneRedundancy(layout?.parameters?.zoneRedundancy)}
+          {/* Layout parameters */}
+          <div className="space-y-4 rounded-lg border p-4">
+            <div>
+              <div className="text-sm font-medium">Layout Parameters</div>
+              <p className="text-sm text-muted-foreground">
+                Stage changes to the layout computation parameters.
               </p>
-              {paramError && <p className="text-xs text-destructive">{paramError}</p>}
             </div>
-            <Button onClick={handleStageParameters} disabled={updateLayoutMutation.isPending}>
-              {updateLayoutMutation.isPending ? 'Staging...' : 'Stage Parameters'}
-            </Button>
+            <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_160px] md:items-end">
+              <div className="space-y-2">
+                <Label>Zone Redundancy</Label>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Select
+                    value={zoneMode}
+                    onValueChange={(value) => setZoneModeInput(value as ZoneMode)}
+                  >
+                    <SelectTrigger className="w-[200px]">
+                      <SelectValue placeholder="Select mode" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="maximum">Maximum</SelectItem>
+                      <SelectItem value="atLeast">At least</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {zoneMode === 'atLeast' && (
+                    <Input
+                      type="number"
+                      min={1}
+                      value={zoneAtLeast}
+                      onChange={(e) => setZoneAtLeastInput(e.target.value)}
+                      className="w-[120px]"
+                    />
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Current: {formatZoneRedundancy(layout?.parameters?.zoneRedundancy)}
+                </p>
+                {paramError && <p className="text-xs text-destructive">{paramError}</p>}
+              </div>
+              <Button onClick={handleStageParameters} disabled={updateLayoutMutation.isPending}>
+                {updateLayoutMutation.isPending ? 'Staging...' : 'Stage Parameters'}
+              </Button>
+            </div>
           </div>
-        </CardContent>
-      </Card>
+        </TabsContent>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Nodes</CardTitle>
-          <CardDescription>Assign roles and capacities to cluster nodes</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-md border overflow-hidden">
+        {/* ---------------- Nodes ---------------- */}
+        <TabsContent value="nodes" className="space-y-3">
+          {/* Desktop / tablet: table */}
+          <div className="hidden overflow-hidden rounded-md border md:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -540,7 +562,7 @@ export function LayoutManager() {
                   <TableHead>Capacity</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Staged</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -551,7 +573,9 @@ export function LayoutManager() {
 
                   return (
                     <TableRow key={node.id}>
-                      <TableCell className="text-xs">{formatShortId(node.id, 10)}</TableCell>
+                      <TableCell className="font-mono text-xs">
+                        {formatShortId(node.id, 10)}
+                      </TableCell>
                       <TableCell>{node.hostname || 'Unknown'}</TableCell>
                       <TableCell>{role?.zone || '—'}</TableCell>
                       <TableCell>
@@ -587,77 +611,10 @@ export function LayoutManager() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <div className="flex gap-2">
-                          <Dialog
-                            open={nodeDialogOpen && selectedNode?.id === node.id}
-                            onOpenChange={(open) => {
-                              setNodeDialogOpen(open);
-                              if (!open) setSelectedNode(null);
-                            }}
-                          >
-                            <DialogTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => openDialogForNode(node)}
-                              >
-                                <AddActionIcon className="h-4 w-4" /> {role ? 'Edit' : 'Add'}
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>Configure Node</DialogTitle>
-                                <DialogDescription>
-                                  Stage role changes for this node. Capacity uses GB (SI).
-                                </DialogDescription>
-                              </DialogHeader>
-                              {selectedNode && (
-                                <div className="grid gap-4 py-4">
-                                  <div className="grid gap-2">
-                                    <Label>Zone</Label>
-                                    <Input
-                                      value={selectedNode.zone}
-                                      onChange={(e) =>
-                                        setSelectedNode({ ...selectedNode, zone: e.target.value })
-                                      }
-                                    />
-                                  </div>
-                                  <div className="grid gap-2">
-                                    <Label>Capacity (GB)</Label>
-                                    <Input
-                                      type="number"
-                                      value={selectedNode.capacity}
-                                      onChange={(e) =>
-                                        setSelectedNode({
-                                          ...selectedNode,
-                                          capacity: e.target.value,
-                                        })
-                                      }
-                                      placeholder="Leave empty for gateway"
-                                    />
-                                  </div>
-                                  <div className="grid gap-2">
-                                    <Label>Tags (comma separated)</Label>
-                                    <Input
-                                      value={selectedNode.tags}
-                                      onChange={(e) =>
-                                        setSelectedNode({ ...selectedNode, tags: e.target.value })
-                                      }
-                                    />
-                                  </div>
-                                </div>
-                              )}
-                              <DialogFooter>
-                                <Button
-                                  onClick={handleStageNode}
-                                  disabled={updateLayoutMutation.isPending}
-                                >
-                                  {updateLayoutMutation.isPending ? 'Staging...' : 'Stage Changes'}
-                                </Button>
-                              </DialogFooter>
-                            </DialogContent>
-                          </Dialog>
-
+                        <div className="flex justify-end gap-2">
+                          <Button variant="ghost" size="sm" onClick={() => openDialogForNode(node)}>
+                            <AddActionIcon className="h-4 w-4" /> {role ? 'Edit' : 'Add'}
+                          </Button>
                           {role && (
                             <Button
                               variant="ghost"
@@ -681,7 +638,7 @@ export function LayoutManager() {
                 })}
                 {nodes.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center h-24 text-muted-foreground">
+                    <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
                       No nodes reported by the cluster.
                     </TableCell>
                   </TableRow>
@@ -690,13 +647,249 @@ export function LayoutManager() {
             </Table>
           </div>
 
-          <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
+          {/* Mobile: one card per node */}
+          <div className="space-y-2 md:hidden">
+            {nodes.map((node) => {
+              const role = rolesById.get(node.id);
+              const staged = stagedById.get(node.id);
+              const isRemoved = staged && 'remove' in staged && staged.remove;
+              return (
+                <div key={node.id} className="space-y-2.5 rounded-lg border p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium">{node.hostname || 'Unknown'}</div>
+                      <div className="font-mono text-xs text-muted-foreground">
+                        {formatShortId(node.id, 12)}
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      {role ? (
+                        <Badge variant="success">Active</Badge>
+                      ) : (
+                        <Badge variant="secondary">Discovery</Badge>
+                      )}
+                      {staged &&
+                        (isRemoved ? (
+                          <Badge variant="destructive">Remove</Badge>
+                        ) : (
+                          <Badge variant="warning">Update</Badge>
+                        ))}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Zone: </span>
+                      {role?.zone || '—'}
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Capacity: </span>
+                      {role ? formatBytes(role.capacity ?? null) : '—'}
+                    </div>
+                  </div>
+                  {role?.tags?.length ? (
+                    <div className="flex flex-wrap gap-1">
+                      {role.tags.map((tag) => (
+                        <Badge key={tag} variant="outline" className="text-xs">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : null}
+                  <div className="flex gap-2 pt-0.5">
+                    <Button variant="outline" size="sm" onClick={() => openDialogForNode(node)}>
+                      <AddActionIcon className="h-4 w-4" /> {role ? 'Edit' : 'Add'}
+                    </Button>
+                    {role && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-destructive"
+                        onClick={() =>
+                          setRemoveConfirm({ id: node.id, hostname: node.hostname || node.id })
+                        }
+                      >
+                        <DeleteActionIcon className="h-3.5 w-3.5" />
+                        Remove
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+            {nodes.length === 0 && (
+              <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+                No nodes reported by the cluster.
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <CheckCircle2 className="h-4 w-4" />
             Capacity uses SI units (1GB = 1,000,000,000 bytes).
           </div>
-        </CardContent>
-      </Card>
+        </TabsContent>
 
+        {/* ---------------- History ---------------- */}
+        <TabsContent value="history" className="space-y-4">
+          <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border">
+            <div className="bg-card px-4 py-3">
+              <div className="text-xs text-muted-foreground">Current Version</div>
+              <div className="text-lg font-semibold tabular-nums">
+                {historyQuery.data?.currentVersion}
+              </div>
+            </div>
+            <div className="bg-card px-4 py-3">
+              <div className="text-xs text-muted-foreground">Min ACK Version</div>
+              <div className="text-lg font-semibold tabular-nums">{historyQuery.data?.minAck}</div>
+            </div>
+          </div>
+
+          <div className="overflow-hidden rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Version</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Storage Nodes</TableHead>
+                  <TableHead>Gateway Nodes</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {historyQuery.data?.versions?.map((version) => (
+                  <TableRow key={version.version}>
+                    <TableCell>v{version.version}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          version.status === 'Current'
+                            ? 'success'
+                            : version.status === 'Draining'
+                              ? 'warning'
+                              : 'secondary'
+                        }
+                      >
+                        {version.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{version.storageNodes}</TableCell>
+                    <TableCell>{version.gatewayNodes}</TableCell>
+                  </TableRow>
+                ))}
+                {historyQuery.data?.versions?.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                      No layout history available.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {historyQuery.data?.updateTrackers && (
+            <div className="space-y-2 rounded-md border bg-muted/10 p-3 text-sm">
+              <div className="font-medium">Node update trackers</div>
+              <div className="space-y-1">
+                {Object.entries(historyQuery.data.updateTrackers).map(([nodeId, trackers]) => (
+                  <div key={nodeId}>
+                    {formatShortId(nodeId, 10)} — ACK {trackers.ack}, SYNC {trackers.sync}, SYNC ACK{' '}
+                    {trackers.syncAck}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-3 rounded-lg border border-warning/30 bg-warning/10 p-4">
+            <div className="font-medium text-warning">Skip Dead Nodes</div>
+            <p className="text-sm text-foreground/80">
+              Force progress in layout update trackers. Use only if nodes are permanently lost.
+            </p>
+            <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+              <div className="space-y-2">
+                <Label>Layout Version</Label>
+                <Input
+                  type="number"
+                  value={skipVersion}
+                  onChange={(e) => setSkipVersionInput(e.target.value)}
+                />
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox checked={allowMissingData} onCheckedChange={setAllowMissingData} />
+                  Allow missing data (unsafe)
+                </label>
+              </div>
+              <Button
+                variant="destructive"
+                onClick={handleSkipDeadNodes}
+                disabled={skipDeadNodesMutation.isPending}
+              >
+                {skipDeadNodesMutation.isPending ? 'Submitting...' : 'Skip Dead Nodes'}
+              </Button>
+            </div>
+            {skipResult && (
+              <div className="space-y-1 text-sm text-foreground/80">
+                <div>ACK updated: {skipResult.ackUpdated.join(', ') || '—'}</div>
+                <div>SYNC updated: {skipResult.syncUpdated.join(', ') || '—'}</div>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+      </Tabs>
+
+      {/* Configure Node Dialog (single, shared by table + cards) */}
+      <Dialog
+        open={nodeDialogOpen}
+        onOpenChange={(open) => {
+          setNodeDialogOpen(open);
+          if (!open) setSelectedNode(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Configure Node</DialogTitle>
+            <DialogDescription>
+              Stage role changes for this node. Capacity uses GB (SI).
+            </DialogDescription>
+          </DialogHeader>
+          {selectedNode && (
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label>Zone</Label>
+                <Input
+                  value={selectedNode.zone}
+                  onChange={(e) => setSelectedNode({ ...selectedNode, zone: e.target.value })}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Capacity (GB)</Label>
+                <Input
+                  type="number"
+                  value={selectedNode.capacity}
+                  onChange={(e) => setSelectedNode({ ...selectedNode, capacity: e.target.value })}
+                  placeholder="Leave empty for gateway"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Tags (comma separated)</Label>
+                <Input
+                  value={selectedNode.tags}
+                  onChange={(e) => setSelectedNode({ ...selectedNode, tags: e.target.value })}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNodeDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleStageNode} disabled={updateLayoutMutation.isPending}>
+              {updateLayoutMutation.isPending ? 'Staging...' : 'Stage Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Preview Dialog */}
       <Dialog
         open={previewDialogOpen}
         onOpenChange={(open) => {
@@ -718,7 +911,7 @@ export function LayoutManager() {
             ) : (
               <div className="space-y-4">
                 <div>
-                  <div className="text-sm font-medium mb-2">Layout computation output</div>
+                  <div className="mb-2 text-sm font-medium">Layout computation output</div>
                   <pre className="max-h-[360px] overflow-auto whitespace-pre rounded-lg border bg-muted/40 p-4 font-mono text-xs leading-relaxed">
                     {previewResult.message.join('\n')}
                   </pre>
@@ -760,115 +953,7 @@ export function LayoutManager() {
         </DialogContent>
       </Dialog>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Layout History & Recovery</CardTitle>
-          <CardDescription>Review layout versions and update trackers</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <div className="text-sm text-muted-foreground">Current Version</div>
-              <div className="text-lg font-semibold">{historyQuery.data?.currentVersion}</div>
-            </div>
-            <div>
-              <div className="text-sm text-muted-foreground">Min ACK Version</div>
-              <div className="text-lg font-semibold">{historyQuery.data?.minAck}</div>
-            </div>
-          </div>
-
-          <div className="rounded-md border overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Version</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Storage Nodes</TableHead>
-                  <TableHead>Gateway Nodes</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {historyQuery.data?.versions?.map((version) => (
-                  <TableRow key={version.version}>
-                    <TableCell>v{version.version}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          version.status === 'Current'
-                            ? 'success'
-                            : version.status === 'Draining'
-                              ? 'warning'
-                              : 'secondary'
-                        }
-                      >
-                        {version.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{version.storageNodes}</TableCell>
-                    <TableCell>{version.gatewayNodes}</TableCell>
-                  </TableRow>
-                ))}
-                {historyQuery.data?.versions?.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center h-24 text-muted-foreground">
-                      No layout history available.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-
-          {historyQuery.data?.updateTrackers && (
-            <div className="rounded-md border bg-muted/10 p-3 text-sm space-y-2">
-              <div className="font-medium">Node update trackers</div>
-              <div className="space-y-1">
-                {Object.entries(historyQuery.data.updateTrackers).map(([nodeId, trackers]) => (
-                  <div key={nodeId}>
-                    {formatShortId(nodeId, 10)} — ACK {trackers.ack}, SYNC {trackers.sync}, SYNC ACK{' '}
-                    {trackers.syncAck}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="rounded-md border border-warning/30 bg-warning/10 p-4 space-y-3">
-            <div className="font-medium text-warning">Skip Dead Nodes</div>
-            <p className="text-sm text-warning">
-              Force progress in layout update trackers. Use only if nodes are permanently lost.
-            </p>
-            <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
-              <div className="space-y-2">
-                <Label>Layout Version</Label>
-                <Input
-                  type="number"
-                  value={skipVersion}
-                  onChange={(e) => setSkipVersionInput(e.target.value)}
-                />
-                <label className="flex items-center gap-2 text-sm text-warning">
-                  <Checkbox checked={allowMissingData} onCheckedChange={setAllowMissingData} />
-                  Allow missing data (unsafe)
-                </label>
-              </div>
-              <Button
-                variant="destructive"
-                onClick={handleSkipDeadNodes}
-                disabled={skipDeadNodesMutation.isPending}
-              >
-                {skipDeadNodesMutation.isPending ? 'Submitting...' : 'Skip Dead Nodes'}
-              </Button>
-            </div>
-            {skipResult && (
-              <div className="text-sm text-warning space-y-1">
-                <div>ACK updated: {skipResult.ackUpdated.join(', ') || '—'}</div>
-                <div>SYNC updated: {skipResult.syncUpdated.join(', ') || '—'}</div>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
+      {/* Apply Dialog */}
       <Dialog open={applyDialogOpen} onOpenChange={setApplyDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -897,6 +982,7 @@ export function LayoutManager() {
         </DialogContent>
       </Dialog>
 
+      {/* Apply Result Dialog */}
       <Dialog
         open={applyResultDialogOpen}
         onOpenChange={(open) => {
@@ -912,7 +998,7 @@ export function LayoutManager() {
           {applyResult ? (
             <div className="space-y-4">
               <div>
-                <div className="text-sm font-medium mb-2">Layout computation output</div>
+                <div className="mb-2 text-sm font-medium">Layout computation output</div>
                 <pre className="max-h-[360px] overflow-auto whitespace-pre rounded-lg border bg-muted/40 p-4 font-mono text-xs leading-relaxed">
                   {applyResult.message.join('\n')}
                 </pre>

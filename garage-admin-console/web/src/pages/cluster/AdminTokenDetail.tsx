@@ -9,10 +9,10 @@ import {
   CardDescription,
   Button,
   Badge,
-  Checkbox,
   Input,
   Label,
   Textarea,
+  ExpirationPicker,
   Dialog,
   DialogContent,
   DialogHeader,
@@ -42,9 +42,6 @@ import { DeleteActionIcon, EditActionIcon } from '@/lib/action-icons';
 import { TokenIcon } from '@/lib/entity-icons';
 import { formatDateTime, getApiErrorMessage } from '@garage/web-shared';
 import { toast } from '@garage/ui';
-
-const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
-const MINUTE_OPTIONS = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
 
 export function AdminTokenDetail() {
   const { tid } = useParams<{ tid: string }>();
@@ -197,9 +194,12 @@ export function AdminTokenDetail() {
     token.scope.includes('CreateAdminToken') || token.scope.includes('UpdateAdminToken');
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <DetailPageHeader
-        backTo={`/clusters/${clusterId}/tokens`}
+        breadcrumbs={[
+          { label: 'Admin Tokens', to: `/clusters/${clusterId}/tokens` },
+          { label: token.name },
+        ]}
         title={token.name}
         subtitle={token.id}
         badges={
@@ -389,53 +389,17 @@ export function AdminTokenDetail() {
             )}
             <div className="space-y-2">
               <Label>Expiration</Label>
-              <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-end">
-                <Input
-                  type="date"
-                  value={editExpirationDate}
-                  onChange={(e) => setEditExpirationDate(e.target.value)}
-                  disabled={editNeverExpires}
-                />
-                <Select
-                  value={editExpirationHour}
-                  onValueChange={setEditExpirationHour}
-                  disabled={editNeverExpires}
-                >
-                  <SelectTrigger className="w-[90px]">
-                    <SelectValue placeholder="HH" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {HOUR_OPTIONS.map((hour) => (
-                      <SelectItem key={hour} value={hour}>
-                        {hour}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select
-                  value={editExpirationMinute}
-                  onValueChange={setEditExpirationMinute}
-                  disabled={editNeverExpires}
-                >
-                  <SelectTrigger className="w-[90px]">
-                    <SelectValue placeholder="MM" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {MINUTE_OPTIONS.map((minute) => (
-                      <SelectItem key={minute} value={minute}>
-                        {minute}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <label className="flex items-center gap-2 text-sm text-foreground">
-                <Checkbox checked={editNeverExpires} onCheckedChange={setEditNeverExpires} />
-                Never expires
-              </label>
-              {editExpirationInvalid && !editNeverExpires && (
-                <div className="text-xs text-destructive">Expiration date/time is invalid.</div>
-              )}
+              <ExpirationPicker
+                date={editExpirationDate}
+                hour={editExpirationHour}
+                minute={editExpirationMinute}
+                neverExpires={editNeverExpires}
+                onDateChange={setEditExpirationDate}
+                onHourChange={setEditExpirationHour}
+                onMinuteChange={setEditExpirationMinute}
+                onNeverExpiresChange={setEditNeverExpires}
+                invalid={editExpirationInvalid && !editNeverExpires}
+              />
             </div>
             {editError && (
               <Alert variant="destructive">

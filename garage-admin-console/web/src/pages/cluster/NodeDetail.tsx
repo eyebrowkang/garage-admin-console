@@ -1,12 +1,7 @@
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { HardDrive, Activity, Database, RefreshCw } from 'lucide-react';
+import { useParams, useSearchParams } from 'react-router-dom';
+import { HardDrive, Activity, Database, RefreshCw, type LucideIcon } from 'lucide-react';
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
   Button,
   Badge,
   Label,
@@ -24,6 +19,10 @@ import {
   Alert,
   AlertDescription,
   AlertTitle,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
 } from '@garage/ui';
 import { useClusterContext } from '@/contexts/ClusterContext';
 import {
@@ -39,7 +38,6 @@ import { DetailPageHeader } from '@/components/cluster/DetailPageHeader';
 import { InlineLoadingState } from '@garage/ui';
 import { PageLoadingState } from '@garage/ui';
 import { RepairActionIcon, SnapshotActionIcon } from '@/lib/action-icons';
-import { NodeIcon } from '@/lib/entity-icons';
 import { formatBytes, formatRelativeSeconds, getApiErrorMessage } from '@garage/web-shared';
 import { toast } from '@garage/ui';
 import type { RepairType, ScrubCommand } from '@/types/garage';
@@ -74,9 +72,54 @@ const SCRUB_COMMANDS = [
 
 type RepairOperationValue = (typeof REPAIR_OPERATIONS)[number]['value'];
 
+/** A storage-partition usage panel: available / total and a used-% meter. */
+function PartitionMeter({
+  title,
+  icon: Icon,
+  partition,
+}: {
+  title: string;
+  icon: LucideIcon;
+  partition: { available: number; total: number } | null | undefined;
+}) {
+  const usedPct =
+    partition && partition.total > 0
+      ? ((partition.total - partition.available) / partition.total) * 100
+      : 0;
+  return (
+    <div className="space-y-3 rounded-lg border p-4">
+      <div className="flex items-center gap-2 text-sm font-medium">
+        <Icon className="h-4 w-4 text-muted-foreground" />
+        {title}
+      </div>
+      {partition ? (
+        <>
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Available</span>
+            <span className="font-medium">{formatBytes(partition.available)}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Total</span>
+            <span className="font-medium">{formatBytes(partition.total)}</span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-muted">
+            <div className="h-full bg-primary" style={{ width: `${usedPct}%` }} />
+          </div>
+          <div className="text-right text-xs text-muted-foreground">
+            {Math.round(usedPct)}% used
+          </div>
+        </>
+      ) : (
+        <p className="text-sm text-muted-foreground">No data available</p>
+      )}
+    </div>
+  );
+}
+
 export function NodeDetail() {
   const { nid } = useParams<{ nid: string }>();
   const { clusterId } = useClusterContext();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [snapshotDialogOpen, setSnapshotDialogOpen] = useState(false);
   const [repairDialogOpen, setRepairDialogOpen] = useState(false);
@@ -179,21 +222,38 @@ export function NodeDetail() {
   const nodeStats = stats?.success?.[nid];
   const nodeStatsError = stats?.error?.[nid];
 
+  const requestedTab = searchParams.get('tab');
+  const activeTab = requestedTab === 'statistics' ? 'statistics' : 'overview';
+  const handleTabChange = (value: string) => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (value === 'overview') next.delete('tab');
+        else next.set('tab', value);
+        return next;
+      },
+      { replace: true },
+    );
+  };
+
+  const statusBadge = node.draining ? (
+    <Badge variant="warning">Draining</Badge>
+  ) : node.isUp ? (
+    <Badge variant="success">Up</Badge>
+  ) : (
+    <Badge variant="destructive">Down</Badge>
+  );
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <DetailPageHeader
-        backTo={`/clusters/${clusterId}/nodes`}
+        breadcrumbs={[
+          { label: 'Nodes', to: `/clusters/${clusterId}/nodes` },
+          { label: node.hostname || 'Unknown Host' },
+        ]}
         title={node.hostname || 'Unknown Host'}
         subtitle={node.id}
-        badges={
-          node.draining ? (
-            <Badge variant="warning">Draining</Badge>
-          ) : node.isUp ? (
-            <Badge variant="success">Up</Badge>
-          ) : (
-            <Badge variant="destructive">Down</Badge>
-          )
-        }
+        badges={statusBadge}
         actions={
           <>
             <Button variant="outline" size="sm" onClick={() => setSnapshotDialogOpen(true)}>
@@ -208,264 +268,155 @@ export function NodeDetail() {
         }
       />
 
-      {/* Node Info */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <NodeIcon className="h-4 w-4" />
-              Status
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {node.draining ? 'Draining' : node.isUp ? 'Online' : 'Offline'}
-            </div>
-            {!node.isUp && node.lastSeenSecsAgo !== null && (
-              <div className="text-sm text-muted-foreground">
-                Last seen {formatRelativeSeconds(node.lastSeenSecsAgo)}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="statistics">Statistics</TabsTrigger>
+        </TabsList>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Activity className="h-4 w-4" />
-              Address
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {node.addr ? (
-              <div className="inline-flex items-center gap-1 text-lg">
-                <span>{node.addr}</span>
-                <CopyButton value={node.addr} label="Node address" />
+        {/* ---------------- Overview ---------------- */}
+        <TabsContent value="overview" className="space-y-4">
+          {/* Quick stats strip */}
+          <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border sm:grid-cols-4">
+            <div className="bg-card px-4 py-3">
+              <div className="text-xs text-muted-foreground">Status</div>
+              <div className="text-base font-semibold">
+                {node.draining ? 'Draining' : node.isUp ? 'Online' : 'Offline'}
               </div>
-            ) : (
-              <div className="text-lg">-</div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Database className="h-4 w-4" />
-              Version
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg font-medium">{node.garageVersion || '—'}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <HardDrive className="h-4 w-4" />
-              Zone
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg font-medium">{node.role?.zone || 'Unassigned'}</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Node Info</CardTitle>
-          <CardDescription>Garage daemon details for this node</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {infoLoading ? (
-            <InlineLoadingState label="Loading node info..." />
-          ) : infoError ? (
-            <Alert variant="destructive">
-              <AlertTitle>Failed to load node info</AlertTitle>
-              <AlertDescription>{getApiErrorMessage(infoError)}</AlertDescription>
-            </Alert>
-          ) : nodeInfoError ? (
-            <Alert variant="destructive">
-              <AlertTitle>Node info unavailable</AlertTitle>
-              <AlertDescription>{nodeInfoError}</AlertDescription>
-            </Alert>
-          ) : nodeInfoData ? (
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <div className="text-sm text-muted-foreground">Garage Version</div>
-                <div className="font-medium">{nodeInfoData.garageVersion}</div>
-              </div>
-              <div>
-                <div className="text-sm text-muted-foreground">Rust Version</div>
-                <div className="font-medium">{nodeInfoData.rustVersion}</div>
-              </div>
-              <div>
-                <div className="text-sm text-muted-foreground">DB Engine</div>
-                <div className="font-medium">{nodeInfoData.dbEngine}</div>
-              </div>
-              <div>
-                <div className="text-sm text-muted-foreground">Node ID</div>
-                <div className="inline-flex items-center gap-1 font-medium break-all">
-                  <span>{nodeInfoData.nodeId}</span>
-                  <CopyButton value={nodeInfoData.nodeId} label="Node ID" />
+              {!node.isUp && node.lastSeenSecsAgo !== null && (
+                <div className="text-xs text-muted-foreground">
+                  Last seen {formatRelativeSeconds(node.lastSeenSecsAgo)}
                 </div>
-              </div>
-              <div className="md:col-span-2">
-                <div className="text-sm text-muted-foreground">Features</div>
-                {nodeInfoData.garageFeatures && nodeInfoData.garageFeatures.length > 0 ? (
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {nodeInfoData.garageFeatures.map((feature) => (
-                      <Badge key={feature} variant="outline">
-                        {feature}
-                      </Badge>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-sm text-muted-foreground">No features reported</div>
-                )}
-              </div>
+              )}
             </div>
-          ) : (
-            <div className="text-sm text-muted-foreground">No node info available.</div>
-          )}
-        </CardContent>
-      </Card>
+            <div className="bg-card px-4 py-3">
+              <div className="text-xs text-muted-foreground">Address</div>
+              {node.addr ? (
+                <div className="inline-flex items-center gap-1 text-sm">
+                  <span className="font-mono">{node.addr}</span>
+                  <CopyButton value={node.addr} label="Node address" compact />
+                </div>
+              ) : (
+                <div className="text-sm">—</div>
+              )}
+            </div>
+            <div className="bg-card px-4 py-3">
+              <div className="text-xs text-muted-foreground">Version</div>
+              <div className="text-base font-medium">{node.garageVersion || '—'}</div>
+            </div>
+            <div className="bg-card px-4 py-3">
+              <div className="text-xs text-muted-foreground">Zone</div>
+              <div className="text-base font-medium">{node.role?.zone || 'Unassigned'}</div>
+            </div>
+          </div>
 
-      {/* Role & Capacity */}
-      {node.role && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Role Configuration</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-3">
-              <div>
-                <div className="text-sm text-muted-foreground">Zone</div>
-                <div className="font-medium">{node.role.zone}</div>
-              </div>
-              <div>
-                <div className="text-sm text-muted-foreground">Capacity</div>
-                <div className="font-medium">{formatBytes(node.role.capacity)}</div>
-              </div>
-              <div>
-                <div className="text-sm text-muted-foreground">Tags</div>
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {node.role.tags.length > 0 ? (
-                    node.role.tags.map((tag) => (
-                      <Badge key={tag} variant="outline">
-                        {tag}
-                      </Badge>
-                    ))
+          {/* Daemon details */}
+          <div className="space-y-3 rounded-lg border p-4">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Database className="h-4 w-4 text-muted-foreground" />
+              Garage Daemon
+            </div>
+            {infoLoading ? (
+              <InlineLoadingState label="Loading node info..." />
+            ) : infoError ? (
+              <Alert variant="destructive">
+                <AlertTitle>Failed to load node info</AlertTitle>
+                <AlertDescription>{getApiErrorMessage(infoError)}</AlertDescription>
+              </Alert>
+            ) : nodeInfoError ? (
+              <Alert variant="destructive">
+                <AlertTitle>Node info unavailable</AlertTitle>
+                <AlertDescription>{nodeInfoError}</AlertDescription>
+              </Alert>
+            ) : nodeInfoData ? (
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <div className="text-sm text-muted-foreground">Garage Version</div>
+                  <div className="font-medium">{nodeInfoData.garageVersion}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">Rust Version</div>
+                  <div className="font-medium">{nodeInfoData.rustVersion}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">DB Engine</div>
+                  <div className="font-medium">{nodeInfoData.dbEngine}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">Node ID</div>
+                  <div className="inline-flex items-center gap-1 break-all font-medium">
+                    <span className="font-mono text-sm">{nodeInfoData.nodeId}</span>
+                    <CopyButton value={nodeInfoData.nodeId} label="Node ID" compact />
+                  </div>
+                </div>
+                <div className="md:col-span-2">
+                  <div className="text-sm text-muted-foreground">Features</div>
+                  {nodeInfoData.garageFeatures && nodeInfoData.garageFeatures.length > 0 ? (
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {nodeInfoData.garageFeatures.map((feature) => (
+                        <Badge key={feature} variant="outline">
+                          {feature}
+                        </Badge>
+                      ))}
+                    </div>
                   ) : (
-                    <span className="text-muted-foreground">No tags</span>
+                    <div className="text-sm text-muted-foreground">No features reported</div>
                   )}
                 </div>
               </div>
+            ) : (
+              <div className="text-sm text-muted-foreground">No node info available.</div>
+            )}
+          </div>
+
+          {/* Role configuration */}
+          {node.role && (
+            <div className="space-y-3 rounded-lg border p-4">
+              <div className="text-sm font-medium">Role Configuration</div>
+              <div className="grid gap-4 md:grid-cols-3">
+                <div>
+                  <div className="text-sm text-muted-foreground">Zone</div>
+                  <div className="font-medium">{node.role.zone}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">Capacity</div>
+                  <div className="font-medium">{formatBytes(node.role.capacity)}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">Tags</div>
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {node.role.tags.length > 0 ? (
+                      node.role.tags.map((tag) => (
+                        <Badge key={tag} variant="outline">
+                          {tag}
+                        </Badge>
+                      ))
+                    ) : (
+                      <span className="text-muted-foreground">No tags</span>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          )}
 
-      {/* Storage Info */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <HardDrive className="h-5 w-5" />
-              Data Partition
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {node.dataPartition ? (
-              <div className="space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span>Available</span>
-                  <span className="font-medium">{formatBytes(node.dataPartition.available)}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span>Total</span>
-                  <span className="font-medium">{formatBytes(node.dataPartition.total)}</span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full bg-primary"
-                    style={{
-                      width: `${node.dataPartition.total > 0 ? ((node.dataPartition.total - node.dataPartition.available) / node.dataPartition.total) * 100 : 0}%`,
-                    }}
-                  />
-                </div>
-                <div className="text-xs text-muted-foreground text-right">
-                  {node.dataPartition.total > 0
-                    ? Math.round(
-                        ((node.dataPartition.total - node.dataPartition.available) /
-                          node.dataPartition.total) *
-                          100,
-                      )
-                    : 0}
-                  % used
-                </div>
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">No data available</p>
-            )}
-          </CardContent>
-        </Card>
+          {/* Storage partitions */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <PartitionMeter title="Data Partition" icon={HardDrive} partition={node.dataPartition} />
+            <PartitionMeter
+              title="Metadata Partition"
+              icon={Database}
+              partition={node.metadataPartition}
+            />
+          </div>
+        </TabsContent>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Database className="h-5 w-5" />
-              Metadata Partition
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {node.metadataPartition ? (
-              <div className="space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span>Available</span>
-                  <span className="font-medium">
-                    {formatBytes(node.metadataPartition.available)}
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span>Total</span>
-                  <span className="font-medium">{formatBytes(node.metadataPartition.total)}</span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full bg-primary"
-                    style={{
-                      width: `${node.metadataPartition.total > 0 ? ((node.metadataPartition.total - node.metadataPartition.available) / node.metadataPartition.total) * 100 : 0}%`,
-                    }}
-                  />
-                </div>
-                <div className="text-xs text-muted-foreground text-right">
-                  {node.metadataPartition.total > 0
-                    ? Math.round(
-                        ((node.metadataPartition.total - node.metadataPartition.available) /
-                          node.metadataPartition.total) *
-                          100,
-                      )
-                    : 0}
-                  % used
-                </div>
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">No data available</p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Node Statistics */}
-      <Card>
-        <CardHeader>
+        {/* ---------------- Statistics ---------------- */}
+        <TabsContent value="statistics" className="space-y-3">
           <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Node Statistics</CardTitle>
-              <CardDescription>Detailed statistics from this node</CardDescription>
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Activity className="h-4 w-4 text-muted-foreground" />
+              Node Statistics
             </div>
             <Button
               variant="outline"
@@ -477,8 +428,6 @@ export function NodeDetail() {
               Refresh
             </Button>
           </div>
-        </CardHeader>
-        <CardContent>
           {statsLoading ? (
             <InlineLoadingState label="Loading statistics..." />
           ) : statsError ? (
@@ -492,12 +441,12 @@ export function NodeDetail() {
               <AlertDescription>{nodeStatsError}</AlertDescription>
             </Alert>
           ) : (
-            <pre className="max-h-[600px] overflow-auto rounded-lg border bg-muted/40 p-4 font-mono text-xs leading-relaxed whitespace-pre">
+            <pre className="max-h-[600px] overflow-auto whitespace-pre rounded-lg border bg-muted/40 p-4 font-mono text-xs leading-relaxed">
               {nodeStats?.freeform || 'No statistics available'}
             </pre>
           )}
-        </CardContent>
-      </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Snapshot Confirmation */}
       <ConfirmDialog
@@ -565,11 +514,7 @@ export function NodeDetail() {
             <Button variant="outline" onClick={() => setRepairDialogOpen(false)}>
               Cancel
             </Button>
-            <Button
-              variant="destructive"
-              onClick={handleRepair}
-              disabled={repairMutation.isPending}
-            >
+            <Button variant="destructive" onClick={handleRepair} disabled={repairMutation.isPending}>
               {repairMutation.isPending ? 'Starting...' : 'Start Repair'}
             </Button>
           </DialogFooter>

@@ -31,6 +31,9 @@ import {
   Alert,
   AlertDescription,
   AlertTitle,
+  ExpirationPicker,
+  PermissionCheckboxes,
+  PermissionPill,
 } from '@garage/ui';
 import { useClusterContext } from '@/contexts/ClusterContext';
 import { api, proxyPath } from '@/lib/api';
@@ -48,9 +51,6 @@ import { BucketIcon, KeyIcon } from '@/lib/entity-icons';
 import { formatDateTime, formatShortId, getApiErrorMessage } from '@garage/web-shared';
 import { toast } from '@garage/ui';
 import type { GetKeyInfoResponse, UpdateKeyRequest } from '@/types/garage';
-
-const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
-const MINUTE_OPTIONS = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
 
 export function KeyDetail() {
   const { kid } = useParams<{ kid: string }>();
@@ -327,10 +327,31 @@ export function KeyDetail() {
     }
   };
 
+  const openBucketPerm = (bucket: {
+    id: string;
+    globalAliases: string[];
+    localAliases: string[];
+    permissions: { read: boolean; write: boolean; owner: boolean };
+  }) => {
+    const bucketName =
+      bucket.globalAliases[0] || bucket.localAliases[0] || formatShortId(bucket.id, 12);
+    setEditingBucketPerm({
+      bucketId: bucket.id,
+      bucketName,
+      read: bucket.permissions.read,
+      write: bucket.permissions.write,
+      owner: bucket.permissions.owner,
+    });
+    setPermDialogOpen(true);
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <DetailPageHeader
-        backTo={`/clusters/${clusterId}/keys`}
+        breadcrumbs={[
+          { label: 'Access Keys', to: `/clusters/${clusterId}/keys` },
+          { label: keyInfo.name || 'Unnamed Key' },
+        ]}
         title={keyInfo.name || 'Unnamed Key'}
         subtitle={keyInfo.accessKeyId}
         badges={
@@ -380,8 +401,8 @@ export function KeyDetail() {
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <div className="text-sm text-muted-foreground">Access Key ID</div>
-              <div className="inline-flex items-center gap-1">
-                <span>{keyInfo.accessKeyId}</span>
+              <div className="flex items-center gap-1">
+                <span className="break-all font-mono text-sm">{keyInfo.accessKeyId}</span>
                 <CopyButton value={keyInfo.accessKeyId} label="Access key ID" />
               </div>
             </div>
@@ -476,85 +497,96 @@ export function KeyDetail() {
         </CardHeader>
         <CardContent className="space-y-4">
           {keyInfo.buckets && keyInfo.buckets.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Bucket</TableHead>
-                  <TableHead>Aliases</TableHead>
-                  <TableHead className="text-center">Read</TableHead>
-                  <TableHead className="text-center">Write</TableHead>
-                  <TableHead className="text-center">Owner</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Desktop / tablet: table */}
+              <div className="hidden overflow-hidden rounded-lg border sm:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Bucket</TableHead>
+                      <TableHead>Aliases</TableHead>
+                      <TableHead className="text-center">Read</TableHead>
+                      <TableHead className="text-center">Write</TableHead>
+                      <TableHead className="text-center">Owner</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {keyInfo.buckets.map((bucket) => (
+                      <TableRow key={bucket.id}>
+                        <TableCell className="font-mono text-xs">
+                          {formatShortId(bucket.id, 12)}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {bucket.globalAliases.map((alias) => (
+                              <AliasMiniChip key={alias} value={alias} kind="global" />
+                            ))}
+                            {bucket.localAliases.map((alias) => (
+                              <AliasMiniChip key={alias} value={alias} kind="local" />
+                            ))}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <PermissionPill label="Yes" granted={bucket.permissions.read} />
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <PermissionPill label="Yes" granted={bucket.permissions.write} />
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <PermissionPill label="Yes" granted={bucket.permissions.owner} />
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="sm" onClick={() => openBucketPerm(bucket)}>
+                            <EditActionIcon className="h-3.5 w-3.5" />
+                            Edit
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobile: one card per bucket */}
+              <div className="space-y-2 sm:hidden">
                 {keyInfo.buckets.map((bucket) => (
-                  <TableRow key={bucket.id}>
-                    <TableCell className="text-xs">{bucket.id.slice(0, 12)}...</TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {bucket.globalAliases.map((alias) => (
-                          <AliasMiniChip key={alias} value={alias} kind="global" />
-                        ))}
-                        {bucket.localAliases.map((alias) => (
-                          <AliasMiniChip key={alias} value={alias} kind="local" />
-                        ))}
+                  <div key={bucket.id} className="space-y-2.5 rounded-lg border p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 space-y-1">
+                        <div className="truncate text-sm font-medium">
+                          {bucket.globalAliases[0] ||
+                            bucket.localAliases[0] ||
+                            formatShortId(bucket.id, 12)}
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {bucket.globalAliases.map((alias) => (
+                            <AliasMiniChip key={alias} value={alias} kind="global" />
+                          ))}
+                          {bucket.localAliases.map((alias) => (
+                            <AliasMiniChip key={alias} value={alias} kind="local" />
+                          ))}
+                        </div>
                       </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {bucket.permissions.read ? (
-                        <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
-                          Yes
-                        </Badge>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">No</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {bucket.permissions.write ? (
-                        <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
-                          Yes
-                        </Badge>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">No</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {bucket.permissions.owner ? (
-                        <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
-                          Yes
-                        </Badge>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">No</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => {
-                          const bucketName =
-                            bucket.globalAliases[0] ||
-                            bucket.localAliases[0] ||
-                            formatShortId(bucket.id, 12);
-                          setEditingBucketPerm({
-                            bucketId: bucket.id,
-                            bucketName,
-                            read: bucket.permissions.read,
-                            write: bucket.permissions.write,
-                            owner: bucket.permissions.owner,
-                          });
-                          setPermDialogOpen(true);
-                        }}
+                        className="shrink-0"
+                        onClick={() => openBucketPerm(bucket)}
                       >
                         <EditActionIcon className="h-3.5 w-3.5" />
                         Edit
                       </Button>
-                    </TableCell>
-                  </TableRow>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      <PermissionPill label="Read" granted={bucket.permissions.read} />
+                      <PermissionPill label="Write" granted={bucket.permissions.write} />
+                      <PermissionPill label="Owner" granted={bucket.permissions.owner} />
+                    </div>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+            </>
           ) : (
             <p className="text-sm text-muted-foreground">This key has no bucket permissions</p>
           )}
@@ -583,80 +615,27 @@ export function KeyDetail() {
                 placeholder="my-app-key"
               />
             </div>
-            <div className="space-y-3">
-              <div className="space-y-2">
-                <Label>Expiration (24h)</Label>
-                <div className="flex flex-wrap items-end gap-3">
-                  <div className="space-y-1">
-                    <div className="text-xs text-muted-foreground">Date</div>
-                    <Input
-                      type="date"
-                      value={editExpirationDate}
-                      onChange={(e) => setEditExpirationDate(e.target.value)}
-                      disabled={editNeverExpires}
-                      className="min-w-[170px]"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <div className="text-xs text-muted-foreground">Time</div>
-                    <div className="flex items-center gap-2">
-                      <Select
-                        value={editExpirationHour}
-                        onValueChange={setEditExpirationHour}
-                        disabled={editNeverExpires}
-                      >
-                        <SelectTrigger className="w-[84px]">
-                          <SelectValue placeholder="HH" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {HOUR_OPTIONS.map((hour) => (
-                            <SelectItem key={hour} value={hour}>
-                              {hour}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <span className="text-sm text-muted-foreground">:</span>
-                      <Select
-                        value={editExpirationMinute}
-                        onValueChange={setEditExpirationMinute}
-                        disabled={editNeverExpires}
-                      >
-                        <SelectTrigger className="w-[84px]">
-                          <SelectValue placeholder="MM" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {MINUTE_OPTIONS.map((minute) => (
-                            <SelectItem key={minute} value={minute}>
-                              {minute}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Current: {keyInfo.expiration ? formatDateTime(keyInfo.expiration) : 'Never'}
-                </p>
-                {editExpirationInvalid && (
-                  <p className="text-xs text-destructive">Invalid date and time.</p>
-                )}
-              </div>
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={editNeverExpires}
-                  onCheckedChange={(checked) => {
-                    setEditNeverExpires(checked);
-                    if (checked) {
-                      setEditExpirationDate('');
-                      setEditExpirationHour('00');
-                      setEditExpirationMinute('00');
-                    }
-                  }}
-                />
-                Never expires
-              </label>
+            <div className="space-y-2">
+              <Label>Expiration (24h)</Label>
+              <ExpirationPicker
+                date={editExpirationDate}
+                hour={editExpirationHour}
+                minute={editExpirationMinute}
+                neverExpires={editNeverExpires}
+                onDateChange={setEditExpirationDate}
+                onHourChange={setEditExpirationHour}
+                onMinuteChange={setEditExpirationMinute}
+                onNeverExpiresChange={(checked) => {
+                  setEditNeverExpires(checked);
+                  if (checked) {
+                    setEditExpirationDate('');
+                    setEditExpirationHour('00');
+                    setEditExpirationMinute('00');
+                  }
+                }}
+                currentLabel={keyInfo.expiration ? formatDateTime(keyInfo.expiration) : 'Never'}
+                invalid={editExpirationInvalid}
+              />
             </div>
             <div className="space-y-2">
               <Label>Bucket Creation Permission</Label>
@@ -714,34 +693,17 @@ export function KeyDetail() {
             </DialogDescription>
           </DialogHeader>
           {editingBucketPerm && (
-            <div className="space-y-4 py-4">
-              <label className="flex items-center gap-3">
-                <Checkbox
-                  checked={editingBucketPerm.read}
-                  onCheckedChange={(checked) =>
-                    setEditingBucketPerm((prev) => (prev ? { ...prev, read: !!checked } : prev))
-                  }
-                />
-                <span className="text-sm font-medium">Read</span>
-              </label>
-              <label className="flex items-center gap-3">
-                <Checkbox
-                  checked={editingBucketPerm.write}
-                  onCheckedChange={(checked) =>
-                    setEditingBucketPerm((prev) => (prev ? { ...prev, write: !!checked } : prev))
-                  }
-                />
-                <span className="text-sm font-medium">Write</span>
-              </label>
-              <label className="flex items-center gap-3">
-                <Checkbox
-                  checked={editingBucketPerm.owner}
-                  onCheckedChange={(checked) =>
-                    setEditingBucketPerm((prev) => (prev ? { ...prev, owner: !!checked } : prev))
-                  }
-                />
-                <span className="text-sm font-medium">Owner</span>
-              </label>
+            <div className="py-4">
+              <PermissionCheckboxes
+                value={{
+                  read: editingBucketPerm.read,
+                  write: editingBucketPerm.write,
+                  owner: editingBucketPerm.owner,
+                }}
+                onChange={(next) =>
+                  setEditingBucketPerm((prev) => (prev ? { ...prev, ...next } : prev))
+                }
+              />
             </div>
           )}
           <DialogFooter>

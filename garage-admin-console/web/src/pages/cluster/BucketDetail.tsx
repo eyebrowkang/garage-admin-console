@@ -1,14 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { Globe, Tags, Settings, RefreshCw, Pencil } from 'lucide-react';
+import { Globe, Tags, Settings, Pencil } from 'lucide-react';
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
   Button,
-  Badge,
   Checkbox,
   Input,
   Label,
@@ -32,6 +26,12 @@ import {
   Alert,
   AlertDescription,
   AlertTitle,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+  PermissionPill,
+  PermissionCheckboxes,
 } from '@garage/ui';
 import { useClusterContext } from '@/contexts/ClusterContext';
 import {
@@ -51,7 +51,6 @@ import { isMfExplicitlyConfigured } from '@/mf-init';
 import { JsonViewer } from '@/components/cluster/JsonViewer';
 import { PageLoadingState } from '@garage/ui';
 import { DeleteActionIcon } from '@/lib/action-icons';
-import { KeyIcon } from '@/lib/entity-icons';
 import { formatBytes, formatNum, formatShortId, getApiErrorMessage } from '@garage/web-shared';
 import { toast } from '@garage/ui';
 
@@ -61,15 +60,16 @@ export function BucketDetail() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   // After KeyList creates a key via the guided flow, it redirects here with
-  // ?selectKey=<id>. Capture it once, pass to BucketObjectBrowser, then remove
-  // from the URL so refreshes don't re-trigger the selection logic.
-  const selectKeyParam = searchParams.get('selectKey') ?? undefined;
+  // ?selectKey=<id>. Capture it once (before we strip it from the URL), open the
+  // Files tab, and hand it to BucketObjectBrowser so the new key is preselected.
+  const [initialSelectKey] = useState(() => searchParams.get('selectKey') ?? undefined);
   useEffect(() => {
-    if (selectKeyParam) {
+    if (initialSelectKey) {
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev);
           next.delete('selectKey');
+          if (isMfExplicitlyConfigured) next.set('tab', 'files');
           return next;
         },
         { replace: true },
@@ -159,6 +159,36 @@ export function BucketDetail() {
       : 'Add a global alias for this bucket.';
   const canAddAlias =
     Boolean(newAlias.trim()) && (aliasType === 'global' || Boolean(aliasAccessKeyId));
+
+  const bucketLabel = bucket.globalAliases[0] || formatShortId(bucket.id, 12);
+  const showFilesTab = isMfExplicitlyConfigured && Boolean(bucket.globalAliases[0]);
+  const tabValues = ['overview', ...(showFilesTab ? ['files'] : []), 'permissions', 'maintenance'];
+  const requestedTab = searchParams.get('tab');
+  const activeTab = requestedTab && tabValues.includes(requestedTab) ? requestedTab : 'overview';
+  const handleTabChange = (value: string) => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (value === 'overview') next.delete('tab');
+        else next.set('tab', value);
+        return next;
+      },
+      { replace: true },
+    );
+  };
+
+  const websiteSummary = bucket.websiteAccess
+    ? [
+        'Enabled',
+        bucket.websiteConfig?.indexDocument && `index: ${bucket.websiteConfig.indexDocument}`,
+        bucket.websiteConfig?.errorDocument && `error: ${bucket.websiteConfig.errorDocument}`,
+      ]
+        .filter(Boolean)
+        .join(' · ')
+    : 'Disabled';
+  const quotaSummary = `Max objects: ${
+    bucket.quotas.maxObjects ? formatNum(bucket.quotas.maxObjects) : 'Unlimited'
+  } · Max size: ${bucket.quotas.maxSize ? formatBytes(bucket.quotas.maxSize) : 'Unlimited'}`;
 
   const handleUpdateWebsiteAccess = async () => {
     try {
@@ -334,125 +364,124 @@ export function BucketDetail() {
     }
   };
 
+  const openPermDialog = (key: {
+    accessKeyId: string;
+    name?: string | null;
+    permissions: { read: boolean; write: boolean; owner: boolean };
+  }) => {
+    setPermKey({
+      accessKeyId: key.accessKeyId,
+      name: key.name || key.accessKeyId,
+      read: key.permissions.read,
+      write: key.permissions.write,
+      owner: key.permissions.owner,
+    });
+    setPermDialogOpen(true);
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <DetailPageHeader
-        backTo={`/clusters/${clusterId}/buckets`}
-        title={bucket.globalAliases[0] || `${bucket.id.slice(0, 12)}...`}
+        breadcrumbs={[
+          { label: 'Buckets', to: `/clusters/${clusterId}/buckets` },
+          { label: bucketLabel },
+        ]}
+        title={bucketLabel}
         subtitle={bucket.id}
       />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Bucket Summary</CardTitle>
-          <CardDescription>Primary status and usage metrics for this bucket</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-3 md:grid-cols-4">
-            <div className="rounded-lg border bg-muted/30 p-3">
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          {showFilesTab && <TabsTrigger value="files">Files</TabsTrigger>}
+          <TabsTrigger value="permissions">
+            Permissions
+            {bucket.keys.length > 0 && (
+              <span className="rounded bg-muted px-1.5 text-xs text-muted-foreground">
+                {bucket.keys.length}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
+        </TabsList>
+
+        {/* ---------------- Overview ---------------- */}
+        <TabsContent value="overview" className="space-y-4">
+          {/* Usage metrics — one dense strip with hairline dividers, not 4 cards */}
+          <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border sm:grid-cols-4">
+            <div className="bg-card px-4 py-3">
               <div className="text-xs text-muted-foreground">Objects</div>
-              <div className="text-xl font-semibold">{formatNum(bucket.objects)}</div>
+              <div className="text-lg font-semibold tabular-nums">{formatNum(bucket.objects)}</div>
             </div>
-            <div className="rounded-lg border bg-muted/30 p-3">
+            <div className="bg-card px-4 py-3">
               <div className="text-xs text-muted-foreground">Total Size</div>
-              <div className="text-xl font-semibold">{formatBytes(bucket.bytes)}</div>
+              <div className="text-lg font-semibold tabular-nums">{formatBytes(bucket.bytes)}</div>
             </div>
-            <div className="rounded-lg border bg-muted/30 p-3">
+            <div className="bg-card px-4 py-3">
               <div className="text-xs text-muted-foreground">Incomplete Uploads</div>
-              <div className="text-xl font-semibold">{bucket.unfinishedUploads}</div>
+              <div className="text-lg font-semibold tabular-nums">{bucket.unfinishedUploads}</div>
             </div>
-            <div className="rounded-lg border bg-muted/30 p-3">
+            <div className="bg-card px-4 py-3">
               <div className="text-xs text-muted-foreground">Multipart Uploads</div>
-              <div className="text-xl font-semibold">{bucket.unfinishedMultipartUploads}</div>
+              <div className="text-lg font-semibold tabular-nums">
+                {bucket.unfinishedMultipartUploads}
+              </div>
               <div className="text-xs text-muted-foreground">
                 {formatBytes(bucket.unfinishedMultipartUploadBytes)}
               </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Embedded S3 Browser — only shown when the MF remote is configured.
-          s3Endpoint is optional; the BFF derives a default from the cluster's
-          admin hostname on port 3900 when not explicitly set. */}
-      {isMfExplicitlyConfigured && bucket.globalAliases[0] && (
-        <BucketObjectBrowser
-          clusterId={clusterId}
-          bucketId={bucket.id}
-          bucketAlias={bucket.globalAliases[0]}
-          initialKeyId={selectKeyParam}
-        />
-      )}
-
-      {/* Aliases Section */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Tags className="h-5 w-5" />
-                Aliases
-              </CardTitle>
-              <CardDescription>Global and local bucket aliases</CardDescription>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => setAliasDialogOpen(true)}>
-              Add Alias
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-5">
-            <div className="space-y-2.5">
-              <h4 className="text-sm font-medium">Global Aliases</h4>
-              {bucket.globalAliases.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {bucket.globalAliases.map((alias) => (
-                    <div
-                      key={alias}
-                      className="group inline-flex items-center gap-2 rounded-md border bg-muted/20 px-2.5 py-1.5 text-sm"
-                    >
-                      <span className="font-medium">{alias}</span>
-                      <div className="ml-1 flex items-center gap-0.5 border-l border-border/60 pl-1">
-                        <CopyButton
-                          value={alias}
-                          label="Global alias"
-                          compact
-                          className="h-5 w-5 rounded-sm"
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-5 w-5 rounded-sm text-muted-foreground hover:text-destructive"
-                          onClick={() => setRemoveAliasConfirm({ alias })}
-                        >
-                          <DeleteActionIcon className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+          {/* Configuration — aliases, website, quotas as compact rows */}
+          <div className="divide-y rounded-lg border">
+            <div className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0 space-y-2">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Tags className="h-4 w-4 text-muted-foreground" />
+                  Aliases
                 </div>
-              ) : (
-                <span className="text-sm text-muted-foreground">No global aliases</span>
-              )}
-            </div>
-
-            <div className="space-y-2.5">
-              <h4 className="text-sm font-medium">Local Aliases</h4>
-              {localAliases.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {bucket.globalAliases.length > 0 ? (
+                    bucket.globalAliases.map((alias) => (
+                      <span
+                        key={alias}
+                        className="group inline-flex items-center gap-1.5 rounded-md border bg-muted/20 px-2 py-1 text-sm"
+                      >
+                        <span className="font-medium">{alias}</span>
+                        <span className="flex items-center gap-0.5 border-l border-border/60 pl-1">
+                          <CopyButton
+                            value={alias}
+                            label="Global alias"
+                            compact
+                            className="h-5 w-5 rounded-sm"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-5 w-5 rounded-sm text-muted-foreground hover:text-destructive"
+                            onClick={() => setRemoveAliasConfirm({ alias })}
+                          >
+                            <DeleteActionIcon className="h-3.5 w-3.5" />
+                          </Button>
+                        </span>
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-sm text-muted-foreground">No global aliases</span>
+                  )}
                   {localAliases.map((alias) => (
-                    <div
+                    <span
                       key={`${alias.accessKeyId}-${alias.alias}`}
-                      className="group inline-flex items-center gap-2 rounded-md border bg-background px-2.5 py-1.5"
+                      className="group inline-flex items-center gap-1.5 rounded-md border bg-background px-2 py-1"
                     >
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium leading-none">{alias.alias}</div>
-                        <div className="mt-1 text-[11px] leading-none text-muted-foreground">
+                      <span className="min-w-0">
+                        <span className="block text-sm font-medium leading-none">{alias.alias}</span>
+                        <span className="mt-0.5 block text-[11px] leading-none text-muted-foreground">
                           {alias.keyName || formatShortId(alias.accessKeyId, 10)}
-                        </div>
-                      </div>
-                      <div className="ml-1 flex items-center gap-0.5 border-l border-border/60 pl-1">
+                        </span>
+                      </span>
+                      <span className="flex items-center gap-0.5 border-l border-border/60 pl-1">
                         <CopyButton
                           value={alias.alias}
                           label="Local alias"
@@ -473,228 +502,212 @@ export function BucketDetail() {
                         >
                           <DeleteActionIcon className="h-3.5 w-3.5" />
                         </Button>
-                      </div>
-                    </div>
+                      </span>
+                    </span>
                   ))}
                 </div>
-              ) : (
-                <span className="text-sm text-muted-foreground">No local aliases</span>
-              )}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="shrink-0"
+                onClick={() => setAliasDialogOpen(true)}
+              >
+                Add Alias
+              </Button>
+            </div>
+
+            <div className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0 space-y-1">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Globe className="h-4 w-4 text-muted-foreground" />
+                  Website Access
+                </div>
+                <div className="text-sm text-muted-foreground">{websiteSummary}</div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="shrink-0"
+                onClick={() => {
+                  setWebsiteEnabled(bucket.websiteAccess);
+                  setWebsiteIndex(bucket.websiteConfig?.indexDocument || '');
+                  setWebsiteError(bucket.websiteConfig?.errorDocument || '');
+                  setWebsiteDialogOpen(true);
+                }}
+              >
+                Edit
+              </Button>
+            </div>
+
+            <div className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0 space-y-1">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Settings className="h-4 w-4 text-muted-foreground" />
+                  Quotas
+                </div>
+                <div className="text-sm text-muted-foreground">{quotaSummary}</div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="shrink-0"
+                onClick={() => {
+                  setMaxObjects(bucket.quotas.maxObjects?.toString() || '');
+                  setMaxSize(
+                    bucket.quotas.maxSize
+                      ? (bucket.quotas.maxSize / 1_000_000_000).toString()
+                      : '',
+                  );
+                  setQuotasDialogOpen(true);
+                }}
+              >
+                Edit
+              </Button>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </TabsContent>
 
-      {/* Key Permissions */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <KeyIcon className="h-5 w-5" />
-            Key Permissions
-          </CardTitle>
-          <CardDescription>Access keys with permissions on this bucket</CardDescription>
-        </CardHeader>
-        <CardContent>
+        {/* ---------------- Files (embedded S3 Browser, lazy per tab) ---------------- */}
+        {showFilesTab && bucket.globalAliases[0] && (
+          <TabsContent value="files">
+            <BucketObjectBrowser
+              clusterId={clusterId}
+              bucketId={bucket.id}
+              bucketAlias={bucket.globalAliases[0]}
+              initialKeyId={initialSelectKey}
+            />
+          </TabsContent>
+        )}
+
+        {/* ---------------- Permissions ---------------- */}
+        <TabsContent value="permissions">
           {bucket.keys.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Access Key</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead className="text-center">Read</TableHead>
-                  <TableHead className="text-center">Write</TableHead>
-                  <TableHead className="text-center">Owner</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Desktop / tablet: table */}
+              <div className="hidden overflow-hidden rounded-lg border sm:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Access Key</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead className="text-center">Read</TableHead>
+                      <TableHead className="text-center">Write</TableHead>
+                      <TableHead className="text-center">Owner</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {bucket.keys.map((key) => (
+                      <TableRow key={key.accessKeyId}>
+                        <TableCell className="text-xs">
+                          <div className="inline-flex items-center gap-1">
+                            <span className="font-mono">{key.accessKeyId.slice(0, 12)}…</span>
+                            <CopyButton value={key.accessKeyId} label="Access key ID" compact />
+                          </div>
+                        </TableCell>
+                        <TableCell>{key.name || '—'}</TableCell>
+                        <TableCell className="text-center">
+                          <PermissionPill label="Yes" granted={key.permissions.read} />
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <PermissionPill label="Yes" granted={key.permissions.write} />
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <PermissionPill label="Yes" granted={key.permissions.owner} />
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="sm" onClick={() => openPermDialog(key)}>
+                            <Pencil className="h-3.5 w-3.5" />
+                            Edit
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobile: one card per key, action inline */}
+              <div className="space-y-2 sm:hidden">
                 {bucket.keys.map((key) => (
-                  <TableRow key={key.accessKeyId}>
-                    <TableCell className="text-xs">
-                      <div className="inline-flex items-center gap-1">
-                        <span>{key.accessKeyId.slice(0, 12)}...</span>
-                        <CopyButton value={key.accessKeyId} label="Access key ID" compact />
+                  <div key={key.accessKeyId} className="space-y-2.5 rounded-lg border p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-medium">{key.name || 'Unnamed key'}</div>
+                        <div className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                          <span className="font-mono">{formatShortId(key.accessKeyId, 16)}</span>
+                          <CopyButton value={key.accessKeyId} label="Access key ID" compact />
+                        </div>
                       </div>
-                    </TableCell>
-                    <TableCell>{key.name || '—'}</TableCell>
-                    <TableCell className="text-center">
-                      {key.permissions.read ? (
-                        <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
-                          Yes
-                        </Badge>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">No</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {key.permissions.write ? (
-                        <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
-                          Yes
-                        </Badge>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">No</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {key.permissions.owner ? (
-                        <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
-                          Yes
-                        </Badge>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">No</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => {
-                          setPermKey({
-                            accessKeyId: key.accessKeyId,
-                            name: key.name || key.accessKeyId,
-                            read: key.permissions.read,
-                            write: key.permissions.write,
-                            owner: key.permissions.owner,
-                          });
-                          setPermDialogOpen(true);
-                        }}
+                        className="shrink-0"
+                        onClick={() => openPermDialog(key)}
                       >
                         <Pencil className="h-3.5 w-3.5" />
                         Edit
                       </Button>
-                    </TableCell>
-                  </TableRow>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      <PermissionPill label="Read" granted={key.permissions.read} />
+                      <PermissionPill label="Write" granted={key.permissions.write} />
+                      <PermissionPill label="Owner" granted={key.permissions.owner} />
+                    </div>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+            </>
           ) : (
-            <p className="text-sm text-muted-foreground">No keys have access to this bucket</p>
+            <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+              No keys have access to this bucket.
+            </div>
           )}
-        </CardContent>
-      </Card>
+        </TabsContent>
 
-      {/* Website Access Section */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Globe className="h-5 w-5" />
-                Website Access
-              </CardTitle>
-              <CardDescription>Static website configuration for this bucket</CardDescription>
-            </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                setWebsiteEnabled(bucket.websiteAccess);
-                setWebsiteIndex(bucket.websiteConfig?.indexDocument || '');
-                setWebsiteError(bucket.websiteConfig?.errorDocument || '');
-                setWebsiteDialogOpen(true);
-              }}
-            >
-              Edit Website
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-3">
-            <div>
-              <div className="text-sm text-muted-foreground">Status</div>
-              <div className="font-medium">{bucket.websiteAccess ? 'Enabled' : 'Disabled'}</div>
-            </div>
-            <div>
-              <div className="text-sm text-muted-foreground">Index Document</div>
-              <div className="font-medium">{bucket.websiteConfig?.indexDocument || '—'}</div>
-            </div>
-            <div>
-              <div className="text-sm text-muted-foreground">Error Document</div>
-              <div className="font-medium">{bucket.websiteConfig?.errorDocument || '—'}</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Quotas Section */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="h-5 w-5" />
-                Quotas
-              </CardTitle>
-              <CardDescription>Storage limits for this bucket</CardDescription>
-            </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                setMaxObjects(bucket.quotas.maxObjects?.toString() || '');
-                setMaxSize(
-                  bucket.quotas.maxSize ? (bucket.quotas.maxSize / 1_000_000_000).toString() : '',
-                );
-                setQuotasDialogOpen(true);
-              }}
-            >
-              Edit Quotas
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <div className="text-sm text-muted-foreground">Max Objects</div>
-              <div className="font-medium">
-                {bucket.quotas.maxObjects ? formatNum(bucket.quotas.maxObjects) : 'Unlimited'}
-              </div>
-            </div>
-            <div>
-              <div className="text-sm text-muted-foreground">Max Size</div>
-              <div className="font-medium">
-                {bucket.quotas.maxSize ? formatBytes(bucket.quotas.maxSize) : 'Unlimited'}
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Maintenance Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <RefreshCw className="h-5 w-5" />
-            Maintenance
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h4 className="font-medium">Cleanup Incomplete Uploads</h4>
+        {/* ---------------- Maintenance ---------------- */}
+        <TabsContent value="maintenance" className="space-y-3">
+          <div className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
+              <h4 className="text-sm font-medium">Cleanup Incomplete Uploads</h4>
               <p className="text-sm text-muted-foreground">
-                Delete incomplete multipart uploads older than a specified age
+                Delete incomplete multipart uploads older than a specified age.
               </p>
             </div>
-            <Button variant="outline" onClick={() => setCleanupDialogOpen(true)}>
+            <Button
+              variant="outline"
+              className="shrink-0"
+              onClick={() => setCleanupDialogOpen(true)}
+            >
               Cleanup
             </Button>
           </div>
-          <div className="border-t pt-4">
-            <h4 className="font-medium mb-2">Inspect Object</h4>
-            <div className="flex gap-2">
+          <div className="space-y-2 rounded-lg border p-4">
+            <div className="space-y-1">
+              <h4 className="text-sm font-medium">Inspect Object</h4>
+              <p className="text-sm text-muted-foreground">
+                Look up the metadata and versions for a single object key.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row">
               <Input
                 placeholder="Enter object key..."
                 value={inspectKey}
                 onChange={(e) => setInspectKey(e.target.value)}
               />
-              <Button variant="outline" onClick={handleInspect} disabled={!inspectKey.trim()}>
+              <Button
+                variant="outline"
+                className="shrink-0"
+                onClick={handleInspect}
+                disabled={!inspectKey.trim()}
+              >
                 Inspect
               </Button>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Add Alias Dialog */}
       <Dialog
@@ -933,34 +946,11 @@ export function BucketDetail() {
             <DialogDescription>Update permissions for key {permKey?.name || ''}</DialogDescription>
           </DialogHeader>
           {permKey && (
-            <div className="space-y-4 py-4">
-              <label className="flex items-center gap-3">
-                <Checkbox
-                  checked={permKey.read}
-                  onCheckedChange={(checked) =>
-                    setPermKey((prev) => (prev ? { ...prev, read: !!checked } : prev))
-                  }
-                />
-                <span className="text-sm font-medium">Read</span>
-              </label>
-              <label className="flex items-center gap-3">
-                <Checkbox
-                  checked={permKey.write}
-                  onCheckedChange={(checked) =>
-                    setPermKey((prev) => (prev ? { ...prev, write: !!checked } : prev))
-                  }
-                />
-                <span className="text-sm font-medium">Write</span>
-              </label>
-              <label className="flex items-center gap-3">
-                <Checkbox
-                  checked={permKey.owner}
-                  onCheckedChange={(checked) =>
-                    setPermKey((prev) => (prev ? { ...prev, owner: !!checked } : prev))
-                  }
-                />
-                <span className="text-sm font-medium">Owner</span>
-              </label>
+            <div className="py-4">
+              <PermissionCheckboxes
+                value={{ read: permKey.read, write: permKey.write, owner: permKey.owner }}
+                onChange={(next) => setPermKey((prev) => (prev ? { ...prev, ...next } : prev))}
+              />
             </div>
           )}
           <DialogFooter>
