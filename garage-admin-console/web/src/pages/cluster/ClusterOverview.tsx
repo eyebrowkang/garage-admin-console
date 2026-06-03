@@ -3,12 +3,12 @@ import { Link } from 'react-router-dom';
 import {
   Activity,
   AlertTriangle,
-  BarChart2,
   CheckCircle2,
   LayoutGrid,
   Layers,
   ShieldCheck,
   RefreshCw,
+  Terminal,
   XCircle,
 } from 'lucide-react';
 import {
@@ -21,8 +21,11 @@ import {
   Alert,
   AlertDescription,
   AlertTitle,
+  Meter,
+  type MeterTone,
+  CopyButton,
+  cn,
 } from '@garage/ui';
-import { InlineLoadingState } from '@garage/ui';
 import { ModulePageHeader } from '@garage/ui';
 import { useClusterContext } from '@/contexts/ClusterContext';
 import { useNodes } from '@/hooks/useNodes';
@@ -36,6 +39,14 @@ import type {
   MultiNodeResponse,
   BlockErrorsResponse,
 } from '@/types/garage';
+
+/** Ratio → fill percent + health tone for the inline health meters. */
+function ratio(num?: number, den?: number): { pct: number; tone: MeterTone } {
+  if (!den || den <= 0) return { pct: 0, tone: 'neutral' };
+  const pct = Math.max(0, Math.min(100, Math.round(((num ?? 0) / den) * 100)));
+  const tone: MeterTone = pct >= 100 ? 'success' : pct >= 50 ? 'warning' : 'destructive';
+  return { pct, tone };
+}
 
 export function ClusterOverview() {
   const { clusterId } = useClusterContext();
@@ -188,6 +199,11 @@ export function ClusterOverview() {
   const hasLayout = Boolean(layout);
   const hasStats = Boolean(stats?.freeform);
 
+  const connectedRatio = ratio(health?.connectedNodes, health?.knownNodes);
+  const storageRatio = ratio(health?.storageNodesUp, health?.storageNodes);
+  const partitionsRatio = ratio(health?.partitionsAllOk, health?.partitions);
+  const quorumRatio = ratio(health?.partitionsQuorum, health?.partitions);
+
   return (
     <div className="space-y-6">
       <ModulePageHeader
@@ -251,50 +267,56 @@ export function ClusterOverview() {
         </CardHeader>
         <CardContent className="relative z-10 space-y-4">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="flex items-center gap-3 rounded-lg bg-muted px-3 py-2">
-              <div className="h-8 w-8 rounded-lg bg-card flex items-center justify-center shadow-sm">
-                <Activity className="h-4 w-4 text-slate-500" />
-              </div>
-              <div>
-                <div className="text-xs text-muted-foreground">Connected Nodes</div>
-                <div className="font-semibold text-foreground tabular-nums">
-                  {health ? `${health.connectedNodes}/${health.knownNodes}` : '—'}
+            {(
+              [
+                {
+                  icon: Activity,
+                  label: 'Connected Nodes',
+                  value: health ? `${health.connectedNodes}/${health.knownNodes}` : '—',
+                  r: connectedRatio,
+                },
+                {
+                  icon: NodeIcon,
+                  label: 'Storage Nodes',
+                  value: health ? `${health.storageNodesUp}/${health.storageNodes}` : '—',
+                  r: storageRatio,
+                },
+                {
+                  icon: Layers,
+                  label: 'Partitions OK',
+                  value: health ? `${health.partitionsAllOk}/${health.partitions}` : '—',
+                  r: partitionsRatio,
+                },
+                {
+                  icon: ShieldCheck,
+                  label: 'Quorum OK',
+                  value: health ? `${health.partitionsQuorum}/${health.partitions}` : '—',
+                  r: quorumRatio,
+                },
+              ] as const
+            ).map(({ icon: Icon, label, value, r }) => (
+              <div key={label} className="space-y-2 rounded-lg bg-muted px-3 py-2.5">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-card shadow-sm">
+                    <Icon className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs text-muted-foreground">{label}</div>
+                    <div className="font-semibold tabular-nums text-foreground">{value}</div>
+                  </div>
+                  {health && (
+                    <div className="text-xs font-medium tabular-nums text-muted-foreground">
+                      {r.pct}%
+                    </div>
+                  )}
                 </div>
+                <Meter
+                  value={health ? r.pct : 0}
+                  tone={health ? r.tone : 'neutral'}
+                  ariaLabel={label}
+                />
               </div>
-            </div>
-            <div className="flex items-center gap-3 rounded-lg bg-muted px-3 py-2">
-              <div className="h-8 w-8 rounded-lg bg-card flex items-center justify-center shadow-sm">
-                <NodeIcon className="h-4 w-4 text-slate-500" />
-              </div>
-              <div>
-                <div className="text-xs text-muted-foreground">Storage Nodes</div>
-                <div className="font-semibold text-foreground tabular-nums">
-                  {health ? `${health.storageNodesUp}/${health.storageNodes}` : '—'}
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 rounded-lg bg-muted px-3 py-2">
-              <div className="h-8 w-8 rounded-lg bg-card flex items-center justify-center shadow-sm">
-                <Layers className="h-4 w-4 text-slate-500" />
-              </div>
-              <div>
-                <div className="text-xs text-muted-foreground">Partitions OK</div>
-                <div className="font-semibold text-foreground tabular-nums">
-                  {health ? `${health.partitionsAllOk}/${health.partitions}` : '—'}
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 rounded-lg bg-muted px-3 py-2">
-              <div className="h-8 w-8 rounded-lg bg-card flex items-center justify-center shadow-sm">
-                <ShieldCheck className="h-4 w-4 text-slate-500" />
-              </div>
-              <div>
-                <div className="text-xs text-muted-foreground">Quorum OK</div>
-                <div className="font-semibold text-foreground tabular-nums">
-                  {health ? `${health.partitionsQuorum}/${health.partitions}` : '—'}
-                </div>
-              </div>
-            </div>
+            ))}
           </div>
           <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
             <span className="rounded-full border bg-card px-2 py-1">
@@ -346,37 +368,55 @@ export function ClusterOverview() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart2 className="h-4 w-4 text-muted-foreground" />
-                Cluster Statistics
-              </CardTitle>
-              <CardDescription>Raw statistics from the cluster</CardDescription>
+      {/* Cluster statistics — the freeform payload is literally a CLI command's
+          stdout, so it's presented as the terminal output it is. */}
+      <div>
+        <div className="mb-2 flex items-baseline justify-between gap-2">
+          <h2 className="text-sm font-semibold text-foreground">Cluster Statistics</h2>
+          <span className="text-xs text-muted-foreground">Raw output from the cluster</span>
+        </div>
+        <div className="overflow-hidden rounded-xl border border-foreground/15 bg-foreground shadow-lg">
+          <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-white/[0.04] px-4 py-2.5">
+            <div className="flex min-w-0 items-center gap-2 font-mono text-xs text-background/60">
+              <Terminal className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">garage stats -a</span>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => statsQuery.refetch()}
-              disabled={statsQuery.isFetching}
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${statsQuery.isFetching ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
+            <div className="flex items-center gap-1">
+              <CopyButton
+                value={hasStats ? (stats?.freeform ?? '') : ''}
+                label="Statistics"
+                compact
+                className="text-background/60 hover:bg-white/10 hover:text-background"
+              />
+              <button
+                type="button"
+                onClick={() => statsQuery.refetch()}
+                disabled={statsQuery.isFetching}
+                aria-label="Refresh statistics"
+                title="Refresh statistics"
+                className="rounded-md p-1.5 text-background/60 transition-colors hover:bg-white/10 hover:text-background disabled:opacity-50"
+              >
+                <RefreshCw className={cn('h-3.5 w-3.5', statsQuery.isFetching && 'animate-spin')} />
+              </button>
+            </div>
           </div>
-        </CardHeader>
-        <CardContent>
           {statsQuery.isLoading ? (
-            <InlineLoadingState label="Loading statistics..." />
+            <div className="px-4 py-4 font-mono text-xs text-background/70">
+              <span className="text-primary">$</span> garage stats -a
+              <div className="mt-2 text-background/40">Fetching cluster statistics…</div>
+            </div>
           ) : (
-            <pre className="max-h-[400px] overflow-auto whitespace-pre rounded-lg border bg-muted/40 p-4 font-mono text-xs leading-relaxed">
+            <pre className="max-h-[420px] overflow-auto whitespace-pre px-4 py-4 font-mono text-xs leading-relaxed text-background/90 selection:bg-primary/30">
               {hasStats ? stats?.freeform : 'No statistics available.'}
+              {hasStats && (
+                <span className="text-primary motion-safe:animate-pulse" aria-hidden>
+                  {' ▋'}
+                </span>
+              )}
             </pre>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

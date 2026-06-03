@@ -1,13 +1,19 @@
-import { Outlet, useNavigate, Link } from 'react-router-dom';
+import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useState } from 'react';
 import { LogOut } from 'lucide-react';
 import { Button } from '@garage/ui';
 import { writeStoredToken } from '@/lib/api';
 import { ConfirmDialog } from '@garage/ui';
+import { ClusterMobileNav } from '@/components/cluster/ClusterMobileNav';
 
 export function MainLayout() {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const [confirmOpen, setConfirmOpen] = useState(false);
+
+  // On a cluster route, surface the cluster nav as a hamburger drawer in the
+  // header (mobile only). Excludes the bare /clusters dashboard and home.
+  const clusterId = pathname.match(/^\/clusters\/([^/]+)(?:\/|$)/)?.[1];
 
   const handleLogout = () => {
     writeStoredToken(null);
@@ -20,14 +26,17 @@ export function MainLayout() {
       {/* Header */}
       <header className="sticky top-0 z-50 border-b bg-card/80 backdrop-blur-xl">
         <div className="max-w-full mx-auto px-4 lg:px-8 h-14 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
-            <img
-              src="/garage-admin-logo.svg"
-              alt="Garage Admin"
-              className="h-7 w-7 sm:h-8 sm:w-8"
-            />
-            <span className="font-bold text-base sm:text-lg tracking-tight">Garage Admin</span>
-          </Link>
+          <div className="flex items-center gap-1.5">
+            {clusterId && <ClusterMobileNav clusterId={clusterId} />}
+            <Link to="/" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
+              <img
+                src="/garage-admin-logo.svg"
+                alt="Garage Admin"
+                className="h-7 w-7 sm:h-8 sm:w-8"
+              />
+              <span className="font-bold text-base sm:text-lg tracking-tight">Garage Admin</span>
+            </Link>
+          </div>
 
           <Button
             variant="outline"
