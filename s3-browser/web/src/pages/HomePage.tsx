@@ -470,11 +470,11 @@ export function HomePage() {
                 if (d.accessKeyId) patch.accessKeyId = d.accessKeyId;
                 if (d.secretAccessKey) patch.secretAccessKey = d.secretAccessKey;
                 const nextBucket = d.bucket.trim();
-                const prevBucket = editing.bucket ?? '';
+                const prevBucket = editTarget.bucket ?? '';
                 if (nextBucket !== prevBucket) {
                   patch.bucket = nextBucket ? nextBucket : null;
                 }
-                updateMut.mutate({ id: editing.id, data: patch });
+                updateMut.mutate({ id: editTarget.id, data: patch });
               }}
             />
           )}
