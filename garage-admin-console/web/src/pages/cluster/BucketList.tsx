@@ -1,14 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowUpDown, ArrowUp, ArrowDown, Search } from 'lucide-react';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
   Button,
   Dialog,
   DialogContent,
@@ -26,13 +19,14 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  ResourceList,
+  type ResourceListColumn,
 } from '@garage/ui';
 import { api, proxyPath } from '@/lib/api';
 import { formatDateTime, formatShortId, getApiErrorMessage } from '@garage/web-shared';
 import { ConfirmDialog } from '@garage/ui';
 import { AliasMiniChip } from '@/components/cluster/AliasMiniChip';
 import { CopyButton } from '@garage/ui';
-import { TableEmptyState } from '@garage/ui';
 import { InlineLoadingState } from '@garage/ui';
 import { ModulePageHeader } from '@garage/ui';
 import { TableLoadingState } from '@/components/cluster/TableLoadingState';
@@ -40,24 +34,24 @@ import { useClusterContext } from '@/contexts/ClusterContext';
 import { AddActionIcon, DeleteActionIcon } from '@/lib/action-icons';
 import { BucketIcon } from '@/lib/entity-icons';
 import { toast } from '@garage/ui';
+import { runBulkDelete } from '@/lib/bulk-delete';
 import { useBuckets } from '@/hooks/useBuckets';
 import { useKeys } from '@/hooks/useKeys';
-import type { CreateBucketRequest } from '@/types/garage';
+import type { CreateBucketRequest, ListBucketsResponseItem } from '@/types/garage';
 
 export function BucketList() {
   const { clusterId } = useClusterContext();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortField, setSortField] = useState<'id' | 'globalAliases' | 'created'>('created');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [aliasType, setAliasType] = useState<'none' | 'global' | 'local' | 'both'>('global');
   const [globalAlias, setGlobalAlias] = useState('');
   const [localAlias, setLocalAlias] = useState('');
   const [localAccessKeyId, setLocalAccessKeyId] = useState('');
   const [actionError, setActionError] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
+  const [bulkDelete, setBulkDelete] = useState<{ ids: string[]; clear: () => void } | null>(null);
+  const [bulkPending, setBulkPending] = useState(false);
   const keysQuery = useKeys(clusterId);
   const keys = keysQuery.data ?? [];
 
@@ -124,53 +118,96 @@ export function BucketList() {
     },
   });
 
-  const toggleSort = (field: typeof sortField) => {
-    if (sortField === field) {
-      setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
-
-  const sortIcon = (field: typeof sortField) => {
-    if (sortField !== field)
-      return <ArrowUpDown className="ml-1 inline h-3 w-3 text-muted-foreground/50" />;
-    return sortDirection === 'asc' ? (
-      <ArrowUp className="ml-1 inline h-3 w-3" />
-    ) : (
-      <ArrowDown className="ml-1 inline h-3 w-3" />
+  const handleBulkDelete = async () => {
+    if (!bulkDelete) return;
+    setBulkPending(true);
+    const outcome = await runBulkDelete(bulkDelete.ids, (id) =>
+      api
+        .post(proxyPath(clusterId, `/v2/DeleteBucket?id=${encodeURIComponent(id)}`), {})
+        .then(() => undefined),
     );
+    setBulkPending(false);
+    queryClient.invalidateQueries({ queryKey: ['buckets', clusterId] });
+    bulkDelete.clear();
+    setBulkDelete(null);
+
+    if (outcome.failed.length === 0) {
+      toast({
+        title: `Deleted ${outcome.ok.length} bucket${outcome.ok.length === 1 ? '' : 's'}`,
+        variant: 'success',
+      });
+    } else {
+      toast({
+        title:
+          outcome.ok.length === 0
+            ? `Couldn't delete ${outcome.failed.length} bucket${outcome.failed.length === 1 ? '' : 's'}`
+            : `Deleted ${outcome.ok.length}, ${outcome.failed.length} failed`,
+        description: `${outcome.failed[0].message}${outcome.failed.length > 1 ? ` (+${outcome.failed.length - 1} more)` : ''}`,
+        variant: 'destructive',
+      });
+    }
   };
 
-  const filteredAndSorted = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim();
-    let result = buckets;
-    if (q) {
-      result = result.filter(
-        (b) =>
-          b.id.toLowerCase().includes(q) ||
-          b.globalAliases.some((a) => a.toLowerCase().includes(q)) ||
-          b.localAliases.some((a) => a.alias.toLowerCase().includes(q)),
-      );
-    }
-    return [...result].sort((a, b) => {
-      const dir = sortDirection === 'asc' ? 1 : -1;
-      switch (sortField) {
-        case 'id':
-          return dir * a.id.localeCompare(b.id);
-        case 'globalAliases': {
-          const aName = a.globalAliases[0] || '';
-          const bName = b.globalAliases[0] || '';
-          return dir * aName.localeCompare(bName);
-        }
-        case 'created':
-          return dir * (a.created || '').localeCompare(b.created || '');
-        default:
-          return 0;
-      }
-    });
-  }, [buckets, searchQuery, sortField, sortDirection]);
+  const columns: ResourceListColumn<ListBucketsResponseItem>[] = [
+    {
+      id: 'id',
+      header: 'Bucket ID',
+      sortable: true,
+      sortAccessor: (b) => b.id,
+      mobileHidden: true,
+      cellClassName: 'text-xs',
+      cell: (b) => (
+        <div className="inline-flex items-center gap-1">
+          <span>{formatShortId(b.id, 10)}</span>
+          <CopyButton value={b.id} label="Bucket ID" compact />
+        </div>
+      ),
+    },
+    {
+      id: 'globalAliases',
+      header: 'Global Aliases',
+      sortable: true,
+      sortAccessor: (b) => b.globalAliases[0] ?? '',
+      cell: (b) => (
+        <div className="flex flex-wrap gap-1">
+          {b.globalAliases.length > 0 ? (
+            b.globalAliases.map((alias) => (
+              <AliasMiniChip key={alias} value={alias} kind="global" />
+            ))
+          ) : (
+            <span className="text-xs text-muted-foreground">-</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      id: 'localAliases',
+      header: 'Local Aliases',
+      cell: (b) => (
+        <div className="flex flex-wrap gap-1">
+          {b.localAliases.length > 0 ? (
+            b.localAliases.map((alias) => (
+              <AliasMiniChip
+                key={`${alias.accessKeyId}-${alias.alias}`}
+                value={alias.alias}
+                kind="local"
+              />
+            ))
+          ) : (
+            <span className="text-xs text-muted-foreground">-</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      id: 'created',
+      header: 'Created',
+      sortable: true,
+      sortAccessor: (b) => b.created ?? '',
+      cellClassName: 'text-xs text-muted-foreground',
+      cell: (b) => formatDateTime(b.created),
+    },
+  ];
 
   if (isLoading) return <TableLoadingState label="Loading buckets..." />;
 
@@ -302,135 +339,61 @@ export function BucketList() {
           </AlertDescription>
         </Alert>
       )}
-      {actionError && !isDialogOpen && (
-        <Alert variant="destructive">
-          <AlertTitle>Bucket action failed</AlertTitle>
-          <AlertDescription>{actionError}</AlertDescription>
-        </Alert>
-      )}
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search by ID or alias..."
-          className="pl-9"
-        />
-      </div>
+      <ResourceList
+        items={buckets}
+        getRowId={(b) => b.id}
+        columns={columns}
+        onRowClick={(b) => navigate(`/clusters/${clusterId}/buckets/${b.id}`)}
+        renderTitle={(b) => (
+          <div className="inline-flex items-center gap-1 text-sm">
+            <span>{formatShortId(b.id, 10)}</span>
+            <CopyButton value={b.id} label="Bucket ID" compact />
+          </div>
+        )}
+        search={{
+          placeholder: 'Search by ID or alias...',
+          predicate: (b, q) =>
+            b.id.toLowerCase().includes(q) ||
+            b.globalAliases.some((a) => a.toLowerCase().includes(q)) ||
+            b.localAliases.some((a) => a.alias.toLowerCase().includes(q)),
+        }}
+        defaultSort={{ columnId: 'created', direction: 'desc' }}
+        selection={{
+          renderActions: (selected, clear) => (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setBulkDelete({ ids: selected.map((b) => b.id), clear })}
+            >
+              <DeleteActionIcon className="h-3.5 w-3.5" />
+              Delete {selected.length}
+            </Button>
+          ),
+        }}
+        rowActions={(b) => (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-destructive"
+            onClick={() => setDeleteConfirm({ id: b.id, name: b.globalAliases[0] || b.id })}
+          >
+            <DeleteActionIcon className="h-3.5 w-3.5" />
+            Delete
+          </Button>
+        )}
+        emptyState={{
+          icon: BucketIcon,
+          title: 'No buckets found',
+          description: 'Create a bucket to get started.',
+          action: (
+            <Button variant="outline" size="sm" onClick={() => setIsDialogOpen(true)}>
+              <AddActionIcon className="h-4 w-4 mr-2" /> Create Bucket
+            </Button>
+          ),
+        }}
+      />
 
-      <div className="overflow-hidden rounded-lg border bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('id')}>
-                Bucket ID
-                {sortIcon('id')}
-              </TableHead>
-              <TableHead
-                className="cursor-pointer select-none"
-                onClick={() => toggleSort('globalAliases')}
-              >
-                Global Aliases
-                {sortIcon('globalAliases')}
-              </TableHead>
-              <TableHead>Local Aliases</TableHead>
-              <TableHead
-                className="cursor-pointer select-none"
-                onClick={() => toggleSort('created')}
-              >
-                Created
-                {sortIcon('created')}
-              </TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredAndSorted.map((bucket) => (
-              <TableRow
-                key={bucket.id}
-                className="cursor-pointer hover:bg-muted/50"
-                onClick={() => navigate(`/clusters/${clusterId}/buckets/${bucket.id}`)}
-              >
-                <TableCell className="text-xs">
-                  <div className="inline-flex items-center gap-1">
-                    <span>{formatShortId(bucket.id, 10)}</span>
-                    <CopyButton value={bucket.id} label="Bucket ID" compact />
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-1">
-                    {bucket.globalAliases.length > 0 ? (
-                      bucket.globalAliases.map((alias) => (
-                        <AliasMiniChip key={alias} value={alias} kind="global" />
-                      ))
-                    ) : (
-                      <span className="text-xs text-muted-foreground">-</span>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-1">
-                    {bucket.localAliases.length > 0 ? (
-                      bucket.localAliases.map((alias) => (
-                        <AliasMiniChip
-                          key={`${alias.accessKeyId}-${alias.alias}`}
-                          value={alias.alias}
-                          kind="local"
-                        />
-                      ))
-                    ) : (
-                      <span className="text-xs text-muted-foreground">-</span>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell className="text-xs text-muted-foreground">
-                  {formatDateTime(bucket.created)}
-                </TableCell>
-                <TableCell>
-                  <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive"
-                      onClick={() =>
-                        setDeleteConfirm({
-                          id: bucket.id,
-                          name: bucket.globalAliases[0] || bucket.id,
-                        })
-                      }
-                    >
-                      <DeleteActionIcon className="h-3.5 w-3.5" />
-                      Delete
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-            {filteredAndSorted.length === 0 && (
-              <TableEmptyState
-                icon={BucketIcon}
-                title={searchQuery ? 'No buckets match search' : 'No buckets found'}
-                description={
-                  searchQuery
-                    ? `No results for "${searchQuery}". Try a different term.`
-                    : 'Create a bucket to get started.'
-                }
-                colSpan={5}
-                action={
-                  !searchQuery && (
-                    <Button variant="outline" size="sm" onClick={() => setIsDialogOpen(true)}>
-                      <AddActionIcon className="h-4 w-4 mr-2" /> Create Bucket
-                    </Button>
-                  )
-                }
-              />
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* Delete Confirmation */}
       <ConfirmDialog
         open={!!deleteConfirm}
         onOpenChange={(open) => !open && setDeleteConfirm(null)}
@@ -440,6 +403,17 @@ export function BucketList() {
         confirmText="Delete Bucket"
         onConfirm={() => deleteConfirm && deleteMutation.mutate(deleteConfirm.id)}
         isLoading={deleteMutation.isPending}
+      />
+
+      <ConfirmDialog
+        open={!!bulkDelete}
+        onOpenChange={(open) => !open && !bulkPending && setBulkDelete(null)}
+        title={`Delete ${bulkDelete?.ids.length ?? 0} buckets`}
+        description={`Permanently delete ${bulkDelete?.ids.length ?? 0} selected bucket(s)? Each bucket must be empty; any that still hold objects are skipped and reported.`}
+        tier="danger"
+        confirmText={`Delete ${bulkDelete?.ids.length ?? 0} buckets`}
+        onConfirm={handleBulkDelete}
+        isLoading={bulkPending}
       />
     </div>
   );

@@ -1,12 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
   Button,
   Badge,
   Alert,
@@ -26,6 +20,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  ResourceList,
+  type ResourceListColumn,
 } from '@garage/ui';
 import {
   formatBytes,
@@ -35,7 +31,6 @@ import {
 } from '@garage/web-shared';
 import { ConfirmDialog } from '@garage/ui';
 import { CopyButton } from '@garage/ui';
-import { TableEmptyState } from '@garage/ui';
 import { ModulePageHeader } from '@garage/ui';
 import { TableLoadingState } from '@/components/cluster/TableLoadingState';
 import { ConnectActionIcon, RepairActionIcon, SnapshotActionIcon } from '@/lib/action-icons';
@@ -80,6 +75,17 @@ const SCRUB_COMMANDS = [
 
 type RepairOperationValue = (typeof REPAIR_OPERATIONS)[number]['value'];
 
+function getStatusBadge(node: NodeResp) {
+  if (node.draining) {
+    return <Badge variant="warning">Draining</Badge>;
+  }
+  return node.isUp ? (
+    <Badge variant="success">Up</Badge>
+  ) : (
+    <Badge variant="destructive">Down</Badge>
+  );
+}
+
 export function ClusterNodeList() {
   const { clusterId } = useClusterContext();
   const navigate = useNavigate();
@@ -95,21 +101,6 @@ export function ClusterNodeList() {
   const snapshotMutation = useCreateMetadataSnapshot(clusterId);
   const repairMutation = useLaunchRepairOperation(clusterId);
   const { data, isLoading, error } = useNodes(clusterId);
-
-  if (isLoading) return <TableLoadingState label="Loading nodes..." />;
-
-  if (error) {
-    return (
-      <Alert variant="destructive">
-        <AlertTitle>Unable to load nodes</AlertTitle>
-        <AlertDescription>
-          {getApiErrorMessage(error, 'Node status could not be loaded.')}
-        </AlertDescription>
-      </Alert>
-    );
-  }
-
-  const nodes = data?.nodes ?? [];
 
   const handleConnectNodes = async () => {
     const entries = connectNodesInput
@@ -176,16 +167,129 @@ export function ClusterNodeList() {
     }
   };
 
-  const getStatusBadge = (node: NodeResp) => {
-    if (node.draining) {
-      return <Badge variant="warning">Draining</Badge>;
-    }
-    return node.isUp ? (
-      <Badge variant="success">Up</Badge>
-    ) : (
-      <Badge variant="destructive">Down</Badge>
+  const columns: ResourceListColumn<NodeResp>[] = [
+    {
+      id: 'id',
+      header: 'Node',
+      sortable: true,
+      sortAccessor: (n) => n.id,
+      mobileHidden: true,
+      cellClassName: 'text-xs',
+      cell: (n) => (
+        <div className="inline-flex items-center gap-1">
+          <span>{formatShortId(n.id, 10)}</span>
+          <CopyButton value={n.id} label="Node ID" compact />
+        </div>
+      ),
+    },
+    {
+      id: 'hostname',
+      header: 'Hostname',
+      sortable: true,
+      sortAccessor: (n) => n.hostname ?? '',
+      cell: (n) => n.hostname || '—',
+    },
+    {
+      id: 'addr',
+      header: 'Address',
+      cellClassName: 'text-xs text-muted-foreground',
+      cell: (n) =>
+        n.addr ? (
+          <div className="inline-flex items-center gap-1">
+            <span>{n.addr}</span>
+            <CopyButton value={n.addr} label="Node address" compact />
+          </div>
+        ) : (
+          '—'
+        ),
+    },
+    {
+      id: 'status',
+      header: 'Status',
+      sortable: true,
+      sortAccessor: (n) => (n.draining ? 'draining' : n.isUp ? 'up' : 'down'),
+      cell: (n) => (
+        <div className="flex flex-col gap-1">
+          {getStatusBadge(n)}
+          {!n.isUp && n.lastSeenSecsAgo !== null && n.lastSeenSecsAgo !== undefined && (
+            <span className="text-xs text-muted-foreground">
+              Last seen {formatRelativeSeconds(n.lastSeenSecsAgo)}
+            </span>
+          )}
+        </div>
+      ),
+    },
+    {
+      id: 'role',
+      header: 'Role',
+      sortable: true,
+      sortAccessor: (n) => n.role?.zone ?? '',
+      cell: (n) =>
+        n.role ? (
+          <div className="space-y-1">
+            <div className="text-xs text-muted-foreground">
+              Zone: <span className="text-foreground">{n.role.zone}</span>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Capacity:{' '}
+              <span className="text-foreground">{formatBytes(n.role.capacity ?? null)}</span>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {n.role.tags.length > 0 ? (
+                n.role.tags.map((tag) => (
+                  <Badge key={`${n.id}-${tag}`} variant="outline">
+                    {tag}
+                  </Badge>
+                ))
+              ) : (
+                <span className="text-xs text-muted-foreground">No tags</span>
+              )}
+            </div>
+          </div>
+        ) : (
+          <span className="text-xs text-muted-foreground">Unassigned</span>
+        ),
+    },
+    {
+      id: 'dataDisk',
+      header: 'Data Disk',
+      cellClassName: 'text-xs text-muted-foreground',
+      cell: (n) =>
+        n.dataPartition
+          ? `${formatBytes(n.dataPartition.available)} / ${formatBytes(n.dataPartition.total)}`
+          : '—',
+    },
+    {
+      id: 'metadataDisk',
+      header: 'Metadata Disk',
+      cellClassName: 'text-xs text-muted-foreground',
+      cell: (n) =>
+        n.metadataPartition
+          ? `${formatBytes(n.metadataPartition.available)} / ${formatBytes(n.metadataPartition.total)}`
+          : '—',
+    },
+    {
+      id: 'version',
+      header: 'Version',
+      cellClassName: 'text-xs text-muted-foreground',
+      cell: (n) => n.garageVersion || '—',
+    },
+  ];
+
+  if (isLoading) return <TableLoadingState label="Loading nodes..." />;
+
+  if (error) {
+    return (
+      <Alert variant="destructive">
+        <AlertTitle>Unable to load nodes</AlertTitle>
+        <AlertDescription>
+          {getApiErrorMessage(error, 'Node status could not be loaded.')}
+        </AlertDescription>
+      </Alert>
     );
-  };
+  }
+
+  const nodes = data?.nodes ?? [];
 
   return (
     <div className="space-y-6">
@@ -269,115 +373,37 @@ node_id@address`}
         }
       />
 
-      <div className="overflow-hidden rounded-lg border bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Node</TableHead>
-              <TableHead>Hostname</TableHead>
-              <TableHead>Address</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Data Disk</TableHead>
-              <TableHead>Metadata Disk</TableHead>
-              <TableHead>Version</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {nodes.map((node) => (
-              <TableRow
-                key={node.id}
-                className="cursor-pointer hover:bg-muted/50"
-                onClick={() => navigate(`/clusters/${clusterId}/nodes/${node.id}`)}
-              >
-                <TableCell className="text-xs">
-                  <div className="inline-flex items-center gap-1">
-                    <span>{formatShortId(node.id, 10)}</span>
-                    <CopyButton value={node.id} label="Node ID" compact />
-                  </div>
-                </TableCell>
-                <TableCell>{node.hostname || '—'}</TableCell>
-                <TableCell className="text-xs text-muted-foreground">
-                  {node.addr ? (
-                    <div className="inline-flex items-center gap-1">
-                      <span>{node.addr}</span>
-                      <CopyButton value={node.addr} label="Node address" compact />
-                    </div>
-                  ) : (
-                    '—'
-                  )}
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-col gap-1">
-                    {getStatusBadge(node)}
-                    {!node.isUp &&
-                      node.lastSeenSecsAgo !== null &&
-                      node.lastSeenSecsAgo !== undefined && (
-                        <span className="text-xs text-muted-foreground">
-                          Last seen {formatRelativeSeconds(node.lastSeenSecsAgo)}
-                        </span>
-                      )}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  {node.role ? (
-                    <div className="space-y-1">
-                      <div className="text-xs text-muted-foreground">
-                        Zone: <span className="text-foreground">{node.role.zone}</span>
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        Capacity:{' '}
-                        <span className="text-foreground">
-                          {formatBytes(node.role.capacity ?? null)}
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        {node.role.tags.length > 0 ? (
-                          node.role.tags.map((tag) => (
-                            <Badge key={`${node.id}-${tag}`} variant="outline">
-                              {tag}
-                            </Badge>
-                          ))
-                        ) : (
-                          <span className="text-xs text-muted-foreground">No tags</span>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">Unassigned</span>
-                  )}
-                </TableCell>
-                <TableCell className="text-xs text-muted-foreground">
-                  {node.dataPartition
-                    ? `${formatBytes(node.dataPartition.available)} / ${formatBytes(node.dataPartition.total)}`
-                    : '—'}
-                </TableCell>
-                <TableCell className="text-xs text-muted-foreground">
-                  {node.metadataPartition
-                    ? `${formatBytes(node.metadataPartition.available)} / ${formatBytes(node.metadataPartition.total)}`
-                    : '—'}
-                </TableCell>
-                <TableCell className="text-xs text-muted-foreground">
-                  {node.garageVersion || '—'}
-                </TableCell>
-              </TableRow>
-            ))}
-            {nodes.length === 0 && (
-              <TableEmptyState
-                icon={NodeIcon}
-                title="No nodes connected"
-                description="Cluster nodes are not communicating or none have been connected."
-                colSpan={8}
-                action={
-                  <Button variant="outline" size="sm" onClick={() => setConnectDialogOpen(true)}>
-                    <ConnectActionIcon className="h-4 w-4 mr-2" /> Connect Nodes
-                  </Button>
-                }
-              />
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      <ResourceList
+        items={nodes}
+        getRowId={(n) => n.id}
+        columns={columns}
+        onRowClick={(n) => navigate(`/clusters/${clusterId}/nodes/${n.id}`)}
+        renderTitle={(n) => (
+          <div className="inline-flex items-center gap-1 text-sm">
+            <span>{n.hostname || formatShortId(n.id, 10)}</span>
+            <CopyButton value={n.id} label="Node ID" compact />
+          </div>
+        )}
+        search={{
+          placeholder: 'Search by hostname, ID, address, zone, or tag...',
+          predicate: (n, q) =>
+            n.id.toLowerCase().includes(q) ||
+            (n.hostname ?? '').toLowerCase().includes(q) ||
+            (n.addr ?? '').toLowerCase().includes(q) ||
+            (n.role?.zone ?? '').toLowerCase().includes(q) ||
+            (n.role?.tags ?? []).some((tag) => tag.toLowerCase().includes(q)),
+        }}
+        emptyState={{
+          icon: NodeIcon,
+          title: 'No nodes connected',
+          description: 'Cluster nodes are not communicating or none have been connected.',
+          action: (
+            <Button variant="outline" size="sm" onClick={() => setConnectDialogOpen(true)}>
+              <ConnectActionIcon className="h-4 w-4 mr-2" /> Connect Nodes
+            </Button>
+          ),
+        }}
+      />
 
       <ConfirmDialog
         open={snapshotConfirmOpen}

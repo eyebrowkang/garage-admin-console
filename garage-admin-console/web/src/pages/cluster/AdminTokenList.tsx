@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, Search } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { AlertTriangle } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -24,16 +25,13 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
   Alert,
   AlertDescription,
   AlertTitle,
+  ResourceList,
+  type ResourceListColumn,
 } from '@garage/ui';
+import { api, proxyPath } from '@/lib/api';
 import { useClusterContext } from '@/contexts/ClusterContext';
 import {
   useAdminTokens,
@@ -49,14 +47,35 @@ import { AddActionIcon, DeleteActionIcon } from '@/lib/action-icons';
 import { formatDateTime, formatShortId, getApiErrorMessage } from '@garage/web-shared';
 import { TokenIcon } from '@/lib/entity-icons';
 import { toast } from '@garage/ui';
-import type { CreateAdminTokenResponse } from '@/types/garage';
+import { runBulkDelete } from '@/lib/bulk-delete';
+import type { AdminTokenInfo, CreateAdminTokenResponse } from '@/types/garage';
 
 const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 const MINUTE_OPTIONS = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
 
+function renderScopeSummary(scope: string[]) {
+  if (scope.includes('*')) {
+    return <span className="text-warning font-medium">Full access (*)</span>;
+  }
+  if (scope.length === 0) {
+    return <span className="text-muted-foreground">No scope</span>;
+  }
+  const preview = scope.slice(0, 3).join(', ');
+  const suffix = scope.length > 3 ? ` +${scope.length - 3} more` : '';
+  return (
+    <span className="text-xs font-mono text-foreground">
+      {preview}
+      {suffix}
+    </span>
+  );
+}
+
+const formatExpiration = (value?: string | null) => (value ? formatDateTime(value) : 'Never');
+
 export function AdminTokenList() {
   const { clusterId } = useClusterContext();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [newTokenName, setNewTokenName] = useState('');
@@ -69,7 +88,8 @@ export function AdminTokenList() {
   const [createError, setCreateError] = useState('');
   const [createdToken, setCreatedToken] = useState<CreateAdminTokenResponse | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [bulkDelete, setBulkDelete] = useState<{ ids: string[]; clear: () => void } | null>(null);
+  const [bulkPending, setBulkPending] = useState(false);
 
   const { data: tokens, isLoading, error } = useAdminTokens(clusterId);
   const { data: currentToken } = useCurrentAdminToken(clusterId);
@@ -152,37 +172,6 @@ export function AdminTokenList() {
     }
   };
 
-  const filteredTokens = useMemo(() => {
-    if (!tokens) return [];
-    const q = searchQuery.toLowerCase().trim();
-    if (!q) return tokens;
-    return tokens.filter(
-      (t) =>
-        t.name.toLowerCase().includes(q) ||
-        (t.id && t.id.toLowerCase().includes(q)) ||
-        t.scope.some((s) => s.toLowerCase().includes(q)),
-    );
-  }, [tokens, searchQuery]);
-
-  const formatExpiration = (value?: string | null) => (value ? formatDateTime(value) : 'Never');
-
-  const renderScopeSummary = (scope: string[]) => {
-    if (scope.includes('*')) {
-      return <span className="text-warning font-medium">Full access (*)</span>;
-    }
-    if (scope.length === 0) {
-      return <span className="text-muted-foreground">No scope</span>;
-    }
-    const preview = scope.slice(0, 3).join(', ');
-    const suffix = scope.length > 3 ? ` +${scope.length - 3} more` : '';
-    return (
-      <span className="text-xs font-mono text-foreground">
-        {preview}
-        {suffix}
-      </span>
-    );
-  };
-
   const handleDelete = async () => {
     if (!deleteConfirm) return;
     try {
@@ -197,6 +186,91 @@ export function AdminTokenList() {
       });
     }
   };
+
+  const handleBulkDelete = async () => {
+    if (!bulkDelete) return;
+    setBulkPending(true);
+    const outcome = await runBulkDelete(bulkDelete.ids, (id) =>
+      api
+        .post(proxyPath(clusterId, `/v2/DeleteAdminToken?id=${encodeURIComponent(id)}`))
+        .then(() => undefined),
+    );
+    setBulkPending(false);
+    queryClient.invalidateQueries({ queryKey: ['adminTokens', clusterId] });
+    bulkDelete.clear();
+    setBulkDelete(null);
+
+    if (outcome.failed.length === 0) {
+      toast({
+        title: `Deleted ${outcome.ok.length} token${outcome.ok.length === 1 ? '' : 's'}`,
+        variant: 'success',
+      });
+    } else {
+      toast({
+        title:
+          outcome.ok.length === 0
+            ? `Couldn't delete ${outcome.failed.length} token${outcome.failed.length === 1 ? '' : 's'}`
+            : `Deleted ${outcome.ok.length}, ${outcome.failed.length} failed`,
+        description: `${outcome.failed[0].message}${outcome.failed.length > 1 ? ` (+${outcome.failed.length - 1} more)` : ''}`,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const columns: ResourceListColumn<AdminTokenInfo>[] = [
+    {
+      id: 'token',
+      header: 'Token',
+      sortable: true,
+      sortAccessor: (t) => t.name,
+      mobileHidden: true,
+      cell: (t) => (
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-medium">{t.name}</span>
+            {t.expired ? (
+              <Badge variant="destructive" className="text-xs">
+                Expired
+              </Badge>
+            ) : (
+              <Badge variant="success" className="text-xs">
+                Active
+              </Badge>
+            )}
+            {currentToken?.id && currentToken.id === t.id && (
+              <Badge variant="secondary" className="text-xs">
+                Current
+              </Badge>
+            )}
+          </div>
+          <div className="text-xs text-muted-foreground mt-1">
+            ID: {t.id ? formatShortId(t.id, 14) : 'Unavailable'}
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: 'scope',
+      header: 'Scope',
+      cell: (t) => renderScopeSummary(t.scope),
+    },
+    {
+      id: 'created',
+      header: 'Created',
+      sortable: true,
+      sortAccessor: (t) => t.created ?? '',
+      cellClassName: 'text-muted-foreground',
+      cell: (t) => formatDateTime(t.created),
+    },
+    {
+      id: 'expiration',
+      header: 'Expires',
+      sortable: true,
+      sortAccessor: (t) => t.expiration ?? '',
+      cellClassName: 'text-muted-foreground',
+      cell: (t) => formatExpiration(t.expiration),
+    },
+  ];
 
   if (isLoading) {
     return <TableLoadingState label="Loading admin tokens..." />;
@@ -289,101 +363,86 @@ export function AdminTokenList() {
         </Card>
       )}
 
-      {/* Token List */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <CardTitle>Admin Tokens</CardTitle>
-              <CardDescription>Manage admin API tokens for this cluster</CardDescription>
+      <ResourceList
+        items={tokens ?? []}
+        getRowId={(t) => t.id ?? `name:${t.name}`}
+        columns={columns}
+        onRowClick={(t) => {
+          if (t.id) navigate(`/clusters/${clusterId}/tokens/${t.id}`);
+        }}
+        renderTitle={(t) => (
+          <div className="space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-medium">{t.name}</span>
+              {t.expired ? (
+                <Badge variant="destructive" className="text-xs">
+                  Expired
+                </Badge>
+              ) : (
+                <Badge variant="success" className="text-xs">
+                  Active
+                </Badge>
+              )}
+              {currentToken?.id && currentToken.id === t.id && (
+                <Badge variant="secondary" className="text-xs">
+                  Current
+                </Badge>
+              )}
+            </div>
+            <div className="text-xs font-normal text-muted-foreground">
+              ID: {t.id ? formatShortId(t.id, 14) : 'Unavailable'}
             </div>
           </div>
-          <div className="relative pt-2">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by name, ID, or scope..."
-              className="pl-9"
-            />
-          </div>
-        </CardHeader>
-        <CardContent>
-          {filteredTokens.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Token</TableHead>
-                  <TableHead>Scope</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead>Expires</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredTokens.map((token, index) => (
-                  <TableRow
-                    key={token.id || index}
-                    className={token.id ? 'cursor-pointer hover:bg-muted/50' : ''}
-                    onClick={() =>
-                      token.id && navigate(`/clusters/${clusterId}/tokens/${token.id}`)
-                    }
-                  >
-                    <TableCell>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-medium">{token.name}</span>
-                        {token.expired ? (
-                          <Badge variant="destructive" className="text-xs">
-                            Expired
-                          </Badge>
-                        ) : (
-                          <Badge variant="success" className="text-xs">
-                            Active
-                          </Badge>
-                        )}
-                        {currentToken?.id && currentToken.id === token.id && (
-                          <Badge variant="secondary" className="text-xs">
-                            Current
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        ID: {token.id ? formatShortId(token.id, 14) : 'Unavailable'}
-                      </div>
-                    </TableCell>
-                    <TableCell>{renderScopeSummary(token.scope)}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {formatDateTime(token.created)}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {formatExpiration(token.expiration)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                        {token.id && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-destructive"
-                            onClick={() => setDeleteConfirm({ id: token.id!, name: token.name })}
-                          >
-                            <DeleteActionIcon className="h-3.5 w-3.5" />
-                            Delete
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <p className="text-sm text-muted-foreground text-center py-8">
-              {searchQuery ? 'No tokens match your search' : 'No admin tokens found'}
-            </p>
-          )}
-        </CardContent>
-      </Card>
+        )}
+        search={{
+          placeholder: 'Search by name, ID, or scope...',
+          predicate: (t, q) =>
+            t.name.toLowerCase().includes(q) ||
+            Boolean(t.id && t.id.toLowerCase().includes(q)) ||
+            t.scope.some((s) => s.toLowerCase().includes(q)),
+        }}
+        selection={{
+          isSelectable: (t) => Boolean(t.id),
+          renderActions: (selected, clear) => (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() =>
+                setBulkDelete({
+                  ids: selected.map((t) => t.id).filter((id): id is string => Boolean(id)),
+                  clear,
+                })
+              }
+            >
+              <DeleteActionIcon className="h-3.5 w-3.5" />
+              Delete {selected.length}
+            </Button>
+          ),
+        }}
+        rowActions={(t) =>
+          t.id ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-destructive"
+              onClick={() => setDeleteConfirm({ id: t.id!, name: t.name })}
+            >
+              <DeleteActionIcon className="h-3.5 w-3.5" />
+              Delete
+            </Button>
+          ) : null
+        }
+        emptyState={{
+          icon: TokenIcon,
+          title: 'No admin tokens found',
+          description: 'Create an admin token to grant scoped access to the cluster API.',
+          action: (
+            <Button variant="outline" size="sm" onClick={() => setCreateDialogOpen(true)}>
+              <AddActionIcon className="h-4 w-4 mr-2" /> Create Token
+            </Button>
+          ),
+        }}
+      />
 
       {/* Create Token Dialog */}
       <Dialog
@@ -571,6 +630,17 @@ export function AdminTokenList() {
         confirmText="Delete Token"
         onConfirm={handleDelete}
         isLoading={deleteMutation.isPending}
+      />
+
+      <ConfirmDialog
+        open={!!bulkDelete}
+        onOpenChange={(open) => !open && !bulkPending && setBulkDelete(null)}
+        title={`Delete ${bulkDelete?.ids.length ?? 0} admin tokens`}
+        description={`Permanently delete ${bulkDelete?.ids.length ?? 0} selected token(s)? This immediately revokes API access for anyone using them.`}
+        tier="danger"
+        confirmText={`Delete ${bulkDelete?.ids.length ?? 0} tokens`}
+        onConfirm={handleBulkDelete}
+        isLoading={bulkPending}
       />
     </div>
   );

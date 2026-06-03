@@ -25,6 +25,7 @@ export * from './components/login-form';
 export * from './components/meter';
 export * from './components/module-page-header';
 export * from './components/page-loading-state';
+export * from './components/resource-list';
 export * from './components/select';
 export * from './components/sheet';
 export * from './components/skeleton';

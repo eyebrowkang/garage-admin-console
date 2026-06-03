@@ -1,14 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowUpDown, ArrowUp, ArrowDown, Search } from 'lucide-react';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
   Button,
   Dialog,
   DialogContent,
@@ -28,20 +21,22 @@ import {
   Alert,
   AlertDescription,
   AlertTitle,
+  ResourceList,
+  type ResourceListColumn,
 } from '@garage/ui';
 import { api, proxyPath } from '@/lib/api';
 import { formatDateTime, formatShortId, getApiErrorMessage } from '@garage/web-shared';
 import { ConfirmDialog } from '@garage/ui';
 import { CopyButton } from '@garage/ui';
-import { TableEmptyState } from '@garage/ui';
 import { ModulePageHeader } from '@garage/ui';
 import { TableLoadingState } from '@/components/cluster/TableLoadingState';
 import { useClusterContext } from '@/contexts/ClusterContext';
 import { AddActionIcon, CopyActionIcon, DeleteActionIcon } from '@/lib/action-icons';
 import { KeyIcon } from '@/lib/entity-icons';
 import { toast } from '@garage/ui';
+import { runBulkDelete } from '@/lib/bulk-delete';
 import { useKeys, useImportKey } from '@/hooks/useKeys';
-import type { CreateKeyRequest, GetKeyInfoResponse } from '@/types/garage';
+import type { CreateKeyRequest, GetKeyInfoResponse, ListKeysResponseItem } from '@/types/garage';
 
 const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 const MINUTE_OPTIONS = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
@@ -60,9 +55,6 @@ export function KeyList() {
 
   const [isDialogOpen, setIsDialogOpen] = useState(createParam === '1');
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortField, setSortField] = useState<'id' | 'name' | 'created' | 'expiration'>('created');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [newKeyName, setNewKeyName] = useState(prefillNameParam);
   const [createExpirationDate, setCreateExpirationDate] = useState('');
   const [createExpirationHour, setCreateExpirationHour] = useState('00');
@@ -79,6 +71,8 @@ export function KeyList() {
   const [createdKey, setCreatedKey] = useState<GetKeyInfoResponse | null>(null);
   const [copiedValue, setCopiedValue] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
+  const [bulkDelete, setBulkDelete] = useState<{ ids: string[]; clear: () => void } | null>(null);
+  const [bulkPending, setBulkPending] = useState(false);
 
   const resetCreateForm = () => {
     setNewKeyName('');
@@ -171,6 +165,36 @@ export function KeyList() {
     },
   });
 
+  const handleBulkDelete = async () => {
+    if (!bulkDelete) return;
+    setBulkPending(true);
+    const outcome = await runBulkDelete(bulkDelete.ids, (id) =>
+      api
+        .post(proxyPath(clusterId, `/v2/DeleteKey?id=${encodeURIComponent(id)}`), {})
+        .then(() => undefined),
+    );
+    setBulkPending(false);
+    queryClient.invalidateQueries({ queryKey: ['keys', clusterId] });
+    bulkDelete.clear();
+    setBulkDelete(null);
+
+    if (outcome.failed.length === 0) {
+      toast({
+        title: `Deleted ${outcome.ok.length} key${outcome.ok.length === 1 ? '' : 's'}`,
+        variant: 'success',
+      });
+    } else {
+      toast({
+        title:
+          outcome.ok.length === 0
+            ? `Couldn't delete ${outcome.failed.length} key${outcome.failed.length === 1 ? '' : 's'}`
+            : `Deleted ${outcome.ok.length}, ${outcome.failed.length} failed`,
+        description: `${outcome.failed[0].message}${outcome.failed.length > 1 ? ` (+${outcome.failed.length - 1} more)` : ''}`,
+        variant: 'destructive',
+      });
+    }
+  };
+
   // Reset the "copied" indicator after a delay, clearing the timer on unmount
   // or re-copy so it never fires setState on an unmounted component.
   useEffect(() => {
@@ -225,49 +249,55 @@ export function KeyList() {
     }
   };
 
-  const toggleSort = (field: typeof sortField) => {
-    if (sortField === field) {
-      setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
-
-  const sortIcon = (field: typeof sortField) => {
-    if (sortField !== field)
-      return <ArrowUpDown className="ml-1 inline h-3 w-3 text-muted-foreground/50" />;
-    return sortDirection === 'asc' ? (
-      <ArrowUp className="ml-1 inline h-3 w-3" />
-    ) : (
-      <ArrowDown className="ml-1 inline h-3 w-3" />
-    );
-  };
-
-  const filteredAndSorted = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim();
-    let result = keys;
-    if (q) {
-      result = result.filter(
-        (k) => k.id.toLowerCase().includes(q) || k.name.toLowerCase().includes(q),
-      );
-    }
-    return [...result].sort((a, b) => {
-      const dir = sortDirection === 'asc' ? 1 : -1;
-      switch (sortField) {
-        case 'id':
-          return dir * a.id.localeCompare(b.id);
-        case 'name':
-          return dir * (a.name || '').localeCompare(b.name || '');
-        case 'created':
-          return dir * (a.created || '').localeCompare(b.created || '');
-        case 'expiration':
-          return dir * (a.expiration || '').localeCompare(b.expiration || '');
-        default:
-          return 0;
-      }
-    });
-  }, [keys, searchQuery, sortField, sortDirection]);
+  const columns: ResourceListColumn<ListKeysResponseItem>[] = [
+    {
+      id: 'id',
+      header: 'Access Key ID',
+      sortable: true,
+      sortAccessor: (k) => k.id,
+      mobileHidden: true,
+      cellClassName: 'text-xs',
+      cell: (k) => (
+        <div className="inline-flex items-center gap-1">
+          <span>{formatShortId(k.id, 12)}</span>
+          <CopyButton value={k.id} label="Access key ID" compact />
+        </div>
+      ),
+    },
+    {
+      id: 'name',
+      header: 'Name',
+      sortable: true,
+      sortAccessor: (k) => k.name ?? '',
+      cell: (k) => k.name || '—',
+    },
+    {
+      id: 'status',
+      header: 'Status',
+      cell: (k) =>
+        k.expired ? (
+          <Badge variant="destructive">Expired</Badge>
+        ) : (
+          <Badge variant="success">Active</Badge>
+        ),
+    },
+    {
+      id: 'created',
+      header: 'Created',
+      sortable: true,
+      sortAccessor: (k) => k.created ?? '',
+      cellClassName: 'text-xs text-muted-foreground',
+      cell: (k) => formatDateTime(k.created),
+    },
+    {
+      id: 'expiration',
+      header: 'Expires',
+      sortable: true,
+      sortAccessor: (k) => k.expiration ?? '',
+      cellClassName: 'text-xs text-muted-foreground',
+      cell: (k) => formatDateTime(k.expiration),
+    },
+  ];
 
   if (isLoading) return <TableLoadingState label="Loading access keys..." />;
 
@@ -496,117 +526,57 @@ export function KeyList() {
           </AlertDescription>
         </Alert>
       )}
-      {actionError && !isDialogOpen && (
-        <Alert variant="destructive">
-          <AlertTitle>Key action failed</AlertTitle>
-          <AlertDescription>{actionError}</AlertDescription>
-        </Alert>
-      )}
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search by ID or name..."
-          className="pl-9"
-        />
-      </div>
-
-      <div className="overflow-hidden rounded-lg border bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('id')}>
-                Access Key ID
-                {sortIcon('id')}
-              </TableHead>
-              <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('name')}>
-                Name
-                {sortIcon('name')}
-              </TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead
-                className="cursor-pointer select-none"
-                onClick={() => toggleSort('created')}
-              >
-                Created
-                {sortIcon('created')}
-              </TableHead>
-              <TableHead
-                className="cursor-pointer select-none"
-                onClick={() => toggleSort('expiration')}
-              >
-                Expires
-                {sortIcon('expiration')}
-              </TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredAndSorted.map((k) => (
-              <TableRow
-                key={k.id}
-                className="cursor-pointer hover:bg-muted/50"
-                onClick={() => navigate(`/clusters/${clusterId}/keys/${k.id}`)}
-              >
-                <TableCell className="text-xs">
-                  <div className="inline-flex items-center gap-1">
-                    <span>{formatShortId(k.id, 12)}</span>
-                    <CopyButton value={k.id} label="Access key ID" compact />
-                  </div>
-                </TableCell>
-                <TableCell>{k.name || '—'}</TableCell>
-                <TableCell>
-                  {k.expired ? (
-                    <Badge variant="destructive">Expired</Badge>
-                  ) : (
-                    <Badge variant="success">Active</Badge>
-                  )}
-                </TableCell>
-                <TableCell className="text-xs text-muted-foreground">
-                  {formatDateTime(k.created)}
-                </TableCell>
-                <TableCell className="text-xs text-muted-foreground">
-                  {formatDateTime(k.expiration)}
-                </TableCell>
-                <TableCell>
-                  <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive"
-                      onClick={() => setDeleteConfirm({ id: k.id, name: k.name || k.id })}
-                    >
-                      <DeleteActionIcon className="h-3.5 w-3.5" />
-                      Delete
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-            {filteredAndSorted.length === 0 && (
-              <TableEmptyState
-                icon={KeyIcon}
-                title={searchQuery ? 'No keys match search' : 'No keys found'}
-                description={
-                  searchQuery
-                    ? `No results for "${searchQuery}". Try a different term.`
-                    : 'Create or import an access key to get started.'
-                }
-                colSpan={6}
-                action={
-                  !searchQuery && (
-                    <Button variant="outline" size="sm" onClick={() => setIsDialogOpen(true)}>
-                      <AddActionIcon className="h-4 w-4 mr-2" /> Create Key
-                    </Button>
-                  )
-                }
-              />
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      <ResourceList
+        items={keys}
+        getRowId={(k) => k.id}
+        columns={columns}
+        onRowClick={(k) => navigate(`/clusters/${clusterId}/keys/${k.id}`)}
+        renderTitle={(k) => (
+          <div className="inline-flex items-center gap-1 text-sm">
+            <span>{formatShortId(k.id, 12)}</span>
+            <CopyButton value={k.id} label="Access key ID" compact />
+          </div>
+        )}
+        search={{
+          placeholder: 'Search by ID or name...',
+          predicate: (k, q) => k.id.toLowerCase().includes(q) || k.name.toLowerCase().includes(q),
+        }}
+        defaultSort={{ columnId: 'created', direction: 'desc' }}
+        selection={{
+          renderActions: (selected, clear) => (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setBulkDelete({ ids: selected.map((k) => k.id), clear })}
+            >
+              <DeleteActionIcon className="h-3.5 w-3.5" />
+              Delete {selected.length}
+            </Button>
+          ),
+        }}
+        rowActions={(k) => (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-destructive"
+            onClick={() => setDeleteConfirm({ id: k.id, name: k.name || k.id })}
+          >
+            <DeleteActionIcon className="h-3.5 w-3.5" />
+            Delete
+          </Button>
+        )}
+        emptyState={{
+          icon: KeyIcon,
+          title: 'No keys found',
+          description: 'Create or import an access key to get started.',
+          action: (
+            <Button variant="outline" size="sm" onClick={() => setIsDialogOpen(true)}>
+              <AddActionIcon className="h-4 w-4 mr-2" /> Create Key
+            </Button>
+          ),
+        }}
+      />
 
       <Dialog
         open={Boolean(createdKey)}
@@ -669,7 +639,6 @@ export function KeyList() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation */}
       <ConfirmDialog
         open={!!deleteConfirm}
         onOpenChange={(open) => !open && setDeleteConfirm(null)}
@@ -679,6 +648,17 @@ export function KeyList() {
         confirmText="Delete Key"
         onConfirm={() => deleteConfirm && deleteMutation.mutate(deleteConfirm.id)}
         isLoading={deleteMutation.isPending}
+      />
+
+      <ConfirmDialog
+        open={!!bulkDelete}
+        onOpenChange={(open) => !open && !bulkPending && setBulkDelete(null)}
+        title={`Delete ${bulkDelete?.ids.length ?? 0} keys`}
+        description={`Permanently delete ${bulkDelete?.ids.length ?? 0} selected key(s)? This revokes access to every bucket using them.`}
+        tier="danger"
+        confirmText={`Delete ${bulkDelete?.ids.length ?? 0} keys`}
+        onConfirm={handleBulkDelete}
+        isLoading={bulkPending}
       />
     </div>
   );
