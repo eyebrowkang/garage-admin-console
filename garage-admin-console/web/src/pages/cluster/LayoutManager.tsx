@@ -1083,7 +1083,9 @@ export function LayoutManager() {
                 <AlertDescription>{previewResult.error}</AlertDescription>
               </Alert>
             ) : (
-              <div className="space-y-4">
+              // min-w-0: as a DialogContent grid item, this lets the terminal's long
+              // lines scroll inside the <pre> instead of widening the whole dialog.
+              <div className="min-w-0 space-y-4">
                 <div className="grid gap-3 rounded-lg border p-3 sm:grid-cols-3">
                   <SummaryDelta
                     label="Version"
@@ -1115,7 +1117,7 @@ export function LayoutManager() {
                   <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground">
                     Raw computation output
                   </summary>
-                  <div className="mt-2">
+                  <div className="mt-2 min-w-0">
                     <TerminalOutput
                       command="garage layout show"
                       content={previewResult.message.join('\n')}
@@ -1128,7 +1130,9 @@ export function LayoutManager() {
           ) : (
             <div className="text-sm text-muted-foreground">No preview available.</div>
           )}
-          <DialogFooter className="gap-2 sm:justify-between">
+          {/* Plain row (not DialogFooter, whose flex-col-reverse scrambles three
+              buttons on mobile): Revert and Apply spread apart; Close is desktop-only. */}
+          <div className="flex items-center justify-between gap-2">
             <Button
               variant="outline"
               className="text-destructive hover:text-destructive"
@@ -1141,6 +1145,7 @@ export function LayoutManager() {
             <div className="flex gap-2">
               <Button
                 variant="outline"
+                className="hidden sm:inline-flex"
                 onClick={() => setPreviewDialogOpen(false)}
                 disabled={applyLayoutMutation.isPending || revertLayoutMutation.isPending}
               >
@@ -1159,7 +1164,7 @@ export function LayoutManager() {
                 {applyLayoutMutation.isPending ? 'Applying...' : 'Apply changes'}
               </Button>
             </div>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 
