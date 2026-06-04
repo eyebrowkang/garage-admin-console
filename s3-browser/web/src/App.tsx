@@ -11,7 +11,7 @@
  * App resolves path[] from the URL splat and pushes new URLs on navigation.
  */
 import { LogOut } from 'lucide-react';
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { BrowserRouter, Route, Routes, Link } from 'react-router-dom';
 
 import {
@@ -30,7 +30,22 @@ import { ConnectionView } from '@/pages/ConnectionView';
 import { BucketView } from '@/pages/BucketView';
 import { Toaster } from '@garage/ui';
 
+// Dev-only FileBrowser mock playground (lazy so it — and its mock adapter —
+// never reach the production bundle). Reachable at /__playground in dev.
+const FileBrowserPlayground = lazy(() => import('@/dev/FileBrowserPlayground'));
+
 export function App() {
+  if (import.meta.env.DEV && window.location.pathname.startsWith('/__playground')) {
+    return (
+      <Suspense fallback={null}>
+        <FileBrowserPlayground />
+      </Suspense>
+    );
+  }
+  return <MainApp />;
+}
+
+function MainApp() {
   const [authed, setAuthed] = useState(() => readStoredToken() !== null);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
 

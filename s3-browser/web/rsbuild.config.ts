@@ -52,6 +52,8 @@ export default defineConfig(({ command }) => ({
       rewrites: [
         { from: /^\/$/, to: '/index.html' },
         { from: /^\/connections/, to: '/index.html' },
+        // Dev-only FileBrowser mock playground route.
+        { from: /^\/__playground/, to: '/index.html' },
       ],
     },
     proxy: {
