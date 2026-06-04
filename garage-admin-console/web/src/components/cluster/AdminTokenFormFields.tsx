@@ -1,3 +1,4 @@
+import type { Dispatch, SetStateAction } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import {
   Alert,
@@ -56,9 +57,14 @@ export function AdminTokenFormFields({
   onChange,
 }: {
   value: AdminTokenFormState;
-  onChange: (next: AdminTokenFormState) => void;
+  onChange: Dispatch<SetStateAction<AdminTokenFormState>>;
 }) {
-  const set = (patch: Partial<AdminTokenFormState>) => onChange({ ...value, ...patch });
+  // Functional update: the ExpirationPicker fires several field changes in one
+  // click (a preset/Custom seeds neverExpires + date + hour + minute). Spreading
+  // a stale `value` on each call would let every update but the last get clobbered
+  // — update from `prev` so they all land.
+  const set = (patch: Partial<AdminTokenFormState>) =>
+    onChange((prev) => ({ ...prev, ...patch }));
   const scopeCount = parseScope(value).length;
   const warning = tokenFormScopeWarning(value);
   const expirationInvalid = tokenExpirationInvalid(value) && !value.neverExpires;

@@ -350,7 +350,14 @@ export function AdminTokenList() {
               </Alert>
             )}
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setCreateDialogOpen(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setCreateDialogOpen(false);
+                  resetCreateForm();
+                }}
+              >
                 Cancel
               </Button>
               <Button type="submit" disabled={!createForm.name.trim() || createMutation.isPending}>
