@@ -17,6 +17,10 @@ const buttonVariants = cva(
           'bg-primary text-primary-foreground shadow hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100 disabled:shadow-none',
         destructive:
           'bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90 disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100 disabled:shadow-none',
+        // Caution actions (purple per the four-color system): not data-destructive
+        // but irreversible / heavy, e.g. cleaning up incomplete uploads.
+        warning:
+          'bg-warning text-warning-foreground shadow-sm hover:bg-warning/90 disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100 disabled:shadow-none',
         outline:
           'border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground',
         secondary: 'bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80',
