@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Button,
   Table,
@@ -22,18 +22,24 @@ import {
   AlertDescription,
   AlertTitle,
   Checkbox,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Tabs,
   TabsList,
   TabsTrigger,
   TabsContent,
   TabHotkeys,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  ResourceList,
+  type ResourceListColumn,
+  type ResourceAction,
+  CopyValue,
+  EmptyValue,
+  cn,
 } from '@garage/ui';
-import { AlertCircle, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2, MoreHorizontal, SkipForward } from 'lucide-react';
 import { api, proxyPath } from '@/lib/api';
 import { formatBytes, formatShortId, getApiErrorMessage } from '@garage/web-shared';
 import { ConfirmDialog } from '@garage/ui';
@@ -42,10 +48,13 @@ import { PageLoadingState } from '@garage/ui';
 import {
   AddActionIcon,
   DeleteActionIcon,
+  EditActionIcon,
   InspectActionIcon,
+  OpenActionIcon,
   RevertActionIcon,
   SaveActionIcon,
 } from '@/lib/action-icons';
+import { NodeIcon } from '@/lib/entity-icons';
 import { toast } from '@garage/ui';
 import { useClusterContext } from '@/contexts/ClusterContext';
 import type {
@@ -80,6 +89,7 @@ const formatZoneRedundancy = (value?: GetClusterLayoutResponse['parameters']['zo
 export function LayoutManager() {
   const { clusterId } = useClusterContext();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [nodeDialogOpen, setNodeDialogOpen] = useState(false);
   const [selectedNode, setSelectedNode] = useState<EditableNode | null>(null);
@@ -88,6 +98,7 @@ export function LayoutManager() {
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [applyResultDialogOpen, setApplyResultDialogOpen] = useState(false);
   const [revertConfirmOpen, setRevertConfirmOpen] = useState(false);
+  const [skipDialogOpen, setSkipDialogOpen] = useState(false);
   const [actionError, setActionError] = useState('');
 
   const [previewResult, setPreviewResult] = useState<PreviewClusterLayoutChangesResponse | null>(
@@ -170,6 +181,13 @@ export function LayoutManager() {
   const skipVersion = skipVersionInput || defaultSkipVersion;
   const zoneMode = zoneModeInput ?? defaultZoneMode;
   const zoneAtLeast = zoneAtLeastInput || defaultZoneAtLeast;
+  // The redundancy the controls currently describe, and whether it differs from
+  // what's applied — used to preview the pending change and to block no-op staging.
+  const pendingZoneLabel = zoneMode === 'maximum' ? 'Maximum' : `At least ${zoneAtLeast || '—'}`;
+  const zoneParamsChanged =
+    zoneMode !== defaultZoneMode ||
+    (zoneMode === 'atLeast' &&
+      Number.parseInt(zoneAtLeast, 10) !== Number.parseInt(defaultZoneAtLeast, 10));
 
   const updateLayoutMutation = useMutation({
     mutationFn: async (payload: UpdateClusterLayoutRequest) => {
@@ -390,34 +408,167 @@ export function LayoutManager() {
     );
   };
 
+  // Layout-node list: each cluster-reported node, enriched with its layout role
+  // and any staged change. Mirrors the Nodes list (ResourceList) for consistency.
+  const layoutStatusBadge = (hasRole: boolean) =>
+    hasRole ? <Badge variant="success">Assigned</Badge> : <Badge variant="secondary">Discovery</Badge>;
+  const stagedBadge = (change?: NodeRoleChange) => {
+    if (!change) return null;
+    const removed = 'remove' in change && change.remove;
+    return removed ? <Badge variant="destructive">Remove</Badge> : <Badge variant="warning">Update</Badge>;
+  };
+
+  const nodeColumns: ResourceListColumn<NodeResp>[] = [
+    {
+      id: 'node',
+      header: 'Node',
+      sortable: true,
+      sortAccessor: (n) => n.hostname ?? n.id,
+      mobileHidden: true,
+      cell: (n) => (
+        <div className="min-w-0">
+          <div className="font-medium text-foreground">{n.hostname || 'Unknown host'}</div>
+          <CopyValue
+            value={n.id}
+            label="Node ID"
+            className="max-w-[22ch] font-mono text-xs text-muted-foreground"
+          >
+            {formatShortId(n.id, 16)}
+          </CopyValue>
+        </div>
+      ),
+    },
+    {
+      id: 'zone',
+      header: 'Zone',
+      sortable: true,
+      sortAccessor: (n) => rolesById.get(n.id)?.zone ?? '',
+      cell: (n) => {
+        const role = rolesById.get(n.id);
+        const tags = role?.tags ?? [];
+        return role ? (
+          <div className="space-y-1">
+            <div className="text-sm text-foreground">{role.zone}</div>
+            {tags.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1">
+                {tags.slice(0, 3).map((tag) => (
+                  <Badge key={`${n.id}-${tag}`} variant="outline" className="font-normal">
+                    {tag}
+                  </Badge>
+                ))}
+                {tags.length > 3 && (
+                  <span className="text-xs text-muted-foreground">+{tags.length - 3}</span>
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+          <EmptyValue label="Unassigned" className="text-xs" />
+        );
+      },
+    },
+    {
+      id: 'capacity',
+      header: 'Capacity',
+      sortable: true,
+      sortAccessor: (n) => rolesById.get(n.id)?.capacity ?? null,
+      cellClassName: 'text-sm text-muted-foreground',
+      cell: (n) => {
+        const role = rolesById.get(n.id);
+        return !role ? (
+          <EmptyValue />
+        ) : role.capacity == null ? (
+          'Gateway'
+        ) : (
+          formatBytes(role.capacity)
+        );
+      },
+    },
+    {
+      id: 'status',
+      header: 'Status',
+      mobileHidden: true,
+      cell: (n) => layoutStatusBadge(rolesById.has(n.id)),
+    },
+    {
+      id: 'staged',
+      header: 'Staged',
+      mobileHidden: true,
+      cell: (n) => stagedBadge(stagedById.get(n.id)) ?? <EmptyValue />,
+    },
+  ];
+
+  const nodeRowActions = (n: NodeResp): ResourceAction[] => {
+    const role = rolesById.get(n.id);
+    const items: ResourceAction[] = [
+      {
+        label: role ? 'Edit role' : 'Add to layout',
+        icon: role ? EditActionIcon : AddActionIcon,
+        onSelect: () => openDialogForNode(n),
+      },
+    ];
+    if (role) {
+      items.push({
+        label: 'Remove from layout',
+        icon: DeleteActionIcon,
+        destructive: true,
+        onSelect: () => setRemoveConfirm({ id: n.id, hostname: n.hostname || n.id }),
+      });
+    }
+    items.push({
+      label: 'Open node',
+      icon: OpenActionIcon,
+      onSelect: () => navigate(`/clusters/${clusterId}/nodes/${n.id}`),
+    });
+    return items;
+  };
+
   return (
     <div className="space-y-4">
       <ModulePageHeader
         title="Layout"
         description="Stage, preview, and apply cluster layout changes with explicit version control."
         actions={
-          <>
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
-              size="sm"
+              className="flex-1 sm:flex-initial"
               onClick={() => previewMutation.mutate()}
               disabled={!hasStagedChanges || previewMutation.isPending}
             >
               <InspectActionIcon className="h-4 w-4" />
               {previewMutation.isPending ? 'Previewing...' : 'Preview'}
             </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => setRevertConfirmOpen(true)}
-              disabled={!hasStagedChanges}
-            >
-              <RevertActionIcon className="h-4 w-4" /> Revert
-            </Button>
-            <Button size="sm" onClick={() => setApplyDialogOpen(true)} disabled={!hasStagedChanges}>
-              <SaveActionIcon className="h-4 w-4" /> Apply
-            </Button>
-          </>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon" aria-label="More layout actions">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuItem
+                  onSelect={() => setApplyDialogOpen(true)}
+                  disabled={!hasStagedChanges}
+                >
+                  <SaveActionIcon />
+                  Apply changes
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() => setRevertConfirmOpen(true)}
+                  disabled={!hasStagedChanges}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <RevertActionIcon />
+                  Revert staged changes
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => setSkipDialogOpen(true)}>
+                  <SkipForward />
+                  Skip dead nodes…
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         }
       />
 
@@ -508,226 +659,137 @@ export function LayoutManager() {
             </div>
           )}
 
-          {/* Layout parameters */}
+          {/* Zone redundancy parameter */}
           <div className="space-y-4 rounded-lg border p-4">
             <div>
-              <div className="text-sm font-medium">Layout Parameters</div>
+              <div className="text-sm font-medium">Zone Redundancy</div>
               <p className="text-sm text-muted-foreground">
-                Stage changes to the layout computation parameters.
+                How many distinct zones each partition is replicated across. Staged like any other
+                layout change — preview and apply to take effect.
               </p>
             </div>
-            <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_160px] md:items-end">
-              <div className="space-y-2">
-                <Label>Zone Redundancy</Label>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Select
-                    value={zoneMode}
-                    onValueChange={(value) => setZoneModeInput(value as ZoneMode)}
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="flex gap-2" role="group" aria-label="Zone redundancy mode">
+                {(['maximum', 'atLeast'] as ZoneMode[]).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setZoneModeInput(mode)}
+                    aria-pressed={zoneMode === mode}
+                    className={cn(
+                      'min-h-9 rounded-md border px-4 text-sm font-medium transition-colors',
+                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                      zoneMode === mode
+                        ? 'border-primary/40 bg-primary/10 text-primary'
+                        : 'border-border text-muted-foreground hover:text-foreground',
+                    )}
                   >
-                    <SelectTrigger className="w-[200px]">
-                      <SelectValue placeholder="Select mode" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="maximum">Maximum</SelectItem>
-                      <SelectItem value="atLeast">At least</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {zoneMode === 'atLeast' && (
-                    <Input
-                      type="number"
-                      min={1}
-                      value={zoneAtLeast}
-                      onChange={(e) => setZoneAtLeastInput(e.target.value)}
-                      className="w-[120px]"
-                    />
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Current: {formatZoneRedundancy(layout?.parameters?.zoneRedundancy)}
-                </p>
-                {paramError && <p className="text-xs text-destructive">{paramError}</p>}
+                    {mode === 'maximum' ? 'Maximum' : 'At least'}
+                  </button>
+                ))}
               </div>
-              <Button onClick={handleStageParameters} disabled={updateLayoutMutation.isPending}>
-                {updateLayoutMutation.isPending ? 'Staging...' : 'Stage Parameters'}
-              </Button>
+              {zoneMode === 'atLeast' && (
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min={1}
+                    value={zoneAtLeast}
+                    onChange={(e) => setZoneAtLeastInput(e.target.value)}
+                    className="w-20"
+                    aria-label="Minimum number of zones"
+                  />
+                  <span className="text-sm text-muted-foreground">zones</span>
+                </div>
+              )}
             </div>
+
+            <p className="text-xs text-muted-foreground">
+              {zoneMode === 'maximum'
+                ? 'Spread copies across as many zones as possible (one per zone).'
+                : 'Require every partition to span at least this many distinct zones.'}
+            </p>
+
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="text-muted-foreground">Current</span>
+              <Badge variant="outline">
+                {formatZoneRedundancy(layout?.parameters?.zoneRedundancy)}
+              </Badge>
+              {zoneParamsChanged && (
+                <>
+                  <span className="text-muted-foreground">→</span>
+                  <Badge variant="warning">{pendingZoneLabel}</Badge>
+                </>
+              )}
+            </div>
+
+            {paramError && <p className="text-xs text-destructive">{paramError}</p>}
+
+            <Button
+              onClick={handleStageParameters}
+              disabled={!zoneParamsChanged || updateLayoutMutation.isPending}
+            >
+              {updateLayoutMutation.isPending ? 'Staging...' : 'Stage change'}
+            </Button>
           </div>
         </TabsContent>
 
         {/* ---------------- Nodes ---------------- */}
         <TabsContent value="nodes" className="space-y-3">
-          {/* Desktop / tablet: table */}
-          <div className="hidden overflow-hidden rounded-md border md:block">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Node ID</TableHead>
-                  <TableHead>Hostname</TableHead>
-                  <TableHead>Zone</TableHead>
-                  <TableHead>Tags</TableHead>
-                  <TableHead>Capacity</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Staged</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {nodes.map((node) => {
-                  const role = rolesById.get(node.id);
-                  const staged = stagedById.get(node.id);
-                  const isRemoved = staged && 'remove' in staged && staged.remove;
-
-                  return (
-                    <TableRow key={node.id}>
-                      <TableCell className="font-mono text-xs">
-                        {formatShortId(node.id, 10)}
-                      </TableCell>
-                      <TableCell>{node.hostname || 'Unknown'}</TableCell>
-                      <TableCell>{role?.zone || '—'}</TableCell>
-                      <TableCell>
-                        {role?.tags?.length ? (
-                          <div className="flex flex-wrap gap-1">
-                            {role.tags.map((tag) => (
-                              <Badge key={tag} variant="outline" className="text-xs">
-                                {tag}
-                              </Badge>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>{role ? formatBytes(role.capacity ?? null) : '—'}</TableCell>
-                      <TableCell>
-                        {role ? (
-                          <Badge variant="success">Active</Badge>
-                        ) : (
-                          <Badge variant="secondary">Discovery</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {staged ? (
-                          isRemoved ? (
-                            <Badge variant="destructive">Remove</Badge>
-                          ) : (
-                            <Badge variant="warning">Update</Badge>
-                          )
-                        ) : (
-                          <span className="text-xs text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="sm" onClick={() => openDialogForNode(node)}>
-                            <AddActionIcon className="h-4 w-4" /> {role ? 'Edit' : 'Add'}
-                          </Button>
-                          {role && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-destructive"
-                              onClick={() =>
-                                setRemoveConfirm({
-                                  id: node.id,
-                                  hostname: node.hostname || node.id,
-                                })
-                              }
-                            >
-                              <DeleteActionIcon className="h-3.5 w-3.5" />
-                              Remove
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-                {nodes.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
-                      No nodes reported by the cluster.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Mobile: one card per node */}
-          <div className="space-y-2 md:hidden">
-            {nodes.map((node) => {
-              const role = rolesById.get(node.id);
-              const staged = stagedById.get(node.id);
-              const isRemoved = staged && 'remove' in staged && staged.remove;
-              return (
-                <div key={node.id} className="space-y-2.5 rounded-lg border p-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-medium">{node.hostname || 'Unknown'}</div>
-                      <div className="font-mono text-xs text-muted-foreground">
-                        {formatShortId(node.id, 12)}
-                      </div>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      {role ? (
-                        <Badge variant="success">Active</Badge>
-                      ) : (
-                        <Badge variant="secondary">Discovery</Badge>
-                      )}
-                      {staged &&
-                        (isRemoved ? (
-                          <Badge variant="destructive">Remove</Badge>
-                        ) : (
-                          <Badge variant="warning">Update</Badge>
-                        ))}
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Zone: </span>
-                      {role?.zone || '—'}
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Capacity: </span>
-                      {role ? formatBytes(role.capacity ?? null) : '—'}
-                    </div>
-                  </div>
-                  {role?.tags?.length ? (
-                    <div className="flex flex-wrap gap-1">
-                      {role.tags.map((tag) => (
-                        <Badge key={tag} variant="outline" className="text-xs">
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                  ) : null}
-                  <div className="flex gap-2 pt-0.5">
-                    <Button variant="outline" size="sm" onClick={() => openDialogForNode(node)}>
-                      <AddActionIcon className="h-4 w-4" /> {role ? 'Edit' : 'Add'}
-                    </Button>
-                    {role && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-destructive"
-                        onClick={() =>
-                          setRemoveConfirm({ id: node.id, hostname: node.hostname || node.id })
-                        }
-                      >
-                        <DeleteActionIcon className="h-3.5 w-3.5" />
-                        Remove
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-            {nodes.length === 0 && (
-              <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-                No nodes reported by the cluster.
+          <ResourceList
+            items={nodes}
+            getRowId={(n) => n.id}
+            columns={nodeColumns}
+            onRowClick={(n) => openDialogForNode(n)}
+            getRowLabel={(n) => `Configure ${n.hostname || formatShortId(n.id, 10)}`}
+            renderTitle={(n) => (
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <span className="truncate font-medium">
+                  {n.hostname || formatShortId(n.id, 16)}
+                </span>
+                {layoutStatusBadge(rolesById.has(n.id))}
+                {stagedBadge(stagedById.get(n.id))}
               </div>
             )}
-          </div>
+            renderSubtitle={(n) => (
+              <CopyValue
+                value={n.id}
+                label="Node ID"
+                className="max-w-full font-mono text-xs text-muted-foreground"
+              >
+                {formatShortId(n.id, 20)}
+              </CopyValue>
+            )}
+            defaultSort={{ columnId: 'zone', direction: 'asc' }}
+            search={{
+              placeholder: 'Search by hostname, ID, zone, or tag...',
+              predicate: (n, q) => {
+                const role = rolesById.get(n.id);
+                return (
+                  n.id.toLowerCase().includes(q) ||
+                  (n.hostname ?? '').toLowerCase().includes(q) ||
+                  (role?.zone ?? '').toLowerCase().includes(q) ||
+                  (role?.tags ?? []).some((tag) => tag.toLowerCase().includes(q))
+                );
+              },
+            }}
+            filters={[
+              {
+                id: 'status',
+                label: 'Status',
+                options: [
+                  { value: 'assigned', label: 'Assigned', predicate: (n) => rolesById.has(n.id) },
+                  { value: 'discovery', label: 'Discovery', predicate: (n) => !rolesById.has(n.id) },
+                ],
+              },
+            ]}
+            actions={nodeRowActions}
+            emptyState={{
+              icon: NodeIcon,
+              title: 'No nodes reported',
+              description: 'The cluster has not reported any nodes yet.',
+            }}
+          />
 
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <CheckCircle2 className="h-4 w-4" />
@@ -805,40 +867,6 @@ export function LayoutManager() {
               </div>
             </div>
           )}
-
-          <div className="space-y-3 rounded-lg border border-warning/30 bg-warning/10 p-4">
-            <div className="font-medium text-warning">Skip Dead Nodes</div>
-            <p className="text-sm text-foreground/80">
-              Force progress in layout update trackers. Use only if nodes are permanently lost.
-            </p>
-            <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
-              <div className="space-y-2">
-                <Label>Layout Version</Label>
-                <Input
-                  type="number"
-                  value={skipVersion}
-                  onChange={(e) => setSkipVersionInput(e.target.value)}
-                />
-                <label className="flex items-center gap-2 text-sm">
-                  <Checkbox checked={allowMissingData} onCheckedChange={setAllowMissingData} />
-                  Allow missing data (unsafe)
-                </label>
-              </div>
-              <Button
-                variant="destructive"
-                onClick={handleSkipDeadNodes}
-                disabled={skipDeadNodesMutation.isPending}
-              >
-                {skipDeadNodesMutation.isPending ? 'Submitting...' : 'Skip Dead Nodes'}
-              </Button>
-            </div>
-            {skipResult && (
-              <div className="space-y-1 text-sm text-foreground/80">
-                <div>ACK updated: {skipResult.ackUpdated.join(', ') || '—'}</div>
-                <div>SYNC updated: {skipResult.syncUpdated.join(', ') || '—'}</div>
-              </div>
-            )}
-          </div>
         </TabsContent>
       </Tabs>
 
@@ -1038,6 +1066,74 @@ export function LayoutManager() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setApplyResultDialogOpen(false)}>
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Skip Dead Nodes Dialog */}
+      <Dialog
+        open={skipDialogOpen}
+        onOpenChange={(open) => {
+          setSkipDialogOpen(open);
+          if (!open) {
+            setSkipResult(null);
+            setSkipVersionInput('');
+            setAllowMissingData(false);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Skip Dead Nodes</DialogTitle>
+            <DialogDescription>
+              Force the layout update trackers forward past nodes that will never acknowledge. Use
+              only when nodes are permanently lost.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <Alert variant="warning">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Advanced recovery action</AlertTitle>
+              <AlertDescription>
+                Skipping advances sync progress without the missing nodes. “Allow missing data” can
+                discard data those nodes still held — only enable it if they are gone for good.
+              </AlertDescription>
+            </Alert>
+            <div className="space-y-2">
+              <Label>Layout version</Label>
+              <Input
+                type="number"
+                value={skipVersion}
+                onChange={(e) => setSkipVersionInput(e.target.value)}
+              />
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox checked={allowMissingData} onCheckedChange={setAllowMissingData} />
+              Allow missing data (unsafe)
+            </label>
+            {skipResult && (
+              <div className="space-y-1 rounded-md border bg-muted/20 p-3 text-sm">
+                <div className="font-medium">Trackers advanced</div>
+                <div className="text-muted-foreground">
+                  ACK updated: {skipResult.ackUpdated.join(', ') || '—'}
+                </div>
+                <div className="text-muted-foreground">
+                  SYNC updated: {skipResult.syncUpdated.join(', ') || '—'}
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSkipDialogOpen(false)}>
+              Close
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleSkipDeadNodes}
+              disabled={skipDeadNodesMutation.isPending}
+            >
+              {skipDeadNodesMutation.isPending ? 'Submitting...' : 'Skip Dead Nodes'}
             </Button>
           </DialogFooter>
         </DialogContent>
