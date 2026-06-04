@@ -107,7 +107,10 @@ describe('ResourceList', () => {
         renderActions: (selected) => <button type="button">Delete {selected.length}</button>,
       },
     });
-    await user.click(screen.getByRole('checkbox', { name: /select all/i }));
+    // Desktop and mobile each render a "select all"; target the table's.
+    await user.click(
+      within(screen.getByRole('table')).getByRole('checkbox', { name: /select all/i }),
+    );
     expect(screen.getByText('3 selected')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Delete 3' })).toBeInTheDocument();
   });
@@ -139,20 +142,15 @@ describe('ResourceList', () => {
     expect(onRowClick).not.toHaveBeenCalled();
   });
 
-  it('renders a mobileSubtitle column without a label, keeping labels for others', () => {
-    const cols: ResourceListColumn<Row>[] = [
-      { id: 'name', header: 'Name', mobileHidden: true, cell: (r) => r.name },
-      { id: 'sid', header: 'Secret ID', mobileSubtitle: true, cell: (r) => `sid-${r.id}` },
-      { id: 'n', header: 'Count', cell: (r) => String(r.n) },
-    ];
-    renderList({ columns: cols });
-    // <dt> labels exist only in the mobile card: the subtitle column has none,
-    // the ordinary column keeps its label.
-    const terms = screen.getAllByRole('term').map((t) => t.textContent);
-    expect(terms).toContain('Count');
-    expect(terms).not.toContain('Secret ID');
-    // The subtitle value is still rendered.
-    expect(screen.getAllByText('sid-a').length).toBeGreaterThan(0);
+  it('renders renderSubtitle under the mobile card title, omitting it when null', () => {
+    renderList({
+      renderTitle: (r) => r.name,
+      renderSubtitle: (r) => (r.id === 'a' ? `sub-${r.id}` : null),
+    });
+    // Shown for the row that returns content...
+    expect(screen.getByText('sub-a')).toBeInTheDocument();
+    // ...and absent for rows where it returns null.
+    expect(screen.queryByText('sub-b')).not.toBeInTheDocument();
   });
 
   it('opens the action sheet with the row identity and its actions', async () => {

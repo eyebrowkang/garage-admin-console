@@ -49,9 +49,6 @@ export interface ResourceListColumn<T> {
   mobileHidden?: boolean;
   /** Mobile field label, when `header` is not plain text. Defaults to `header`. */
   mobileLabel?: ReactNode;
-  /** Render this field as the mobile card subtitle (directly under the title, no
-   *  label) rather than a labeled row — e.g. a secondary id beneath the name. */
-  mobileSubtitle?: boolean;
 }
 
 export interface ResourceListEmptyState {
@@ -75,6 +72,9 @@ export interface ResourceListProps<T> {
   getRowId: (item: T) => string;
   /** Identity heading for each mobile card. */
   renderTitle: (item: T) => ReactNode;
+  /** Optional secondary identity line under the mobile card title (e.g. an id
+   *  beneath a name). Return null/undefined to omit it for a given item. */
+  renderSubtitle?: (item: T) => ReactNode;
   /** Row / card click — typically navigation to a detail page. */
   onRowClick?: (item: T) => void;
   /** Accessible label for a navigable row, e.g. "Open bucket photos". Used as the
@@ -115,6 +115,7 @@ export function ResourceList<T>({
   columns,
   getRowId,
   renderTitle,
+  renderSubtitle,
   onRowClick,
   getRowLabel,
   isRowInteractive,
@@ -202,15 +203,8 @@ export function ResourceList<T>({
   }, [visibleSelectableIds]);
 
   const sortableColumns = useMemo(() => columns.filter((c) => c.sortable), [columns]);
-  // Mobile card body: subtitle fields (no label, under the title) vs labeled rows.
-  const mobileSubtitleColumns = useMemo(
-    () => columns.filter((c) => !c.mobileHidden && c.mobileSubtitle),
-    [columns],
-  );
-  const mobileLabeledColumns = useMemo(
-    () => columns.filter((c) => !c.mobileHidden && !c.mobileSubtitle),
-    [columns],
-  );
+  // Mobile card body: the labeled fields beneath the identity (renderTitle/Subtitle).
+  const mobileColumns = useMemo(() => columns.filter((c) => !c.mobileHidden), [columns]);
   const totalColumns = (selection ? 1 : 0) + columns.length + (rowActions ? 1 : 0);
 
   const isTrulyEmpty = items.length === 0;
@@ -298,7 +292,7 @@ export function ResourceList<T>({
           is enabled) so it can slide in and out. */}
       {selection && (
         <div
-          className="pointer-events-none fixed inset-x-0 bottom-[15vh] z-40 flex justify-center px-4"
+          className="pointer-events-none fixed inset-x-0 bottom-[10vh] z-40 flex justify-center px-4 sm:bottom-[15vh]"
           aria-hidden={!selectionVisible}
         >
           <div
@@ -365,7 +359,7 @@ export function ResourceList<T>({
                 </TableHead>
               ))}
               {rowActions && (
-                <TableHead className="w-0 p-0">
+                <TableHead className="text-right">
                   <span className="sr-only">Actions</span>
                 </TableHead>
               )}
@@ -411,11 +405,15 @@ export function ResourceList<T>({
                     </TableCell>
                   ))}
                   {rowActions && (
-                    // Zero-width cell; the actions float over the row's right edge
-                    // and only appear on hover or keyboard focus, so they neither
-                    // reserve an empty gutter nor clutter the resting state.
-                    <TableCell className="relative w-0 p-0" onClick={stop}>
-                      <div className="pointer-events-none absolute right-3 top-1/2 flex -translate-y-1/2 items-center rounded-md border bg-card opacity-0 shadow-sm transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
+                    // Reserve a right-aligned cell (never overlapping the last
+                    // column), but reveal the actions only on hover / keyboard focus
+                    // so the resting row stays clean. stopPropagation sits on the
+                    // actions wrapper, leaving the rest of the cell clickable for nav.
+                    <TableCell className="text-right">
+                      <div
+                        onClick={stop}
+                        className="pointer-events-none inline-flex opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100"
+                      >
                         {rowActions(item)}
                       </div>
                     </TableCell>
@@ -436,6 +434,18 @@ export function ResourceList<T>({
 
       {/* Mobile: stacked cards */}
       <div className="space-y-2 md:hidden">
+        {selection && !isEmpty && (
+          <label className="flex w-fit cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+            <span className="-m-2 flex p-2 pointer-coarse:-m-3 pointer-coarse:p-3">
+              <Checkbox
+                aria-label="Select all rows"
+                checked={allVisibleSelected}
+                onCheckedChange={toggleAll}
+              />
+            </span>
+            Select all
+          </label>
+        )}
         {sortableColumns.length > 0 && !isEmpty && (
           <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
             <span className="shrink-0 text-xs font-medium text-muted-foreground">Sort</span>
@@ -471,6 +481,7 @@ export function ResourceList<T>({
           const id = getRowId(item);
           const selected = selectedIds.has(id);
           const interactive = rowInteractive(item);
+          const subtitle = renderSubtitle?.(item);
           return (
             <div
               key={id}
@@ -486,10 +497,13 @@ export function ResourceList<T>({
               aria-label={interactive ? getRowLabel?.(item) : undefined}
               onKeyDown={interactive ? (e) => onRowKeyDown(e, item) : undefined}
             >
-              {/* Header row: checkbox · title · ⋯ — all aligned on the title line. */}
+              {/* Header row: checkbox · identity · ⋯ — comfortable touch targets. */}
               <div className="flex items-center gap-3">
                 {selection && isSelectable(item) && (
-                  <label className="flex shrink-0 cursor-pointer" onClick={stop}>
+                  <label
+                    className="-m-2 flex shrink-0 cursor-pointer p-2 pointer-coarse:-m-3.5 pointer-coarse:p-3.5"
+                    onClick={stop}
+                  >
                     <Checkbox
                       aria-label="Select row"
                       checked={selected}
@@ -508,24 +522,20 @@ export function ResourceList<T>({
                       e.stopPropagation();
                       setActionItem(item);
                     }}
-                    className="-mr-1 -my-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground pointer-coarse:h-11 pointer-coarse:w-11"
+                    className="-m-1.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground pointer-coarse:h-11 pointer-coarse:w-11"
                   >
-                    <MoreHorizontal className="h-4 w-4" />
+                    <MoreHorizontal className="h-5 w-5" />
                   </button>
                 )}
               </div>
 
-              {/* Body: subtitle (no label) + labeled fields, indented under the title. */}
-              {(mobileSubtitleColumns.length > 0 || mobileLabeledColumns.length > 0) && (
+              {/* Body: optional subtitle + labeled fields, indented under the title. */}
+              {(subtitle || mobileColumns.length > 0) && (
                 <div className={cn('mt-2 space-y-1.5', selection && isSelectable(item) && 'pl-7')}>
-                  {mobileSubtitleColumns.map((col) => (
-                    <div key={col.id} className="min-w-0 text-sm text-muted-foreground">
-                      {col.cell(item)}
-                    </div>
-                  ))}
-                  {mobileLabeledColumns.length > 0 && (
+                  {subtitle && <div className="min-w-0 text-sm">{subtitle}</div>}
+                  {mobileColumns.length > 0 && (
                     <dl className="grid grid-cols-[minmax(4rem,auto)_1fr] gap-x-3 gap-y-1 text-sm">
-                      {mobileLabeledColumns.map((col) => (
+                      {mobileColumns.map((col) => (
                         <Fragment key={col.id}>
                           <dt className="text-muted-foreground">{col.mobileLabel ?? col.header}</dt>
                           <dd className="min-w-0 text-foreground">{col.cell(item)}</dd>
@@ -556,6 +566,11 @@ export function ResourceList<T>({
             {actionItem && (
               <div className="mt-1 min-w-0 text-base font-medium text-foreground">
                 {renderTitle(actionItem)}
+              </div>
+            )}
+            {actionItem && renderSubtitle?.(actionItem) && (
+              <div className="mt-0.5 min-w-0 text-sm text-muted-foreground">
+                {renderSubtitle(actionItem)}
               </div>
             )}
             <div
