@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle } from 'lucide-react';
 import {
   Button,
@@ -16,6 +16,7 @@ import {
   AlertTitle,
   ResourceList,
   type ResourceListColumn,
+  type ResourceAction,
   EmptyValue,
   ConfirmDialog,
   ModulePageHeader,
@@ -29,22 +30,25 @@ import {
   useDeleteAdminToken,
 } from '@/hooks/useAdminTokens';
 import { SecretReveal } from '@/components/cluster/SecretReveal';
-import {
-  AdminTokenFormFields,
-} from '@/components/cluster/AdminTokenFormFields';
+import { AdminTokenFormFields } from '@/components/cluster/AdminTokenFormFields';
 import {
   EMPTY_TOKEN_FORM,
   buildTokenPayload,
+  tokenFormFromInfo,
   validateTokenForm,
   type AdminTokenFormState,
 } from '@/components/cluster/admin-token-form';
 import { TableLoadingState } from '@/components/cluster/TableLoadingState';
-import { AddActionIcon, DeleteActionIcon } from '@/lib/action-icons';
+import { AddActionIcon, DeleteActionIcon, EditActionIcon } from '@/lib/action-icons';
 import { formatDateTime, getApiErrorMessage } from '@garage/web-shared';
 import { TokenIcon } from '@/lib/entity-icons';
 import { toast } from '@garage/ui';
 import { runBulkDelete } from '@/lib/bulk-delete';
-import type { AdminTokenInfo, CreateAdminTokenResponse } from '@/types/garage';
+import type {
+  AdminTokenInfo,
+  CreateAdminTokenRequest,
+  CreateAdminTokenResponse,
+} from '@/types/garage';
 
 function renderScopeSummary(scope: string[]) {
   if (scope.includes('*')) {
@@ -74,6 +78,9 @@ export function AdminTokenList() {
   const [createForm, setCreateForm] = useState<AdminTokenFormState>(EMPTY_TOKEN_FORM);
   const [createError, setCreateError] = useState('');
   const [createdToken, setCreatedToken] = useState<CreateAdminTokenResponse | null>(null);
+  const [editToken, setEditToken] = useState<AdminTokenInfo | null>(null);
+  const [editForm, setEditForm] = useState<AdminTokenFormState>(EMPTY_TOKEN_FORM);
+  const [editError, setEditError] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
   const [bulkDelete, setBulkDelete] = useState<{ ids: string[]; clear: () => void } | null>(null);
   const [bulkPending, setBulkPending] = useState(false);
@@ -82,6 +89,22 @@ export function AdminTokenList() {
   const { data: currentToken } = useCurrentAdminToken(clusterId);
   const createMutation = useCreateAdminToken(clusterId);
   const deleteMutation = useDeleteAdminToken(clusterId);
+  // Inline update keyed by row id — the detail-page hook bakes the id in at call
+  // time, which doesn't fit a list where the id varies per row.
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, payload }: { id: string; payload: CreateAdminTokenRequest }) => {
+      await api.post(
+        proxyPath(clusterId, `/v2/UpdateAdminToken?id=${encodeURIComponent(id)}`),
+        payload,
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminTokens', clusterId] });
+      setEditToken(null);
+      toast({ title: 'Token updated', variant: 'success' });
+    },
+    onError: (err) => setEditError(getApiErrorMessage(err, 'Failed to update token.')),
+  });
 
   // The connection's own token can lack an id (e.g. the daemon-config token), so
   // fall back to a name match — and never let it be deleted (that revokes access).
@@ -136,6 +159,24 @@ export function AdminTokenList() {
         variant: 'destructive',
       });
     }
+  };
+
+  const openEdit = (t: AdminTokenInfo) => {
+    // The list endpoint already returns scope + expiration, so seed the form
+    // straight from the row — no GetAdminTokenInfo round-trip needed.
+    setEditToken(t);
+    setEditForm(tokenFormFromInfo(t));
+    setEditError('');
+  };
+
+  const handleUpdate = () => {
+    if (!editToken?.id) return;
+    const validationError = validateTokenForm(editForm);
+    if (validationError) {
+      setEditError(validationError);
+      return;
+    }
+    updateMutation.mutate({ id: editToken.id, payload: buildTokenPayload(editForm) });
   };
 
   const handleDelete = async () => {
@@ -295,18 +336,21 @@ export function AdminTokenList() {
             </Button>
           ),
         }}
-        actions={(t) =>
-          t.id && !isCurrent(t)
-            ? [
-                {
-                  label: 'Delete',
-                  icon: DeleteActionIcon,
-                  destructive: true,
-                  onSelect: () => setDeleteConfirm({ id: t.id!, name: t.name }),
-                },
-              ]
-            : []
-        }
+        actions={(t): ResourceAction[] => {
+          if (!t.id) return []; // the daemon-config token has no id — not editable
+          const rowActions: ResourceAction[] = [
+            { label: 'Edit', icon: EditActionIcon, onSelect: () => openEdit(t) },
+          ];
+          if (!isCurrent(t)) {
+            rowActions.push({
+              label: 'Delete',
+              icon: DeleteActionIcon,
+              destructive: true,
+              onSelect: () => setDeleteConfirm({ id: t.id!, name: t.name }),
+            });
+          }
+          return rowActions;
+        }}
         emptyState={{
           icon: TokenIcon,
           title: 'No admin tokens found',
@@ -362,6 +406,54 @@ export function AdminTokenList() {
               </Button>
               <Button type="submit" disabled={!createForm.name.trim() || createMutation.isPending}>
                 {createMutation.isPending ? 'Creating...' : 'Create Token'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Token Dialog — seeded from the row, no extra fetch */}
+      <Dialog
+        open={!!editToken}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditToken(null);
+            setEditError('');
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Token</DialogTitle>
+            <DialogDescription>Update the name, scope, and expiration.</DialogDescription>
+          </DialogHeader>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleUpdate();
+            }}
+            className="space-y-4"
+          >
+            <AdminTokenFormFields value={editForm} onChange={setEditForm} />
+            {editError && (
+              <Alert variant="destructive">
+                <AlertTitle>Cannot update token</AlertTitle>
+                <AlertDescription>{editError}</AlertDescription>
+              </Alert>
+            )}
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setEditToken(null);
+                  setEditError('');
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={!editForm.name.trim() || updateMutation.isPending}>
+                {updateMutation.isPending ? 'Saving...' : 'Save'}
               </Button>
             </DialogFooter>
           </form>
