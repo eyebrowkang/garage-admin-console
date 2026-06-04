@@ -41,6 +41,7 @@ export * from './components/status-card';
 export * from './components/table';
 export * from './components/table-empty-state';
 export * from './components/tabs';
+export * from './components/terminal-output';
 export * from './components/textarea';
 export * from './components/toast';
 export * from './components/toaster';
