@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Button,
@@ -17,11 +17,6 @@ import {
   Input,
   Label,
   Badge,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Alert,
   AlertDescription,
   AlertTitle,
@@ -30,6 +25,8 @@ import {
   CopyValue,
   EmptyValue,
   ExpirationPicker,
+  InlineLoadingState,
+  cn,
 } from '@garage/ui';
 import { MoreHorizontal } from 'lucide-react';
 import { api, proxyPath } from '@/lib/api';
@@ -50,6 +47,39 @@ import type {
   UpdateKeyRequest,
 } from '@/types/garage';
 
+/** Binary Allow / Deny chooser — a segmented control reads clearer than a 2-item
+ *  dropdown for a yes/no permission. Shared by the create + edit key dialogs. */
+function PermissionSegmented({
+  value,
+  onChange,
+}: {
+  value: 'allow' | 'deny';
+  onChange: (value: 'allow' | 'deny') => void;
+}) {
+  const seg = (option: 'allow' | 'deny', label: string) => (
+    <button
+      type="button"
+      onClick={() => onChange(option)}
+      aria-pressed={value === option}
+      className={cn(
+        'min-h-9 flex-1 rounded-md border px-3 text-sm font-medium transition-colors',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        value === option
+          ? 'border-primary/40 bg-primary/10 text-primary'
+          : 'border-border text-muted-foreground hover:text-foreground',
+      )}
+    >
+      {label}
+    </button>
+  );
+  return (
+    <div className="flex gap-2" role="group" aria-label="Bucket creation permission">
+      {seg('allow', 'Allow')}
+      {seg('deny', 'Deny')}
+    </div>
+  );
+}
+
 export function KeyList() {
   const { clusterId } = useClusterContext();
   const queryClient = useQueryClient();
@@ -68,10 +98,8 @@ export function KeyList() {
   const [createExpirationDate, setCreateExpirationDate] = useState('');
   const [createExpirationHour, setCreateExpirationHour] = useState('00');
   const [createExpirationMinute, setCreateExpirationMinute] = useState('00');
-  const [createNeverExpires, setCreateNeverExpires] = useState(false);
-  const [createBucketPermission, setCreateBucketPermission] = useState<
-    'default' | 'allow' | 'deny'
-  >('default');
+  const [createNeverExpires, setCreateNeverExpires] = useState(true);
+  const [createBucketPermission, setCreateBucketPermission] = useState<'allow' | 'deny'>('deny');
   const [importAccessKeyId, setImportAccessKeyId] = useState('');
   const [importSecretAccessKey, setImportSecretAccessKey] = useState('');
   const [importKeyName, setImportKeyName] = useState('');
@@ -87,15 +115,18 @@ export function KeyList() {
   const [editExpirationHour, setEditExpirationHour] = useState('00');
   const [editExpirationMinute, setEditExpirationMinute] = useState('00');
   const [editNeverExpires, setEditNeverExpires] = useState(false);
+  const [editBucketPermission, setEditBucketPermission] = useState<'allow' | 'deny'>('deny');
+  const [editPermStatus, setEditPermStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [editError, setEditError] = useState('');
+  const editReqRef = useRef(0);
 
   const resetCreateForm = () => {
     setNewKeyName('');
     setCreateExpirationDate('');
     setCreateExpirationHour('00');
     setCreateExpirationMinute('00');
-    setCreateNeverExpires(false);
-    setCreateBucketPermission('default');
+    setCreateNeverExpires(true);
+    setCreateBucketPermission('deny');
     setActionError('');
   };
 
@@ -268,15 +299,30 @@ export function KeyList() {
       : null;
   const editExpirationInvalid = Boolean(editExpirationDate) && !editExpirationIso;
 
-  const openEdit = (key: ListKeysResponseItem) => {
+  const openEdit = async (key: ListKeysResponseItem) => {
     const parts = toDateParts(key.expiration);
+    const req = ++editReqRef.current;
     setEditKey(key);
     setEditName(key.name ?? '');
     setEditExpirationDate(parts.date);
     setEditExpirationHour(parts.hour);
     setEditExpirationMinute(parts.minute);
     setEditNeverExpires(!key.expiration);
+    setEditBucketPermission('deny');
+    setEditPermStatus('loading');
     setEditError('');
+    // The list endpoint omits permissions, so fetch them to complete the form.
+    try {
+      const res = await api.get<GetKeyInfoResponse>(
+        proxyPath(clusterId, `/v2/GetKeyInfo?id=${encodeURIComponent(key.id)}`),
+      );
+      if (editReqRef.current !== req) return; // a newer edit superseded this one
+      setEditBucketPermission(res.data?.permissions?.createBucket ? 'allow' : 'deny');
+      setEditPermStatus('ready');
+    } catch {
+      if (editReqRef.current !== req) return;
+      setEditPermStatus('error');
+    }
   };
 
   const updateMutation = useMutation({
@@ -306,6 +352,13 @@ export function KeyList() {
       payload.expiration = editExpirationIso;
     } else if (editKey.expiration) {
       payload.expiration = null;
+    }
+    if (editPermStatus === 'ready') {
+      if (editBucketPermission === 'allow') {
+        payload.allow = { createBucket: true };
+      } else {
+        payload.deny = { createBucket: true };
+      }
     }
     updateMutation.mutate({ id: editKey.id, payload });
   };
@@ -486,7 +539,6 @@ export function KeyList() {
                   <div className="space-y-2">
                     <Label>Expiration</Label>
                     <ExpirationPicker
-                      allowDefault
                       date={createExpirationDate}
                       hour={createExpirationHour}
                       minute={createExpirationMinute}
@@ -499,24 +551,13 @@ export function KeyList() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="bucket-perm">Bucket creation permission</Label>
-                    <Select
+                    <Label>Bucket creation permission</Label>
+                    <PermissionSegmented
                       value={createBucketPermission}
-                      onValueChange={(value) =>
-                        setCreateBucketPermission(value as 'default' | 'allow' | 'deny')
-                      }
-                    >
-                      <SelectTrigger id="bucket-perm">
-                        <SelectValue placeholder="Default" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="default">Default (no override)</SelectItem>
-                        <SelectItem value="allow">Allow create bucket</SelectItem>
-                        <SelectItem value="deny">Deny create bucket</SelectItem>
-                      </SelectContent>
-                    </Select>
+                      onChange={setCreateBucketPermission}
+                    />
                     <p className="text-xs text-muted-foreground">
-                      Controls whether the key can create buckets.
+                      Whether this key may create buckets.
                     </p>
                   </div>
                   {actionError && (
@@ -730,6 +771,21 @@ export function KeyList() {
                 invalid={editExpirationInvalid}
               />
             </div>
+            <div className="space-y-2">
+              <Label>Bucket creation permission</Label>
+              {editPermStatus === 'loading' ? (
+                <InlineLoadingState label="Loading permission..." />
+              ) : editPermStatus === 'error' ? (
+                <p className="text-sm text-destructive">
+                  Couldn&rsquo;t load this key&rsquo;s permission. Close and try again.
+                </p>
+              ) : (
+                <PermissionSegmented
+                  value={editBucketPermission}
+                  onChange={setEditBucketPermission}
+                />
+              )}
+            </div>
             {editError && (
               <Alert variant="destructive">
                 <AlertTitle>Update failed</AlertTitle>
@@ -737,7 +793,12 @@ export function KeyList() {
               </Alert>
             )}
             <DialogFooter>
-              <Button type="submit" disabled={editExpirationInvalid || updateMutation.isPending}>
+              <Button
+                type="submit"
+                disabled={
+                  editExpirationInvalid || updateMutation.isPending || editPermStatus !== 'ready'
+                }
+              >
                 {updateMutation.isPending ? 'Saving...' : 'Save'}
               </Button>
             </DialogFooter>
