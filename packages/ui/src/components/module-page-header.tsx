@@ -30,7 +30,11 @@ export function ModulePageHeader({
         {meta && <div className="pt-1">{meta}</div>}
       </div>
       {actions && (
-        <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">{actions}</div>
+        // Mobile: full-width stacked CTAs (big tap targets, consistent alignment).
+        // sm+: the inline, right-aligned action row.
+        <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:shrink-0 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+          {actions}
+        </div>
       )}
     </div>
   );

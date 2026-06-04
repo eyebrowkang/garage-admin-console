@@ -138,4 +138,34 @@ describe('ResourceList', () => {
     await user.keyboard('{Enter}');
     expect(onRowClick).not.toHaveBeenCalled();
   });
+
+  it('renders a mobileSubtitle column without a label, keeping labels for others', () => {
+    const cols: ResourceListColumn<Row>[] = [
+      { id: 'name', header: 'Name', mobileHidden: true, cell: (r) => r.name },
+      { id: 'sid', header: 'Secret ID', mobileSubtitle: true, cell: (r) => `sid-${r.id}` },
+      { id: 'n', header: 'Count', cell: (r) => String(r.n) },
+    ];
+    renderList({ columns: cols });
+    // <dt> labels exist only in the mobile card: the subtitle column has none,
+    // the ordinary column keeps its label.
+    const terms = screen.getAllByRole('term').map((t) => t.textContent);
+    expect(terms).toContain('Count');
+    expect(terms).not.toContain('Secret ID');
+    // The subtitle value is still rendered.
+    expect(screen.getAllByText('sid-a').length).toBeGreaterThan(0);
+  });
+
+  it('opens the action sheet with the row identity and its actions', async () => {
+    const user = userEvent.setup();
+    renderList({
+      renderTitle: (r) => r.name,
+      rowActions: (r) => <button type="button">Delete {r.name}</button>,
+    });
+    // Each mobile card has a "Row actions" trigger; open the first (Banana).
+    await user.click(screen.getAllByRole('button', { name: /row actions/i })[0]);
+    const sheet = await screen.findByRole('dialog');
+    expect(within(sheet).getByText('Actions')).toBeInTheDocument();
+    expect(within(sheet).getByText('Banana')).toBeInTheDocument();
+    expect(within(sheet).getByRole('button', { name: 'Delete Banana' })).toBeInTheDocument();
+  });
 });
