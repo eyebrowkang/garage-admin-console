@@ -174,21 +174,11 @@ export function BucketList() {
 
   const columns: ResourceListColumn<ListBucketsResponseItem>[] = [
     {
-      id: 'id',
-      header: 'Bucket ID',
+      id: 'name',
+      header: 'Name',
       sortable: true,
-      sortAccessor: (b) => b.id,
-      mobileHidden: true,
-      cellClassName: 'text-xs font-mono',
-      cell: (b) => (
-        <CopyValue value={b.id} label="Bucket ID" className="max-w-[26ch]">
-          {b.id}
-        </CopyValue>
-      ),
-    },
-    {
-      id: 'globalAliases',
-      header: 'Global Aliases',
+      sortAccessor: (b) => b.globalAliases[0] ?? '',
+      mobileHidden: true, // becomes the mobile card title
       cell: (b) => (
         <AliasOverflow
           items={b.globalAliases.map((alias) => ({
@@ -197,6 +187,19 @@ export function BucketList() {
             label: 'Global alias',
           }))}
         />
+      ),
+    },
+    {
+      id: 'id',
+      header: 'Bucket ID',
+      sortable: true,
+      sortAccessor: (b) => b.id,
+      mobileSubtitle: true, // shown under the name on mobile, no label
+      cellClassName: 'text-xs',
+      cell: (b) => (
+        <CopyValue value={b.id} label="Bucket ID" className="max-w-[26ch] font-mono">
+          {b.id}
+        </CopyValue>
       ),
     },
     {
@@ -399,11 +402,7 @@ export function BucketList() {
         columns={columns}
         onRowClick={(b) => navigate(`/clusters/${clusterId}/buckets/${b.id}`)}
         getRowLabel={(b) => `Open bucket ${b.globalAliases[0] || formatShortId(b.id, 10)}`}
-        renderTitle={(b) => (
-          <CopyValue value={b.id} label="Bucket ID">
-            {b.id}
-          </CopyValue>
-        )}
+        renderTitle={(b) => b.globalAliases[0] || formatShortId(b.id, 10)}
         search={{
           placeholder: 'Search by ID or alias...',
           predicate: (b, q) =>
