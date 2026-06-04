@@ -399,20 +399,12 @@ export function KeyDetail() {
           { label: 'Access Keys', to: `/clusters/${clusterId}/keys` },
           { label: keyInfo.name || 'Unnamed Key' },
         ]}
-        title={keyInfo.name || 'Unnamed Key'}
-        subtitle={keyInfo.accessKeyId}
-        badges={
-          keyInfo.expired ? (
-            <Badge variant="destructive">Expired</Badge>
-          ) : (
-            <Badge variant="success">Active</Badge>
-          )
-        }
         actions={
           <>
             <Button
               variant="outline"
               size="sm"
+              className="flex-1 sm:flex-initial"
               onClick={() => {
                 const parts = toDateParts(keyInfo.expiration);
                 setNewName(keyInfo.name);
@@ -428,7 +420,12 @@ export function KeyDetail() {
               <EditActionIcon className="h-4 w-4" />
               Edit
             </Button>
-            <Button variant="destructive" size="sm" onClick={() => setDeleteDialogOpen(true)}>
+            <Button
+              variant="destructive"
+              size="sm"
+              className="flex-1 sm:flex-initial"
+              onClick={() => setDeleteDialogOpen(true)}
+            >
               <DeleteActionIcon className="h-4 w-4" />
               Delete
             </Button>
@@ -473,7 +470,14 @@ export function KeyDetail() {
             </div>
             <div>
               <div className="text-sm text-muted-foreground">Expiration</div>
-              <div>{keyInfo.expiration ? formatDateTime(keyInfo.expiration) : 'Never'}</div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span>{keyInfo.expiration ? formatDateTime(keyInfo.expiration) : 'Never'}</span>
+                {keyInfo.expired ? (
+                  <Badge variant="destructive">Expired</Badge>
+                ) : (
+                  <Badge variant="success">Active</Badge>
+                )}
+              </div>
             </div>
           </div>
 

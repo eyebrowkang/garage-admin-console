@@ -158,16 +158,23 @@ export function NodeDetail() {
           { label: 'Nodes', to: `/clusters/${clusterId}/nodes` },
           { label: node.hostname || 'Unknown Host' },
         ]}
-        title={node.hostname || 'Unknown Host'}
-        subtitle={node.id}
-        badges={statusBadge}
         actions={
           <>
-            <Button variant="outline" size="sm" onClick={() => setSnapshotDialogOpen(true)}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 sm:flex-initial"
+              onClick={() => setSnapshotDialogOpen(true)}
+            >
               <SnapshotActionIcon className="h-4 w-4" />
               Create Snapshot
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setRepairDialogOpen(true)}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 sm:flex-initial"
+              onClick={() => setRepairDialogOpen(true)}
+            >
               <RepairActionIcon className="h-4 w-4" />
               Repair
             </Button>
@@ -192,11 +199,9 @@ export function NodeDetail() {
           <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border sm:grid-cols-4">
             <div className="bg-card px-4 py-3">
               <div className="text-xs text-muted-foreground">Status</div>
-              <div className="text-base font-semibold">
-                {node.draining ? 'Draining' : node.isUp ? 'Online' : 'Offline'}
-              </div>
+              <div className="mt-1 flex">{statusBadge}</div>
               {!node.isUp && node.lastSeenSecsAgo !== null && (
-                <div className="text-xs text-muted-foreground">
+                <div className="mt-1 text-xs text-muted-foreground">
                   Last seen {formatRelativeSeconds(node.lastSeenSecsAgo)}
                 </div>
               )}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { Globe, Tags, Settings, Pencil } from 'lucide-react';
+import { Globe, Tags, Settings, Pencil, Fingerprint } from 'lucide-react';
 import {
   Button,
   Checkbox,
@@ -434,8 +434,6 @@ export function BucketDetail() {
           { label: 'Buckets', to: `/clusters/${clusterId}/buckets` },
           { label: bucketLabel },
         ]}
-        title={bucketLabel}
-        subtitle={bucket.id}
       />
 
       <Tabs value={activeTab} onValueChange={handleTabChange}>
@@ -495,8 +493,22 @@ export function BucketDetail() {
             </div>
           </div>
 
-          {/* Configuration — aliases, website, quotas as compact rows */}
+          {/* Configuration — id, aliases, website, quotas as compact rows */}
           <div className="divide-y rounded-lg border">
+            <div className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0 space-y-1">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Fingerprint className="h-4 w-4 text-muted-foreground" />
+                  Bucket ID
+                </div>
+                <div className="inline-flex max-w-full items-center gap-1">
+                  <span className="break-all font-mono text-sm text-muted-foreground">
+                    {bucket.id}
+                  </span>
+                  <CopyButton value={bucket.id} label="Bucket ID" compact />
+                </div>
+              </div>
+            </div>
             <div className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0 space-y-2">
                 <div className="flex items-center gap-2 text-sm font-medium">
