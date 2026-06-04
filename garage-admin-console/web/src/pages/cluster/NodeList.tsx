@@ -59,11 +59,9 @@ function DiskUsage({ partition }: { partition?: FreeSpaceResp | null }) {
   return (
     <div className="min-w-[7rem] max-w-[13rem] space-y-1">
       <Meter value={pct} tone={tone} ariaLabel={`Data partition ${Math.round(pct)}% used`} />
-      <div className="flex justify-between gap-2 text-xs tabular-nums text-muted-foreground">
-        <span className="text-foreground">{Math.round(pct)}%</span>
-        <span>
-          {formatBytes(used)} / {formatBytes(partition.total)}
-        </span>
+      <div className="text-xs tabular-nums text-muted-foreground">
+        <span className="font-medium text-foreground">{Math.round(pct)}%</span> ·{' '}
+        {formatBytes(used)} / {formatBytes(partition.total)}
       </div>
     </div>
   );
@@ -114,8 +112,9 @@ export function ClusterNodeList() {
     {
       id: 'status',
       header: 'Status',
-      sortable: true,
-      sortAccessor: (n) => (n.draining ? 'draining' : n.isUp ? 'up' : 'down'),
+      // Status has its own filter, so it isn't sortable; on mobile it rides
+      // inline with the hostname (renderTitle), so drop the standalone card row.
+      mobileHidden: true,
       // items-start keeps the badge at its content width instead of stretching
       // to fill the column.
       cell: (n) => (
@@ -201,7 +200,7 @@ export function ClusterNodeList() {
         description="Cluster node inventory and cluster-wide node operations."
         actions={
           <div className="flex items-center gap-2">
-            <Button size="sm" onClick={() => setConnectOpen(true)}>
+            <Button className="flex-1 sm:flex-initial" onClick={() => setConnectOpen(true)}>
               <ConnectActionIcon className="h-4 w-4" />
               Connect Nodes
             </Button>
@@ -233,9 +232,12 @@ export function ClusterNodeList() {
         onRowClick={(n) => navigate(`/clusters/${clusterId}/nodes/${n.id}`)}
         getRowLabel={(n) => `Open node ${n.hostname || formatShortId(n.id, 10)}`}
         renderTitle={(n) => (
-          <CopyValue value={n.id} label="Node ID" className="max-w-full">
-            {n.hostname || formatShortId(n.id, 16)}
-          </CopyValue>
+          <div className="flex min-w-0 items-center gap-2">
+            <CopyValue value={n.id} label="Node ID" className="min-w-0">
+              {n.hostname || formatShortId(n.id, 16)}
+            </CopyValue>
+            <span className="shrink-0">{getStatusBadge(n)}</span>
+          </div>
         )}
         renderSubtitle={(n) =>
           n.hostname ? (
@@ -248,7 +250,7 @@ export function ClusterNodeList() {
             </CopyValue>
           ) : null
         }
-        defaultSort={{ columnId: 'status', direction: 'asc' }}
+        defaultSort={{ columnId: 'zone', direction: 'asc' }}
         search={{
           placeholder: 'Search by hostname, ID, address, zone, or tag...',
           predicate: (n, q) =>
