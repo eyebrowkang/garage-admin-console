@@ -810,8 +810,9 @@ export function KeyList() {
         open={!!deleteConfirm}
         onOpenChange={(open) => !open && setDeleteConfirm(null)}
         title="Delete Access Key"
-        description={`Are you sure you want to delete the key "${deleteConfirm?.name}"? This will revoke access to all buckets using this key.`}
-        tier="danger"
+        description={`Permanently delete the key "${deleteConfirm?.name}"? This revokes access to every bucket using it and cannot be undone.`}
+        tier="type-to-confirm"
+        typeToConfirmValue="DELETE"
         confirmText="Delete Key"
         onConfirm={() => deleteConfirm && deleteMutation.mutate(deleteConfirm.id)}
         isLoading={deleteMutation.isPending}
@@ -821,8 +822,9 @@ export function KeyList() {
         open={!!bulkDelete}
         onOpenChange={(open) => !open && !bulkPending && setBulkDelete(null)}
         title={`Delete ${bulkDelete?.ids.length ?? 0} keys`}
-        description={`Permanently delete ${bulkDelete?.ids.length ?? 0} selected key(s)? This revokes access to every bucket using them.`}
-        tier="danger"
+        description={`Permanently delete ${bulkDelete?.ids.length ?? 0} selected key(s)? This revokes access to every bucket using them and cannot be undone.`}
+        tier="type-to-confirm"
+        typeToConfirmValue={`DELETE${bulkDelete?.ids.length ?? 0}`}
         confirmText={`Delete ${bulkDelete?.ids.length ?? 0} keys`}
         onConfirm={handleBulkDelete}
         isLoading={bulkPending}
