@@ -26,7 +26,7 @@ import {
   EmptyValue,
   ExpirationPicker,
   InlineLoadingState,
-  cn,
+  PermissionSegmented,
 } from '@garage/ui';
 import { MoreHorizontal } from 'lucide-react';
 import { api, proxyPath } from '@/lib/api';
@@ -46,39 +46,6 @@ import type {
   ListKeysResponseItem,
   UpdateKeyRequest,
 } from '@/types/garage';
-
-/** Binary Allow / Deny chooser — a segmented control reads clearer than a 2-item
- *  dropdown for a yes/no permission. Shared by the create + edit key dialogs. */
-function PermissionSegmented({
-  value,
-  onChange,
-}: {
-  value: 'allow' | 'deny';
-  onChange: (value: 'allow' | 'deny') => void;
-}) {
-  const seg = (option: 'allow' | 'deny', label: string) => (
-    <button
-      type="button"
-      onClick={() => onChange(option)}
-      aria-pressed={value === option}
-      className={cn(
-        'min-h-9 flex-1 rounded-md border px-3 text-sm font-medium transition-colors',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-        value === option
-          ? 'border-primary/40 bg-primary/10 text-primary'
-          : 'border-border text-muted-foreground hover:text-foreground',
-      )}
-    >
-      {label}
-    </button>
-  );
-  return (
-    <div className="flex gap-2" role="group" aria-label="Bucket creation permission">
-      {seg('allow', 'Allow')}
-      {seg('deny', 'Deny')}
-    </div>
-  );
-}
 
 export function KeyList() {
   const { clusterId } = useClusterContext();
@@ -555,6 +522,7 @@ export function KeyList() {
                     <PermissionSegmented
                       value={createBucketPermission}
                       onChange={setCreateBucketPermission}
+                      ariaLabel="Bucket creation permission"
                     />
                     <p className="text-xs text-muted-foreground">
                       Whether this key may create buckets.
@@ -783,6 +751,7 @@ export function KeyList() {
                 <PermissionSegmented
                   value={editBucketPermission}
                   onChange={setEditBucketPermission}
+                  ariaLabel="Bucket creation permission"
                 />
               )}
             </div>
