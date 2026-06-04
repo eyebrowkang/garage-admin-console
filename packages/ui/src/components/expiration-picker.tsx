@@ -96,8 +96,9 @@ export function ExpirationPicker({
     setMode('never');
   };
 
-  const chip = (active: boolean, label: string, onClick: () => void) => (
+  const chip = (active: boolean, label: string, onClick: () => void, key?: string | number) => (
     <button
+      key={key}
       type="button"
       onClick={onClick}
       aria-pressed={active}
@@ -118,7 +119,7 @@ export function ExpirationPicker({
       <div className="flex flex-wrap items-center gap-1.5">
         {allowDefault && chip(mode === 'default', 'Default', selectDefault)}
         {presetDays.map((days) =>
-          chip(mode === 'preset' && presetDay === days, `${days} days`, () => selectPreset(days)),
+          chip(mode === 'preset' && presetDay === days, `${days} days`, () => selectPreset(days), days),
         )}
         {chip(mode === 'custom', 'Custom', selectCustom)}
         {chip(mode === 'never', 'Never', selectNever)}
