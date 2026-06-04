@@ -437,18 +437,17 @@ export function AdminTokenList() {
             </Button>
           ),
         }}
-        rowActions={(t) =>
-          t.id ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-destructive"
-              onClick={() => setDeleteConfirm({ id: t.id!, name: t.name })}
-            >
-              <DeleteActionIcon className="h-3.5 w-3.5" />
-              Delete
-            </Button>
-          ) : null
+        actions={(t) =>
+          t.id
+            ? [
+                {
+                  label: 'Delete',
+                  icon: DeleteActionIcon,
+                  destructive: true,
+                  onSelect: () => setDeleteConfirm({ id: t.id!, name: t.name }),
+                },
+              ]
+            : []
         }
         emptyState={{
           icon: TokenIcon,

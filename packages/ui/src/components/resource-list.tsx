@@ -20,6 +20,12 @@ import {
 import { cn } from '../lib/cn';
 import { Button } from './button';
 import { Checkbox } from './checkbox';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from './dropdown-menu';
 import { Input } from './input';
 import { Sheet, SheetContent, SheetTitle } from './sheet';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './table';
@@ -82,6 +88,15 @@ export interface ResourceListFilter<T> {
   options: Array<{ value: string; label: string; predicate: (item: T) => boolean }>;
 }
 
+export interface ResourceAction {
+  label: string;
+  icon?: LucideIcon;
+  onSelect: () => void;
+  /** Render with destructive styling (e.g. Delete). */
+  destructive?: boolean;
+  disabled?: boolean;
+}
+
 export interface ResourceListProps<T> {
   items: T[];
   columns: ResourceListColumn<T>[];
@@ -109,8 +124,9 @@ export interface ResourceListProps<T> {
   defaultSort?: { columnId: string; direction: SortDirection };
   /** Enable multi-select + bulk actions. */
   selection?: ResourceListSelection<T>;
-  /** Trailing per-row actions (e.g. Delete). */
-  rowActions?: (item: T) => ReactNode;
+  /** Per-row actions. One renders inline (revealed on hover/focus); two or more
+   *  collapse into a ⋯ menu. On mobile they open in the card's action sheet. */
+  actions?: (item: T) => ResourceAction[];
   /** Faceted filter chips (with live counts) rendered under the search field. */
   filters?: ResourceListFilter<T>[];
   emptyState: ResourceListEmptyState;
@@ -128,6 +144,24 @@ function compareValues(
   return String(a).localeCompare(String(b));
 }
 
+/** A single row action rendered inline (the 1-action desktop case + as a guide
+ *  for the menu/sheet variants). */
+function RowActionButton({ action }: { action: ResourceAction }) {
+  const Icon = action.icon;
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      disabled={action.disabled}
+      onClick={action.onSelect}
+      className={cn(action.destructive && 'text-destructive')}
+    >
+      {Icon && <Icon className="h-3.5 w-3.5" />}
+      {action.label}
+    </Button>
+  );
+}
+
 export function ResourceList<T>({
   items,
   columns,
@@ -140,7 +174,7 @@ export function ResourceList<T>({
   search,
   defaultSort,
   selection,
-  rowActions,
+  actions,
   filters,
   emptyState,
   className,
@@ -244,7 +278,7 @@ export function ResourceList<T>({
   const sortableColumns = useMemo(() => columns.filter((c) => c.sortable), [columns]);
   // Mobile card body: the labeled fields beneath the identity (renderTitle/Subtitle).
   const mobileColumns = useMemo(() => columns.filter((c) => !c.mobileHidden), [columns]);
-  const totalColumns = (selection ? 1 : 0) + columns.length + (rowActions ? 1 : 0);
+  const totalColumns = (selection ? 1 : 0) + columns.length + (actions ? 1 : 0);
 
   const isTrulyEmpty = items.length === 0;
   const isSearchMiss = !isTrulyEmpty && sorted.length === 0;
@@ -444,7 +478,7 @@ export function ResourceList<T>({
                   )}
                 </TableHead>
               ))}
-              {rowActions && (
+              {actions && (
                 <TableHead className="text-right">
                   <span className="sr-only">Actions</span>
                 </TableHead>
@@ -456,6 +490,7 @@ export function ResourceList<T>({
               const id = getRowId(item);
               const selected = selectedIds.has(id);
               const interactive = rowInteractive(item);
+              const itemActions = actions ? actions(item) : [];
               return (
                 <TableRow
                   key={id}
@@ -490,17 +525,47 @@ export function ResourceList<T>({
                       {col.cell(item)}
                     </TableCell>
                   ))}
-                  {rowActions && (
+                  {actions && itemActions.length > 0 && (
                     // Reserve a right-aligned cell (never overlapping the last
-                    // column), but reveal the actions only on hover / keyboard focus
-                    // so the resting row stays clean. stopPropagation sits on the
-                    // actions wrapper, leaving the rest of the cell clickable for nav.
+                    // column); reveal on hover / focus (and while the menu is open).
+                    // One action is an inline button; two or more collapse into a ⋯
+                    // menu. stopPropagation keeps action clicks off row navigation.
                     <TableCell className="text-right">
                       <div
                         onClick={stop}
-                        className="pointer-events-none inline-flex opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100"
+                        className="pointer-events-none inline-flex opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 has-[[data-state=open]]:pointer-events-auto has-[[data-state=open]]:opacity-100"
                       >
-                        {rowActions(item)}
+                        {itemActions.length === 1 ? (
+                          <RowActionButton action={itemActions[0]} />
+                        ) : (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                type="button"
+                                aria-label="Row actions"
+                                className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                              >
+                                <MoreHorizontal className="h-4 w-4" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              {itemActions.map((action, i) => {
+                                const Icon = action.icon;
+                                return (
+                                  <DropdownMenuItem
+                                    key={i}
+                                    destructive={action.destructive}
+                                    disabled={action.disabled}
+                                    onSelect={action.onSelect}
+                                  >
+                                    {Icon && <Icon />}
+                                    {action.label}
+                                  </DropdownMenuItem>
+                                );
+                              })}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
                       </div>
                     </TableCell>
                   )}
@@ -568,6 +633,7 @@ export function ResourceList<T>({
           const selected = selectedIds.has(id);
           const interactive = rowInteractive(item);
           const subtitle = renderSubtitle?.(item);
+          const itemActions = actions ? actions(item) : [];
           return (
             <div
               key={id}
@@ -593,7 +659,7 @@ export function ResourceList<T>({
                 <div className="min-w-0 flex-1 font-medium text-foreground">
                   {renderTitle(item)}
                 </div>
-                {(interactive || rowActions) && (
+                {(interactive || itemActions.length > 0) && (
                   <div className="-my-1.5 -mr-1.5 flex shrink-0 items-center">
                     {interactive && (
                       <button
@@ -608,7 +674,7 @@ export function ResourceList<T>({
                         <ChevronRight className="h-5 w-5" />
                       </button>
                     )}
-                    {rowActions && (
+                    {itemActions.length > 0 && (
                       <button
                         type="button"
                         aria-label="Row actions"
@@ -649,7 +715,7 @@ export function ResourceList<T>({
       </div>
 
       {/* Mobile: each card's ⋯ opens this bottom sheet with the row's actions. */}
-      {rowActions && (
+      {actions && (
         <Sheet open={!!actionItem} onOpenChange={(open) => !open && setActionItem(null)}>
           <SheetContent
             side="bottom"
@@ -669,11 +735,29 @@ export function ResourceList<T>({
                 {renderSubtitle(actionItem)}
               </div>
             )}
-            <div
-              className="mt-4 flex flex-col gap-1 [&_button]:w-full [&_button]:justify-start"
-              onClick={() => setActionItem(null)}
-            >
-              {actionItem && rowActions(actionItem)}
+            <div className="mt-4 flex flex-col gap-1">
+              {actionItem &&
+                (actions?.(actionItem) ?? []).map((action, i) => {
+                  const Icon = action.icon;
+                  return (
+                    <Button
+                      key={i}
+                      variant="ghost"
+                      disabled={action.disabled}
+                      onClick={() => {
+                        action.onSelect();
+                        setActionItem(null);
+                      }}
+                      className={cn(
+                        'w-full justify-start',
+                        action.destructive && 'text-destructive',
+                      )}
+                    >
+                      {Icon && <Icon className="h-4 w-4" />}
+                      {action.label}
+                    </Button>
+                  );
+                })}
             </div>
           </SheetContent>
         </Sheet>

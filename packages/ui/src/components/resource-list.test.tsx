@@ -127,7 +127,7 @@ describe('ResourceList', () => {
     renderList({
       onRowClick,
       getRowLabel: (r) => `Open ${r.name}`,
-      rowActions: () => <button type="button">Delete</button>,
+      actions: () => [{ label: 'Delete', onSelect: () => {} }],
     });
     const table = screen.getByRole('table');
     // Enter on the row itself navigates.
@@ -157,14 +157,14 @@ describe('ResourceList', () => {
     const user = userEvent.setup();
     renderList({
       renderTitle: (r) => r.name,
-      rowActions: (r) => <button type="button">Delete {r.name}</button>,
+      actions: () => [{ label: 'Delete', onSelect: () => {} }],
     });
     // Each mobile card has a "Row actions" trigger; open the first (Banana).
     await user.click(screen.getAllByRole('button', { name: /row actions/i })[0]);
     const sheet = await screen.findByRole('dialog');
     expect(within(sheet).getByText('Actions')).toBeInTheDocument();
     expect(within(sheet).getByText('Banana')).toBeInTheDocument();
-    expect(within(sheet).getByRole('button', { name: 'Delete Banana' })).toBeInTheDocument();
+    expect(within(sheet).getByRole('button', { name: 'Delete' })).toBeInTheDocument();
   });
 
   it('filters via faceted chips with live counts', async () => {

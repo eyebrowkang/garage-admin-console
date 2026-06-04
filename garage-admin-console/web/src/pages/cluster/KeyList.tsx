@@ -555,17 +555,14 @@ export function KeyList() {
             </Button>
           ),
         }}
-        rowActions={(k) => (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-destructive"
-            onClick={() => setDeleteConfirm({ id: k.id, name: k.name || k.id })}
-          >
-            <DeleteActionIcon className="h-3.5 w-3.5" />
-            Delete
-          </Button>
-        )}
+        actions={(k) => [
+          {
+            label: 'Delete',
+            icon: DeleteActionIcon,
+            destructive: true,
+            onSelect: () => setDeleteConfirm({ id: k.id, name: k.name || k.id }),
+          },
+        ]}
         emptyState={{
           icon: KeyIcon,
           title: 'No keys found',

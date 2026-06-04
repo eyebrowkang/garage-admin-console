@@ -444,17 +444,14 @@ export function BucketList() {
             </Button>
           ),
         }}
-        rowActions={(b) => (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-destructive"
-            onClick={() => setDeleteConfirm({ id: b.id, name: b.globalAliases[0] || b.id })}
-          >
-            <DeleteActionIcon className="h-3.5 w-3.5" />
-            Delete
-          </Button>
-        )}
+        actions={(b) => [
+          {
+            label: 'Delete',
+            icon: DeleteActionIcon,
+            destructive: true,
+            onSelect: () => setDeleteConfirm({ id: b.id, name: b.globalAliases[0] || b.id }),
+          },
+        ]}
         emptyState={{
           icon: BucketIcon,
           title: 'No buckets found',
