@@ -1,8 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { FileDirectoryIcon } from '@primer/octicons-react';
-import { AlertCircle, Loader2 } from 'lucide-react';
-import { Button } from '@garage/ui';
-import { RefreshActionIcon, SearchActionIcon } from '@/lib/action-icons';
+import { AlertCircle, Loader2, Plus } from 'lucide-react';
+import {
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@garage/ui';
+import { RefreshActionIcon, SearchActionIcon, UploadActionIcon } from '@/lib/action-icons';
 import { useBrowser } from '../../context';
 import { usePrefixQuery } from '../../hooks/usePrefixQuery';
 import { Toolbar } from '../toolbar/Toolbar';
@@ -47,6 +53,8 @@ export function FolderView() {
     sortState,
     viewMode,
     openUpload,
+    openNewFolder,
+    isNarrow,
   } = useBrowser();
 
   const baseUrl = http.defaults.baseURL ?? '';
@@ -105,7 +113,7 @@ export function FolderView() {
   };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-card/20">
+    <div className="relative flex min-h-0 flex-1 flex-col bg-card/20">
       <Toolbar totalLoaded={items.length} />
 
       <BulkBar visibleKeys={visibleKeys} totalLoaded={items.length} />
@@ -221,6 +229,30 @@ export function FolderView() {
             )}
           </Button>
         </div>
+      )}
+
+      {/* Mobile floating action button — primary create actions, OneDrive-style */}
+      {isNarrow && !appErr && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className="absolute bottom-5 right-5 z-20 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 transition-transform active:scale-95"
+              aria-label="Add files or folder"
+            >
+              <Plus size={26} />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" side="top" sideOffset={8} className="w-48">
+            <DropdownMenuItem onClick={() => openUpload()}>
+              <UploadActionIcon size={15} />
+              Upload files
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => openNewFolder()}>
+              <FileDirectoryIcon size={15} />
+              New folder
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       )}
     </div>
   );

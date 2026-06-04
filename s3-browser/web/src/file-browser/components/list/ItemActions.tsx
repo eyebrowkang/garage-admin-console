@@ -57,7 +57,7 @@ function ActionButton({
 }
 
 export function ItemActions({ item, itemKey, className, menuClassName }: ItemActionsProps) {
-  const { openDelete, openPresign, openRename, openMove, openCopy, showToast, http, bucket } =
+  const { openDelete, openPresign, openRename, openMove, openCopy, showToast, http, bucket, isNarrow } =
     useBrowser();
   const download = useDownload(http, (msg) => showToast('err', msg));
 
@@ -80,7 +80,9 @@ export function ItemActions({ item, itemKey, className, menuClassName }: ItemAct
 
   return (
     <div className={cn('flex items-center justify-end gap-1', className)}>
-      {item.type === 'file' && (
+      {/* Inline quick actions — desktop only (hover-revealed). On touch the row
+          shows just the ⋯ trigger; Download/Share live inside the menu instead. */}
+      {item.type === 'file' && !isNarrow && (
         <div
           className={cn(
             'flex items-center gap-1 opacity-100 transition-opacity',
@@ -114,6 +116,29 @@ export function ItemActions({ item, itemKey, className, menuClassName }: ItemAct
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
+          {item.type === 'file' && isNarrow && (
+            <>
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDownload();
+                }}
+              >
+                <DownloadActionIcon />
+                Download
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleShare();
+                }}
+              >
+                <OpenExternalActionIcon />
+                Share link
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+            </>
+          )}
           {item.type === 'file' && (
             <>
               <DropdownMenuItem

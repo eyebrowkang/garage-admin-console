@@ -1,6 +1,6 @@
 import { createElement } from 'react';
 import { cn } from '@garage/ui';
-import { fileKind, formatBytes, formatDateTime } from '@garage/web-shared';
+import { fileKind, formatBytes, formatDate, formatDateTime } from '@garage/web-shared';
 import { getFileKindIcon, iconBgClass, iconColorClass } from '../../icons';
 import { useBrowser } from '../../context';
 import type { ListItem } from '../../types';
@@ -19,7 +19,8 @@ function keyForItem(item: ListItem) {
 }
 
 export function FileRow({ item, isSelected, showCheckbox, visibleKeys, style }: FileRowProps) {
-  const { onPathChange, setActiveFile, activeFileKey, toggleSelection, selectRange } = useBrowser();
+  const { onPathChange, setActiveFile, activeFileKey, toggleSelection, selectRange, isNarrow } =
+    useBrowser();
 
   const kind = item.type === 'folder' ? 'folder' : fileKind(item.name);
   const Icon = getFileKindIcon(kind, false);
@@ -47,6 +48,65 @@ export function FileRow({ item, isSelected, showCheckbox, visibleKeys, style }: 
       setActiveFile(item);
     }
   };
+
+  // Mobile: a flat, two-line row (icon · name / "date · size" · ⋯) that never
+  // overflows horizontally — mirrors the OneDrive file list.
+  if (isNarrow) {
+    return (
+      <div
+        style={style}
+        className={cn(
+          'group flex h-full cursor-pointer items-center gap-3 border-b border-border/45 px-4 transition-colors',
+          isSelected ? 'bg-primary/8' : 'active:bg-muted/50',
+          isActiveFile && 'bg-primary/5',
+        )}
+        onClick={handleRowClick}
+      >
+        {showCheckbox ? (
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={() => undefined}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleSelectionClick(e);
+            }}
+            className="h-[18px] w-[18px] shrink-0 rounded accent-primary"
+          />
+        ) : (
+          <span
+            className={cn(
+              'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
+              iconBgClass[kind],
+              iconColorClass[kind],
+            )}
+          >
+            {createElement(Icon, { size: 18 })}
+          </span>
+        )}
+
+        <div className="min-w-0 flex-1">
+          <div
+            className={cn(
+              'truncate text-[15px] leading-tight',
+              item.type === 'folder' ? 'font-semibold' : 'font-medium',
+              'text-foreground',
+            )}
+            title={item.name}
+          >
+            {item.name}
+          </div>
+          <div className="mt-0.5 truncate text-[12.5px] text-muted-foreground">
+            {item.type === 'file'
+              ? `${formatDate(item.object.lastModified)} · ${formatBytes(item.object.size)}`
+              : 'Folder'}
+          </div>
+        </div>
+
+        <ItemActions item={item} itemKey={itemKey} menuClassName="h-9 w-9" />
+      </div>
+    );
+  }
 
   return (
     <div

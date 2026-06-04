@@ -51,9 +51,9 @@ function SortButton({
 }
 
 export function ListView({ items }: ListViewProps) {
-  const { sortState, handleSort, multiSelectMode, selectedKeys, selectAll } = useBrowser();
+  const { sortState, handleSort, multiSelectMode, selectedKeys, selectAll, isNarrow } = useBrowser();
   const parentRef = useRef<HTMLDivElement>(null);
-  const ROW_HEIGHT = 58;
+  const ROW_HEIGHT = isNarrow ? 64 : 58;
   const visibleKeys = items.map((item) => (item.type === 'folder' ? item.prefix : item.key));
   const allSelected = visibleKeys.length > 0 && visibleKeys.every((key) => selectedKeys.has(key));
 
@@ -64,6 +64,43 @@ export function ListView({ items }: ListViewProps) {
     estimateSize: () => ROW_HEIGHT,
     overscan: 8,
   });
+
+  const scrollArea = (
+    <div ref={parentRef} className={cn('min-h-0 flex-1 overflow-y-auto', isNarrow && 'pb-24')}>
+      <div style={{ height: rowVirtualizer.getTotalSize() }} className="relative">
+        {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+          const item = items[virtualRow.index];
+          if (!item) return null;
+          const key = item.type === 'folder' ? item.prefix : item.key;
+          return (
+            <div
+              key={key}
+              style={{
+                position: 'absolute',
+                top: virtualRow.start,
+                left: 0,
+                right: 0,
+                height: virtualRow.size,
+              }}
+            >
+              <FileRow
+                item={item}
+                isSelected={selectedKeys.has(key)}
+                showCheckbox={multiSelectMode}
+                visibleKeys={visibleKeys}
+              />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  // Mobile: flat, edge-to-edge list — no card chrome, no column header (sort
+  // lives in the mobile controls bar). Just the virtualized rows.
+  if (isNarrow) {
+    return <div className="flex min-h-0 flex-1 flex-col">{scrollArea}</div>;
+  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col px-5 pb-5 pt-4">
@@ -113,34 +150,7 @@ export function ListView({ items }: ListViewProps) {
           </span>
         </div>
 
-        <div ref={parentRef} className="min-h-0 flex-1 overflow-y-auto">
-          <div style={{ height: rowVirtualizer.getTotalSize() }} className="relative">
-            {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-              const item = items[virtualRow.index];
-              if (!item) return null;
-              const key = item.type === 'folder' ? item.prefix : item.key;
-              return (
-                <div
-                  key={key}
-                  style={{
-                    position: 'absolute',
-                    top: virtualRow.start,
-                    left: 0,
-                    right: 0,
-                    height: virtualRow.size,
-                  }}
-                >
-                  <FileRow
-                    item={item}
-                    isSelected={selectedKeys.has(key)}
-                    showCheckbox={multiSelectMode}
-                    visibleKeys={visibleKeys}
-                  />
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        {scrollArea}
       </div>
     </div>
   );

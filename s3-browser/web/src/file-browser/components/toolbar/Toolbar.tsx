@@ -22,9 +22,10 @@ import {
   UploadActionIcon,
 } from '@/lib/action-icons';
 import { useBrowser } from '../../context';
+import { MobileToolbar } from './MobileToolbar';
 import type { FilterKind } from '../../types';
 
-const TYPE_OPTIONS: Array<{ value: FilterKind; label: string }> = [
+export const TYPE_OPTIONS: Array<{ value: FilterKind; label: string }> = [
   { value: 'all', label: 'All types' },
   { value: 'folder', label: 'Folders' },
   { value: 'image', label: 'Images' },
@@ -49,9 +50,12 @@ export function Toolbar({ totalLoaded }: { totalLoaded: number }) {
     setMultiSelectMode,
     openUpload,
     openNewFolder,
+    isNarrow,
   } = useBrowser();
 
   const searchRef = useRef<HTMLInputElement>(null);
+
+  if (isNarrow) return <MobileToolbar />;
 
   return (
     <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border/60 bg-card/20 px-5 py-3">
