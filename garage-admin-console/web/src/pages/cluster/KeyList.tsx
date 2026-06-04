@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Button,
@@ -32,7 +32,7 @@ import { ConfirmDialog } from '@garage/ui';
 import { ModulePageHeader } from '@garage/ui';
 import { TableLoadingState } from '@/components/cluster/TableLoadingState';
 import { useClusterContext } from '@/contexts/ClusterContext';
-import { AddActionIcon, CopyActionIcon, DeleteActionIcon } from '@/lib/action-icons';
+import { AddActionIcon, DeleteActionIcon } from '@/lib/action-icons';
 import { KeyIcon } from '@/lib/entity-icons';
 import { toast } from '@garage/ui';
 import { runBulkDelete } from '@/lib/bulk-delete';
@@ -70,7 +70,6 @@ export function KeyList() {
   const [importError, setImportError] = useState('');
   const [actionError, setActionError] = useState('');
   const [createdKey, setCreatedKey] = useState<GetKeyInfoResponse | null>(null);
-  const [copiedValue, setCopiedValue] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
   const [bulkDelete, setBulkDelete] = useState<{ ids: string[]; clear: () => void } | null>(null);
   const [bulkPending, setBulkPending] = useState(false);
@@ -196,23 +195,6 @@ export function KeyList() {
     }
   };
 
-  // Reset the "copied" indicator after a delay, clearing the timer on unmount
-  // or re-copy so it never fires setState on an unmounted component.
-  useEffect(() => {
-    if (!copiedValue) return;
-    const timer = window.setTimeout(() => setCopiedValue(null), 1500);
-    return () => window.clearTimeout(timer);
-  }, [copiedValue]);
-
-  const handleCopy = async (value: string) => {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopiedValue(value);
-    } catch {
-      // ignore clipboard errors
-    }
-  };
-
   const handleCreate = () => {
     if (expirationInvalid) return;
     const payload: CreateKeyRequest = {};
@@ -252,24 +234,25 @@ export function KeyList() {
 
   const columns: ResourceListColumn<ListKeysResponseItem>[] = [
     {
-      id: 'id',
-      header: 'Access Key ID',
-      sortable: true,
-      sortAccessor: (k) => k.id,
-      mobileHidden: true,
-      cellClassName: 'text-xs',
-      cell: (k) => (
-        <CopyValue value={k.id} label="Access key ID" className="max-w-[26ch]">
-          {k.id}
-        </CopyValue>
-      ),
-    },
-    {
       id: 'name',
       header: 'Name',
       sortable: true,
       sortAccessor: (k) => k.name ?? '',
+      mobileHidden: true, // becomes the mobile card title
       cell: (k) => (k.name ? k.name : <EmptyValue />),
+    },
+    {
+      id: 'id',
+      header: 'Access Key ID',
+      sortable: true,
+      sortAccessor: (k) => k.id,
+      mobileHidden: true, // mobile identity is the name (title) + id (subtitle)
+      cellClassName: 'text-xs',
+      cell: (k) => (
+        <CopyValue value={k.id} label="Access key ID" className="max-w-[26ch] font-mono">
+          {k.id}
+        </CopyValue>
+      ),
     },
     {
       id: 'status',
@@ -533,16 +516,43 @@ export function KeyList() {
         columns={columns}
         onRowClick={(k) => navigate(`/clusters/${clusterId}/keys/${k.id}`)}
         getRowLabel={(k) => `Open access key ${k.name || formatShortId(k.id, 12)}`}
-        renderTitle={(k) => (
-          <CopyValue value={k.id} label="Access key ID">
-            {k.id}
-          </CopyValue>
-        )}
+        renderTitle={(k) =>
+          k.name ? (
+            <CopyValue value={k.name} label="Key name" className="max-w-full">
+              {k.name}
+            </CopyValue>
+          ) : (
+            <CopyValue value={k.id} label="Access key ID" className="max-w-full font-mono">
+              {k.id}
+            </CopyValue>
+          )
+        }
+        renderSubtitle={(k) =>
+          k.name ? (
+            <CopyValue
+              value={k.id}
+              label="Access key ID"
+              className="max-w-full font-mono text-xs text-muted-foreground"
+            >
+              {k.id}
+            </CopyValue>
+          ) : null
+        }
         search={{
           placeholder: 'Search by ID or name...',
           predicate: (k, q) => k.id.toLowerCase().includes(q) || k.name.toLowerCase().includes(q),
         }}
         defaultSort={{ columnId: 'created', direction: 'desc' }}
+        filters={[
+          {
+            id: 'status',
+            label: 'Status',
+            options: [
+              { value: 'active', label: 'Active', predicate: (k) => !k.expired },
+              { value: 'expired', label: 'Expired', predicate: (k) => k.expired },
+            ],
+          },
+        ]}
         selection={{
           renderActions: (selected, clear) => (
             <Button
@@ -589,40 +599,26 @@ export function KeyList() {
             <div className="space-y-4">
               <div className="rounded-lg border bg-muted/40 p-3">
                 <div className="text-xs text-muted-foreground">Access Key ID</div>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm text-foreground break-all">
-                    {createdKey.accessKeyId}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleCopy(createdKey.accessKeyId)}
-                  >
-                    <CopyActionIcon className="h-4 w-4" />
-                  </Button>
-                </div>
-                {copiedValue === createdKey.accessKeyId && (
-                  <div className="text-xs text-success mt-1">Copied!</div>
-                )}
+                <CopyValue
+                  value={createdKey.accessKeyId}
+                  label="Access key ID"
+                  className="mt-1 max-w-full font-mono text-sm"
+                >
+                  {createdKey.accessKeyId}
+                </CopyValue>
               </div>
               <div className="rounded-lg border bg-muted/40 p-3">
                 <div className="text-xs text-muted-foreground">Secret Access Key</div>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm text-foreground break-all">
-                    {createdKey.secretAccessKey || '—'}
-                  </span>
-                  {createdKey.secretAccessKey && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleCopy(createdKey.secretAccessKey || '')}
-                    >
-                      <CopyActionIcon className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-                {createdKey.secretAccessKey && copiedValue === createdKey.secretAccessKey && (
-                  <div className="text-xs text-success mt-1">Copied!</div>
+                {createdKey.secretAccessKey ? (
+                  <CopyValue
+                    value={createdKey.secretAccessKey}
+                    label="Secret access key"
+                    className="mt-1 max-w-full font-mono text-sm"
+                  >
+                    {createdKey.secretAccessKey}
+                  </CopyValue>
+                ) : (
+                  <div className="mt-1 text-sm text-muted-foreground">—</div>
                 )}
               </div>
               <div className="text-xs text-muted-foreground">
