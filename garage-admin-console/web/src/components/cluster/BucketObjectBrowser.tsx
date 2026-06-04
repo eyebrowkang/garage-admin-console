@@ -173,7 +173,7 @@ export function BucketObjectBrowser({
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <CardTitle className="flex items-center gap-2">
               <Folder className="h-5 w-5" />
@@ -186,14 +186,14 @@ export function BucketObjectBrowser({
 
           {/* Key selector — only shown when there are keys to choose from */}
           {!hasNoKeys && authorizedKeys.length > 0 && (
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex w-full items-center gap-2 sm:w-auto sm:shrink-0">
               <span className="text-xs text-muted-foreground hidden sm:inline">Key</span>
               <Select
                 value={selectedKeyId ?? ''}
                 onValueChange={handleKeyChange}
                 disabled={isLoading}
               >
-                <SelectTrigger className="h-8 min-w-[180px] max-w-[280px] text-xs">
+                <SelectTrigger className="h-8 w-full text-xs sm:w-auto sm:min-w-[180px] sm:max-w-[280px]">
                   <SelectValue placeholder={isLoading ? 'Loading…' : 'Select key…'} />
                 </SelectTrigger>
                 <SelectContent>
