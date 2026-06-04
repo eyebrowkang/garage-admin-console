@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -34,6 +35,7 @@ import {
   ExpirationPicker,
   PermissionCheckboxes,
   PermissionPill,
+  PermissionSegmented,
 } from '@garage/ui';
 import { useClusterContext } from '@/contexts/ClusterContext';
 import { api, proxyPath } from '@/lib/api';
@@ -63,16 +65,15 @@ export function KeyDetail() {
   const [editExpirationHour, setEditExpirationHour] = useState('00');
   const [editExpirationMinute, setEditExpirationMinute] = useState('00');
   const [editNeverExpires, setEditNeverExpires] = useState(false);
-  const [editBucketPermission, setEditBucketPermission] = useState<'default' | 'allow' | 'deny'>(
-    'default',
-  );
+  const [editBucketPermission, setEditBucketPermission] = useState<'allow' | 'deny'>('deny');
   const [editError, setEditError] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [grantDialogOpen, setGrantDialogOpen] = useState(false);
-  const [grantBucketId, setGrantBucketId] = useState('');
+  const [grantBucketIds, setGrantBucketIds] = useState<Set<string>>(new Set());
   const [grantRead, setGrantRead] = useState(true);
   const [grantWrite, setGrantWrite] = useState(false);
   const [grantOwner, setGrantOwner] = useState(false);
+  const [grantBusy, setGrantBusy] = useState(false);
   const [permDialogOpen, setPermDialogOpen] = useState(false);
   const [editingBucketPerm, setEditingBucketPerm] = useState<{
     bucketId: string;
@@ -163,11 +164,6 @@ export function KeyDetail() {
       : null;
   const editExpirationInvalid = Boolean(editExpirationDate) && !editExpirationIso;
 
-  const currentBucketPermission = keyInfo?.permissions?.createBucket ? 'Allowed' : 'Denied';
-  const selectedGrantBucketId = availableBuckets.some((bucket) => bucket.id === grantBucketId)
-    ? grantBucketId
-    : (availableBuckets[0]?.id ?? '');
-
   if (!kid) {
     return (
       <Alert variant="destructive">
@@ -216,7 +212,7 @@ export function KeyDetail() {
     }
     if (editBucketPermission === 'allow') {
       payload.allow = { createBucket: true };
-    } else if (editBucketPermission === 'deny') {
+    } else {
       payload.deny = { createBucket: true };
     }
     try {
@@ -296,11 +292,13 @@ export function KeyDetail() {
     }
   };
 
+  // Grant the chosen permissions across every selected bucket. No batch
+  // endpoint exists, so loop the per-bucket Allow mutation and aggregate.
   const handleGrantAccess = async () => {
-    if (!selectedGrantBucketId) {
+    if (grantBucketIds.size === 0) {
       toast({
         title: 'Select a bucket',
-        description: 'Choose a bucket to grant access.',
+        description: 'Choose at least one bucket to grant access.',
         variant: 'destructive',
       });
       return;
@@ -314,19 +312,28 @@ export function KeyDetail() {
       return;
     }
 
-    try {
-      await allowKeyMutation.mutateAsync({
-        bucketId: selectedGrantBucketId,
-        accessKeyId: kid,
-        permissions: { read: grantRead, write: grantWrite, owner: grantOwner },
-      });
-      toast({ title: 'Access granted', variant: 'success' });
-    } catch (err) {
-      toast({
-        title: 'Failed to grant access',
-        description: getApiErrorMessage(err),
-        variant: 'destructive',
-      });
+    setGrantBusy(true);
+    const permissions = { read: grantRead, write: grantWrite, owner: grantOwner };
+    let ok = 0;
+    let failed = 0;
+    for (const bucketId of grantBucketIds) {
+      try {
+        await allowKeyMutation.mutateAsync({ bucketId, accessKeyId: kid, permissions });
+        ok += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+    setGrantBusy(false);
+    toast({
+      title: `Access granted on ${ok} bucket${ok === 1 ? '' : 's'}${
+        failed ? ` (${failed} failed)` : ''
+      }`,
+      variant: failed ? 'destructive' : 'success',
+    });
+    if (failed === 0) {
+      setGrantDialogOpen(false);
+      setGrantBucketIds(new Set());
     }
   };
 
@@ -360,6 +367,19 @@ export function KeyDetail() {
     });
   const toggleAllBuckets = () =>
     setSelectedBucketIds(allBucketsSelected ? new Set() : new Set(assignedBuckets.map((b) => b.id)));
+
+  // Grant Access dialog: multi-select over the buckets this key can still be added to.
+  const allGrantSelected =
+    availableBuckets.length > 0 && availableBuckets.every((b) => grantBucketIds.has(b.id));
+  const toggleGrantBucket = (bucketId: string) =>
+    setGrantBucketIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(bucketId)) next.delete(bucketId);
+      else next.add(bucketId);
+      return next;
+    });
+  const toggleAllGrantBuckets = () =>
+    setGrantBucketIds(allGrantSelected ? new Set() : new Set(availableBuckets.map((b) => b.id)));
 
   // Bulk grant/revoke one permission across every selected bucket for this key.
   // No batch endpoint exists, so loop the per-bucket Allow/Deny mutations.
@@ -412,7 +432,7 @@ export function KeyDetail() {
                 setEditExpirationHour(parts.hour);
                 setEditExpirationMinute(parts.minute);
                 setEditNeverExpires(!keyInfo.expiration);
-                setEditBucketPermission('default');
+                setEditBucketPermission(keyInfo.permissions?.createBucket ? 'allow' : 'deny');
                 setEditError('');
                 setEditDialogOpen(true);
               }}
@@ -456,12 +476,14 @@ export function KeyDetail() {
             </div>
             <div>
               <div className="text-sm text-muted-foreground">Create Bucket</div>
-              <div>
-                {keyInfo.permissions?.createBucket === true
-                  ? 'Allowed'
-                  : keyInfo.permissions?.createBucket === false
-                    ? 'Denied'
-                    : 'Default'}
+              <div className="mt-0.5">
+                {keyInfo.permissions?.createBucket === true ? (
+                  <Badge variant="success">Allowed</Badge>
+                ) : keyInfo.permissions?.createBucket === false ? (
+                  <Badge variant="secondary">Denied</Badge>
+                ) : (
+                  <Badge variant="outline">Default</Badge>
+                )}
               </div>
             </div>
             <div>
@@ -533,7 +555,7 @@ export function KeyDetail() {
               variant="outline"
               size="sm"
               onClick={() => {
-                setGrantBucketId('');
+                setGrantBucketIds(new Set());
                 setGrantRead(true);
                 setGrantWrite(false);
                 setGrantOwner(false);
@@ -745,7 +767,7 @@ export function KeyDetail() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Expiration (24h)</Label>
+              <Label>Expiration</Label>
               <ExpirationPicker
                 date={editExpirationDate}
                 hour={editExpirationHour}
@@ -767,23 +789,13 @@ export function KeyDetail() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Bucket Creation Permission</Label>
-              <Select
+              <Label>Bucket creation permission</Label>
+              <PermissionSegmented
                 value={editBucketPermission}
-                onValueChange={(value) =>
-                  setEditBucketPermission(value as 'default' | 'allow' | 'deny')
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Default" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="default">No change</SelectItem>
-                  <SelectItem value="allow">Allow create bucket</SelectItem>
-                  <SelectItem value="deny">Deny create bucket</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">Current: {currentBucketPermission}</p>
+                onChange={setEditBucketPermission}
+                ariaLabel="Bucket creation permission"
+              />
+              <p className="text-xs text-muted-foreground">Whether this key may create buckets.</p>
             </div>
             {editError && (
               <Alert variant="destructive">
@@ -853,9 +865,10 @@ export function KeyDetail() {
       <Dialog
         open={grantDialogOpen}
         onOpenChange={(open) => {
+          if (grantBusy) return;
           setGrantDialogOpen(open);
           if (open) {
-            setGrantBucketId('');
+            setGrantBucketIds(new Set());
             setGrantRead(true);
             setGrantWrite(false);
             setGrantOwner(false);
@@ -866,7 +879,7 @@ export function KeyDetail() {
           <DialogHeader>
             <DialogTitle>Grant Bucket Access</DialogTitle>
             <DialogDescription>
-              Select a bucket and permissions to grant for this key.
+              Select one or more buckets and the permissions to grant for this key.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -879,25 +892,43 @@ export function KeyDetail() {
             ) : availableBuckets.length > 0 ? (
               <>
                 <div className="space-y-2">
-                  <Label>Bucket</Label>
-                  <Select value={selectedGrantBucketId} onValueChange={setGrantBucketId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select bucket" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableBuckets.map((bucket) => {
-                        const alias = bucket.globalAliases[0];
-                        const label = alias
-                          ? `${alias} (${formatShortId(bucket.id, 10)})`
-                          : formatShortId(bucket.id, 12);
-                        return (
-                          <SelectItem key={bucket.id} value={bucket.id}>
-                            {label}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex items-center justify-between">
+                    <Label>Buckets</Label>
+                    <button
+                      type="button"
+                      className="text-xs font-medium text-primary hover:underline"
+                      onClick={toggleAllGrantBuckets}
+                    >
+                      {allGrantSelected ? 'Clear all' : 'Select all'}
+                    </button>
+                  </div>
+                  <div className="max-h-52 space-y-0.5 overflow-y-auto rounded-md border p-1">
+                    {availableBuckets.map((bucket) => {
+                      const alias = bucket.globalAliases[0];
+                      return (
+                        <label
+                          key={bucket.id}
+                          className="flex cursor-pointer items-center gap-2.5 rounded px-2 py-1.5 text-sm hover:bg-accent"
+                        >
+                          <Checkbox
+                            checked={grantBucketIds.has(bucket.id)}
+                            onCheckedChange={() => toggleGrantBucket(bucket.id)}
+                          />
+                          <span className="min-w-0 flex-1 truncate font-medium">
+                            {alias || formatShortId(bucket.id, 12)}
+                          </span>
+                          <span className="shrink-0 font-mono text-xs text-muted-foreground">
+                            {formatShortId(bucket.id, 8)}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {grantBucketIds.size > 0
+                      ? `${grantBucketIds.size} selected`
+                      : 'No buckets selected'}
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label>Permissions</Label>
@@ -924,17 +955,29 @@ export function KeyDetail() {
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setGrantDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setGrantDialogOpen(false)}
+              disabled={grantBusy}
+            >
               Cancel
             </Button>
             <Button
-              onClick={async () => {
-                await handleGrantAccess();
-                setGrantDialogOpen(false);
-              }}
-              disabled={!selectedGrantBucketId || (!grantRead && !grantWrite && !grantOwner)}
+              onClick={handleGrantAccess}
+              disabled={
+                grantBucketIds.size === 0 ||
+                (!grantRead && !grantWrite && !grantOwner) ||
+                grantBusy
+              }
             >
-              Grant Access
+              {grantBusy ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Granting...
+                </>
+              ) : (
+                `Grant Access${grantBucketIds.size > 1 ? ` (${grantBucketIds.size})` : ''}`
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -945,8 +988,9 @@ export function KeyDetail() {
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
         title="Delete Access Key"
-        description={`Are you sure you want to delete this access key? This will revoke all bucket permissions and cannot be undone.`}
-        tier="danger"
+        description={`Permanently delete the key "${keyInfo.name || 'Unnamed Key'}"? This revokes access to every bucket using it and cannot be undone.`}
+        tier="type-to-confirm"
+        typeToConfirmValue="DELETE"
         confirmText="Delete Key"
         onConfirm={handleDelete}
         isLoading={deleteKeyMutation.isPending}
