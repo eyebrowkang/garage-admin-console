@@ -54,8 +54,13 @@ export function ConfirmDialog({
     setTypedValue('');
   };
 
-  const isTypeToConfirmValid = tier !== 'type-to-confirm' || typedValue === typeToConfirmValue;
+  const isTypeToConfirmValid =
+    tier !== 'type-to-confirm' || typedValue.trim() === typeToConfirmValue;
   const isDanger = tier === 'danger' || tier === 'type-to-confirm';
+
+  const submitIfValid = () => {
+    if (!isLoading && isTypeToConfirmValid) handleConfirm();
+  };
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -72,14 +77,27 @@ export function ConfirmDialog({
 
         {tier === 'type-to-confirm' && typeToConfirmValue && (
           <div className="space-y-2 py-4">
-            <Label>
-              Type <span className="font-bold">{typeToConfirmValue}</span> to confirm
+            <Label htmlFor="confirm-phrase">
+              Type{' '}
+              <code className="select-all rounded bg-muted px-1.5 py-0.5 font-mono text-xs font-semibold tracking-wide text-foreground">
+                {typeToConfirmValue}
+              </code>{' '}
+              to confirm
             </Label>
             <Input
+              id="confirm-phrase"
+              autoFocus
               value={typedValue}
               onChange={(e) => setTypedValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  submitIfValid();
+                }
+              }}
               placeholder={typeToConfirmValue}
               autoComplete="off"
+              aria-invalid={typedValue.length > 0 && !isTypeToConfirmValid}
             />
           </div>
         )}
