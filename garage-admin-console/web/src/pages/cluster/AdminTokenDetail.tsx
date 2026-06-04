@@ -133,23 +133,12 @@ export function AdminTokenDetail() {
           { label: 'Admin Tokens', to: `/clusters/${clusterId}/tokens` },
           { label: token.name },
         ]}
-        title={token.name}
-        subtitle={token.id}
-        badges={
-          <>
-            {isCurrent && <Badge variant="secondary">Current Token</Badge>}
-            {token.expired ? (
-              <Badge variant="destructive">Expired</Badge>
-            ) : (
-              <Badge variant="success">Active</Badge>
-            )}
-          </>
-        }
         actions={
           <>
             <Button
               variant="outline"
               size="sm"
+              className="flex-1 sm:flex-initial"
               onClick={() => {
                 setEditForm(tokenFormFromInfo(token));
                 setEditError('');
@@ -159,7 +148,12 @@ export function AdminTokenDetail() {
               <EditActionIcon className="h-4 w-4" />
               Edit
             </Button>
-            <Button variant="destructive" size="sm" onClick={() => setDeleteDialogOpen(true)}>
+            <Button
+              variant="destructive"
+              size="sm"
+              className="flex-1 sm:flex-initial"
+              onClick={() => setDeleteDialogOpen(true)}
+            >
               <DeleteActionIcon className="h-4 w-4" />
               Delete
             </Button>
@@ -204,7 +198,14 @@ export function AdminTokenDetail() {
             </div>
             <div>
               <div className="text-sm text-muted-foreground">Expires</div>
-              <div>{token.expiration ? formatDateTime(token.expiration) : 'Never'}</div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span>{token.expiration ? formatDateTime(token.expiration) : 'Never'}</span>
+                {token.expired ? (
+                  <Badge variant="destructive">Expired</Badge>
+                ) : (
+                  <Badge variant="success">Active</Badge>
+                )}
+              </div>
             </div>
           </div>
         </CardContent>
