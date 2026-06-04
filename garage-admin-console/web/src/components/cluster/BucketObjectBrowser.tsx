@@ -170,8 +170,6 @@ export function BucketObjectBrowser({
 
   const zeroKeyCta = `/clusters/${clusterId}/keys?create=1&prefillName=${encodeURIComponent(`garage-admin-console:${bucketAlias}`)}&grantBucketId=${encodeURIComponent(bucketId)}&returnTo=${encodeURIComponent(`/clusters/${clusterId}/buckets/${bucketId}`)}`;
 
-  const selectedKey = authorizedKeys.find((k) => k.accessKeyId === selectedKeyId);
-
   return (
     <Card>
       <CardHeader>
@@ -216,13 +214,6 @@ export function BucketObjectBrowser({
           )}
         </div>
 
-        {/* Show active key identity below the header when a key is selected */}
-        {selectedKey && (
-          <p className="text-xs text-muted-foreground mt-1">
-            Using key <span className="font-mono">{selectedKey.accessKeyId.slice(0, 12)}…</span>
-            {selectedKey.name && <> ({selectedKey.name})</>}
-          </p>
-        )}
       </CardHeader>
 
       <CardContent>

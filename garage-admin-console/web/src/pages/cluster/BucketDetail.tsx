@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
-import { Globe, Tags, Settings, Pencil, Fingerprint } from 'lucide-react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Globe, Tags, Settings, Pencil, Fingerprint, AlertTriangle } from 'lucide-react';
 import {
   Button,
+  Badge,
+  Meter,
+  type MeterTone,
+  cn,
   Checkbox,
   Input,
   Label,
@@ -51,13 +55,50 @@ import { BucketObjectBrowser } from '@/components/cluster/BucketObjectBrowser';
 import { isMfExplicitlyConfigured } from '@/mf-init';
 import { JsonViewer } from '@/components/cluster/JsonViewer';
 import { PageLoadingState } from '@garage/ui';
-import { DeleteActionIcon } from '@/lib/action-icons';
+import { AddActionIcon, DeleteActionIcon } from '@/lib/action-icons';
+import { KeyIcon } from '@/lib/entity-icons';
 import { formatBytes, formatNum, formatShortId, getApiErrorMessage } from '@garage/web-shared';
 import { toast } from '@garage/ui';
+
+/** A usage stat: the value, an optional `/ max`, and a quota meter when a limit
+ *  is set (color-coded by how close usage is to the cap). */
+function UsageStat({
+  label,
+  used,
+  max,
+  format,
+}: {
+  label: string;
+  used: number;
+  max?: number | null;
+  format: (n: number) => string;
+}) {
+  const pct = max && max > 0 ? Math.min(100, (used / max) * 100) : null;
+  const tone: MeterTone =
+    pct === null ? 'neutral' : pct >= 90 ? 'destructive' : pct >= 70 ? 'warning' : 'success';
+  return (
+    <div className="bg-card px-4 py-3">
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="text-lg font-semibold tabular-nums">
+        {format(used)}
+        {max ? <span className="text-sm font-normal text-muted-foreground"> / {format(max)}</span> : null}
+      </div>
+      {pct !== null && (
+        <Meter
+          className="mt-1.5"
+          value={pct}
+          tone={tone}
+          ariaLabel={`${label}: ${Math.round(pct)}% of quota`}
+        />
+      )}
+    </div>
+  );
+}
 
 export function BucketDetail() {
   const { bid } = useParams<{ bid: string }>();
   const { clusterId } = useClusterContext();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // After KeyList creates a key via the guided flow, it redirects here with
@@ -164,7 +205,14 @@ export function BucketDetail() {
   const canAddAlias =
     Boolean(newAlias.trim()) && (aliasType === 'global' || Boolean(aliasAccessKeyId));
 
-  const bucketLabel = bucket.globalAliases[0] || formatShortId(bucket.id, 12);
+  // Lead with a global alias; otherwise the full id — the breadcrumb truncates
+  // it with an ellipsis (same as a long alias) rather than hard-capping the chars.
+  const bucketLabel = bucket.globalAliases[0] || bucket.id;
+  // CTA for the permissions tab: open the key list's Create dialog pre-wired to
+  // grant the new key access to this bucket, then return here.
+  const grantKeyCta = `/clusters/${clusterId}/keys?create=1&grantBucketId=${encodeURIComponent(
+    bucket.id,
+  )}&returnTo=${encodeURIComponent(`/clusters/${clusterId}/buckets/${bucket.id}?tab=permissions`)}`;
   const showFilesTab = isMfExplicitlyConfigured && Boolean(bucket.globalAliases[0]);
   const tabValues = ['overview', ...(showFilesTab ? ['files'] : []), 'permissions', 'maintenance'];
   const requestedTab = searchParams.get('tab');
@@ -181,15 +229,6 @@ export function BucketDetail() {
     );
   };
 
-  const websiteSummary = bucket.websiteAccess
-    ? [
-        'Enabled',
-        bucket.websiteConfig?.indexDocument && `index: ${bucket.websiteConfig.indexDocument}`,
-        bucket.websiteConfig?.errorDocument && `error: ${bucket.websiteConfig.errorDocument}`,
-      ]
-        .filter(Boolean)
-        .join(' · ')
-    : 'Disabled';
   const quotaSummary = `Max objects: ${
     bucket.quotas.maxObjects ? formatNum(bucket.quotas.maxObjects) : 'Unlimited'
   } · Max size: ${bucket.quotas.maxSize ? formatBytes(bucket.quotas.maxSize) : 'Unlimited'}`;
@@ -470,14 +509,18 @@ export function BucketDetail() {
         <TabsContent value="overview" className="space-y-4">
           {/* Usage metrics — one dense strip with hairline dividers, not 4 cards */}
           <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border sm:grid-cols-4">
-            <div className="bg-card px-4 py-3">
-              <div className="text-xs text-muted-foreground">Objects</div>
-              <div className="text-lg font-semibold tabular-nums">{formatNum(bucket.objects)}</div>
-            </div>
-            <div className="bg-card px-4 py-3">
-              <div className="text-xs text-muted-foreground">Total Size</div>
-              <div className="text-lg font-semibold tabular-nums">{formatBytes(bucket.bytes)}</div>
-            </div>
+            <UsageStat
+              label="Objects"
+              used={bucket.objects}
+              max={bucket.quotas.maxObjects}
+              format={formatNum}
+            />
+            <UsageStat
+              label="Total Size"
+              used={bucket.bytes}
+              max={bucket.quotas.maxSize}
+              format={formatBytes}
+            />
             <div className="bg-card px-4 py-3">
               <div className="text-xs text-muted-foreground">Incomplete Uploads</div>
               <div className="text-lg font-semibold tabular-nums">{bucket.unfinishedUploads}</div>
@@ -515,71 +558,85 @@ export function BucketDetail() {
                   <Tags className="h-4 w-4 text-muted-foreground" />
                   Aliases
                 </div>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {bucket.globalAliases.length > 0 ? (
-                    bucket.globalAliases.map((alias) => (
-                      <span
-                        key={alias}
-                        className="group inline-flex items-center gap-1.5 rounded-md border bg-muted/20 px-2 py-1 text-sm"
-                      >
-                        <span className="font-medium">{alias}</span>
-                        <span className="flex items-center gap-0.5 border-l border-border/60 pl-1">
-                          <CopyButton
-                            value={alias}
-                            label="Global alias"
-                            compact
-                            className="h-5 w-5 rounded-sm"
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-5 w-5 rounded-sm text-muted-foreground hover:text-destructive"
-                            onClick={() => setRemoveAliasConfirm({ alias })}
+                <div className="space-y-2">
+                  <div className="space-y-1">
+                    <div className="text-xs text-muted-foreground">Global</div>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {bucket.globalAliases.length > 0 ? (
+                        bucket.globalAliases.map((alias) => (
+                          <span
+                            key={alias}
+                            className="group inline-flex items-center gap-1.5 rounded-md border bg-muted/20 px-2 py-1 text-sm"
                           >
-                            <DeleteActionIcon className="h-3.5 w-3.5" />
-                          </Button>
-                        </span>
-                      </span>
-                    ))
-                  ) : (
-                    <span className="text-sm text-muted-foreground">No global aliases</span>
+                            <span className="font-medium">{alias}</span>
+                            <span className="flex items-center gap-0.5 border-l border-border/60 pl-1">
+                              <CopyButton
+                                value={alias}
+                                label="Global alias"
+                                compact
+                                className="h-5 w-5 rounded-sm"
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-5 w-5 rounded-sm text-muted-foreground hover:text-destructive"
+                                onClick={() => setRemoveAliasConfirm({ alias })}
+                              >
+                                <DeleteActionIcon className="h-3.5 w-3.5" />
+                              </Button>
+                            </span>
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-sm text-muted-foreground">None</span>
+                      )}
+                    </div>
+                  </div>
+                  {localAliases.length > 0 && (
+                    <div className="space-y-1">
+                      <div className="text-xs text-muted-foreground">Local (per key)</div>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {localAliases.map((alias) => (
+                          <span
+                            key={`${alias.accessKeyId}-${alias.alias}`}
+                            className="group inline-flex items-center gap-1.5 rounded-md border bg-background px-2 py-1"
+                          >
+                            <span className="min-w-0">
+                              <span className="block text-sm font-medium leading-none">
+                                {alias.alias}
+                              </span>
+                              <span className="mt-0.5 block text-[11px] leading-none text-muted-foreground">
+                                {alias.keyName || formatShortId(alias.accessKeyId, 10)}
+                              </span>
+                            </span>
+                            <span className="flex items-center gap-0.5 border-l border-border/60 pl-1">
+                              <CopyButton
+                                value={alias.alias}
+                                label="Local alias"
+                                compact
+                                className="h-5 w-5 rounded-sm"
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-5 w-5 rounded-sm text-muted-foreground hover:text-destructive"
+                                onClick={() =>
+                                  setRemoveAliasConfirm({
+                                    alias: alias.alias,
+                                    accessKeyId: alias.accessKeyId,
+                                  })
+                                }
+                              >
+                                <DeleteActionIcon className="h-3.5 w-3.5" />
+                              </Button>
+                            </span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
                   )}
-                  {localAliases.map((alias) => (
-                    <span
-                      key={`${alias.accessKeyId}-${alias.alias}`}
-                      className="group inline-flex items-center gap-1.5 rounded-md border bg-background px-2 py-1"
-                    >
-                      <span className="min-w-0">
-                        <span className="block text-sm font-medium leading-none">{alias.alias}</span>
-                        <span className="mt-0.5 block text-[11px] leading-none text-muted-foreground">
-                          {alias.keyName || formatShortId(alias.accessKeyId, 10)}
-                        </span>
-                      </span>
-                      <span className="flex items-center gap-0.5 border-l border-border/60 pl-1">
-                        <CopyButton
-                          value={alias.alias}
-                          label="Local alias"
-                          compact
-                          className="h-5 w-5 rounded-sm"
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-5 w-5 rounded-sm text-muted-foreground hover:text-destructive"
-                          onClick={() =>
-                            setRemoveAliasConfirm({
-                              alias: alias.alias,
-                              accessKeyId: alias.accessKeyId,
-                            })
-                          }
-                        >
-                          <DeleteActionIcon className="h-3.5 w-3.5" />
-                        </Button>
-                      </span>
-                    </span>
-                  ))}
                 </div>
               </div>
               <Button
@@ -598,7 +655,33 @@ export function BucketDetail() {
                   <Globe className="h-4 w-4 text-muted-foreground" />
                   Website Access
                 </div>
-                <div className="text-sm text-muted-foreground">{websiteSummary}</div>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                  {bucket.websiteAccess ? (
+                    <Badge variant="success">Enabled</Badge>
+                  ) : (
+                    <Badge variant="secondary">Disabled</Badge>
+                  )}
+                  {bucket.websiteAccess && (
+                    <>
+                      {bucket.websiteConfig?.indexDocument && (
+                        <span className="text-muted-foreground">
+                          index:{' '}
+                          <span className="font-mono text-foreground">
+                            {bucket.websiteConfig.indexDocument}
+                          </span>
+                        </span>
+                      )}
+                      {bucket.websiteConfig?.errorDocument && (
+                        <span className="text-muted-foreground">
+                          error:{' '}
+                          <span className="font-mono text-foreground">
+                            {bucket.websiteConfig.errorDocument}
+                          </span>
+                        </span>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
               <Button
                 variant="outline"
@@ -659,6 +742,13 @@ export function BucketDetail() {
         <TabsContent value="permissions" className="space-y-3">
           {bucket.keys.length > 0 ? (
             <>
+              <div className="flex justify-end">
+                <Button variant="outline" size="sm" onClick={() => navigate(grantKeyCta)}>
+                  <AddActionIcon className="h-4 w-4" />
+                  Grant a key
+                </Button>
+              </div>
+
               {selectedKeyIds.size > 0 && (
                 <div className="flex flex-col gap-2 rounded-lg border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="text-sm font-medium">{selectedKeyIds.size} selected</div>
@@ -700,7 +790,7 @@ export function BucketDetail() {
                 </div>
               )}
 
-              {/* Desktop / tablet: table */}
+              {/* Desktop / tablet: lean Key · Access · Edit table */}
               <div className="hidden overflow-hidden rounded-lg border sm:block">
                 <Table>
                   <TableHeader>
@@ -712,11 +802,8 @@ export function BucketDetail() {
                           aria-label="Select all keys"
                         />
                       </TableHead>
-                      <TableHead>Access Key</TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead className="text-center">Read</TableHead>
-                      <TableHead className="text-center">Write</TableHead>
-                      <TableHead className="text-center">Owner</TableHead>
+                      <TableHead>Key</TableHead>
+                      <TableHead>Access</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -733,33 +820,21 @@ export function BucketDetail() {
                             aria-label={`Select ${key.name || key.accessKeyId}`}
                           />
                         </TableCell>
-                        <TableCell className="text-xs">
-                          <div className="inline-flex items-center gap-1">
-                            <span className="font-mono">{key.accessKeyId.slice(0, 12)}…</span>
-                            <CopyButton value={key.accessKeyId} label="Access key ID" compact />
+                        <TableCell>
+                          <div className="min-w-0">
+                            <div className="font-medium">{key.name || 'Unnamed key'}</div>
+                            <div className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                              <span className="font-mono">{formatShortId(key.accessKeyId, 16)}</span>
+                              <CopyButton value={key.accessKeyId} label="Access key ID" compact />
+                            </div>
                           </div>
                         </TableCell>
-                        <TableCell>{key.name || '—'}</TableCell>
-                        <TableCell className="text-center">
-                          {key.permissions.read ? (
-                            <PermissionPill label="Yes" granted />
-                          ) : (
-                            <span className="text-xs text-muted-foreground">No</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {key.permissions.write ? (
-                            <PermissionPill label="Yes" granted />
-                          ) : (
-                            <span className="text-xs text-muted-foreground">No</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {key.permissions.owner ? (
-                            <PermissionPill label="Yes" granted />
-                          ) : (
-                            <span className="text-xs text-muted-foreground">No</span>
-                          )}
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1.5">
+                            <PermissionPill label="Read" granted={key.permissions.read} />
+                            <PermissionPill label="Write" granted={key.permissions.write} />
+                            <PermissionPill label="Owner" granted={key.permissions.owner} />
+                          </div>
                         </TableCell>
                         <TableCell className="text-right">
                           <Button variant="ghost" size="sm" onClick={() => openPermDialog(key)}>
@@ -815,29 +890,26 @@ export function BucketDetail() {
               </div>
             </>
           ) : (
-            <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-              No keys have access to this bucket.
+            <div className="flex flex-col items-center gap-4 rounded-lg border border-dashed p-10 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                <KeyIcon className="h-6 w-6 text-muted-foreground" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="font-medium text-foreground">No keys have access</h3>
+                <p className="mx-auto max-w-sm text-sm text-muted-foreground">
+                  Create an access key and grant it permissions on this bucket in one step.
+                </p>
+              </div>
+              <Button size="sm" onClick={() => navigate(grantKeyCta)}>
+                <AddActionIcon className="h-4 w-4" />
+                Create &amp; grant a key
+              </Button>
             </div>
           )}
         </TabsContent>
 
         {/* ---------------- Maintenance ---------------- */}
         <TabsContent value="maintenance" className="space-y-3">
-          <div className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-1">
-              <h4 className="text-sm font-medium">Cleanup Incomplete Uploads</h4>
-              <p className="text-sm text-muted-foreground">
-                Delete incomplete multipart uploads older than a specified age.
-              </p>
-            </div>
-            <Button
-              variant="outline"
-              className="shrink-0"
-              onClick={() => setCleanupDialogOpen(true)}
-            >
-              Cleanup
-            </Button>
-          </div>
           <div className="space-y-2 rounded-lg border p-4">
             <div className="space-y-1">
               <h4 className="text-sm font-medium">Inspect Object</h4>
@@ -860,6 +932,19 @@ export function BucketDetail() {
                 Inspect
               </Button>
             </div>
+          </div>
+
+          {/* Cleanup is irreversible — flagged in the warning (purple) color. */}
+          <div className="flex flex-col gap-3 rounded-lg border border-warning/30 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
+              <h4 className="text-sm font-medium">Cleanup Incomplete Uploads</h4>
+              <p className="text-sm text-muted-foreground">
+                Permanently delete incomplete multipart uploads older than a chosen age.
+              </p>
+            </div>
+            <Button variant="warning" className="shrink-0" onClick={() => setCleanupDialogOpen(true)}>
+              Cleanup
+            </Button>
           </div>
         </TabsContent>
       </Tabs>
@@ -884,19 +969,25 @@ export function BucketDetail() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Alias Type</Label>
-              <Select
-                value={aliasType}
-                onValueChange={(value) => setAliasType(value as 'global' | 'local')}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select alias type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="global">Global alias</SelectItem>
-                  <SelectItem value="local">Local alias (per access key)</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label>Alias type</Label>
+              <div className="flex gap-2" role="group" aria-label="Alias type">
+                {(['global', 'local'] as const).map((type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => setAliasType(type)}
+                    aria-pressed={aliasType === type}
+                    className={cn(
+                      'min-h-9 flex-1 rounded-md border px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                      aliasType === type
+                        ? 'border-primary/40 bg-primary/10 text-primary'
+                        : 'border-border text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    {type === 'global' ? 'Global' : 'Local (per key)'}
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Alias Name</Label>
@@ -964,12 +1055,19 @@ export function BucketDetail() {
           <DialogHeader>
             <DialogTitle>Cleanup Incomplete Uploads</DialogTitle>
             <DialogDescription>
-              Delete incomplete multipart uploads older than the specified age
+              Delete incomplete multipart uploads older than the specified age.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            <Alert variant="warning">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                This permanently removes in-progress multipart uploads older than the threshold and
+                can&rsquo;t be undone.
+              </AlertDescription>
+            </Alert>
             <div className="space-y-2">
-              <Label>Age Threshold (seconds)</Label>
+              <Label>Age threshold (seconds)</Label>
               <Input
                 type="number"
                 value={cleanupAge}
@@ -985,7 +1083,7 @@ export function BucketDetail() {
             <Button variant="outline" onClick={() => setCleanupDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleCleanup} disabled={cleanupMutation.isPending}>
+            <Button variant="warning" onClick={handleCleanup} disabled={cleanupMutation.isPending}>
               {cleanupMutation.isPending ? 'Cleaning...' : 'Cleanup'}
             </Button>
           </DialogFooter>
@@ -1022,6 +1120,11 @@ export function BucketDetail() {
                 disabled={!websiteEnabled}
               />
             </div>
+            <p className="text-xs text-muted-foreground">
+              When enabled, Garage serves this bucket as a static website at your configured web
+              endpoint — the index document for directory roots, the error document for 4xx
+              responses.
+            </p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setWebsiteDialogOpen(false)}>
@@ -1043,21 +1146,43 @@ export function BucketDetail() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Max Objects</Label>
+              <div className="flex items-center justify-between gap-2">
+                <Label>Max objects</Label>
+                <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+                  <Checkbox
+                    checked={!maxObjects}
+                    onCheckedChange={(c) => {
+                      if (c) setMaxObjects('');
+                    }}
+                  />
+                  No limit
+                </label>
+              </div>
               <Input
                 type="number"
                 value={maxObjects}
                 onChange={(e) => setMaxObjects(e.target.value)}
-                placeholder="Leave empty for unlimited"
+                placeholder="Unlimited"
               />
             </div>
             <div className="space-y-2">
-              <Label>Max Size (GB)</Label>
+              <div className="flex items-center justify-between gap-2">
+                <Label>Max size (GB)</Label>
+                <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+                  <Checkbox
+                    checked={!maxSize}
+                    onCheckedChange={(c) => {
+                      if (c) setMaxSize('');
+                    }}
+                  />
+                  No limit
+                </label>
+              </div>
               <Input
                 type="number"
                 value={maxSize}
                 onChange={(e) => setMaxSize(e.target.value)}
-                placeholder="Leave empty for unlimited"
+                placeholder="Unlimited"
               />
             </div>
           </div>
@@ -1077,8 +1202,16 @@ export function BucketDetail() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Object Details</DialogTitle>
+            <DialogDescription className="[overflow-wrap:anywhere]">
+              Metadata and versions for{' '}
+              <span className="font-mono text-foreground">{inspectKey.trim()}</span>
+            </DialogDescription>
           </DialogHeader>
-          {inspectMutation.data && <JsonViewer data={inspectMutation.data} />}
+          {inspectMutation.data ? (
+            <JsonViewer data={inspectMutation.data} />
+          ) : (
+            <p className="py-4 text-sm text-muted-foreground">No details returned for this object.</p>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setInspectDialogOpen(false)}>
               Close
