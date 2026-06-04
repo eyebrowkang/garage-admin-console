@@ -280,12 +280,13 @@ export function ResourceList<T>({
         </div>
       )}
 
-      {/* Selection actions float at the bottom of the viewport instead of sitting
-          in-flow above the table — so showing/hiding them never shifts the list.
-          Kept mounted (when selection is enabled) so it can slide in and out. */}
+      {/* Selection actions float over the lower portion of the viewport (not glued
+          to the bottom edge) instead of sitting in-flow above the table — so
+          showing/hiding them never shifts the list. Kept mounted (when selection
+          is enabled) so it can slide in and out. */}
       {selection && (
         <div
-          className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
+          className="pointer-events-none fixed inset-x-0 bottom-[15vh] z-40 flex justify-center px-4"
           aria-hidden={!selectionVisible}
         >
           <div

@@ -179,7 +179,7 @@ export function BucketList() {
       sortable: true,
       sortAccessor: (b) => b.id,
       mobileHidden: true,
-      cellClassName: 'text-xs',
+      cellClassName: 'text-xs font-mono',
       cell: (b) => (
         <CopyValue value={b.id} label="Bucket ID" className="max-w-[26ch]">
           {b.id}
@@ -195,19 +195,6 @@ export function BucketList() {
             key: alias,
             value: alias,
             label: 'Global alias',
-          }))}
-        />
-      ),
-    },
-    {
-      id: 'localAliases',
-      header: 'Local Aliases',
-      cell: (b) => (
-        <AliasOverflow
-          items={b.localAliases.map((alias) => ({
-            key: `${alias.accessKeyId}-${alias.alias}`,
-            value: alias.alias,
-            label: 'Local alias',
           }))}
         />
       ),
