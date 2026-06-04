@@ -379,7 +379,7 @@ export function ClusterOverview() {
           <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-white/[0.04] px-4 py-2.5">
             <div className="flex min-w-0 items-center gap-2 font-mono text-xs text-background/60">
               <Terminal className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">garage stats -a</span>
+              <span className="truncate">garage stats</span>
             </div>
             <div className="flex items-center gap-1">
               <CopyButton
@@ -402,7 +402,7 @@ export function ClusterOverview() {
           </div>
           {statsQuery.isLoading ? (
             <div className="px-4 py-4 font-mono text-xs text-background/70">
-              <span className="text-primary">$</span> garage stats -a
+              <span className="text-primary">$</span> garage stats
               <div className="mt-2 text-background/40">Fetching cluster statistics…</div>
             </div>
           ) : (
