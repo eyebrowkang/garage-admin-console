@@ -167,6 +167,33 @@ describe('ResourceList', () => {
     expect(within(sheet).getByRole('button', { name: 'Delete Banana' })).toBeInTheDocument();
   });
 
+  it('filters via faceted chips with live counts', async () => {
+    const user = userEvent.setup();
+    // ITEMS: Banana n=2 (even), Apple n=1 (odd), Cherry n=3 (odd).
+    renderList({
+      filters: [
+        {
+          id: 'parity',
+          label: 'Parity',
+          options: [
+            { value: 'even', label: 'Even', predicate: (r) => r.n % 2 === 0 },
+            { value: 'odd', label: 'Odd', predicate: (r) => r.n % 2 === 1 },
+          ],
+        },
+      ],
+    });
+    // Counts reflect the data.
+    expect(screen.getByRole('button', { name: 'All 3' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Even 1' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Odd 2' })).toBeInTheDocument();
+    // Picking Odd narrows the table.
+    await user.click(screen.getByRole('button', { name: 'Odd 2' }));
+    const table = screen.getByRole('table');
+    expect(within(table).queryByText('Banana')).not.toBeInTheDocument();
+    expect(within(table).getByText('Apple')).toBeInTheDocument();
+    expect(within(table).getByText('Cherry')).toBeInTheDocument();
+  });
+
   it('navigates from the mobile card via an explicit Open button', async () => {
     const user = userEvent.setup();
     const onRowClick = vi.fn();

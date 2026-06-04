@@ -73,6 +73,15 @@ export interface ResourceListSelection<T> {
   renderActions: (selected: T[], clear: () => void) => ReactNode;
 }
 
+export interface ResourceListFilter<T> {
+  /** Stable id. */
+  id: string;
+  /** Facet label shown before the chips, e.g. "Status". */
+  label: string;
+  /** Mutually-exclusive options; an implicit "All" chip clears the facet. */
+  options: Array<{ value: string; label: string; predicate: (item: T) => boolean }>;
+}
+
 export interface ResourceListProps<T> {
   items: T[];
   columns: ResourceListColumn<T>[];
@@ -102,6 +111,8 @@ export interface ResourceListProps<T> {
   selection?: ResourceListSelection<T>;
   /** Trailing per-row actions (e.g. Delete). */
   rowActions?: (item: T) => ReactNode;
+  /** Faceted filter chips (with live counts) rendered under the search field. */
+  filters?: ResourceListFilter<T>[];
   emptyState: ResourceListEmptyState;
   className?: string;
 }
@@ -130,6 +141,7 @@ export function ResourceList<T>({
   defaultSort,
   selection,
   rowActions,
+  filters,
   emptyState,
   className,
 }: ResourceListProps<T>) {
@@ -140,6 +152,8 @@ export function ResourceList<T>({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   // Mobile: the row whose action sheet is open (no hover affordance on touch).
   const [actionItem, setActionItem] = useState<T | null>(null);
+  // Active facet selection: facet id -> chosen option value (absent/null = All).
+  const [facetValues, setFacetValues] = useState<Record<string, string | null>>({});
 
   const columnById = useMemo(() => {
     const map = new Map<string, ResourceListColumn<T>>();
@@ -149,10 +163,28 @@ export function ResourceList<T>({
 
   const normalizedQuery = query.trim().toLowerCase();
 
-  const filtered = useMemo(() => {
+  const searchFiltered = useMemo(() => {
     if (!search || !normalizedQuery) return items;
     return items.filter((item) => search.predicate(item, normalizedQuery));
   }, [items, search, normalizedQuery]);
+
+  const filtered = useMemo(() => {
+    if (!filters?.length) return searchFiltered;
+    return searchFiltered.filter((item) =>
+      filters.every((facet) => {
+        const value = facetValues[facet.id];
+        if (!value) return true;
+        const opt = facet.options.find((o) => o.value === value);
+        return opt ? opt.predicate(item) : true;
+      }),
+    );
+  }, [searchFiltered, filters, facetValues]);
+
+  const setFacet = useCallback(
+    (facetId: string, value: string | null) =>
+      setFacetValues((prev) => ({ ...prev, [facetId]: value })),
+    [],
+  );
 
   const sorted = useMemo(() => {
     if (!sort) return filtered;
@@ -230,7 +262,9 @@ export function ResourceList<T>({
         </h3>
         <p className="mx-auto max-w-sm text-sm text-muted-foreground">
           {isSearchMiss
-            ? `No results for “${query.trim()}”. Try a different term.`
+            ? normalizedQuery
+              ? `No results for “${query.trim()}”. Try a different term.`
+              : 'No items match the current filter.'
             : emptyState.description}
         </p>
       </div>
@@ -290,6 +324,51 @@ export function ResourceList<T>({
           >
             {sorted.length} {sorted.length === 1 ? 'result' : 'results'}
           </span>
+        </div>
+      )}
+
+      {/* Faceted filters: an implicit "All" plus one chip per option, each with a
+          live count over the search-filtered set. Selected chip uses the accent. */}
+      {filters && filters.length > 0 && !isTrulyEmpty && (
+        <div className="space-y-2">
+          {filters.map((facet) => {
+            const active = facetValues[facet.id] ?? null;
+            const chipClass = (on: boolean) =>
+              cn(
+                'inline-flex min-h-9 shrink-0 items-center rounded-full border px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                on
+                  ? 'border-primary/40 bg-primary/10 text-primary'
+                  : 'border-border text-muted-foreground hover:text-foreground',
+              );
+            return (
+              <div key={facet.id} className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs font-medium text-muted-foreground">{facet.label}</span>
+                <button
+                  type="button"
+                  aria-pressed={active === null}
+                  onClick={() => setFacet(facet.id, null)}
+                  className={chipClass(active === null)}
+                >
+                  All {searchFiltered.length}
+                </button>
+                {facet.options.map((opt) => {
+                  const count = searchFiltered.filter(opt.predicate).length;
+                  const on = active === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => setFacet(facet.id, on ? null : opt.value)}
+                      className={chipClass(on)}
+                    >
+                      {opt.label} {count}
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })}
         </div>
       )}
 
