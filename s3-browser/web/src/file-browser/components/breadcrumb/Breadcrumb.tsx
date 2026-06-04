@@ -1,4 +1,4 @@
-import { PanelLeftOpen } from 'lucide-react';
+import { ChevronLeft, PanelLeftOpen } from 'lucide-react';
 import { cn } from '@garage/ui';
 import { CopyActionIcon, RefreshActionIcon } from '@/lib/action-icons';
 import { useBrowser } from '../../context';
@@ -11,6 +11,7 @@ export function Breadcrumb() {
     refresh,
     currentPrefix,
     activeFile,
+    setActiveFile,
     showToast,
     treeCollapsed,
     setTreeCollapsed,
@@ -18,6 +19,63 @@ export function Breadcrumb() {
     treeDrawerOpen,
     setTreeDrawerOpen,
   } = useBrowser();
+
+  const openTree = () => {
+    setTreeDrawerOpen(true);
+    setTreeCollapsed(false);
+  };
+
+  // Mobile: a OneDrive-style header — back (up a level / out of a file) + the
+  // current location as the title, with tree + refresh affordances trailing.
+  if (isNarrow) {
+    const inSub = path.length > 0 || !!activeFile;
+    const title = activeFile ? activeFile.name : path.length ? path[path.length - 1] : bucket;
+    const goUp = () => {
+      if (activeFile) setActiveFile(null);
+      else onPathChange(path.slice(0, -1));
+    };
+    const iconBtn =
+      'flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors active:bg-muted';
+    return (
+      <div className="flex h-12 shrink-0 items-center gap-0.5 border-b border-border bg-card/40 px-1.5">
+        {inSub ? (
+          <button onClick={goUp} className={cn(iconBtn, 'text-foreground')} aria-label="Back">
+            <ChevronLeft size={24} />
+          </button>
+        ) : (
+          <button
+            onClick={openTree}
+            className={cn(iconBtn, 'text-muted-foreground')}
+            aria-label="Open file tree"
+          >
+            <PanelLeftOpen size={18} />
+          </button>
+        )}
+        <span
+          className="min-w-0 flex-1 truncate px-1 text-[17px] font-semibold text-foreground"
+          title={title}
+        >
+          {title}
+        </span>
+        {inSub && (
+          <button
+            onClick={openTree}
+            className={cn(iconBtn, 'text-muted-foreground')}
+            aria-label="Open file tree"
+          >
+            <PanelLeftOpen size={17} />
+          </button>
+        )}
+        <button
+          onClick={() => refresh(currentPrefix)}
+          className={cn(iconBtn, 'text-muted-foreground')}
+          aria-label="Refresh"
+        >
+          <RefreshActionIcon size={16} />
+        </button>
+      </div>
+    );
+  }
 
   const copyCurrentKey = async () => {
     const key = activeFile?.key ?? currentPrefix;

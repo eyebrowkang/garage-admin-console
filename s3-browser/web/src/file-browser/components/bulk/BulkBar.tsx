@@ -22,6 +22,7 @@ export function BulkBar({ visibleKeys, totalLoaded }: BulkBarProps) {
     openDelete,
     http,
     showToast,
+    isNarrow,
   } = useBrowser();
 
   const checkboxRef = useRef<HTMLInputElement>(null);
@@ -78,6 +79,60 @@ export function BulkBar({ visibleKeys, totalLoaded }: BulkBarProps) {
 
   const hasSelection = selectedKeys.size > 0;
   const fileCount = Array.from(selectedKeys).filter((k) => !k.endsWith('/')).length;
+
+  // Mobile: compact icon actions instead of labelled buttons, which would
+  // overflow the row at phone widths.
+  if (isNarrow) {
+    const iconBtn =
+      'flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors active:bg-primary/10 disabled:opacity-35';
+    return (
+      <div className="flex shrink-0 items-center gap-1 border-b border-primary/30 bg-primary/8 px-2 py-1.5">
+        <label className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full active:bg-primary/10">
+          <input
+            ref={checkboxRef}
+            type="checkbox"
+            checked={allSelected}
+            onChange={handleSelectAll}
+            className="h-[18px] w-[18px] cursor-pointer rounded accent-primary"
+            aria-label={allSelected ? 'Deselect all' : 'Select all loaded'}
+          />
+        </label>
+        <span className="min-w-0 flex-1 truncate text-[14px] font-medium">
+          {hasSelection ? `${selectedKeys.size} selected` : 'Select items'}
+        </span>
+        <button
+          onClick={handleDownload}
+          disabled={fileCount === 0}
+          className={cn(iconBtn, 'text-foreground')}
+          aria-label="Download selected"
+        >
+          <DownloadActionIcon size={19} />
+        </button>
+        <button
+          onClick={handleCopyKeys}
+          disabled={!hasSelection}
+          className={cn(iconBtn, 'text-foreground')}
+          aria-label="Copy keys"
+        >
+          <CopyActionIcon size={19} />
+        </button>
+        <button
+          onClick={handleDelete}
+          disabled={!hasSelection}
+          className={cn(iconBtn, 'text-destructive')}
+          aria-label="Delete selected"
+        >
+          <DeleteActionIcon size={19} />
+        </button>
+        <button
+          onClick={handleExit}
+          className="ml-0.5 shrink-0 rounded-full px-3 py-1.5 text-[14px] font-semibold text-primary active:bg-primary/10"
+        >
+          Done
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div
