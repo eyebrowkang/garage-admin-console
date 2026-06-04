@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { HardDrive, Activity, Database, RefreshCw, type LucideIcon } from 'lucide-react';
+import { HardDrive, Activity, Database, type LucideIcon } from 'lucide-react';
 import {
   Button,
   Badge,
@@ -15,6 +15,7 @@ import {
   CopyButton,
   InlineLoadingState,
   PageLoadingState,
+  TerminalOutput,
 } from '@garage/ui';
 import { useClusterContext } from '@/contexts/ClusterContext';
 import { useNodes, useNodeInfo, useNodeStatistics } from '@/hooks/useNodes';
@@ -206,12 +207,12 @@ export function NodeDetail() {
                 </div>
               )}
             </div>
-            <div className="bg-card px-4 py-3">
+            <div className="min-w-0 bg-card px-4 py-3">
               <div className="text-xs text-muted-foreground">Address</div>
               {node.addr ? (
-                <div className="inline-flex items-center gap-1 text-sm">
-                  <span className="font-mono">{node.addr}</span>
-                  <CopyButton value={node.addr} label="Node address" compact />
+                <div className="mt-0.5 flex items-start gap-1 text-sm">
+                  <span className="min-w-0 break-all font-mono">{node.addr}</span>
+                  <CopyButton value={node.addr} label="Node address" compact className="shrink-0" />
                 </div>
               ) : (
                 <div className="text-sm">—</div>
@@ -247,10 +248,6 @@ export function NodeDetail() {
               </Alert>
             ) : nodeInfoData ? (
               <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <div className="text-sm text-muted-foreground">Garage Version</div>
-                  <div className="font-medium">{nodeInfoData.garageVersion}</div>
-                </div>
                 <div>
                   <div className="text-sm text-muted-foreground">Rust Version</div>
                   <div className="font-medium">{nodeInfoData.rustVersion}</div>
@@ -290,11 +287,7 @@ export function NodeDetail() {
           {node.role && (
             <div className="space-y-3 rounded-lg border p-4">
               <div className="text-sm font-medium">Role Configuration</div>
-              <div className="grid gap-4 md:grid-cols-3">
-                <div>
-                  <div className="text-sm text-muted-foreground">Zone</div>
-                  <div className="font-medium">{node.role.zone}</div>
-                </div>
+              <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <div className="text-sm text-muted-foreground">Capacity</div>
                   <div className="font-medium">{formatBytes(node.role.capacity)}</div>
@@ -330,24 +323,11 @@ export function NodeDetail() {
 
         {/* ---------------- Statistics ---------------- */}
         <TabsContent value="statistics" className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <Activity className="h-4 w-4 text-muted-foreground" />
-              Node Statistics
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => refetchStats()}
-              disabled={statsFetching}
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${statsFetching ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <Activity className="h-4 w-4 text-muted-foreground" />
+            Node Statistics
           </div>
-          {statsLoading ? (
-            <InlineLoadingState label="Loading statistics..." />
-          ) : statsError ? (
+          {statsError ? (
             <Alert variant="destructive">
               <AlertTitle>Failed to load statistics</AlertTitle>
               <AlertDescription>{getApiErrorMessage(statsError)}</AlertDescription>
@@ -358,9 +338,16 @@ export function NodeDetail() {
               <AlertDescription>{nodeStatsError}</AlertDescription>
             </Alert>
           ) : (
-            <pre className="max-h-[600px] overflow-auto whitespace-pre rounded-lg border bg-muted/40 p-4 font-mono text-xs leading-relaxed">
-              {nodeStats?.freeform || 'No statistics available'}
-            </pre>
+            <TerminalOutput
+              command="garage stats"
+              content={nodeStats?.freeform ?? ''}
+              onRefresh={() => refetchStats()}
+              refreshing={statsFetching}
+              loading={statsLoading}
+              loadingLabel="Fetching node statistics…"
+              emptyLabel="No statistics available."
+              maxHeightClass="max-h-[600px]"
+            />
           )}
         </TabsContent>
       </Tabs>
