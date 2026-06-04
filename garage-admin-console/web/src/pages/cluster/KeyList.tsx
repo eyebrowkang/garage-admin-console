@@ -675,7 +675,7 @@ export function KeyList() {
                 )}
               </div>
               <div className="text-xs text-muted-foreground">
-                Secret access keys are only shown once. Store it securely.
+                Store it securely. You can also reveal it later on the key&rsquo;s page.
               </div>
             </div>
           )}
