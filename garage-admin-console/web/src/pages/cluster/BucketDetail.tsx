@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Globe, Tags, Settings, Pencil, Fingerprint, AlertTriangle } from 'lucide-react';
+import { Globe, Tags, Settings, Fingerprint, AlertTriangle } from 'lucide-react';
 import {
   Button,
   Badge,
@@ -36,7 +36,6 @@ import {
   TabsContent,
   TabHotkeys,
   PermissionPill,
-  PermissionCheckboxes,
 } from '@garage/ui';
 import { useClusterContext } from '@/contexts/ClusterContext';
 import {
@@ -47,7 +46,6 @@ import {
   useRemoveBucketAlias,
   useInspectObject,
 } from '@/hooks/useBuckets';
-import { useAllowBucketKey, useDenyBucketKey } from '@/hooks/usePermissions';
 import { ConfirmDialog } from '@garage/ui';
 import { CopyButton } from '@garage/ui';
 import { DetailPageHeader } from '@/components/cluster/DetailPageHeader';
@@ -55,7 +53,7 @@ import { BucketObjectBrowser } from '@/components/cluster/BucketObjectBrowser';
 import { isMfExplicitlyConfigured } from '@/mf-init';
 import { JsonViewer } from '@/components/cluster/JsonViewer';
 import { PageLoadingState } from '@garage/ui';
-import { AddActionIcon, DeleteActionIcon } from '@/lib/action-icons';
+import { AddActionIcon, DeleteActionIcon, OpenActionIcon } from '@/lib/action-icons';
 import { KeyIcon } from '@/lib/entity-icons';
 import { formatBytes, formatNum, formatShortId, getApiErrorMessage } from '@garage/web-shared';
 import { toast } from '@garage/ui';
@@ -139,26 +137,12 @@ export function BucketDetail() {
     alias: string;
     accessKeyId?: string;
   } | null>(null);
-  const [permDialogOpen, setPermDialogOpen] = useState(false);
-  const [permKey, setPermKey] = useState<{
-    accessKeyId: string;
-    name: string;
-    read: boolean;
-    write: boolean;
-    owner: boolean;
-  } | null>(null);
-  const [selectedKeyIds, setSelectedKeyIds] = useState<Set<string>>(new Set());
-  const [bulkPerm, setBulkPerm] = useState<'read' | 'write' | 'owner'>('read');
-  const [bulkBusy, setBulkBusy] = useState(false);
-
   const { data: bucket, isLoading, error } = useBucketInfo(clusterId, bid || '');
   const updateBucketMutation = useUpdateBucket(clusterId, bid || '');
   const cleanupMutation = useCleanupIncompleteUploads(clusterId, bid || '');
   const addAliasMutation = useAddBucketAlias(clusterId);
   const removeAliasMutation = useRemoveBucketAlias(clusterId);
   const inspectMutation = useInspectObject(clusterId, bid || '');
-  const allowKeyMutation = useAllowBucketKey(clusterId);
-  const denyKeyMutation = useDenyBucketKey(clusterId);
 
   if (!bid) {
     return (
@@ -358,112 +342,6 @@ export function BucketDetail() {
         variant: 'destructive',
       });
     }
-  };
-
-  const handleUpdatePermissions = async () => {
-    if (!permKey) return;
-    try {
-      const currentPerms = bucket?.keys.find(
-        (k) => k.accessKeyId === permKey.accessKeyId,
-      )?.permissions;
-      if (!currentPerms) return;
-
-      // Allow permissions that are newly enabled
-      const toAllow = {
-        read: permKey.read && !currentPerms.read,
-        write: permKey.write && !currentPerms.write,
-        owner: permKey.owner && !currentPerms.owner,
-      };
-      // Deny permissions that are newly disabled
-      const toDeny = {
-        read: !permKey.read && currentPerms.read,
-        write: !permKey.write && currentPerms.write,
-        owner: !permKey.owner && currentPerms.owner,
-      };
-
-      if (toAllow.read || toAllow.write || toAllow.owner) {
-        await allowKeyMutation.mutateAsync({
-          bucketId: bid,
-          accessKeyId: permKey.accessKeyId,
-          permissions: toAllow,
-        });
-      }
-      if (toDeny.read || toDeny.write || toDeny.owner) {
-        await denyKeyMutation.mutateAsync({
-          bucketId: bid,
-          accessKeyId: permKey.accessKeyId,
-          permissions: toDeny,
-        });
-      }
-      toast({ title: 'Permissions updated', variant: 'success' });
-      setPermDialogOpen(false);
-      setPermKey(null);
-    } catch (err) {
-      toast({
-        title: 'Failed to update permissions',
-        description: getApiErrorMessage(err),
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const openPermDialog = (key: {
-    accessKeyId: string;
-    name?: string | null;
-    permissions: { read: boolean; write: boolean; owner: boolean };
-  }) => {
-    setPermKey({
-      accessKeyId: key.accessKeyId,
-      name: key.name || key.accessKeyId,
-      read: key.permissions.read,
-      write: key.permissions.write,
-      owner: key.permissions.owner,
-    });
-    setPermDialogOpen(true);
-  };
-
-  const allKeysSelected =
-    bucket.keys.length > 0 && bucket.keys.every((key) => selectedKeyIds.has(key.accessKeyId));
-  const toggleKeySelection = (accessKeyId: string) =>
-    setSelectedKeyIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(accessKeyId)) next.delete(accessKeyId);
-      else next.add(accessKeyId);
-      return next;
-    });
-  const toggleAllKeys = () =>
-    setSelectedKeyIds(allKeysSelected ? new Set() : new Set(bucket.keys.map((k) => k.accessKeyId)));
-
-  // Bulk grant/revoke a single permission across every selected key. No batch
-  // endpoint exists, so this loops the per-key Allow/Deny mutations (same shape
-  // as the single-row edit) and reports an aggregate result.
-  const handleBulkPermission = async (grant: boolean) => {
-    if (selectedKeyIds.size === 0) return;
-    setBulkBusy(true);
-    const permissions = {
-      read: bulkPerm === 'read',
-      write: bulkPerm === 'write',
-      owner: bulkPerm === 'owner',
-    };
-    const mutation = grant ? allowKeyMutation : denyKeyMutation;
-    let ok = 0;
-    let failed = 0;
-    for (const accessKeyId of selectedKeyIds) {
-      try {
-        await mutation.mutateAsync({ bucketId: bid, accessKeyId, permissions });
-        ok += 1;
-      } catch {
-        failed += 1;
-      }
-    }
-    setBulkBusy(false);
-    setSelectedKeyIds(new Set());
-    toast({
-      title: `${grant ? 'Granted' : 'Revoked'} ${bulkPerm} on ${ok} key${ok === 1 ? '' : 's'}${
-        failed ? ` (${failed} failed)` : ''
-      }`,
-      variant: failed ? 'destructive' : 'success',
-    });
   };
 
   return (
@@ -742,66 +620,11 @@ export function BucketDetail() {
         <TabsContent value="permissions" className="space-y-3">
           {bucket.keys.length > 0 ? (
             <>
-              <div className="flex justify-end">
-                <Button variant="outline" size="sm" onClick={() => navigate(grantKeyCta)}>
-                  <AddActionIcon className="h-4 w-4" />
-                  Grant a key
-                </Button>
-              </div>
-
-              {selectedKeyIds.size > 0 && (
-                <div className="flex flex-col gap-2 rounded-lg border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="text-sm font-medium">{selectedKeyIds.size} selected</div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Select
-                      value={bulkPerm}
-                      onValueChange={(value) => setBulkPerm(value as 'read' | 'write' | 'owner')}
-                    >
-                      <SelectTrigger className="w-[130px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="read">Read</SelectItem>
-                        <SelectItem value="write">Write</SelectItem>
-                        <SelectItem value="owner">Owner</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleBulkPermission(true)}
-                      disabled={bulkBusy}
-                    >
-                      Grant
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-destructive"
-                      onClick={() => handleBulkPermission(false)}
-                      disabled={bulkBusy}
-                    >
-                      Revoke
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => setSelectedKeyIds(new Set())}>
-                      Clear
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {/* Desktop / tablet: lean Key · Access · Edit table */}
+              {/* Desktop / tablet: read-only Key · Access · View table */}
               <div className="hidden overflow-hidden rounded-lg border sm:block">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-10">
-                        <Checkbox
-                          checked={allKeysSelected}
-                          onCheckedChange={toggleAllKeys}
-                          aria-label="Select all keys"
-                        />
-                      </TableHead>
                       <TableHead>Key</TableHead>
                       <TableHead>Access</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
@@ -809,17 +632,7 @@ export function BucketDetail() {
                   </TableHeader>
                   <TableBody>
                     {bucket.keys.map((key) => (
-                      <TableRow
-                        key={key.accessKeyId}
-                        data-state={selectedKeyIds.has(key.accessKeyId) ? 'selected' : undefined}
-                      >
-                        <TableCell>
-                          <Checkbox
-                            checked={selectedKeyIds.has(key.accessKeyId)}
-                            onCheckedChange={() => toggleKeySelection(key.accessKeyId)}
-                            aria-label={`Select ${key.name || key.accessKeyId}`}
-                          />
-                        </TableCell>
+                      <TableRow key={key.accessKeyId}>
                         <TableCell>
                           <div className="min-w-0">
                             <div className="font-medium">{key.name || 'Unnamed key'}</div>
@@ -837,9 +650,13 @@ export function BucketDetail() {
                           </div>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="sm" onClick={() => openPermDialog(key)}>
-                            <Pencil className="h-3.5 w-3.5" />
-                            Edit
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => navigate(`/clusters/${clusterId}/keys/${key.accessKeyId}`)}
+                          >
+                            <OpenActionIcon className="h-3.5 w-3.5" />
+                            View
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -848,39 +665,31 @@ export function BucketDetail() {
                 </Table>
               </div>
 
-              {/* Mobile: one card per key, selectable, action inline */}
+              {/* Mobile: one card per key */}
               <div className="space-y-2 sm:hidden">
                 {bucket.keys.map((key) => (
                   <div key={key.accessKeyId} className="space-y-2.5 rounded-lg border p-3">
                     <div className="flex items-start justify-between gap-2">
-                      <div className="flex min-w-0 items-start gap-2.5">
-                        <Checkbox
-                          checked={selectedKeyIds.has(key.accessKeyId)}
-                          onCheckedChange={() => toggleKeySelection(key.accessKeyId)}
-                          aria-label={`Select ${key.name || key.accessKeyId}`}
-                          className="mt-0.5"
-                        />
-                        <div className="min-w-0">
-                          <div className="truncate text-sm font-medium">
-                            {key.name || 'Unnamed key'}
-                          </div>
-                          <div className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                            <span className="font-mono">{formatShortId(key.accessKeyId, 16)}</span>
-                            <CopyButton value={key.accessKeyId} label="Access key ID" compact />
-                          </div>
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-medium">
+                          {key.name || 'Unnamed key'}
+                        </div>
+                        <div className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                          <span className="font-mono">{formatShortId(key.accessKeyId, 16)}</span>
+                          <CopyButton value={key.accessKeyId} label="Access key ID" compact />
                         </div>
                       </div>
                       <Button
                         variant="ghost"
                         size="sm"
                         className="shrink-0"
-                        onClick={() => openPermDialog(key)}
+                        onClick={() => navigate(`/clusters/${clusterId}/keys/${key.accessKeyId}`)}
                       >
-                        <Pencil className="h-3.5 w-3.5" />
-                        Edit
+                        <OpenActionIcon className="h-3.5 w-3.5" />
+                        View
                       </Button>
                     </div>
-                    <div className="flex flex-wrap gap-1.5 pl-7">
+                    <div className="flex flex-wrap gap-1.5">
                       <PermissionPill label="Read" granted={key.permissions.read} />
                       <PermissionPill label="Write" granted={key.permissions.write} />
                       <PermissionPill label="Owner" granted={key.permissions.owner} />
@@ -1220,40 +1029,6 @@ export function BucketDetail() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Key Permissions Dialog */}
-      <Dialog
-        open={permDialogOpen}
-        onOpenChange={(open) => {
-          setPermDialogOpen(open);
-          if (!open) setPermKey(null);
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Key Permissions</DialogTitle>
-            <DialogDescription>Update permissions for key {permKey?.name || ''}</DialogDescription>
-          </DialogHeader>
-          {permKey && (
-            <div className="py-4">
-              <PermissionCheckboxes
-                value={{ read: permKey.read, write: permKey.write, owner: permKey.owner }}
-                onChange={(next) => setPermKey((prev) => (prev ? { ...prev, ...next } : prev))}
-              />
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPermDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleUpdatePermissions}
-              disabled={allowKeyMutation.isPending || denyKeyMutation.isPending}
-            >
-              {allowKeyMutation.isPending || denyKeyMutation.isPending ? 'Saving...' : 'Save'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
