@@ -21,7 +21,8 @@ interface DetailPageHeaderProps {
   backTo?: string;
   /** Wayfinding crumbs, root → current. The last entry renders as the page. */
   breadcrumbs?: BreadcrumbSpec[];
-  title: ReactNode;
+  /** Page title (h1). Optional — omit when the breadcrumb + content carry the identity. */
+  title?: ReactNode;
   subtitle?: ReactNode;
   badges?: ReactNode;
   actions?: ReactNode;
