@@ -8,7 +8,14 @@ import {
   type ReactNode,
 } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { ArrowDown, ArrowUp, ArrowUpDown, MoreHorizontal, Search } from 'lucide-react';
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  ChevronRight,
+  MoreHorizontal,
+  Search,
+} from 'lucide-react';
 
 import { cn } from '../lib/cn';
 import { Button } from './button';
@@ -486,18 +493,11 @@ export function ResourceList<T>({
             <div
               key={id}
               data-state={selected ? 'selected' : undefined}
-              className={cn(
-                'rounded-lg border bg-card p-3 transition-colors data-[state=selected]:border-primary/40 data-[state=selected]:bg-primary/5',
-                interactive &&
-                  'cursor-pointer active:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              )}
-              onClick={interactive ? () => onRowClick?.(item) : undefined}
-              role={interactive ? 'link' : undefined}
-              tabIndex={interactive ? 0 : undefined}
-              aria-label={interactive ? getRowLabel?.(item) : undefined}
-              onKeyDown={interactive ? (e) => onRowKeyDown(e, item) : undefined}
+              className="rounded-lg border bg-card p-3 transition-colors data-[state=selected]:border-primary/40 data-[state=selected]:bg-primary/5"
             >
-              {/* Header row: checkbox · identity · ⋯ — comfortable touch targets. */}
+              {/* Header row: checkbox · identity · open · actions — the body is
+                  inert; navigation is the explicit ›/Open button, so tapping the
+                  card never mis-navigates. */}
               <div className="flex items-center gap-3">
                 {selection && isSelectable(item) && (
                   <label
@@ -514,18 +514,35 @@ export function ResourceList<T>({
                 <div className="min-w-0 flex-1 font-medium text-foreground">
                   {renderTitle(item)}
                 </div>
-                {rowActions && (
-                  <button
-                    type="button"
-                    aria-label="Row actions"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActionItem(item);
-                    }}
-                    className="-m-1.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground pointer-coarse:h-11 pointer-coarse:w-11"
-                  >
-                    <MoreHorizontal className="h-5 w-5" />
-                  </button>
+                {(interactive || rowActions) && (
+                  <div className="-my-1.5 -mr-1.5 flex shrink-0 items-center">
+                    {interactive && (
+                      <button
+                        type="button"
+                        aria-label={getRowLabel?.(item) ?? 'Open'}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onRowClick?.(item);
+                        }}
+                        className="flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground pointer-coarse:h-11 pointer-coarse:w-11"
+                      >
+                        <ChevronRight className="h-5 w-5" />
+                      </button>
+                    )}
+                    {rowActions && (
+                      <button
+                        type="button"
+                        aria-label="Row actions"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActionItem(item);
+                        }}
+                        className="flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground pointer-coarse:h-11 pointer-coarse:w-11"
+                      >
+                        <MoreHorizontal className="h-5 w-5" />
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
 

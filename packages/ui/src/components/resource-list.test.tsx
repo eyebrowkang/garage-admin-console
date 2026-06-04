@@ -166,4 +166,15 @@ describe('ResourceList', () => {
     expect(within(sheet).getByText('Banana')).toBeInTheDocument();
     expect(within(sheet).getByRole('button', { name: 'Delete Banana' })).toBeInTheDocument();
   });
+
+  it('navigates from the mobile card via an explicit Open button', async () => {
+    const user = userEvent.setup();
+    const onRowClick = vi.fn();
+    renderList({ onRowClick, getRowLabel: (r) => `Open ${r.name}` });
+    // Mobile uses a dedicated Open button (role=button), distinct from the
+    // desktop row (role=link), so tapping the card body never navigates.
+    const open = screen.getByRole('button', { name: 'Open Banana' });
+    await user.click(open);
+    expect(onRowClick).toHaveBeenCalledTimes(1);
+  });
 });
