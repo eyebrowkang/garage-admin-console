@@ -38,12 +38,17 @@ import { ConfirmDialog } from '@garage/ui';
 import { ModulePageHeader } from '@garage/ui';
 import { TableLoadingState } from '@/components/cluster/TableLoadingState';
 import { useClusterContext } from '@/contexts/ClusterContext';
-import { AddActionIcon, DeleteActionIcon } from '@/lib/action-icons';
+import { AddActionIcon, DeleteActionIcon, EditActionIcon } from '@/lib/action-icons';
 import { KeyIcon } from '@/lib/entity-icons';
 import { toast } from '@garage/ui';
 import { runBulkDelete } from '@/lib/bulk-delete';
 import { useKeys, useImportKey } from '@/hooks/useKeys';
-import type { CreateKeyRequest, GetKeyInfoResponse, ListKeysResponseItem } from '@/types/garage';
+import type {
+  CreateKeyRequest,
+  GetKeyInfoResponse,
+  ListKeysResponseItem,
+  UpdateKeyRequest,
+} from '@/types/garage';
 
 export function KeyList() {
   const { clusterId } = useClusterContext();
@@ -76,6 +81,13 @@ export function KeyList() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
   const [bulkDelete, setBulkDelete] = useState<{ ids: string[]; clear: () => void } | null>(null);
   const [bulkPending, setBulkPending] = useState(false);
+  const [editKey, setEditKey] = useState<ListKeysResponseItem | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editExpirationDate, setEditExpirationDate] = useState('');
+  const [editExpirationHour, setEditExpirationHour] = useState('00');
+  const [editExpirationMinute, setEditExpirationMinute] = useState('00');
+  const [editNeverExpires, setEditNeverExpires] = useState(false);
+  const [editError, setEditError] = useState('');
 
   const resetCreateForm = () => {
     setNewKeyName('');
@@ -233,6 +245,69 @@ export function KeyList() {
     } catch (err) {
       setImportError(getApiErrorMessage(err, 'Failed to import key.'));
     }
+  };
+
+  const toDateParts = (value?: string | null) => {
+    if (!value) return { date: '', hour: '00', minute: '00' };
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return { date: '', hour: '00', minute: '00' };
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return {
+      date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+      hour: pad(d.getHours()),
+      minute: pad(d.getMinutes()),
+    };
+  };
+
+  const editExpirationValue = editExpirationDate
+    ? new Date(`${editExpirationDate}T${editExpirationHour}:${editExpirationMinute}:00`)
+    : null;
+  const editExpirationIso =
+    editExpirationValue && !Number.isNaN(editExpirationValue.getTime())
+      ? editExpirationValue.toISOString()
+      : null;
+  const editExpirationInvalid = Boolean(editExpirationDate) && !editExpirationIso;
+
+  const openEdit = (key: ListKeysResponseItem) => {
+    const parts = toDateParts(key.expiration);
+    setEditKey(key);
+    setEditName(key.name ?? '');
+    setEditExpirationDate(parts.date);
+    setEditExpirationHour(parts.hour);
+    setEditExpirationMinute(parts.minute);
+    setEditNeverExpires(!key.expiration);
+    setEditError('');
+  };
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, payload }: { id: string; payload: UpdateKeyRequest }) => {
+      await api.post(proxyPath(clusterId, `/v2/UpdateKey?id=${encodeURIComponent(id)}`), payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['keys', clusterId] });
+      setEditKey(null);
+      toast({ title: 'Key updated', variant: 'success' });
+    },
+    onError: (err) => {
+      setEditError(getApiErrorMessage(err, 'Failed to update key.'));
+    },
+  });
+
+  const handleUpdate = () => {
+    if (!editKey || editExpirationInvalid) return;
+    const payload: UpdateKeyRequest = {};
+    const trimmedName = editName.trim();
+    if (trimmedName !== (editKey.name ?? '')) {
+      payload.name = trimmedName || null;
+    }
+    if (editNeverExpires) {
+      payload.neverExpires = true;
+    } else if (editExpirationIso) {
+      payload.expiration = editExpirationIso;
+    } else if (editKey.expiration) {
+      payload.expiration = null;
+    }
+    updateMutation.mutate({ id: editKey.id, payload });
   };
 
   const columns: ResourceListColumn<ListKeysResponseItem>[] = [
@@ -540,6 +615,11 @@ export function KeyList() {
         }}
         actions={(k) => [
           {
+            label: 'Edit',
+            icon: EditActionIcon,
+            onSelect: () => openEdit(k),
+          },
+          {
             label: 'Delete',
             icon: DeleteActionIcon,
             destructive: true,
@@ -602,6 +682,66 @@ export function KeyList() {
           <DialogFooter>
             <Button onClick={() => setCreatedKey(null)}>Close</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!editKey}
+        onOpenChange={(open) => {
+          if (!open) setEditKey(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Access Key</DialogTitle>
+            <DialogDescription>
+              Rename the key or change when it expires. Manage permissions on the key&rsquo;s page.
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleUpdate();
+            }}
+            className="space-y-4"
+          >
+            <div className="space-y-2">
+              <Label htmlFor="edit-key-name">Key name</Label>
+              <Input
+                id="edit-key-name"
+                autoFocus
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="my-app-key"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Expiration</Label>
+              <ExpirationPicker
+                date={editExpirationDate}
+                hour={editExpirationHour}
+                minute={editExpirationMinute}
+                neverExpires={editNeverExpires}
+                onDateChange={setEditExpirationDate}
+                onHourChange={setEditExpirationHour}
+                onMinuteChange={setEditExpirationMinute}
+                onNeverExpiresChange={setEditNeverExpires}
+                currentLabel={editKey?.expiration ? formatDateTime(editKey.expiration) : 'Never'}
+                invalid={editExpirationInvalid}
+              />
+            </div>
+            {editError && (
+              <Alert variant="destructive">
+                <AlertTitle>Update failed</AlertTitle>
+                <AlertDescription>{editError}</AlertDescription>
+              </Alert>
+            )}
+            <DialogFooter>
+              <Button type="submit" disabled={editExpirationInvalid || updateMutation.isPending}>
+                {updateMutation.isPending ? 'Saving...' : 'Save'}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 
