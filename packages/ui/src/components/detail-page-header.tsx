@@ -47,52 +47,68 @@ export function DetailPageHeader({
   // The identity cluster (back · title · badges · subtitle). When a page omits
   // all of it, the row collapses to just the actions (right-aligned).
   const hasIdentity = showBack || title != null || badges != null || subtitle != null;
+  // No identity block: the breadcrumb shares the actions row (sm+) instead of
+  // sitting alone above a half-empty row. It gets a min-w-0 container and the
+  // current crumb truncates (BreadcrumbPage is `truncate`) so a long name never
+  // pushes the actions off; on mobile it stacks above full-width actions.
+  if (!hasIdentity) {
+    return (
+      <div className="space-y-2 border-b border-border/70 pb-3 sm:space-y-3 sm:pb-4">
+        {(breadcrumb || actions) && (
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+            {breadcrumb && <div className="min-w-0 [&_ol]:flex-nowrap">{breadcrumb}</div>}
+            {actions && (
+              <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
+                {actions}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-2 border-b border-border/70 pb-3 sm:space-y-3 sm:pb-4">
       {breadcrumb}
-      {(hasIdentity || actions) && (
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
-          {hasIdentity && (
-            <div className="flex min-w-0 items-start gap-2.5 sm:gap-3">
-              {showBack && (
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-8 w-8 shrink-0"
-                  onClick={onBack}
-                  aria-label={backLabel}
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                </Button>
-              )}
-              <div className="min-w-0 space-y-0.5 sm:space-y-1">
-                {(title != null || badges != null) && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    {title != null && (
-                      <h1 className="text-lg sm:text-xl font-semibold tracking-tight">{title}</h1>
-                    )}
-                    {badges}
-                  </div>
-                )}
-                {subtitle && (
-                  <p className="break-all text-xs sm:text-sm text-muted-foreground">{subtitle}</p>
-                )}
-              </div>
-            </div>
-          )}
-          {actions && (
-            <div
-              className={cn(
-                'flex flex-wrap items-center gap-2 sm:justify-end sm:pl-0',
-                !hasIdentity && 'sm:ml-auto',
-                showBack && 'pl-10',
-              )}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+        <div className="flex min-w-0 items-start gap-2.5 sm:gap-3">
+          {showBack && (
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 shrink-0"
+              onClick={onBack}
+              aria-label={backLabel}
             >
-              {actions}
-            </div>
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
           )}
+          <div className="min-w-0 space-y-0.5 sm:space-y-1">
+            {(title != null || badges != null) && (
+              <div className="flex flex-wrap items-center gap-2">
+                {title != null && (
+                  <h1 className="text-lg sm:text-xl font-semibold tracking-tight">{title}</h1>
+                )}
+                {badges}
+              </div>
+            )}
+            {subtitle && (
+              <p className="break-all text-xs sm:text-sm text-muted-foreground">{subtitle}</p>
+            )}
+          </div>
         </div>
-      )}
+        {actions && (
+          <div
+            className={cn(
+              'flex flex-wrap items-center gap-2 sm:justify-end sm:pl-0',
+              showBack && 'pl-10',
+            )}
+          >
+            {actions}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
