@@ -4,18 +4,6 @@ import { HardDrive, Activity, Database, RefreshCw, type LucideIcon } from 'lucid
 import {
   Button,
   Badge,
-  Label,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Alert,
   AlertDescription,
   AlertTitle,
@@ -24,54 +12,16 @@ import {
   TabsTrigger,
   TabsContent,
   TabHotkeys,
+  CopyButton,
+  InlineLoadingState,
+  PageLoadingState,
 } from '@garage/ui';
 import { useClusterContext } from '@/contexts/ClusterContext';
-import {
-  useNodes,
-  useNodeInfo,
-  useNodeStatistics,
-  useCreateMetadataSnapshot,
-  useLaunchRepairOperation,
-} from '@/hooks/useNodes';
-import { ConfirmDialog } from '@garage/ui';
-import { CopyButton } from '@garage/ui';
+import { useNodes, useNodeInfo, useNodeStatistics } from '@/hooks/useNodes';
 import { DetailPageHeader } from '@/components/cluster/DetailPageHeader';
-import { InlineLoadingState } from '@garage/ui';
-import { PageLoadingState } from '@garage/ui';
+import { SnapshotDialog, RepairDialog } from '@/components/cluster/NodeMaintenanceDialogs';
 import { RepairActionIcon, SnapshotActionIcon } from '@/lib/action-icons';
 import { formatBytes, formatRelativeSeconds, getApiErrorMessage } from '@garage/web-shared';
-import { toast } from '@garage/ui';
-import type { RepairType, ScrubCommand } from '@/types/garage';
-
-const REPAIR_OPERATIONS = [
-  { value: 'tables', label: 'Tables', description: 'Verify and repair all metadata tables' },
-  { value: 'blocks', label: 'Blocks', description: 'Verify block integrity and rebalance' },
-  { value: 'versions', label: 'Versions', description: 'Verify object versions consistency' },
-  {
-    value: 'multipartUploads',
-    label: 'Multipart Uploads',
-    description: 'Repair multipart upload metadata',
-  },
-  { value: 'blockRefs', label: 'Block Refs', description: 'Verify block reference counts' },
-  { value: 'blockRc', label: 'Block RC', description: 'Recalculate block reference counts' },
-  { value: 'rebalance', label: 'Rebalance', description: 'Rebalance data across nodes' },
-  { value: 'aliases', label: 'Aliases', description: 'Rebuild bucket alias metadata' },
-  {
-    value: 'clearResyncQueue',
-    label: 'Clear Resync Queue',
-    description: 'Clear pending resync tasks',
-  },
-  { value: 'scrub', label: 'Scrub', description: 'Full data scrub and verification' },
-] as const;
-
-const SCRUB_COMMANDS = [
-  { value: 'start', label: 'Start' },
-  { value: 'pause', label: 'Pause' },
-  { value: 'resume', label: 'Resume' },
-  { value: 'cancel', label: 'Cancel' },
-] as const;
-
-type RepairOperationValue = (typeof REPAIR_OPERATIONS)[number]['value'];
 
 /** A storage-partition usage panel: available / total and a used-% meter. */
 function PartitionMeter({
@@ -124,8 +74,6 @@ export function NodeDetail() {
 
   const [snapshotDialogOpen, setSnapshotDialogOpen] = useState(false);
   const [repairDialogOpen, setRepairDialogOpen] = useState(false);
-  const [selectedRepairOp, setSelectedRepairOp] = useState<RepairOperationValue>('tables');
-  const [scrubCommand, setScrubCommand] = useState<ScrubCommand>('start');
 
   const { data: status, isLoading, error } = useNodes(clusterId);
   const {
@@ -140,8 +88,6 @@ export function NodeDetail() {
     refetch: refetchStats,
     isFetching: statsFetching,
   } = useNodeStatistics(clusterId, nid);
-  const snapshotMutation = useCreateMetadataSnapshot(clusterId);
-  const repairMutation = useLaunchRepairOperation(clusterId);
 
   if (!nid) {
     return (
@@ -179,46 +125,6 @@ export function NodeDetail() {
       </Alert>
     );
   }
-
-  const handleSnapshot = async () => {
-    try {
-      await snapshotMutation.mutateAsync(nid);
-      toast({
-        title: 'Snapshot created',
-        description: 'Metadata snapshot has been created',
-        variant: 'success',
-      });
-      setSnapshotDialogOpen(false);
-    } catch (err) {
-      toast({
-        title: 'Snapshot failed',
-        description: getApiErrorMessage(err),
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleRepair = async () => {
-    try {
-      const repairType: RepairType =
-        selectedRepairOp === 'scrub' ? { scrub: scrubCommand } : selectedRepairOp;
-      const repairLabel =
-        REPAIR_OPERATIONS.find((op) => op.value === selectedRepairOp)?.label ?? selectedRepairOp;
-      const repairSuffix = selectedRepairOp === 'scrub' ? ` (${scrubCommand})` : '';
-      await repairMutation.mutateAsync({ repairType, nodeId: nid });
-      toast({
-        title: 'Repair operation started',
-        description: `${repairLabel}${repairSuffix} operation has been launched`,
-      });
-      setRepairDialogOpen(false);
-    } catch (err) {
-      toast({
-        title: 'Repair failed',
-        description: getApiErrorMessage(err),
-        variant: 'destructive',
-      });
-    }
-  };
 
   const nodeStats = stats?.success?.[nid];
   const nodeStatsError = stats?.error?.[nid];
@@ -454,78 +360,20 @@ export function NodeDetail() {
         </TabsContent>
       </Tabs>
 
-      {/* Snapshot Confirmation */}
-      <ConfirmDialog
+      <SnapshotDialog
+        clusterId={clusterId}
         open={snapshotDialogOpen}
         onOpenChange={setSnapshotDialogOpen}
-        title="Create Metadata Snapshot"
-        description="This will create a snapshot of the metadata database on this node. This is a non-destructive operation."
-        onConfirm={handleSnapshot}
-        isLoading={snapshotMutation.isPending}
+        nodeId={nid}
+        nodeLabel={node.hostname || 'this node'}
       />
-
-      {/* Repair Dialog */}
-      <Dialog open={repairDialogOpen} onOpenChange={setRepairDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Launch Repair Operation</DialogTitle>
-            <DialogDescription>
-              Repair operations can be resource-intensive. Choose carefully.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Repair Type</Label>
-              <Select
-                value={selectedRepairOp}
-                onValueChange={(value) => setSelectedRepairOp(value as RepairOperationValue)}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {REPAIR_OPERATIONS.map((op) => (
-                    <SelectItem key={op.value} value={op.value}>
-                      {op.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                {REPAIR_OPERATIONS.find((op) => op.value === selectedRepairOp)?.description}
-              </p>
-            </div>
-            {selectedRepairOp === 'scrub' && (
-              <div className="space-y-2">
-                <Label>Scrub Command</Label>
-                <Select
-                  value={scrubCommand}
-                  onValueChange={(value) => setScrubCommand(value as ScrubCommand)}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SCRUB_COMMANDS.map((command) => (
-                      <SelectItem key={command.value} value={command.value}>
-                        {command.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRepairDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleRepair} disabled={repairMutation.isPending}>
-              {repairMutation.isPending ? 'Starting...' : 'Start Repair'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <RepairDialog
+        clusterId={clusterId}
+        open={repairDialogOpen}
+        onOpenChange={setRepairDialogOpen}
+        nodeId={nid}
+        nodeLabel={node.hostname || 'this node'}
+      />
     </div>
   );
 }
