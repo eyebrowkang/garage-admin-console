@@ -7,8 +7,6 @@ import {
   LayoutGrid,
   Layers,
   ShieldCheck,
-  RefreshCw,
-  Terminal,
   XCircle,
 } from 'lucide-react';
 import {
@@ -23,8 +21,7 @@ import {
   AlertTitle,
   Meter,
   type MeterTone,
-  CopyButton,
-  cn,
+  TerminalOutput,
 } from '@garage/ui';
 import { ModulePageHeader } from '@garage/ui';
 import { useClusterContext } from '@/contexts/ClusterContext';
@@ -197,7 +194,6 @@ export function ClusterOverview() {
   })();
 
   const hasLayout = Boolean(layout);
-  const hasStats = Boolean(stats?.freeform);
 
   const connectedRatio = ratio(health?.connectedNodes, health?.knownNodes);
   const storageRatio = ratio(health?.storageNodesUp, health?.storageNodes);
@@ -375,47 +371,15 @@ export function ClusterOverview() {
           <h2 className="text-sm font-semibold text-foreground">Cluster Statistics</h2>
           <span className="text-xs text-muted-foreground">Raw output from the cluster</span>
         </div>
-        <div className="overflow-hidden rounded-xl border border-foreground/15 bg-foreground shadow-lg">
-          <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-white/[0.04] px-4 py-2.5">
-            <div className="flex min-w-0 items-center gap-2 font-mono text-xs text-background/60">
-              <Terminal className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">garage stats</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <CopyButton
-                value={hasStats ? (stats?.freeform ?? '') : ''}
-                label="Statistics"
-                compact
-                className="text-background/60 hover:bg-white/10 hover:text-background"
-              />
-              <button
-                type="button"
-                onClick={() => statsQuery.refetch()}
-                disabled={statsQuery.isFetching}
-                aria-label="Refresh statistics"
-                title="Refresh statistics"
-                className="rounded-md p-1.5 text-background/60 transition-colors hover:bg-white/10 hover:text-background disabled:opacity-50"
-              >
-                <RefreshCw className={cn('h-3.5 w-3.5', statsQuery.isFetching && 'animate-spin')} />
-              </button>
-            </div>
-          </div>
-          {statsQuery.isLoading ? (
-            <div className="px-4 py-4 font-mono text-xs text-background/70">
-              <span className="text-primary">$</span> garage stats
-              <div className="mt-2 text-background/40">Fetching cluster statistics…</div>
-            </div>
-          ) : (
-            <pre className="max-h-[420px] overflow-auto whitespace-pre px-4 py-4 font-mono text-xs leading-relaxed text-background/90 selection:bg-primary/30">
-              {hasStats ? stats?.freeform : 'No statistics available.'}
-              {hasStats && (
-                <span className="text-primary motion-safe:animate-pulse" aria-hidden>
-                  {' ▋'}
-                </span>
-              )}
-            </pre>
-          )}
-        </div>
+        <TerminalOutput
+          command="garage stats"
+          content={stats?.freeform ?? ''}
+          onRefresh={() => statsQuery.refetch()}
+          refreshing={statsQuery.isFetching}
+          loading={statsQuery.isLoading}
+          loadingLabel="Fetching cluster statistics…"
+          emptyLabel="No statistics available."
+        />
       </div>
     </div>
   );
