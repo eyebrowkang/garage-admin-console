@@ -194,7 +194,7 @@ export function BucketList() {
       header: 'Bucket ID',
       sortable: true,
       sortAccessor: (b) => b.id,
-      mobileSubtitle: true, // shown under the name on mobile, no label
+      mobileHidden: true, // mobile identity is the name (title) + id (subtitle)
       cellClassName: 'text-xs',
       cell: (b) => (
         <CopyValue value={b.id} label="Bucket ID" className="max-w-[26ch] font-mono">
@@ -402,7 +402,28 @@ export function BucketList() {
         columns={columns}
         onRowClick={(b) => navigate(`/clusters/${clusterId}/buckets/${b.id}`)}
         getRowLabel={(b) => `Open bucket ${b.globalAliases[0] || formatShortId(b.id, 10)}`}
-        renderTitle={(b) => b.globalAliases[0] || formatShortId(b.id, 10)}
+        renderTitle={(b) =>
+          b.globalAliases[0] ? (
+            <CopyValue value={b.globalAliases[0]} label="Bucket name" className="max-w-full">
+              {b.globalAliases[0]}
+            </CopyValue>
+          ) : (
+            <CopyValue value={b.id} label="Bucket ID" className="max-w-full font-mono">
+              {b.id}
+            </CopyValue>
+          )
+        }
+        renderSubtitle={(b) =>
+          b.globalAliases[0] ? (
+            <CopyValue
+              value={b.id}
+              label="Bucket ID"
+              className="max-w-full font-mono text-xs text-muted-foreground"
+            >
+              {b.id}
+            </CopyValue>
+          ) : null
+        }
         search={{
           placeholder: 'Search by ID or alias...',
           predicate: (b, q) =>
