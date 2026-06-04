@@ -9,21 +9,12 @@ import {
   CardDescription,
   Button,
   Badge,
-  Input,
-  Label,
-  Textarea,
-  ExpirationPicker,
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
   DialogDescription,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Alert,
   AlertDescription,
   AlertTitle,
@@ -37,6 +28,14 @@ import {
 } from '@/hooks/useAdminTokens';
 import { ConfirmDialog } from '@garage/ui';
 import { DetailPageHeader } from '@/components/cluster/DetailPageHeader';
+import { AdminTokenFormFields } from '@/components/cluster/AdminTokenFormFields';
+import {
+  EMPTY_TOKEN_FORM,
+  tokenFormFromInfo,
+  validateTokenForm,
+  buildTokenPayload,
+  type AdminTokenFormState,
+} from '@/components/cluster/admin-token-form';
 import { PageLoadingState } from '@garage/ui';
 import { DeleteActionIcon, EditActionIcon } from '@/lib/action-icons';
 import { TokenIcon } from '@/lib/entity-icons';
@@ -49,13 +48,7 @@ export function AdminTokenDetail() {
   const navigate = useNavigate();
 
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [editScopeMode, setEditScopeMode] = useState<'full' | 'custom'>('custom');
-  const [editScopeInput, setEditScopeInput] = useState('');
-  const [editNeverExpires, setEditNeverExpires] = useState(false);
-  const [editExpirationDate, setEditExpirationDate] = useState('');
-  const [editExpirationHour, setEditExpirationHour] = useState('00');
-  const [editExpirationMinute, setEditExpirationMinute] = useState('00');
+  const [editForm, setEditForm] = useState<AdminTokenFormState>(EMPTY_TOKEN_FORM);
   const [editError, setEditError] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
@@ -63,29 +56,6 @@ export function AdminTokenDetail() {
   const { data: currentToken } = useCurrentAdminToken(clusterId);
   const updateMutation = useUpdateAdminToken(clusterId, tid || '');
   const deleteMutation = useDeleteAdminToken(clusterId);
-
-  const parseScopeInput = (value: string) =>
-    value
-      .split(/[,\n]+/)
-      .map((entry) => entry.trim())
-      .filter(Boolean);
-
-  const toDateParts = (value?: string | null) => {
-    if (!value) {
-      return { date: '', hour: '00', minute: '00' };
-    }
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
-      return { date: '', hour: '00', minute: '00' };
-    }
-    const pad = (num: number) => String(num).padStart(2, '0');
-    const year = date.getFullYear();
-    const month = pad(date.getMonth() + 1);
-    const day = pad(date.getDate());
-    const hours = pad(date.getHours());
-    const minutes = pad(date.getMinutes());
-    return { date: `${year}-${month}-${day}`, hour: hours, minute: minutes };
-  };
 
   if (!tid) {
     return (
@@ -118,51 +88,14 @@ export function AdminTokenDetail() {
     );
   }
 
-  const editScope = editScopeMode === 'full' ? ['*'] : parseScopeInput(editScopeInput);
-  const editScopeWarning =
-    editScopeMode === 'full' ||
-    editScope.some(
-      (scope) => scope === '*' || scope === 'CreateAdminToken' || scope === 'UpdateAdminToken',
-    );
-
-  const editExpirationDateValue = editExpirationDate
-    ? new Date(`${editExpirationDate}T${editExpirationHour}:${editExpirationMinute}:00`)
-    : null;
-  const editExpirationIso =
-    editExpirationDateValue && !Number.isNaN(editExpirationDateValue.getTime())
-      ? editExpirationDateValue.toISOString()
-      : null;
-  const editExpirationInvalid = Boolean(editExpirationDate) && !editExpirationIso;
-
   const handleUpdate = async () => {
-    if (!newName.trim()) {
-      setEditError('Token name is required.');
+    const validationError = validateTokenForm(editForm);
+    if (validationError) {
+      setEditError(validationError);
       return;
     }
-    if (editScopeMode === 'custom' && editScope.length === 0) {
-      setEditError('Provide at least one scope entry or select full access.');
-      return;
-    }
-    if (editExpirationInvalid) {
-      setEditError('Expiration date/time is invalid.');
-      return;
-    }
-    if (!editNeverExpires && !editExpirationIso) {
-      setEditError('Set an expiration date/time or enable never expires.');
-      return;
-    }
-
     try {
-      const payload = {
-        name: newName.trim(),
-        scope: editScopeMode === 'full' ? ['*'] : editScope,
-        ...(editNeverExpires
-          ? { neverExpires: true, expiration: null }
-          : editExpirationIso
-            ? { expiration: editExpirationIso }
-            : {}),
-      };
-      await updateMutation.mutateAsync(payload);
+      await updateMutation.mutateAsync(buildTokenPayload(editForm));
       toast({ title: 'Token updated', variant: 'success' });
       setEditDialogOpen(false);
       setEditError('');
@@ -218,15 +151,7 @@ export function AdminTokenDetail() {
               variant="outline"
               size="sm"
               onClick={() => {
-                const parts = toDateParts(token.expiration);
-                const isFullScope = token.scope.includes('*');
-                setNewName(token.name);
-                setEditScopeMode(isFullScope ? 'full' : 'custom');
-                setEditScopeInput(isFullScope ? '' : token.scope.join('\n'));
-                setEditNeverExpires(!token.expiration);
-                setEditExpirationDate(parts.date);
-                setEditExpirationHour(parts.hour);
-                setEditExpirationMinute(parts.minute);
+                setEditForm(tokenFormFromInfo(token));
                 setEditError('');
                 setEditDialogOpen(true);
               }}
@@ -343,64 +268,7 @@ export function AdminTokenDetail() {
             <DialogDescription>Update name, scope, and expiration settings.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Token Name</Label>
-              <Input
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                placeholder="my-admin-token"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Scope</Label>
-              <Select
-                value={editScopeMode}
-                onValueChange={(value) => setEditScopeMode(value as 'full' | 'custom')}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select scope" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="full">Full access (*)</SelectItem>
-                  <SelectItem value="custom">Custom scope</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {editScopeMode === 'custom' && (
-              <div className="space-y-2">
-                <Label>Allowed endpoints (one per line)</Label>
-                <Textarea
-                  className="min-h-[120px] resize-y text-xs"
-                  placeholder="e.g. GetClusterStatus, ListBuckets"
-                  value={editScopeInput}
-                  onChange={(e) => setEditScopeInput(e.target.value)}
-                />
-              </div>
-            )}
-            {editScopeWarning && (
-              <Alert variant="warning">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>High privilege scope</AlertTitle>
-                <AlertDescription>
-                  Granting full access or `CreateAdminToken`/`UpdateAdminToken` effectively allows
-                  privilege escalation. Ensure this is intended.
-                </AlertDescription>
-              </Alert>
-            )}
-            <div className="space-y-2">
-              <Label>Expiration</Label>
-              <ExpirationPicker
-                date={editExpirationDate}
-                hour={editExpirationHour}
-                minute={editExpirationMinute}
-                neverExpires={editNeverExpires}
-                onDateChange={setEditExpirationDate}
-                onHourChange={setEditExpirationHour}
-                onMinuteChange={setEditExpirationMinute}
-                onNeverExpiresChange={setEditNeverExpires}
-                invalid={editExpirationInvalid && !editNeverExpires}
-              />
-            </div>
+            <AdminTokenFormFields value={editForm} onChange={setEditForm} />
             {editError && (
               <Alert variant="destructive">
                 <AlertTitle>Cannot update token</AlertTitle>
