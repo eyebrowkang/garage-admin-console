@@ -30,13 +30,13 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
   ResourceList,
   type ResourceListColumn,
   type ResourceAction,
   CopyValue,
   EmptyValue,
+  TerminalOutput,
   cn,
 } from '@garage/ui';
 import { AlertCircle, CheckCircle2, MoreHorizontal, SkipForward } from 'lucide-react';
@@ -86,6 +86,178 @@ const formatZoneRedundancy = (value?: GetClusterLayoutResponse['parameters']['zo
   return '—';
 };
 
+const formatCapacity = (cap?: number | null) => (cap == null ? 'Gateway' : formatBytes(cap));
+
+// ---------------------------------------------------------------------------
+// Layout diff — current applied layout vs the previewed (computed) one, so the
+// Preview dialog can spell out exactly which node roles change.
+// ---------------------------------------------------------------------------
+
+type RoleDiffKind = 'added' | 'removed' | 'changed';
+
+interface RoleFieldChanges {
+  zone?: [string, string];
+  capacity?: [number | null | undefined, number | null | undefined];
+  tags?: [string[], string[]];
+}
+
+interface RoleDiff {
+  id: string;
+  kind: RoleDiffKind;
+  before?: LayoutNodeRole;
+  after?: LayoutNodeRole;
+  fields: RoleFieldChanges;
+}
+
+const sameTags = (a: string[] = [], b: string[] = []) =>
+  a.length === b.length && [...a].sort().join(',') === [...b].sort().join(',');
+
+function diffLayoutRoles(current: LayoutNodeRole[], next: LayoutNodeRole[]) {
+  const cur = new Map(current.map((r) => [r.id, r]));
+  const nxt = new Map(next.map((r) => [r.id, r]));
+  const ids = new Set([...cur.keys(), ...nxt.keys()]);
+  const diffs: RoleDiff[] = [];
+  let unchanged = 0;
+  for (const id of ids) {
+    const before = cur.get(id);
+    const after = nxt.get(id);
+    if (before && !after) {
+      diffs.push({ id, kind: 'removed', before, fields: {} });
+    } else if (!before && after) {
+      diffs.push({ id, kind: 'added', after, fields: {} });
+    } else if (before && after) {
+      const fields: RoleFieldChanges = {};
+      if (before.zone !== after.zone) fields.zone = [before.zone, after.zone];
+      if ((before.capacity ?? null) !== (after.capacity ?? null))
+        fields.capacity = [before.capacity, after.capacity];
+      if (!sameTags(before.tags, after.tags)) fields.tags = [before.tags ?? [], after.tags ?? []];
+      if (fields.zone || fields.capacity || fields.tags) {
+        diffs.push({ id, kind: 'changed', before, after, fields });
+      } else {
+        unchanged += 1;
+      }
+    }
+  }
+  // Stable, readable order: added, then changed, then removed.
+  const order: Record<RoleDiffKind, number> = { added: 0, changed: 1, removed: 2 };
+  diffs.sort((a, b) => order[a.kind] - order[b.kind]);
+  return { diffs, unchanged };
+}
+
+function RoleKindBadge({ kind }: { kind: RoleDiffKind }) {
+  if (kind === 'added') return <Badge variant="success">Added</Badge>;
+  if (kind === 'removed') return <Badge variant="destructive">Removed</Badge>;
+  return <Badge variant="warning">Changed</Badge>;
+}
+
+function FieldDelta({ label, before, after }: { label: string; before: string; after: string }) {
+  // Inline flow (not flex) so long values — e.g. a big tag list — wrap and break
+  // instead of clipping at the dialog edge.
+  return (
+    <div className="break-words">
+      <span className="text-muted-foreground">{label} </span>
+      <span className="font-mono text-muted-foreground">{before || '—'}</span>
+      <span className="text-muted-foreground"> → </span>
+      <span className="font-mono font-medium text-foreground">{after || '—'}</span>
+    </div>
+  );
+}
+
+function SummaryDelta({ label, before, after }: { label: string; before: string; after: string }) {
+  const changed = before !== after;
+  return (
+    <div className="space-y-0.5">
+      <div className="text-xs text-muted-foreground">{label}</div>
+      {changed ? (
+        <div className="flex flex-wrap items-center gap-1.5 text-sm">
+          <span className="text-muted-foreground">{before}</span>
+          <span className="text-muted-foreground">→</span>
+          <span className="font-semibold text-foreground">{after}</span>
+        </div>
+      ) : (
+        <div className="text-sm font-semibold">{after}</div>
+      )}
+    </div>
+  );
+}
+
+/** The role-by-role delta between the applied and previewed layouts. */
+function LayoutRoleDiff({
+  current,
+  next,
+  nameFor,
+}: {
+  current: LayoutNodeRole[];
+  next: LayoutNodeRole[];
+  nameFor: (id: string) => string;
+}) {
+  const { diffs, unchanged } = diffLayoutRoles(current, next);
+  if (diffs.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        No role assignments change{unchanged > 0 ? ` (${unchanged} unchanged)` : ''}.
+      </p>
+    );
+  }
+  return (
+    <div className="space-y-2">
+      <div className="overflow-hidden rounded-lg border">
+        {diffs.map((d) => (
+          <div key={d.id} className="flex items-start gap-3 border-b p-3 last:border-b-0">
+            <span className="mt-0.5 shrink-0">
+              <RoleKindBadge kind={d.kind} />
+            </span>
+            <div className="min-w-0 flex-1 space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="truncate text-sm font-medium">{nameFor(d.id)}</span>
+                <span className="shrink-0 font-mono text-xs text-muted-foreground">
+                  {formatShortId(d.id, 8)}
+                </span>
+              </div>
+              <div className="break-words text-xs">
+                {d.kind === 'added' && d.after && (
+                  <span className="text-muted-foreground">
+                    Zone <span className="text-foreground">{d.after.zone}</span> ·{' '}
+                    {formatCapacity(d.after.capacity)}
+                    {d.after.tags?.length ? ` · ${d.after.tags.join(', ')}` : ''}
+                  </span>
+                )}
+                {d.kind === 'removed' && d.before && (
+                  <span className="text-muted-foreground">
+                    Was zone {d.before.zone} · {formatCapacity(d.before.capacity)}
+                  </span>
+                )}
+                {d.kind === 'changed' && (
+                  <div className="flex flex-col gap-0.5">
+                    {d.fields.zone && (
+                      <FieldDelta label="Zone" before={d.fields.zone[0]} after={d.fields.zone[1]} />
+                    )}
+                    {d.fields.capacity && (
+                      <FieldDelta
+                        label="Capacity"
+                        before={formatCapacity(d.fields.capacity[0])}
+                        after={formatCapacity(d.fields.capacity[1])}
+                      />
+                    )}
+                    {d.fields.tags && (
+                      <FieldDelta
+                        label="Tags"
+                        before={d.fields.tags[0].join(', ')}
+                        after={d.fields.tags[1].join(', ')}
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      {unchanged > 0 && <p className="text-xs text-muted-foreground">+{unchanged} unchanged</p>}
+    </div>
+  );
+}
+
 export function LayoutManager() {
   const { clusterId } = useClusterContext();
   const queryClient = useQueryClient();
@@ -94,10 +266,8 @@ export function LayoutManager() {
   const [nodeDialogOpen, setNodeDialogOpen] = useState(false);
   const [selectedNode, setSelectedNode] = useState<EditableNode | null>(null);
   const [removeConfirm, setRemoveConfirm] = useState<{ id: string; hostname: string } | null>(null);
-  const [applyDialogOpen, setApplyDialogOpen] = useState(false);
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [applyResultDialogOpen, setApplyResultDialogOpen] = useState(false);
-  const [revertConfirmOpen, setRevertConfirmOpen] = useState(false);
   const [skipDialogOpen, setSkipDialogOpen] = useState(false);
   const [actionError, setActionError] = useState('');
 
@@ -107,7 +277,6 @@ export function LayoutManager() {
   const [applyResult, setApplyResult] = useState<ApplyClusterLayoutResponse | null>(null);
   const [skipResult, setSkipResult] = useState<ClusterLayoutSkipDeadNodesResponse | null>(null);
 
-  const [applyVersionInput, setApplyVersionInput] = useState('');
   const [skipVersionInput, setSkipVersionInput] = useState('');
   const [allowMissingData, setAllowMissingData] = useState(false);
 
@@ -162,7 +331,8 @@ export function LayoutManager() {
   const stagedChanges = layout?.stagedRoleChanges ?? [];
   const stagedParams = layout?.stagedParameters ?? null;
   const hasStagedChanges = stagedChanges.length > 0 || Boolean(stagedParams);
-  const defaultApplyVersion = layout ? String(layout.version + 1) : '';
+  const stagedCount = stagedChanges.length + (stagedParams ? 1 : 0);
+  const nodeName = (id: string) => nodes.find((n) => n.id === id)?.hostname || formatShortId(id, 10);
   const defaultSkipVersion =
     historyQuery.data?.currentVersion !== undefined
       ? String(historyQuery.data.currentVersion)
@@ -177,7 +347,6 @@ export function LayoutManager() {
       ? String(layoutRedundancy.atLeast)
       : '2';
 
-  const applyVersion = applyVersionInput || defaultApplyVersion;
   const skipVersion = skipVersionInput || defaultSkipVersion;
   const zoneMode = zoneModeInput ?? defaultZoneMode;
   const zoneAtLeast = zoneAtLeastInput || defaultZoneAtLeast;
@@ -232,9 +401,8 @@ export function LayoutManager() {
       setApplyResult(data);
       setApplyResultDialogOpen(true);
       setPreviewResult(null);
-      setApplyDialogOpen(false);
+      setPreviewDialogOpen(false);
       setActionError('');
-      setApplyVersionInput('');
     },
     onError: (err) => {
       setActionError(getApiErrorMessage(err, 'Failed to apply layout changes.'));
@@ -251,12 +419,12 @@ export function LayoutManager() {
       setPreviewResult(null);
       setApplyResult(null);
       setApplyResultDialogOpen(false);
+      setPreviewDialogOpen(false);
       setActionError('');
-      setRevertConfirmOpen(false);
-      setApplyVersionInput('');
       setSkipVersionInput('');
       setZoneModeInput(null);
       setZoneAtLeastInput('');
+      toast({ title: 'Staged changes reverted', variant: 'success' });
     },
     onError: (err) => {
       setActionError(getApiErrorMessage(err, 'Failed to revert layout changes.'));
@@ -356,13 +524,11 @@ export function LayoutManager() {
     updateLayoutMutation.mutate({ parameters: zoneRedundancy });
   };
 
-  const handleApply = () => {
-    const version = Number.parseInt(applyVersion, 10);
-    if (Number.isNaN(version) || version < 0) {
-      setActionError('Version must be a valid number.');
-      return;
+  // Apply the layout the user just previewed — its version is the next one.
+  const handleApplyPreview = () => {
+    if (previewResult && !('error' in previewResult)) {
+      applyLayoutMutation.mutate(previewResult.newLayout.version);
     }
-    applyLayoutMutation.mutate(version);
   };
 
   const handleSkipDeadNodes = () => {
@@ -546,22 +712,6 @@ export function LayoutManager() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-52">
-                <DropdownMenuItem
-                  onSelect={() => setApplyDialogOpen(true)}
-                  disabled={!hasStagedChanges}
-                >
-                  <SaveActionIcon />
-                  Apply changes
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onSelect={() => setRevertConfirmOpen(true)}
-                  disabled={!hasStagedChanges}
-                  className="text-destructive focus:text-destructive"
-                >
-                  <RevertActionIcon />
-                  Revert staged changes
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
                 <DropdownMenuItem onSelect={() => setSkipDialogOpen(true)}>
                   <SkipForward />
                   Skip dead nodes…
@@ -628,35 +778,22 @@ export function LayoutManager() {
           {hasStagedChanges && (
             <Alert variant="warning">
               <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Staged changes pending</AlertTitle>
-              <AlertDescription>
-                Preview the new layout and apply changes when you are ready.
+              <AlertTitle>
+                {stagedCount} staged change{stagedCount === 1 ? '' : 's'} pending
+              </AlertTitle>
+              <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <span>Preview to review exactly what changes, then apply or revert.</span>
+                <Button
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => previewMutation.mutate()}
+                  disabled={previewMutation.isPending}
+                >
+                  <InspectActionIcon className="h-4 w-4" />
+                  {previewMutation.isPending ? 'Previewing...' : 'Preview changes'}
+                </Button>
               </AlertDescription>
             </Alert>
-          )}
-
-          {hasStagedChanges && (
-            <div className="space-y-2 rounded-md border bg-muted/10 p-3 text-sm">
-              <div className="font-medium">Staged changes</div>
-              {stagedParams && (
-                <div>
-                  Parameters: {formatZoneRedundancy(layout?.parameters?.zoneRedundancy)} →{' '}
-                  {formatZoneRedundancy(stagedParams.zoneRedundancy)}
-                </div>
-              )}
-              {stagedChanges.length > 0 && (
-                <div className="space-y-1">
-                  {stagedChanges.map((change) => {
-                    const isRemoved = 'remove' in change && change.remove;
-                    return (
-                      <div key={change.id}>
-                        {formatShortId(change.id, 10)} — {isRemoved ? 'Remove node' : 'Update role'}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
           )}
 
           {/* Zone redundancy parameter */}
@@ -923,18 +1060,21 @@ export function LayoutManager() {
         </DialogContent>
       </Dialog>
 
-      {/* Preview Dialog */}
+      {/* Preview Dialog — review the computed diff, then apply or revert */}
       <Dialog
         open={previewDialogOpen}
         onOpenChange={(open) => {
+          if (applyLayoutMutation.isPending || revertLayoutMutation.isPending) return;
           setPreviewDialogOpen(open);
           if (!open) setPreviewResult(null);
         }}
       >
         <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>Layout Preview</DialogTitle>
-            <DialogDescription>Computed layout based on staged changes</DialogDescription>
+            <DialogTitle>Review layout changes</DialogTitle>
+            <DialogDescription>
+              How the cluster layout changes once the staged edits are applied.
+            </DialogDescription>
           </DialogHeader>
           {previewResult ? (
             'error' in previewResult ? (
@@ -944,74 +1084,81 @@ export function LayoutManager() {
               </Alert>
             ) : (
               <div className="space-y-4">
-                <div>
-                  <div className="mb-2 text-sm font-medium">Layout computation output</div>
-                  <pre className="max-h-[360px] overflow-auto whitespace-pre rounded-lg border bg-muted/40 p-4 font-mono text-xs leading-relaxed">
-                    {previewResult.message.join('\n')}
-                  </pre>
+                <div className="grid gap-3 rounded-lg border p-3 sm:grid-cols-3">
+                  <SummaryDelta
+                    label="Version"
+                    before={`v${layout?.version ?? '—'}`}
+                    after={`v${previewResult.newLayout.version}`}
+                  />
+                  <SummaryDelta
+                    label="Partition size"
+                    before={formatBytes(layout?.partitionSize ?? 0)}
+                    after={formatBytes(previewResult.newLayout.partitionSize)}
+                  />
+                  <SummaryDelta
+                    label="Zone redundancy"
+                    before={formatZoneRedundancy(layout?.parameters?.zoneRedundancy)}
+                    after={formatZoneRedundancy(previewResult.newLayout.parameters.zoneRedundancy)}
+                  />
                 </div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <div className="text-sm text-muted-foreground">Preview Version</div>
-                    <div className="text-lg font-semibold">{previewResult.newLayout.version}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-muted-foreground">Partition Size</div>
-                    <div className="text-lg font-semibold">
-                      {formatBytes(previewResult.newLayout.partitionSize)}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-muted-foreground">Zone Redundancy</div>
-                    <div className="text-lg font-semibold">
-                      {formatZoneRedundancy(previewResult.newLayout.parameters.zoneRedundancy)}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-muted-foreground">Roles</div>
-                    <div className="text-lg font-semibold">
-                      {previewResult.newLayout.roles.length}
-                    </div>
-                  </div>
+
+                <div className="space-y-2">
+                  <div className="text-sm font-medium">Role changes</div>
+                  <LayoutRoleDiff
+                    current={layout?.roles ?? []}
+                    next={previewResult.newLayout.roles}
+                    nameFor={nodeName}
+                  />
                 </div>
+
+                <details>
+                  <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground">
+                    Raw computation output
+                  </summary>
+                  <div className="mt-2">
+                    <TerminalOutput
+                      command="garage layout show"
+                      content={previewResult.message.join('\n')}
+                      maxHeightClass="max-h-[280px]"
+                    />
+                  </div>
+                </details>
               </div>
             )
           ) : (
             <div className="text-sm text-muted-foreground">No preview available.</div>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPreviewDialogOpen(false)}>
-              Close
+          <DialogFooter className="gap-2 sm:justify-between">
+            <Button
+              variant="outline"
+              className="text-destructive hover:text-destructive"
+              onClick={() => revertLayoutMutation.mutate()}
+              disabled={revertLayoutMutation.isPending || applyLayoutMutation.isPending}
+            >
+              <RevertActionIcon className="h-4 w-4" />
+              {revertLayoutMutation.isPending ? 'Reverting...' : 'Revert'}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Apply Dialog */}
-      <Dialog open={applyDialogOpen} onOpenChange={setApplyDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Apply Layout Changes</DialogTitle>
-            <DialogDescription>
-              Applying staged changes will increment the layout version. Please confirm the new
-              version number.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            <Label>New layout version</Label>
-            <Input
-              type="number"
-              value={applyVersion}
-              onChange={(e) => setApplyVersionInput(e.target.value)}
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setApplyDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleApply} disabled={applyLayoutMutation.isPending}>
-              {applyLayoutMutation.isPending ? 'Applying...' : 'Apply'}
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setPreviewDialogOpen(false)}
+                disabled={applyLayoutMutation.isPending || revertLayoutMutation.isPending}
+              >
+                Close
+              </Button>
+              <Button
+                onClick={handleApplyPreview}
+                disabled={
+                  applyLayoutMutation.isPending ||
+                  revertLayoutMutation.isPending ||
+                  !previewResult ||
+                  'error' in previewResult
+                }
+              >
+                <SaveActionIcon className="h-4 w-4" />
+                {applyLayoutMutation.isPending ? 'Applying...' : 'Apply changes'}
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1138,17 +1285,6 @@ export function LayoutManager() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <ConfirmDialog
-        open={revertConfirmOpen}
-        onOpenChange={setRevertConfirmOpen}
-        title="Revert staged changes"
-        description="This will clear all staged layout changes. The current layout remains unchanged."
-        tier="danger"
-        confirmText="Revert"
-        onConfirm={() => revertLayoutMutation.mutate()}
-        isLoading={revertLayoutMutation.isPending}
-      />
 
       <ConfirmDialog
         open={!!removeConfirm}
