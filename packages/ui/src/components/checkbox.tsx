@@ -6,7 +6,9 @@ export interface CheckboxProps {
   onCheckedChange: (checked: boolean) => void;
   disabled?: boolean;
   className?: string;
+  id?: string;
   'aria-label'?: string;
+  'aria-describedby'?: string;
 }
 
 export function Checkbox({
@@ -14,14 +16,18 @@ export function Checkbox({
   onCheckedChange,
   disabled = false,
   className,
+  id,
   'aria-label': ariaLabel,
+  'aria-describedby': ariaDescribedBy,
 }: CheckboxProps) {
   return (
     <button
       type="button"
+      id={id}
       role="checkbox"
       aria-checked={checked}
       aria-label={ariaLabel}
+      aria-describedby={ariaDescribedBy}
       disabled={disabled}
       className={cn(
         'inline-flex h-4 w-4 items-center justify-center rounded border border-input bg-background transition-colors',

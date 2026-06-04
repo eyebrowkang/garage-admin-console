@@ -7,10 +7,12 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogTrigger,
   DialogFooter,
   Input,
   Label,
+  Checkbox,
   Alert,
   AlertDescription,
   AlertTitle,
@@ -24,7 +26,9 @@ import {
   CopyValue,
   AliasOverflow,
   EmptyValue,
+  cn,
 } from '@garage/ui';
+import { ChevronRight } from 'lucide-react';
 import { api, proxyPath } from '@/lib/api';
 import { formatDateTime, formatShortId, getApiErrorMessage } from '@garage/web-shared';
 import { ConfirmDialog } from '@garage/ui';
@@ -38,6 +42,7 @@ import { toast } from '@garage/ui';
 import { runBulkDelete } from '@/lib/bulk-delete';
 import { useBuckets } from '@/hooks/useBuckets';
 import { useKeys } from '@/hooks/useKeys';
+import { validateBucketAlias } from '@/lib/bucket-name';
 import type { CreateBucketRequest, ListBucketsResponseItem } from '@/types/garage';
 
 export function BucketList() {
@@ -45,11 +50,21 @@ export function BucketList() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [aliasType, setAliasType] = useState<'none' | 'global' | 'local' | 'both'>('global');
   const [globalAlias, setGlobalAlias] = useState('');
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [localAlias, setLocalAlias] = useState('');
   const [localAccessKeyId, setLocalAccessKeyId] = useState('');
+  const [noAlias, setNoAlias] = useState(false);
   const [actionError, setActionError] = useState('');
+
+  const resetForm = () => {
+    setGlobalAlias('');
+    setAdvancedOpen(false);
+    setLocalAlias('');
+    setLocalAccessKeyId('');
+    setNoAlias(false);
+    setActionError('');
+  };
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
   const [bulkDelete, setBulkDelete] = useState<{ ids: string[]; clear: () => void } | null>(null);
   const [bulkPending, setBulkPending] = useState(false);
@@ -65,37 +80,45 @@ export function BucketList() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['buckets', clusterId] });
       setIsDialogOpen(false);
-      setGlobalAlias('');
-      setLocalAlias('');
-      setLocalAccessKeyId('');
-      setActionError('');
+      resetForm();
     },
     onError: (err) => {
       setActionError(getApiErrorMessage(err, 'Failed to create bucket.'));
     },
   });
 
-  const needsGlobal = aliasType === 'global' || aliasType === 'both';
-  const needsLocal = aliasType === 'local' || aliasType === 'both';
+  const trimmedGlobal = globalAlias.trim();
+  const trimmedLocal = localAlias.trim();
+
   const selectedLocalAccessKeyId =
     localAccessKeyId && keys.some((key) => key.id === localAccessKeyId)
       ? localAccessKeyId
       : keys[0]?.id || '';
   const hasLocalKey = Boolean(selectedLocalAccessKeyId);
+
+  const hasGlobal = !noAlias && trimmedGlobal.length > 0;
+  const hasLocal = !noAlias && advancedOpen && trimmedLocal.length > 0;
+
+  const globalError = hasGlobal ? validateBucketAlias(trimmedGlobal) : null;
+  const localError = hasLocal ? validateBucketAlias(trimmedLocal) : null;
+
   const canCreate =
     !createMutation.isPending &&
-    (!needsGlobal || Boolean(globalAlias.trim())) &&
-    (!needsLocal || (Boolean(localAlias.trim()) && hasLocalKey));
+    !globalError &&
+    !localError &&
+    (noAlias || hasGlobal || hasLocal) &&
+    (!hasLocal || hasLocalKey);
 
   const handleCreate = () => {
+    if (!canCreate) return;
     const payload: CreateBucketRequest = {};
-    if (needsGlobal) {
-      payload.globalAlias = globalAlias.trim();
+    if (hasGlobal) {
+      payload.globalAlias = trimmedGlobal;
     }
-    if (needsLocal) {
+    if (hasLocal) {
       payload.localAlias = {
         accessKeyId: selectedLocalAccessKeyId,
-        alias: localAlias.trim(),
+        alias: trimmedLocal,
       };
     }
     createMutation.mutate(payload);
@@ -211,14 +234,7 @@ export function BucketList() {
             open={isDialogOpen}
             onOpenChange={(open) => {
               setIsDialogOpen(open);
-              if (open) {
-                setAliasType('global');
-                setGlobalAlias('');
-                setLocalAlias('');
-                setLocalAccessKeyId('');
-              } else {
-                setActionError('');
-              }
+              resetForm();
             }}
           >
             <DialogTrigger asChild>
@@ -229,93 +245,153 @@ export function BucketList() {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Create Bucket</DialogTitle>
+                <DialogDescription>
+                  Buckets store objects. Name it now, or create an ID-only bucket and add a name
+                  later.
+                </DialogDescription>
               </DialogHeader>
-              <div className="space-y-4">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleCreate();
+                }}
+                className="space-y-4"
+              >
                 <div className="space-y-2">
-                  <Label>Alias Type</Label>
-                  <Select
-                    value={aliasType}
-                    onValueChange={(value) =>
-                      setAliasType(value as 'none' | 'global' | 'local' | 'both')
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select alias type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="global">Global alias</SelectItem>
-                      <SelectItem value="local">Local alias</SelectItem>
-                      <SelectItem value="both">Global + Local</SelectItem>
-                      <SelectItem value="none">No alias</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="bucket-name">Bucket name</Label>
+                  <Input
+                    id="bucket-name"
+                    autoFocus
+                    value={globalAlias}
+                    onChange={(e) => setGlobalAlias(e.target.value)}
+                    placeholder="app-assets"
+                    disabled={noAlias}
+                    aria-invalid={globalError ? true : undefined}
+                    aria-describedby={globalError ? 'bucket-name-error' : 'bucket-name-hint'}
+                    className={cn(
+                      globalError && 'border-destructive focus-visible:ring-destructive/40',
+                    )}
+                  />
+                  {globalError ? (
+                    <p id="bucket-name-error" className="text-xs text-destructive">
+                      {globalError}
+                    </p>
+                  ) : (
+                    <p id="bucket-name-hint" className="text-xs text-muted-foreground">
+                      Cluster-wide alias. Lowercase letters, numbers, dots and hyphens; 3–63
+                      characters.
+                    </p>
+                  )}
                 </div>
 
-                {needsGlobal && (
-                  <div className="space-y-2">
-                    <Label>Global Alias</Label>
-                    <Input
-                      value={globalAlias}
-                      onChange={(e) => setGlobalAlias(e.target.value)}
-                      placeholder="my-bucket"
+                <div className="space-y-3">
+                  <button
+                    type="button"
+                    onClick={() => setAdvancedOpen((open) => !open)}
+                    aria-expanded={advancedOpen}
+                    disabled={noAlias}
+                    className={cn(
+                      'flex items-center gap-1 rounded-sm text-sm font-medium text-foreground transition-colors hover:text-primary',
+                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                      'disabled:cursor-not-allowed disabled:opacity-50',
+                    )}
+                  >
+                    <ChevronRight
+                      className={cn('h-4 w-4 transition-transform', advancedOpen && 'rotate-90')}
                     />
+                    Advanced — private alias for a key
+                  </button>
+
+                  {advancedOpen && !noAlias && (
+                    <div className="space-y-3 border-l-2 border-border pl-3">
+                      <p className="text-xs text-muted-foreground">
+                        A bucket name visible only to one access key, in addition to (or instead of)
+                        the cluster-wide name above.
+                      </p>
+                      <div className="space-y-2">
+                        <Label htmlFor="local-alias">Local alias</Label>
+                        <Input
+                          id="local-alias"
+                          value={localAlias}
+                          onChange={(e) => setLocalAlias(e.target.value)}
+                          placeholder="app-assets"
+                          aria-invalid={localError ? true : undefined}
+                          aria-describedby={localError ? 'local-alias-error' : undefined}
+                          className={cn(
+                            localError && 'border-destructive focus-visible:ring-destructive/40',
+                          )}
+                        />
+                        {localError && (
+                          <p id="local-alias-error" className="text-xs text-destructive">
+                            {localError}
+                          </p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="access-key">Access key</Label>
+                        {keysQuery.isLoading ? (
+                          <InlineLoadingState label="Loading access keys..." />
+                        ) : keysQuery.error ? (
+                          <div className="text-sm text-destructive">
+                            {getApiErrorMessage(keysQuery.error, 'Failed to load access keys.')}
+                          </div>
+                        ) : keys.length > 0 ? (
+                          <Select
+                            value={selectedLocalAccessKeyId}
+                            onValueChange={setLocalAccessKeyId}
+                          >
+                            <SelectTrigger id="access-key">
+                              <SelectValue placeholder="Select access key" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {keys.map((key) => (
+                                <SelectItem key={key.id} value={key.id}>
+                                  {key.name || formatShortId(key.id, 12)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">
+                            No access keys available. Create a key first to use a local alias.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-start gap-2">
+                  <Checkbox
+                    id="no-alias"
+                    checked={noAlias}
+                    onCheckedChange={setNoAlias}
+                    aria-describedby="no-alias-desc"
+                    className="mt-0.5"
+                  />
+                  <div className="text-sm leading-snug">
+                    <Label htmlFor="no-alias" className="font-medium">
+                      Create without a name
+                    </Label>
+                    <p id="no-alias-desc" className="text-xs text-muted-foreground">
+                      The bucket will be addressable only by its ID until you add an alias.
+                    </p>
                   </div>
+                </div>
+
+                {actionError && (
+                  <Alert variant="destructive">
+                    <AlertTitle>Bucket creation failed</AlertTitle>
+                    <AlertDescription>{actionError}</AlertDescription>
+                  </Alert>
                 )}
 
-                {needsLocal && (
-                  <>
-                    <div className="space-y-2">
-                      <Label>Local Alias</Label>
-                      <Input
-                        value={localAlias}
-                        onChange={(e) => setLocalAlias(e.target.value)}
-                        placeholder="my-bucket"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Access Key</Label>
-                      {keysQuery.isLoading ? (
-                        <InlineLoadingState label="Loading access keys..." />
-                      ) : keysQuery.error ? (
-                        <div className="text-sm text-destructive">
-                          {getApiErrorMessage(keysQuery.error, 'Failed to load access keys.')}
-                        </div>
-                      ) : keys.length > 0 ? (
-                        <Select
-                          value={selectedLocalAccessKeyId}
-                          onValueChange={setLocalAccessKeyId}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select access key" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {keys.map((key) => (
-                              <SelectItem key={key.id} value={key.id}>
-                                {key.name || formatShortId(key.id, 12)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <div className="text-sm text-muted-foreground">
-                          No access keys available for local alias creation.
-                        </div>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-              {actionError && (
-                <Alert variant="destructive">
-                  <AlertTitle>Bucket creation failed</AlertTitle>
-                  <AlertDescription>{actionError}</AlertDescription>
-                </Alert>
-              )}
-              <DialogFooter>
-                <Button onClick={handleCreate} disabled={!canCreate}>
-                  {createMutation.isPending ? 'Creating...' : 'Create'}
-                </Button>
-              </DialogFooter>
+                <DialogFooter>
+                  <Button type="submit" disabled={!canCreate}>
+                    {createMutation.isPending ? 'Creating...' : 'Create Bucket'}
+                  </Button>
+                </DialogFooter>
+              </form>
             </DialogContent>
           </Dialog>
         }
