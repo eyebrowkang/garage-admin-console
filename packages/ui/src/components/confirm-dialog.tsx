@@ -61,7 +61,7 @@ export function ConfirmDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="overflow-hidden sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 break-words [overflow-wrap:anywhere]">
+          <DialogTitle className="flex min-w-0 items-center gap-2 break-words [overflow-wrap:anywhere]">
             {isDanger && <AlertTriangle className="h-5 w-5 text-destructive" />}
             {title}
           </DialogTitle>

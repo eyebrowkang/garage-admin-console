@@ -56,7 +56,10 @@ const DialogContent = React.forwardRef<
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
 const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn('flex flex-col space-y-1.5 text-left', className)} {...props} />
+  // min-w-0: as a grid item inside DialogContent, this lets long unbreakable
+  // content (e.g. a 64-char bucket id in a confirm message) wrap instead of
+  // forcing the whole dialog wider than the viewport.
+  <div className={cn('flex min-w-0 flex-col space-y-1.5 text-left', className)} {...props} />
 );
 DialogHeader.displayName = 'DialogHeader';
 
