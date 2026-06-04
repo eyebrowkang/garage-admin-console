@@ -42,13 +42,16 @@ export function PermissionCheckboxes({
   );
 }
 
-/** A single permission flag as a compact pill: filled when granted, ghost when not. */
+/** A single permission flag as a compact pill: solid green when granted, a faint
+ *  dashed outline when not — so "has it" vs "doesn't" reads at a glance. */
 export function PermissionPill({ label, granted }: { label: string; granted: boolean }) {
   return granted ? (
-    <Badge variant="secondary" className="px-2 py-0.5 text-[10px]">
+    <Badge variant="success" className="px-2 py-0.5 text-[10px]">
       {label}
     </Badge>
   ) : (
-    <span className="rounded border px-2 py-0.5 text-[10px] text-muted-foreground">{label}</span>
+    <span className="rounded border border-dashed px-2 py-0.5 text-[10px] text-muted-foreground/70">
+      {label}
+    </span>
   );
 }
