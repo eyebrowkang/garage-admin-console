@@ -649,7 +649,7 @@ export function KeyList() {
             <DialogTitle>Access Key Created</DialogTitle>
           </DialogHeader>
           {createdKey && (
-            <div className="space-y-4">
+            <div className="min-w-0 space-y-4">
               <div className="rounded-lg border bg-muted/40 p-3">
                 <div className="text-xs text-muted-foreground">Access Key ID</div>
                 <CopyValue
