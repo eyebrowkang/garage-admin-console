@@ -44,6 +44,24 @@ describe('ExpirationPicker', () => {
     expect(days).toBeLessThan(32);
   });
 
+  it('seeds the current date when entering Custom from empty', async () => {
+    const user = userEvent.setup();
+    const props = setup({ allowDefault: true });
+    await user.click(screen.getByRole('button', { name: 'Custom' }));
+    const today = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    expect(props.onDateChange).toHaveBeenCalledWith(
+      `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`,
+    );
+  });
+
+  it('keeps an existing date when re-selecting Custom', async () => {
+    const user = userEvent.setup();
+    const props = setup({ date: '2030-01-01', hour: '08', minute: '30' });
+    await user.click(screen.getByRole('button', { name: 'Custom' }));
+    expect(props.onDateChange).not.toHaveBeenCalled();
+  });
+
   it('"Never" drives neverExpires and "Default" clears the override', async () => {
     const user = userEvent.setup();
     const props = setup({ allowDefault: true });

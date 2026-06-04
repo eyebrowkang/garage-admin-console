@@ -80,6 +80,14 @@ export function ExpirationPicker({
 
   const selectCustom = () => {
     onNeverExpiresChange(false);
+    // Seed an empty picker with "now" as a reference point to adjust from;
+    // keep any value already chosen (e.g. an existing expiry on edit).
+    if (!date) {
+      const now = new Date(Date.now());
+      onDateChange(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`);
+      onHourChange(pad(now.getHours()));
+      onMinuteChange(pad(now.getMinutes()));
+    }
     setMode('custom');
   };
 
