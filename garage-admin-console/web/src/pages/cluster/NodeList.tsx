@@ -6,211 +6,122 @@ import {
   Alert,
   AlertDescription,
   AlertTitle,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  Label,
-  Textarea,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   ResourceList,
   type ResourceListColumn,
   CopyValue,
   EmptyValue,
+  Meter,
+  type MeterTone,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
 } from '@garage/ui';
-import {
-  formatBytes,
-  formatRelativeSeconds,
-  formatShortId,
-  getApiErrorMessage,
-} from '@garage/web-shared';
-import { ConfirmDialog } from '@garage/ui';
+import { MoreHorizontal } from 'lucide-react';
+import { formatBytes, formatRelativeSeconds, formatShortId, getApiErrorMessage } from '@garage/web-shared';
 import { ModulePageHeader } from '@garage/ui';
 import { TableLoadingState } from '@/components/cluster/TableLoadingState';
-import { ConnectActionIcon, RepairActionIcon, SnapshotActionIcon } from '@/lib/action-icons';
-import { toast } from '@garage/ui';
+import {
+  ConnectActionIcon,
+  OpenActionIcon,
+  RepairActionIcon,
+  SnapshotActionIcon,
+} from '@/lib/action-icons';
 import { NodeIcon } from '@/lib/entity-icons';
 import { useClusterContext } from '@/contexts/ClusterContext';
+import { useNodes } from '@/hooks/useNodes';
 import {
-  useConnectNodes,
-  useCreateMetadataSnapshot,
-  useLaunchRepairOperation,
-  useNodes,
-} from '@/hooks/useNodes';
-import type { NodeResp, RepairType, ScrubCommand } from '@/types/garage';
-
-const REPAIR_OPERATIONS = [
-  { value: 'tables', label: 'Tables', description: 'Verify and repair all metadata tables' },
-  { value: 'blocks', label: 'Blocks', description: 'Verify block integrity and rebalance' },
-  { value: 'versions', label: 'Versions', description: 'Verify object versions consistency' },
-  {
-    value: 'multipartUploads',
-    label: 'Multipart Uploads',
-    description: 'Repair multipart upload metadata',
-  },
-  { value: 'blockRefs', label: 'Block Refs', description: 'Verify block reference counts' },
-  { value: 'blockRc', label: 'Block RC', description: 'Recalculate block reference counts' },
-  { value: 'rebalance', label: 'Rebalance', description: 'Rebalance data across nodes' },
-  { value: 'aliases', label: 'Aliases', description: 'Rebuild bucket alias metadata' },
-  {
-    value: 'clearResyncQueue',
-    label: 'Clear Resync Queue',
-    description: 'Clear pending resync tasks',
-  },
-  { value: 'scrub', label: 'Scrub', description: 'Full data scrub and verification' },
-] as const;
-
-const SCRUB_COMMANDS = [
-  { value: 'start', label: 'Start' },
-  { value: 'pause', label: 'Pause' },
-  { value: 'resume', label: 'Resume' },
-  { value: 'cancel', label: 'Cancel' },
-] as const;
-
-type RepairOperationValue = (typeof REPAIR_OPERATIONS)[number]['value'];
+  ConnectNodesDialog,
+  RepairDialog,
+  SnapshotDialog,
+} from '@/components/cluster/NodeMaintenanceDialogs';
+import type { FreeSpaceResp, NodeResp } from '@/types/garage';
 
 function getStatusBadge(node: NodeResp) {
   if (node.draining) {
     return <Badge variant="warning">Draining</Badge>;
   }
-  return node.isUp ? (
-    <Badge variant="success">Up</Badge>
-  ) : (
-    <Badge variant="destructive">Down</Badge>
+  return node.isUp ? <Badge variant="success">Up</Badge> : <Badge variant="destructive">Down</Badge>;
+}
+
+/** Used fraction (0–100) of a storage partition, or null when unknown (sorts last). */
+function usedPercent(partition?: FreeSpaceResp | null): number | null {
+  if (!partition || partition.total <= 0) return null;
+  return ((partition.total - partition.available) / partition.total) * 100;
+}
+
+/** A compact disk-usage meter with a used / total caption, color-coded by pressure. */
+function DiskUsage({ partition }: { partition?: FreeSpaceResp | null }) {
+  const pct = usedPercent(partition);
+  if (pct === null || !partition) return <EmptyValue />;
+  const tone: MeterTone = pct >= 90 ? 'destructive' : pct >= 70 ? 'warning' : 'success';
+  const used = partition.total - partition.available;
+  return (
+    <div className="min-w-[7rem] max-w-[13rem] space-y-1">
+      <Meter value={pct} tone={tone} ariaLabel={`Data partition ${Math.round(pct)}% used`} />
+      <div className="flex justify-between gap-2 text-xs tabular-nums text-muted-foreground">
+        <span className="text-foreground">{Math.round(pct)}%</span>
+        <span>
+          {formatBytes(used)} / {formatBytes(partition.total)}
+        </span>
+      </div>
+    </div>
   );
 }
 
 export function ClusterNodeList() {
   const { clusterId } = useClusterContext();
   const navigate = useNavigate();
-  const [connectDialogOpen, setConnectDialogOpen] = useState(false);
-  const [connectNodesInput, setConnectNodesInput] = useState('');
-  const [connectError, setConnectError] = useState('');
-  const [snapshotConfirmOpen, setSnapshotConfirmOpen] = useState(false);
-  const [repairDialogOpen, setRepairDialogOpen] = useState(false);
-  const [selectedRepairOp, setSelectedRepairOp] = useState<RepairOperationValue>('tables');
-  const [scrubCommand, setScrubCommand] = useState<ScrubCommand>('start');
+  const [connectOpen, setConnectOpen] = useState(false);
+  const [snapshotOpen, setSnapshotOpen] = useState(false);
+  const [snapshotNode, setSnapshotNode] = useState<NodeResp | null>(null);
+  const [repairOpen, setRepairOpen] = useState(false);
+  const [repairNode, setRepairNode] = useState<NodeResp | null>(null);
 
-  const connectMutation = useConnectNodes(clusterId);
-  const snapshotMutation = useCreateMetadataSnapshot(clusterId);
-  const repairMutation = useLaunchRepairOperation(clusterId);
   const { data, isLoading, error } = useNodes(clusterId);
 
-  const handleConnectNodes = async () => {
-    const entries = connectNodesInput
-      .split(/\n+/)
-      .map((value) => value.trim())
-      .filter(Boolean);
-    const invalid = entries.filter((value) => !value.includes('@') || value.includes(','));
-    if (entries.length === 0) {
-      setConnectError('Enter at least one node in the form node_id@address.');
-      return;
-    }
-    if (invalid.length > 0) {
-      setConnectError(`Invalid entries: ${invalid.join(', ')}`);
-      return;
-    }
-    setConnectError('');
-    try {
-      await connectMutation.mutateAsync(entries);
-      toast({ title: 'Connect request sent', variant: 'success' });
-      setConnectDialogOpen(false);
-      setConnectNodesInput('');
-    } catch (err) {
-      setConnectError(getApiErrorMessage(err, 'Failed to connect nodes.'));
-    }
+  // A null node opens the dialog cluster-wide (Target defaults to All); a node
+  // pre-selects it (the Target selector still lets you switch).
+  const openSnapshot = (node: NodeResp | null) => {
+    setSnapshotNode(node);
+    setSnapshotOpen(true);
   };
-
-  const handleSnapshotAll = async () => {
-    try {
-      await snapshotMutation.mutateAsync('*');
-      toast({
-        title: 'Snapshot created',
-        description: 'Metadata snapshots requested.',
-        variant: 'success',
-      });
-      setSnapshotConfirmOpen(false);
-    } catch (err) {
-      toast({
-        title: 'Snapshot failed',
-        description: getApiErrorMessage(err),
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleRepairAll = async () => {
-    try {
-      const repairType: RepairType =
-        selectedRepairOp === 'scrub' ? { scrub: scrubCommand } : selectedRepairOp;
-      const repairLabel =
-        REPAIR_OPERATIONS.find((op) => op.value === selectedRepairOp)?.label ?? selectedRepairOp;
-      const repairSuffix = selectedRepairOp === 'scrub' ? ` (${scrubCommand})` : '';
-      await repairMutation.mutateAsync({ repairType });
-      toast({
-        title: 'Repair operation started',
-        description: `${repairLabel}${repairSuffix} operation launched for all nodes.`,
-      });
-      setRepairDialogOpen(false);
-    } catch (err) {
-      toast({
-        title: 'Repair failed',
-        description: getApiErrorMessage(err),
-        variant: 'destructive',
-      });
-    }
+  const openRepair = (node: NodeResp | null) => {
+    setRepairNode(node);
+    setRepairOpen(true);
   };
 
   const columns: ResourceListColumn<NodeResp>[] = [
     {
-      id: 'id',
+      id: 'node',
       header: 'Node',
       sortable: true,
-      sortAccessor: (n) => n.id,
-      mobileHidden: true,
-      cellClassName: 'text-xs',
+      sortAccessor: (n) => n.hostname ?? n.id,
+      mobileHidden: true, // identity becomes the mobile card title/subtitle
       cell: (n) => (
-        <CopyValue value={n.id} label="Node ID" className="max-w-[26ch]">
-          {n.id}
-        </CopyValue>
-      ),
-    },
-    {
-      id: 'hostname',
-      header: 'Hostname',
-      sortable: true,
-      sortAccessor: (n) => n.hostname ?? '',
-      cell: (n) => (n.hostname ? n.hostname : <EmptyValue />),
-    },
-    {
-      id: 'addr',
-      header: 'Address',
-      cellClassName: 'text-xs text-muted-foreground',
-      cell: (n) =>
-        n.addr ? (
-          <CopyValue value={n.addr} label="Node address" className="max-w-[24ch]">
-            {n.addr}
+        <div className="min-w-0">
+          <div className="font-medium text-foreground">{n.hostname || 'Unknown host'}</div>
+          <CopyValue
+            value={n.id}
+            label="Node ID"
+            className="max-w-[22ch] font-mono text-xs text-muted-foreground"
+          >
+            {formatShortId(n.id, 16)}
           </CopyValue>
-        ) : (
-          <EmptyValue />
-        ),
+        </div>
+      ),
     },
     {
       id: 'status',
       header: 'Status',
       sortable: true,
       sortAccessor: (n) => (n.draining ? 'draining' : n.isUp ? 'up' : 'down'),
+      // items-start keeps the badge at its content width instead of stretching
+      // to fill the column.
       cell: (n) => (
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col items-start gap-1">
           {getStatusBadge(n)}
-          {!n.isUp && n.lastSeenSecsAgo !== null && n.lastSeenSecsAgo !== undefined && (
+          {!n.isUp && n.lastSeenSecsAgo != null && (
             <span className="text-xs text-muted-foreground">
               Last seen {formatRelativeSeconds(n.lastSeenSecsAgo)}
             </span>
@@ -219,63 +130,52 @@ export function ClusterNodeList() {
       ),
     },
     {
-      id: 'role',
-      header: 'Role',
+      id: 'zone',
+      header: 'Zone',
       sortable: true,
       sortAccessor: (n) => n.role?.zone ?? '',
       cell: (n) =>
         n.role ? (
           <div className="space-y-1">
-            <div className="text-xs text-muted-foreground">
-              Zone: <span className="text-foreground">{n.role.zone}</span>
-            </div>
-            <div className="text-xs text-muted-foreground">
-              Capacity:{' '}
-              <span className="text-foreground">{formatBytes(n.role.capacity ?? null)}</span>
-            </div>
-            <div className="flex flex-wrap gap-1">
-              {n.role.tags.length > 0 ? (
-                n.role.tags.map((tag) => (
-                  <Badge key={`${n.id}-${tag}`} variant="outline">
+            <div className="text-sm text-foreground">{n.role.zone}</div>
+            {n.role.tags.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1">
+                {n.role.tags.slice(0, 2).map((tag) => (
+                  <Badge key={`${n.id}-${tag}`} variant="outline" className="font-normal">
                     {tag}
                   </Badge>
-                ))
-              ) : (
-                <EmptyValue label="No tags" className="text-xs" />
-              )}
-            </div>
+                ))}
+                {n.role.tags.length > 2 && (
+                  <span className="text-xs text-muted-foreground">+{n.role.tags.length - 2}</span>
+                )}
+              </div>
+            )}
           </div>
         ) : (
           <EmptyValue label="Unassigned" className="text-xs" />
         ),
     },
     {
-      id: 'dataDisk',
-      header: 'Data Disk',
-      cellClassName: 'text-xs text-muted-foreground',
+      id: 'capacity',
+      header: 'Capacity',
+      sortable: true,
+      sortAccessor: (n) => n.role?.capacity ?? null,
+      cellClassName: 'text-sm text-muted-foreground',
       cell: (n) =>
-        n.dataPartition ? (
-          `${formatBytes(n.dataPartition.available)} / ${formatBytes(n.dataPartition.total)}`
-        ) : (
+        !n.role ? (
           <EmptyValue />
+        ) : n.role.capacity == null ? (
+          'Gateway'
+        ) : (
+          formatBytes(n.role.capacity)
         ),
     },
     {
-      id: 'metadataDisk',
-      header: 'Metadata Disk',
-      cellClassName: 'text-xs text-muted-foreground',
-      cell: (n) =>
-        n.metadataPartition ? (
-          `${formatBytes(n.metadataPartition.available)} / ${formatBytes(n.metadataPartition.total)}`
-        ) : (
-          <EmptyValue />
-        ),
-    },
-    {
-      id: 'version',
-      header: 'Version',
-      cellClassName: 'text-xs text-muted-foreground',
-      cell: (n) => (n.garageVersion ? n.garageVersion : <EmptyValue />),
+      id: 'dataUsage',
+      header: 'Data usage',
+      sortable: true,
+      sortAccessor: (n) => usedPercent(n.dataPartition),
+      cell: (n) => <DiskUsage partition={n.dataPartition} />,
     },
   ];
 
@@ -299,79 +199,29 @@ export function ClusterNodeList() {
       <ModulePageHeader
         title="Nodes"
         description="Cluster node inventory and cluster-wide node operations."
-        meta={
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <NodeIcon className="h-4 w-4" />
-            Layout version:{' '}
-            <span className="font-medium text-foreground">{data?.layoutVersion ?? '—'}</span>
-          </div>
-        }
         actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <Dialog
-              open={connectDialogOpen}
-              onOpenChange={(open) => {
-                setConnectDialogOpen(open);
-                if (!open) {
-                  setConnectNodesInput('');
-                  setConnectError('');
-                }
-              }}
-            >
-              <DialogTrigger asChild>
-                <Button size="sm">
-                  <ConnectActionIcon className="h-4 w-4" />
-                  Connect Nodes
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={() => setConnectOpen(true)}>
+              <ConnectActionIcon className="h-4 w-4" />
+              Connect Nodes
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon" aria-label="More node actions">
+                  <MoreHorizontal className="h-4 w-4" />
                 </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Connect Cluster Nodes</DialogTitle>
-                  <DialogDescription>
-                    Instruct this Garage node to connect to other Garage nodes at
-                    {' <node_id>@<net_address>'}. Node IDs are generated automatically on node
-                    start.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-2">
-                  <Label>Nodes</Label>
-                  <Textarea
-                    className="min-h-[140px] font-mono"
-                    placeholder={`node_id@address
-node_id@address`}
-                    value={connectNodesInput}
-                    onChange={(e) => {
-                      setConnectNodesInput(e.target.value);
-                      if (connectError) setConnectError('');
-                    }}
-                  />
-                  <p className="text-xs text-muted-foreground">One node per line.</p>
-                </div>
-                {connectError && (
-                  <Alert variant="destructive">
-                    <AlertTitle>Connect failed</AlertTitle>
-                    <AlertDescription>{connectError}</AlertDescription>
-                  </Alert>
-                )}
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setConnectDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button onClick={handleConnectNodes} disabled={connectMutation.isPending}>
-                    {connectMutation.isPending ? 'Connecting...' : 'Connect'}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-
-            <Button variant="outline" size="sm" onClick={() => setSnapshotConfirmOpen(true)}>
-              <SnapshotActionIcon className="h-4 w-4" />
-              Create Snapshot
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setRepairDialogOpen(true)}>
-              <RepairActionIcon className="h-4 w-4" />
-              Launch Repair
-            </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={() => openSnapshot(null)}>
+                  <SnapshotActionIcon />
+                  Create snapshot
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => openRepair(null)}>
+                  <RepairActionIcon />
+                  Launch repair
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         }
       />
@@ -383,10 +233,22 @@ node_id@address`}
         onRowClick={(n) => navigate(`/clusters/${clusterId}/nodes/${n.id}`)}
         getRowLabel={(n) => `Open node ${n.hostname || formatShortId(n.id, 10)}`}
         renderTitle={(n) => (
-          <CopyValue value={n.id} label="Node ID">
-            {n.hostname || n.id}
+          <CopyValue value={n.id} label="Node ID" className="max-w-full">
+            {n.hostname || formatShortId(n.id, 16)}
           </CopyValue>
         )}
+        renderSubtitle={(n) =>
+          n.hostname ? (
+            <CopyValue
+              value={n.id}
+              label="Node ID"
+              className="max-w-full font-mono text-xs text-muted-foreground"
+            >
+              {formatShortId(n.id, 20)}
+            </CopyValue>
+          ) : null
+        }
+        defaultSort={{ columnId: 'status', direction: 'asc' }}
         search={{
           placeholder: 'Search by hostname, ID, address, zone, or tag...',
           predicate: (n, q) =>
@@ -396,93 +258,63 @@ node_id@address`}
             (n.role?.zone ?? '').toLowerCase().includes(q) ||
             (n.role?.tags ?? []).some((tag) => tag.toLowerCase().includes(q)),
         }}
+        filters={[
+          {
+            id: 'status',
+            label: 'Status',
+            options: [
+              { value: 'up', label: 'Up', predicate: (n) => n.isUp && !n.draining },
+              { value: 'draining', label: 'Draining', predicate: (n) => n.draining },
+              { value: 'down', label: 'Down', predicate: (n) => !n.isUp },
+            ],
+          },
+        ]}
+        actions={(n) => [
+          {
+            label: 'Create snapshot',
+            icon: SnapshotActionIcon,
+            onSelect: () => openSnapshot(n),
+          },
+          {
+            label: 'Launch repair',
+            icon: RepairActionIcon,
+            onSelect: () => openRepair(n),
+          },
+          {
+            label: 'Open',
+            icon: OpenActionIcon,
+            onSelect: () => navigate(`/clusters/${clusterId}/nodes/${n.id}`),
+          },
+        ]}
         emptyState={{
           icon: NodeIcon,
           title: 'No nodes connected',
           description: 'Cluster nodes are not communicating or none have been connected.',
           action: (
-            <Button variant="outline" size="sm" onClick={() => setConnectDialogOpen(true)}>
+            <Button variant="outline" size="sm" onClick={() => setConnectOpen(true)}>
               <ConnectActionIcon className="h-4 w-4 mr-2" /> Connect Nodes
             </Button>
           ),
         }}
       />
 
-      <ConfirmDialog
-        open={snapshotConfirmOpen}
-        onOpenChange={setSnapshotConfirmOpen}
-        title="Create Metadata Snapshot (All Nodes)"
-        description="This will create a snapshot of the metadata database on all nodes. This is a non-destructive operation."
-        confirmText="Create Snapshot"
-        onConfirm={handleSnapshotAll}
-        isLoading={snapshotMutation.isPending}
+      <ConnectNodesDialog clusterId={clusterId} open={connectOpen} onOpenChange={setConnectOpen} />
+      <SnapshotDialog
+        clusterId={clusterId}
+        open={snapshotOpen}
+        onOpenChange={setSnapshotOpen}
+        allowScopeSelection
+        nodeId={snapshotNode?.id}
+        nodeLabel={snapshotNode?.hostname ?? undefined}
       />
-
-      <Dialog open={repairDialogOpen} onOpenChange={setRepairDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Launch Repair Operation (All Nodes)</DialogTitle>
-            <DialogDescription>
-              Repair operations can be resource-intensive. Choose carefully.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Repair Type</Label>
-              <Select
-                value={selectedRepairOp}
-                onValueChange={(value) => setSelectedRepairOp(value as RepairOperationValue)}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {REPAIR_OPERATIONS.map((op) => (
-                    <SelectItem key={op.value} value={op.value}>
-                      {op.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                {REPAIR_OPERATIONS.find((op) => op.value === selectedRepairOp)?.description}
-              </p>
-            </div>
-            {selectedRepairOp === 'scrub' && (
-              <div className="space-y-2">
-                <Label>Scrub Command</Label>
-                <Select
-                  value={scrubCommand}
-                  onValueChange={(value) => setScrubCommand(value as ScrubCommand)}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SCRUB_COMMANDS.map((command) => (
-                      <SelectItem key={command.value} value={command.value}>
-                        {command.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRepairDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleRepairAll}
-              disabled={repairMutation.isPending}
-            >
-              {repairMutation.isPending ? 'Starting...' : 'Start Repair'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <RepairDialog
+        clusterId={clusterId}
+        open={repairOpen}
+        onOpenChange={setRepairOpen}
+        allowScopeSelection
+        nodeId={repairNode?.id}
+        nodeLabel={repairNode?.hostname ?? undefined}
+      />
     </div>
   );
 }
