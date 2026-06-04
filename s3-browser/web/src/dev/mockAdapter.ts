@@ -57,8 +57,20 @@ const mockAdapter: AxiosAdapter = async (config) => {
       return reply(config, mockList(params.prefix ?? '', params.continuationToken));
     case 'GET object':
       return reply(config, mockGetObject(params.key ?? ''));
-    case 'GET download':
-      return reply(config, new Blob([`Mock contents of ${params.key}\n`], { type: 'text/plain' }));
+    case 'GET download': {
+      const text =
+        `# ${params.key}\n\n` +
+        `This is mock fixture content served by the FileBrowser dev playground.\n` +
+        `No BFF, Garage cluster, or credentials are involved.\n\n` +
+        `- key: ${params.key}\n- generated for: mobile UX iteration\n`;
+      // TextPreview asks for an ArrayBuffer; useDownload asks for a Blob.
+      return reply(
+        config,
+        config.responseType === 'arraybuffer'
+          ? new TextEncoder().encode(text).buffer
+          : new Blob([text], { type: 'text/plain' }),
+      );
+    }
     case 'POST presign': {
       const key = (jsonBody(config).key as string) ?? params.key ?? '';
       return reply(config, {
