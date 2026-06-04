@@ -42,6 +42,41 @@ export function PermissionCheckboxes({
   );
 }
 
+/** Binary Allow / Deny chooser — a segmented control reads clearer than a 2-item
+ *  dropdown for a yes/no permission. Shared by the key create + edit dialogs. */
+export function PermissionSegmented({
+  value,
+  onChange,
+  ariaLabel = 'Permission',
+}: {
+  value: 'allow' | 'deny';
+  onChange: (value: 'allow' | 'deny') => void;
+  ariaLabel?: string;
+}) {
+  const seg = (option: 'allow' | 'deny', label: string) => (
+    <button
+      type="button"
+      onClick={() => onChange(option)}
+      aria-pressed={value === option}
+      className={cn(
+        'min-h-9 flex-1 rounded-md border px-3 text-sm font-medium transition-colors',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        value === option
+          ? 'border-primary/40 bg-primary/10 text-primary'
+          : 'border-border text-muted-foreground hover:text-foreground',
+      )}
+    >
+      {label}
+    </button>
+  );
+  return (
+    <div className="flex gap-2" role="group" aria-label={ariaLabel}>
+      {seg('allow', 'Allow')}
+      {seg('deny', 'Deny')}
+    </div>
+  );
+}
+
 /** A single permission flag as a compact pill: solid green when granted, a faint
  *  dashed outline when not — so "has it" vs "doesn't" reads at a glance. */
 export function PermissionPill({ label, granted }: { label: string; granted: boolean }) {
