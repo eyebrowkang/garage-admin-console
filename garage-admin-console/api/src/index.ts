@@ -87,11 +87,44 @@ function mountS3BrowserProxy() {
   });
 }
 
+/**
+ * All-in-one image: serve the bundled S3 Browser MF remote same-origin from
+ * S3_BROWSER_STATIC_DIR, so no separate container or proxy hop is needed. The
+ * remote is built with assetPrefix:'auto', so its chunks resolve relative to
+ * `/s3-browser/` automatically. Returns true when it mounted.
+ */
+function mountS3BrowserStatic(): boolean {
+  const dir = process.env.S3_BROWSER_STATIC_DIR?.trim();
+  if (!dir) return false;
+  const resolved = path.resolve(dir);
+
+  app.use(
+    '/s3-browser',
+    express.static(resolved, {
+      setHeaders: (res, filePath) => {
+        // The manifest + entry must roll out on deploy; hashed chunks are immutable.
+        const base = path.basename(filePath);
+        if (base === 'mf-manifest.json' || base === 'remoteEntry.js') {
+          res.setHeader('Cache-Control', 'no-store');
+        } else {
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        }
+      },
+    }),
+  );
+  logger.info({ dir: resolved }, 'Serving S3 Browser MF remote same-origin at /s3-browser');
+  return true;
+}
+
 // Run database migrations before starting the server
 await runMigrations();
 logger.info('Database migrations applied');
 
-mountS3BrowserProxy();
+// Prefer serving the bundled remote same-origin (all-in-one image); otherwise
+// proxy to a separate S3 Browser container (multi-container combined deploy).
+if (!mountS3BrowserStatic()) {
+  mountS3BrowserProxy();
+}
 
 // Serve static frontend files when STATIC_DIR is configured (Docker / production)
 const staticDir = process.env.STATIC_DIR;

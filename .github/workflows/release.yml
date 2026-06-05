@@ -37,6 +37,11 @@ jobs:
           - image: garage-admin-console
             dockerfile: docker/garage-admin-console.Dockerfile
             version: ${{ inputs.admin_version }}
+          # The all-in-one image is part of the Admin Console product, so it
+          # tracks the admin version and publishes whenever admin releases.
+          - image: garage-admin-all
+            dockerfile: docker/garage-admin-all.Dockerfile
+            version: ${{ inputs.admin_version }}
           - image: s3-browser
             dockerfile: docker/s3-browser.Dockerfile
             version: ${{ inputs.s3_version }}
