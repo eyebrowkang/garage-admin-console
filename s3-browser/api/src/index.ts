@@ -47,10 +47,21 @@ function mountStaticFrontend(app: Express) {
     }),
   );
 
-  // SPA fallback: only browser navigations should receive index.html. Missing
-  // JS/CSS chunks must stay 404 so MF asset problems are visible.
+  // SPA fallback: serve index.html for browser navigations so client-side routes
+  // survive a refresh — INCLUDING object-key routes that contain dots (e.g.
+  // /connections/:id/b/:bucket/report.pdf). Keying off a file extension was
+  // wrong — it 404'd those to a white screen, and object keys can even end in
+  // .js/.css. Everything here already missed express.static, so serve index.html
+  // unless the request is an API call, an Rsbuild asset (/static), or an MF entry
+  // file — those keep 404ing so a missing asset isn't masked as HTML.
   app.use((req, res, next) => {
-    if (req.method === 'GET' && req.accepts('html') && !path.extname(req.path)) {
+    if (
+      req.method === 'GET' &&
+      req.accepts('html') &&
+      !req.path.startsWith('/api') &&
+      !req.path.startsWith('/static/') &&
+      !noStoreFiles.has(path.basename(req.path))
+    ) {
       res.sendFile(path.join(resolved, 'index.html'));
     } else {
       next();

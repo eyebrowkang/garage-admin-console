@@ -156,11 +156,21 @@ if (staticDir) {
     }),
   );
 
-  // SPA fallback: only browser navigations (paths without a file extension) get
-  // index.html. A missing hashed asset must stay a 404 instead of being masked
-  // as HTML (which would surface as an "Unexpected token <" parse error).
+  // SPA fallback: serve index.html for browser navigations so client-side
+  // routes survive a refresh — INCLUDING routes that contain dots (e.g. a bucket
+  // named "my.bucket.com"). Keying off a file extension was wrong: it 404'd
+  // those routes to a white screen. Everything here already missed
+  // express.static, so serve index.html unless the request is an API call, a
+  // Vite hashed asset (/assets), or the federated remote (/s3-browser) — those
+  // keep 404ing so a genuinely-missing asset is visible, not masked as HTML.
   app.use((req, res, next) => {
-    if (req.method === 'GET' && req.accepts('html') && !path.extname(req.path)) {
+    if (
+      req.method === 'GET' &&
+      req.accepts('html') &&
+      !req.path.startsWith('/api') &&
+      !req.path.startsWith('/assets/') &&
+      !req.path.startsWith('/s3-browser/')
+    ) {
       res.sendFile(path.join(resolved, 'index.html'));
     } else {
       next();
