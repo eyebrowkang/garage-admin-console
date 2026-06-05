@@ -11,8 +11,8 @@ import {
 
 const variantIcon = {
   default: { Icon: Info, className: 'text-primary' },
-  success: { Icon: CheckCircle2, className: 'text-[hsl(var(--success))]' },
-  warning: { Icon: AlertTriangle, className: 'text-[hsl(var(--warning))]' },
+  success: { Icon: CheckCircle2, className: 'text-success' },
+  warning: { Icon: AlertTriangle, className: 'text-warning' },
   destructive: { Icon: AlertCircle, className: 'text-destructive' },
 } as const;
 
