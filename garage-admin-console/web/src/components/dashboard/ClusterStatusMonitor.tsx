@@ -153,9 +153,9 @@ function pressureFromZone(minZone: ZoneStat | undefined): number | null {
 }
 
 function getStatusMessage(item: ClusterWithStatus) {
-  // "Healthy" used to read "N/N nodes online", but the Nodes tile above already
-  // shows that exact ratio — so it was just noise. Keep a plain confirmation.
-  if (item.healthStatus === 'healthy') return 'All checks passing';
+  // Healthy shows no status text at all — the Nodes tile + capacity already say
+  // it; only non-healthy states get a message worth surfacing.
+  if (item.healthStatus === 'healthy') return '';
   if (item.healthStatus === 'unknown' || item.isLoading) return 'Checking cluster health...';
   if (item.healthStatus === 'unreachable') return 'Unable to reach health endpoint.';
   if (item.healthStatus === 'degraded') return 'Cluster degraded. Review details in cluster page.';
@@ -358,6 +358,7 @@ function ClusterCard({
     partitionsLabel,
   } = deriveCluster(item);
   const StatusIcon = config.icon;
+  const statusMsg = getStatusMessage(item);
   const nodesPct = nodesTotal > 0 ? (up / nodesTotal) * 100 : null;
   const partitionsPct =
     partitionsTotal && partitionsTotal > 0 ? ((partitionsOk ?? 0) / partitionsTotal) * 100 : null;
@@ -406,19 +407,22 @@ function ClusterCard({
           <PressureTile pressure={pressure} />
         </div>
 
-        {/* Status line + capacity */}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-          <span>{getStatusMessage(item)}</span>
-          {nodes.length > 0 && minCapacity !== null && (
-            <>
-              <span className="text-border">|</span>
-              <span>
-                Min zone capacity:{' '}
-                <span className="font-medium text-foreground">{formatBytes(minCapacity)}</span>
-              </span>
-            </>
-          )}
-        </div>
+        {/* Status line + capacity — healthy clusters show only the capacity, no
+            status copy (the Nodes tile already conveys health). */}
+        {(statusMsg || (nodes.length > 0 && minCapacity !== null)) && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+            {statusMsg && <span>{statusMsg}</span>}
+            {nodes.length > 0 && minCapacity !== null && (
+              <>
+                {statusMsg && <span className="text-border">|</span>}
+                <span>
+                  Min zone capacity:{' '}
+                  <span className="font-medium text-foreground">{formatBytes(minCapacity)}</span>
+                </span>
+              </>
+            )}
+          </div>
+        )}
 
         {/* Primary action — Edit/Disconnect live in the overflow menu above */}
         <div className="pt-1">
