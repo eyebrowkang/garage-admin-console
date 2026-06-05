@@ -9,6 +9,8 @@ import {
   Shield,
   Timer,
   ArrowRightLeft,
+  Plus,
+  Trash2,
 } from 'lucide-react';
 import {
   Button,
@@ -66,6 +68,7 @@ import { AddActionIcon, DeleteActionIcon, OpenActionIcon } from '@/lib/action-ic
 import { KeyIcon } from '@/lib/entity-icons';
 import { formatBytes, formatNum, formatShortId, getApiErrorMessage } from '@garage/web-shared';
 import { toast } from '@garage/ui';
+import type { CorsRule, LifecycleRule, WebsiteRoutingRule } from '@/types/garage';
 
 /** A usage stat: the value, an optional `/ max`, and a quota meter when a limit
  *  is set (color-coded by how close usage is to the cap). */
@@ -148,6 +151,12 @@ export function BucketDetail() {
     alias: string;
     accessKeyId?: string;
   } | null>(null);
+  const [corsDialogOpen, setCorsDialogOpen] = useState(false);
+  const [corsRules, setCorsRules] = useState<CorsRule[]>([]);
+  const [lifecycleDialogOpen, setLifecycleDialogOpen] = useState(false);
+  const [lifecycleRules, setLifecycleRules] = useState<LifecycleRule[]>([]);
+  const [routingDialogOpen, setRoutingDialogOpen] = useState(false);
+  const [routingRules, setRoutingRules] = useState<WebsiteRoutingRule[]>([]);
   const { data: bucket, isLoading, error } = useBucketInfo(clusterId, bid || '');
   const updateBucketMutation = useUpdateBucket(clusterId, bid || '');
   const cleanupMutation = useCleanupIncompleteUploads(clusterId, bid || '');
@@ -353,6 +362,76 @@ export function BucketDetail() {
         variant: 'destructive',
       });
     }
+  };
+
+  const handleSaveCorsRules = async () => {
+    try {
+      await updateBucketMutation.mutateAsync({ corsRules: corsRules.length > 0 ? corsRules : [] });
+      toast({ title: 'CORS rules updated', variant: 'success' });
+      setCorsDialogOpen(false);
+    } catch (err) {
+      toast({
+        title: 'Failed to update CORS rules',
+        description: getApiErrorMessage(err),
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleSaveLifecycleRules = async () => {
+    try {
+      await updateBucketMutation.mutateAsync({
+        lifecycleRules: lifecycleRules.length > 0 ? lifecycleRules : [],
+      });
+      toast({ title: 'Lifecycle rules updated', variant: 'success' });
+      setLifecycleDialogOpen(false);
+    } catch (err) {
+      toast({
+        title: 'Failed to update lifecycle rules',
+        description: getApiErrorMessage(err),
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleSaveRoutingRules = async () => {
+    try {
+      await updateBucketMutation.mutateAsync({
+        websiteAccess: {
+          enabled: bucket.websiteAccess,
+          indexDocument: bucket.websiteConfig?.indexDocument ?? null,
+          errorDocument: bucket.websiteConfig?.errorDocument ?? null,
+          routingRules: routingRules.length > 0 ? routingRules : [],
+        },
+      });
+      toast({ title: 'Routing rules updated', variant: 'success' });
+      setRoutingDialogOpen(false);
+    } catch (err) {
+      toast({
+        title: 'Failed to update routing rules',
+        description: getApiErrorMessage(err),
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const openCorsEditor = () => {
+    setCorsRules(bucket.corsRules?.map((r) => ({ ...r })) ?? []);
+    setCorsDialogOpen(true);
+  };
+
+  const openLifecycleEditor = () => {
+    setLifecycleRules(
+      bucket.lifecycleRules?.map((r) => JSON.parse(JSON.stringify(r)) as LifecycleRule) ?? [],
+    );
+    setLifecycleDialogOpen(true);
+  };
+
+  const openRoutingEditor = () => {
+    setRoutingRules(
+      bucket.routingRules?.map((r) => JSON.parse(JSON.stringify(r)) as WebsiteRoutingRule) ?? [],
+    );
+    setRoutingDialogOpen(true);
   };
 
   return (
@@ -614,10 +693,10 @@ export function BucketDetail() {
               </Button>
             </div>
 
-            {/* v2.3.0: CORS rules (read-only, hidden when null / not reported) */}
+            {/* v2.3.0: CORS rules */}
             {bucket.corsRules != null && (
-              <div className="px-4 py-3.5">
-                <div className="space-y-1">
+              <div className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0 space-y-1">
                   <div className="flex items-center gap-2 text-sm font-medium">
                     <Shield className="h-4 w-4 text-muted-foreground" />
                     CORS Rules
@@ -656,13 +735,16 @@ export function BucketDetail() {
                     <div className="text-sm text-muted-foreground">No CORS rules configured</div>
                   )}
                 </div>
+                <Button variant="outline" size="sm" className="shrink-0" onClick={openCorsEditor}>
+                  Edit
+                </Button>
               </div>
             )}
 
-            {/* v2.3.0: Lifecycle rules (read-only) */}
+            {/* v2.3.0: Lifecycle rules */}
             {bucket.lifecycleRules != null && (
-              <div className="px-4 py-3.5">
-                <div className="space-y-1">
+              <div className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0 space-y-1">
                   <div className="flex items-center gap-2 text-sm font-medium">
                     <Timer className="h-4 w-4 text-muted-foreground" />
                     Lifecycle Rules
@@ -716,66 +798,86 @@ export function BucketDetail() {
                     </div>
                   )}
                 </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={openLifecycleEditor}
+                >
+                  Edit
+                </Button>
               </div>
             )}
 
-            {/* v2.3.0: Website routing rules (read-only) */}
-            {bucket.routingRules != null && bucket.routingRules.length > 0 && (
-              <div className="px-4 py-3.5">
-                <div className="space-y-1">
+            {/* v2.3.0: Website routing rules */}
+            {bucket.routingRules != null && (
+              <div className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0 space-y-1">
                   <div className="flex items-center gap-2 text-sm font-medium">
                     <ArrowRightLeft className="h-4 w-4 text-muted-foreground" />
                     Routing Rules
                     <Badge variant="secondary">{bucket.routingRules.length}</Badge>
                   </div>
-                  <div className="space-y-1.5 pt-1">
-                    {bucket.routingRules.map((rule, i) => (
-                      <div key={i} className="rounded-md border bg-muted/20 px-3 py-2 text-sm">
-                        <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
-                          {rule.Condition?.KeyPrefixEquals && (
-                            <span>
-                              Prefix:{' '}
-                              <span className="font-mono text-foreground">
-                                {rule.Condition.KeyPrefixEquals}
+                  {bucket.routingRules.length > 0 ? (
+                    <div className="space-y-1.5 pt-1">
+                      {bucket.routingRules.map((rule, i) => (
+                        <div key={i} className="rounded-md border bg-muted/20 px-3 py-2 text-sm">
+                          <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
+                            {rule.Condition?.KeyPrefixEquals && (
+                              <span>
+                                Prefix:{' '}
+                                <span className="font-mono text-foreground">
+                                  {rule.Condition.KeyPrefixEquals}
+                                </span>
                               </span>
-                            </span>
-                          )}
-                          {rule.Condition?.HttpErrorCodeReturnedEquals != null && (
-                            <span>HTTP {rule.Condition.HttpErrorCodeReturnedEquals}</span>
-                          )}
-                          {rule.Redirect.HostName && (
-                            <span>
-                              Redirect to{' '}
-                              <span className="font-mono text-foreground">
-                                {rule.Redirect.Protocol ? `${rule.Redirect.Protocol}://` : ''}
-                                {rule.Redirect.HostName}
+                            )}
+                            {rule.Condition?.HttpErrorCodeReturnedEquals != null && (
+                              <span>HTTP {rule.Condition.HttpErrorCodeReturnedEquals}</span>
+                            )}
+                            {rule.Redirect.HostName && (
+                              <span>
+                                Redirect to{' '}
+                                <span className="font-mono text-foreground">
+                                  {rule.Redirect.Protocol ? `${rule.Redirect.Protocol}://` : ''}
+                                  {rule.Redirect.HostName}
+                                </span>
                               </span>
-                            </span>
-                          )}
-                          {rule.Redirect.ReplaceKeyPrefixWith && (
-                            <span>
-                              Replace prefix with{' '}
-                              <span className="font-mono text-foreground">
-                                {rule.Redirect.ReplaceKeyPrefixWith}
+                            )}
+                            {rule.Redirect.ReplaceKeyPrefixWith && (
+                              <span>
+                                Replace prefix with{' '}
+                                <span className="font-mono text-foreground">
+                                  {rule.Redirect.ReplaceKeyPrefixWith}
+                                </span>
                               </span>
-                            </span>
-                          )}
-                          {rule.Redirect.ReplaceKeyWith && (
-                            <span>
-                              Replace key with{' '}
-                              <span className="font-mono text-foreground">
-                                {rule.Redirect.ReplaceKeyWith}
+                            )}
+                            {rule.Redirect.ReplaceKeyWith && (
+                              <span>
+                                Replace key with{' '}
+                                <span className="font-mono text-foreground">
+                                  {rule.Redirect.ReplaceKeyWith}
+                                </span>
                               </span>
-                            </span>
-                          )}
-                          {rule.Redirect.HttpRedirectCode != null && (
-                            <span>HTTP {rule.Redirect.HttpRedirectCode}</span>
-                          )}
+                            )}
+                            {rule.Redirect.HttpRedirectCode != null && (
+                              <span>HTTP {rule.Redirect.HttpRedirectCode}</span>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-sm text-muted-foreground">No routing rules configured</div>
+                  )}
                 </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={openRoutingEditor}
+                >
+                  Edit
+                </Button>
               </div>
             )}
           </div>
@@ -1211,6 +1313,471 @@ export function BucketDetail() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setInspectDialogOpen(false)}>
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* CORS Rules Editor */}
+      <Dialog open={corsDialogOpen} onOpenChange={setCorsDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit CORS Rules</DialogTitle>
+            <DialogDescription>
+              Configure Cross-Origin Resource Sharing rules for this bucket.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            {corsRules.map((rule, i) => (
+              <div key={i} className="space-y-3 rounded-lg border p-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Rule {i + 1}</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                    onClick={() => setCorsRules((prev) => prev.filter((_, j) => j !== i))}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Allowed Origins (comma-separated)</Label>
+                  <Input
+                    value={rule.AllowedOrigin.join(', ')}
+                    onChange={(e) => {
+                      const origins = e.target.value
+                        .split(',')
+                        .map((s) => s.trim())
+                        .filter(Boolean);
+                      setCorsRules((prev) =>
+                        prev.map((r, j) => (j === i ? { ...r, AllowedOrigin: origins } : r)),
+                      );
+                    }}
+                    placeholder="* or https://example.com"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Allowed Methods (comma-separated)</Label>
+                  <Input
+                    value={rule.AllowedMethod.join(', ')}
+                    onChange={(e) => {
+                      const methods = e.target.value
+                        .split(',')
+                        .map((s) => s.trim().toUpperCase())
+                        .filter(Boolean);
+                      setCorsRules((prev) =>
+                        prev.map((r, j) => (j === i ? { ...r, AllowedMethod: methods } : r)),
+                      );
+                    }}
+                    placeholder="GET, PUT, POST, DELETE, HEAD"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Allowed Headers (comma-separated, optional)</Label>
+                  <Input
+                    value={(rule.AllowedHeader ?? []).join(', ')}
+                    onChange={(e) => {
+                      const headers = e.target.value
+                        .split(',')
+                        .map((s) => s.trim())
+                        .filter(Boolean);
+                      setCorsRules((prev) =>
+                        prev.map((r, j) =>
+                          j === i
+                            ? { ...r, AllowedHeader: headers.length > 0 ? headers : undefined }
+                            : r,
+                        ),
+                      );
+                    }}
+                    placeholder="*"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Expose Headers (comma-separated, optional)</Label>
+                  <Input
+                    value={(rule.ExposeHeader ?? []).join(', ')}
+                    onChange={(e) => {
+                      const headers = e.target.value
+                        .split(',')
+                        .map((s) => s.trim())
+                        .filter(Boolean);
+                      setCorsRules((prev) =>
+                        prev.map((r, j) =>
+                          j === i
+                            ? { ...r, ExposeHeader: headers.length > 0 ? headers : undefined }
+                            : r,
+                        ),
+                      );
+                    }}
+                    placeholder="ETag, x-amz-request-id"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Max Age (seconds, optional)</Label>
+                  <Input
+                    type="number"
+                    value={rule.MaxAgeSeconds ?? ''}
+                    onChange={(e) => {
+                      const val = e.target.value ? parseInt(e.target.value, 10) : null;
+                      setCorsRules((prev) =>
+                        prev.map((r, j) => (j === i ? { ...r, MaxAgeSeconds: val } : r)),
+                      );
+                    }}
+                    placeholder="3600"
+                  />
+                </div>
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                setCorsRules((prev) => [...prev, { AllowedOrigin: ['*'], AllowedMethod: ['GET'] }])
+              }
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add Rule
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCorsDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveCorsRules} disabled={updateBucketMutation.isPending}>
+              {updateBucketMutation.isPending ? 'Saving...' : 'Save'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Lifecycle Rules Editor */}
+      <Dialog open={lifecycleDialogOpen} onOpenChange={setLifecycleDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Lifecycle Rules</DialogTitle>
+            <DialogDescription>Configure object expiration and cleanup policies.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            {lifecycleRules.map((rule, i) => (
+              <div key={i} className="space-y-3 rounded-lg border p-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Rule {i + 1}</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                    onClick={() => setLifecycleRules((prev) => prev.filter((_, j) => j !== i))}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Rule ID (optional)</Label>
+                    <Input
+                      value={rule.ID ?? ''}
+                      onChange={(e) => {
+                        const val = e.target.value || null;
+                        setLifecycleRules((prev) =>
+                          prev.map((r, j) => (j === i ? { ...r, ID: val } : r)),
+                        );
+                      }}
+                      placeholder="my-rule-id"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Status</Label>
+                    <Select
+                      value={rule.Status}
+                      onValueChange={(val) =>
+                        setLifecycleRules((prev) =>
+                          prev.map((r, j) => (j === i ? { ...r, Status: val } : r)),
+                        )
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Enabled">Enabled</SelectItem>
+                        <SelectItem value="Disabled">Disabled</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Filter Prefix (optional)</Label>
+                  <Input
+                    value={rule.Filter?.Prefix ?? ''}
+                    onChange={(e) => {
+                      const prefix = e.target.value || null;
+                      setLifecycleRules((prev) =>
+                        prev.map((r, j) =>
+                          j === i
+                            ? {
+                                ...r,
+                                Filter: prefix ? { ...r.Filter, Prefix: prefix } : null,
+                              }
+                            : r,
+                        ),
+                      );
+                    }}
+                    placeholder="logs/"
+                  />
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Expiration Days</Label>
+                    <Input
+                      type="number"
+                      value={rule.Expiration?.Days ?? ''}
+                      onChange={(e) => {
+                        const days = e.target.value ? parseInt(e.target.value, 10) : null;
+                        setLifecycleRules((prev) =>
+                          prev.map((r, j) =>
+                            j === i
+                              ? {
+                                  ...r,
+                                  Expiration:
+                                    days != null
+                                      ? { ...r.Expiration, Days: days, Date: null }
+                                      : null,
+                                }
+                              : r,
+                          ),
+                        );
+                      }}
+                      placeholder="30"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Abort Incomplete MPU (days)</Label>
+                    <Input
+                      type="number"
+                      value={rule.AbortIncompleteMultipartUpload?.DaysAfterInitiation ?? ''}
+                      onChange={(e) => {
+                        const days = e.target.value ? parseInt(e.target.value, 10) : null;
+                        setLifecycleRules((prev) =>
+                          prev.map((r, j) =>
+                            j === i
+                              ? {
+                                  ...r,
+                                  AbortIncompleteMultipartUpload:
+                                    days != null ? { DaysAfterInitiation: days } : null,
+                                }
+                              : r,
+                          ),
+                        );
+                      }}
+                      placeholder="7"
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                setLifecycleRules((prev) => [
+                  ...prev,
+                  { Status: 'Enabled', Expiration: { Days: 30 } },
+                ])
+              }
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add Rule
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLifecycleDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveLifecycleRules} disabled={updateBucketMutation.isPending}>
+              {updateBucketMutation.isPending ? 'Saving...' : 'Save'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Routing Rules Editor */}
+      <Dialog open={routingDialogOpen} onOpenChange={setRoutingDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Routing Rules</DialogTitle>
+            <DialogDescription>
+              Configure website redirect and rewrite rules. These are saved as part of the website
+              access configuration.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            {routingRules.map((rule, i) => (
+              <div key={i} className="space-y-3 rounded-lg border p-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Rule {i + 1}</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                    onClick={() => setRoutingRules((prev) => prev.filter((_, j) => j !== i))}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+                <div className="space-y-1.5">
+                  <span className="text-xs font-medium text-muted-foreground">Condition</span>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Key Prefix</Label>
+                      <Input
+                        value={rule.Condition?.KeyPrefixEquals ?? ''}
+                        onChange={(e) => {
+                          const val = e.target.value || null;
+                          setRoutingRules((prev) =>
+                            prev.map((r, j) =>
+                              j === i
+                                ? {
+                                    ...r,
+                                    Condition:
+                                      val || r.Condition?.HttpErrorCodeReturnedEquals
+                                        ? { ...r.Condition, KeyPrefixEquals: val }
+                                        : undefined,
+                                  }
+                                : r,
+                            ),
+                          );
+                        }}
+                        placeholder="docs/"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">HTTP Error Code</Label>
+                      <Input
+                        type="number"
+                        value={rule.Condition?.HttpErrorCodeReturnedEquals ?? ''}
+                        onChange={(e) => {
+                          const val = e.target.value ? parseInt(e.target.value, 10) : null;
+                          setRoutingRules((prev) =>
+                            prev.map((r, j) =>
+                              j === i
+                                ? {
+                                    ...r,
+                                    Condition:
+                                      val != null || r.Condition?.KeyPrefixEquals
+                                        ? { ...r.Condition, HttpErrorCodeReturnedEquals: val }
+                                        : undefined,
+                                  }
+                                : r,
+                            ),
+                          );
+                        }}
+                        placeholder="404"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <span className="text-xs font-medium text-muted-foreground">Redirect</span>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Host Name</Label>
+                      <Input
+                        value={rule.Redirect.HostName ?? ''}
+                        onChange={(e) => {
+                          const val = e.target.value || null;
+                          setRoutingRules((prev) =>
+                            prev.map((r, j) =>
+                              j === i ? { ...r, Redirect: { ...r.Redirect, HostName: val } } : r,
+                            ),
+                          );
+                        }}
+                        placeholder="example.com"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Protocol</Label>
+                      <Select
+                        value={rule.Redirect.Protocol ?? ''}
+                        onValueChange={(val) =>
+                          setRoutingRules((prev) =>
+                            prev.map((r, j) =>
+                              j === i
+                                ? { ...r, Redirect: { ...r.Redirect, Protocol: val || null } }
+                                : r,
+                            ),
+                          )
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="(unchanged)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="https">https</SelectItem>
+                          <SelectItem value="http">http</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Replace Key Prefix With</Label>
+                      <Input
+                        value={rule.Redirect.ReplaceKeyPrefixWith ?? ''}
+                        onChange={(e) => {
+                          const val = e.target.value || null;
+                          setRoutingRules((prev) =>
+                            prev.map((r, j) =>
+                              j === i
+                                ? { ...r, Redirect: { ...r.Redirect, ReplaceKeyPrefixWith: val } }
+                                : r,
+                            ),
+                          );
+                        }}
+                        placeholder="new-prefix/"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">HTTP Redirect Code</Label>
+                      <Input
+                        type="number"
+                        value={rule.Redirect.HttpRedirectCode ?? ''}
+                        onChange={(e) => {
+                          const val = e.target.value ? parseInt(e.target.value, 10) : null;
+                          setRoutingRules((prev) =>
+                            prev.map((r, j) =>
+                              j === i
+                                ? { ...r, Redirect: { ...r.Redirect, HttpRedirectCode: val } }
+                                : r,
+                            ),
+                          );
+                        }}
+                        placeholder="301"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setRoutingRules((prev) => [...prev, { Redirect: {} }])}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add Rule
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRoutingDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveRoutingRules} disabled={updateBucketMutation.isPending}>
+              {updateBucketMutation.isPending ? 'Saving...' : 'Save'}
             </Button>
           </DialogFooter>
         </DialogContent>

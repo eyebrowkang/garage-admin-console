@@ -15,3 +15,4 @@ playwright-report
 screenshots
 pnpm-debug.log*
 .pnpm-store
+garage-admin-console/web/public/garage-admin-v2*.json
