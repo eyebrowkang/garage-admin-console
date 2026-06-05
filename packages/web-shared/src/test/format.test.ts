@@ -54,6 +54,10 @@ describe('formatDate', () => {
   it('falls back to the raw value for an unparseable date', () => {
     expect(formatDate('not-a-date')).toBe('not-a-date');
   });
+
+  it('parses a bare date as local midnight, preserving the calendar day', () => {
+    expect(formatDate('2026-05-31')).toBe('May 31, 2026');
+  });
 });
 
 describe('formatDateTime', () => {
@@ -71,6 +75,10 @@ describe('formatDateTime', () => {
 
   it('falls back to the raw value when unparseable', () => {
     expect(formatDateTime('garbage')).toBe('garbage');
+  });
+
+  it('treats a bare date as local midnight', () => {
+    expect(formatDateTime('2026-05-31')).toBe('2026-05-31 00:00');
   });
 });
 
