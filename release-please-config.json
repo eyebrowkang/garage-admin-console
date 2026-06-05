@@ -1,7 +1,19 @@
 {
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "separate-pull-requests": true,
   "packages": {
     ".": {
-      "release-type": "simple"
+      "release-type": "simple",
+      "component": "garage-admin-console",
+      "include-component-in-tag": false,
+      "changelog-path": "CHANGELOG.md",
+      "exclude-paths": ["s3-browser"]
+    },
+    "s3-browser": {
+      "release-type": "simple",
+      "component": "s3-browser",
+      "changelog-path": "CHANGELOG.md",
+      "bootstrap-sha": "098ba42bd7e667c4af6ab6ef37d6d0a088d410b7"
     }
   }
 }
