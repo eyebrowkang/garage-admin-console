@@ -7,7 +7,7 @@ test.describe('Access Key Management', () => {
   // Helper to ensure cluster exists and navigate to keys page
   async function setupKeysPage(page: typeof test.prototype.page) {
     await openClusterModule(page, 'Access Keys');
-    await expect(page.getByRole('heading', { name: 'Access Keys' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Access Keys', exact: true })).toBeVisible({
       timeout: 10000,
     });
   }
@@ -17,20 +17,20 @@ test.describe('Access Key Management', () => {
     await setupKeysPage(page);
 
     // Click create key button
-    await page.getByRole('button', { name: 'Create Key' }).click();
+    await page.getByRole('button', { name: 'Create Key' }).first().click();
 
     // Wait for dialog
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
 
     // Fill in key name
-    await dialog.locator('input[placeholder="my-app-key"]').fill(testKeyName);
+    await dialog.getByLabel('Key name').fill(testKeyName);
 
     // Submit - find the Create button in the dialog
-    await dialog.getByRole('button', { name: 'Create' }).click();
+    await dialog.getByRole('button', { name: 'Create Key' }).click();
 
     // Should see the created key dialog with secret
-    await expect(page.getByRole('heading', { name: 'Access Key Created' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Access Key Created', exact: true })).toBeVisible({
       timeout: 10000,
     });
 
