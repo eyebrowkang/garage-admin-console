@@ -13,7 +13,8 @@
       "release-type": "simple",
       "component": "s3-browser",
       "changelog-path": "CHANGELOG.md",
-      "bootstrap-sha": "098ba42bd7e667c4af6ab6ef37d6d0a088d410b7"
+      "bootstrap-sha": "588cdfdd1763b87241cc6f19867773d1f5955084",
+      "release-as": "1.0.0"
     }
   }
 }
