@@ -39,9 +39,15 @@ import {
   TerminalOutput,
   cn,
 } from '@garage/ui';
-import { AlertCircle, CheckCircle2, MoreHorizontal, SkipForward } from 'lucide-react';
+import {
+  AlertCircle,
+  AlertTriangle,
+  CheckCircle2,
+  MoreHorizontal,
+  SkipForward,
+} from 'lucide-react';
 import { api, proxyPath } from '@/lib/api';
-import { formatBytes, formatShortId, getApiErrorMessage } from '@garage/web-shared';
+import { formatBytes, formatNum, formatShortId, getApiErrorMessage } from '@garage/web-shared';
 import { ConfirmDialog } from '@garage/ui';
 import { ModulePageHeader } from '@garage/ui';
 import { PageLoadingState } from '@garage/ui';
@@ -60,6 +66,7 @@ import { useClusterContext } from '@/contexts/ClusterContext';
 import type {
   ApplyClusterLayoutResponse,
   ClusterLayoutSkipDeadNodesResponse,
+  ComputationStat,
   GetClusterLayoutHistoryResponse,
   GetClusterLayoutResponse,
   GetClusterStatusResponse,
@@ -784,6 +791,8 @@ export function LayoutManager() {
             </div>
           </div>
 
+          {layout?.statistics && <LayoutComputationPanel stats={layout.statistics} />}
+
           {hasStagedChanges && (
             <Alert variant="warning">
               <AlertCircle className="h-4 w-4" />
@@ -1117,6 +1126,10 @@ export function LayoutManager() {
                   />
                 </div>
 
+                {previewResult.newLayout.statistics && (
+                  <LayoutComputationPanel stats={previewResult.newLayout.statistics} />
+                )}
+
                 <div className="space-y-2">
                   <div className="text-sm font-medium">Role changes</div>
                   <LayoutRoleDiff
@@ -1319,6 +1332,132 @@ export function LayoutManager() {
         }
         isLoading={updateLayoutMutation.isPending}
       />
+    </div>
+  );
+}
+
+function LayoutComputationPanel({ stats }: { stats: ComputationStat }) {
+  const capacityPct =
+    stats.totalCapacity > 0
+      ? ((stats.effectiveCapacity / stats.totalCapacity) * 100).toFixed(1)
+      : 0;
+
+  return (
+    <div className="space-y-3 rounded-lg border p-4">
+      <div className="text-sm font-medium">Cluster Capacity</div>
+
+      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border sm:grid-cols-4">
+        <div className="bg-card px-3 py-2.5">
+          <div className="text-xs text-muted-foreground">Replication</div>
+          <div className="text-base font-semibold tabular-nums">{stats.replicationFactor}x</div>
+        </div>
+        <div className="bg-card px-3 py-2.5">
+          <div className="text-xs text-muted-foreground">Zone Redundancy</div>
+          <div className="text-base font-semibold tabular-nums">
+            {stats.effectiveZoneRedundancy}
+          </div>
+        </div>
+        <div className="bg-card px-3 py-2.5">
+          <div className="text-xs text-muted-foreground">Effective Capacity</div>
+          <div className="text-base font-semibold tabular-nums">
+            {formatBytes(stats.effectiveCapacity)}
+          </div>
+          <div className="text-[11px] text-muted-foreground">{capacityPct}% of raw</div>
+        </div>
+        <div className="bg-card px-3 py-2.5">
+          <div className="text-xs text-muted-foreground">Total Raw</div>
+          <div className="text-base font-semibold tabular-nums">
+            {formatBytes(stats.totalCapacity)}
+          </div>
+        </div>
+      </div>
+
+      {(stats.lowPartitionSize || stats.lowUsableCapacity) && (
+        <div className="flex flex-col gap-1">
+          {stats.lowPartitionSize && (
+            <div className="flex items-center gap-2 text-xs text-warning">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+              Partition size is very small ({formatBytes(stats.partitionSize)})
+            </div>
+          )}
+          {stats.lowUsableCapacity && (
+            <div className="flex items-center gap-2 text-xs text-warning">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+              Raw node capacity could not be used effectively
+            </div>
+          )}
+        </div>
+      )}
+
+      {stats.totalMovedPartitions != null && stats.totalMovedPartitions > 0 && (
+        <div className="text-xs text-muted-foreground">
+          {formatNum(stats.totalMovedPartitions)} partition(s) will move to new storage nodes
+        </div>
+      )}
+
+      {stats.zones.length > 0 && (
+        <details>
+          <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground">
+            Per-zone breakdown ({stats.zones.length} zone{stats.zones.length !== 1 ? 's' : ''})
+          </summary>
+          <div className="mt-2 space-y-2">
+            {stats.zones.map((zone) => (
+              <div key={zone.name} className="rounded-lg border bg-card">
+                <div className="flex items-center justify-between border-b px-3 py-2">
+                  <span className="text-sm font-medium">{zone.name}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {formatBytes(zone.usableCapacity)} / {formatBytes(zone.totalCapacity)}
+                  </span>
+                </div>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs">Node</TableHead>
+                        <TableHead className="text-right text-xs">Partitions</TableHead>
+                        <TableHead className="text-right text-xs">New</TableHead>
+                        <TableHead className="text-right text-xs">Usable</TableHead>
+                        <TableHead className="text-right text-xs">Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {zone.nodes.map((node) => (
+                        <TableRow key={node.id}>
+                          <TableCell className="py-1.5">
+                            <div className="text-xs font-medium">{formatShortId(node.id, 10)}</div>
+                            {node.tags.length > 0 && (
+                              <div className="text-[11px] text-muted-foreground">
+                                {node.tags.join(', ')}
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell className="py-1.5 text-right text-xs tabular-nums">
+                            {formatNum(node.storedPartitions)}
+                          </TableCell>
+                          <TableCell
+                            className={cn(
+                              'py-1.5 text-right text-xs tabular-nums',
+                              node.newPartitions > 0 && 'text-warning',
+                            )}
+                          >
+                            {node.newPartitions > 0 ? `+${formatNum(node.newPartitions)}` : '0'}
+                          </TableCell>
+                          <TableCell className="py-1.5 text-right text-xs tabular-nums">
+                            {formatBytes(node.usableCapacity)}
+                          </TableCell>
+                          <TableCell className="py-1.5 text-right text-xs tabular-nums">
+                            {formatBytes(node.totalCapacity)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
     </div>
   );
 }

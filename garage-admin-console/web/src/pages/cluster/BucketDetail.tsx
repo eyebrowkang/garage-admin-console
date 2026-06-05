@@ -1,6 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Globe, Tags, Settings, Fingerprint, AlertTriangle } from 'lucide-react';
+import {
+  Globe,
+  Tags,
+  Settings,
+  Fingerprint,
+  AlertTriangle,
+  Shield,
+  Timer,
+  ArrowRightLeft,
+} from 'lucide-react';
 import {
   Button,
   Badge,
@@ -604,6 +613,171 @@ export function BucketDetail() {
                 Edit
               </Button>
             </div>
+
+            {/* v2.3.0: CORS rules (read-only, hidden when null / not reported) */}
+            {bucket.corsRules != null && (
+              <div className="px-4 py-3.5">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <Shield className="h-4 w-4 text-muted-foreground" />
+                    CORS Rules
+                    <Badge variant="secondary">{bucket.corsRules.length}</Badge>
+                  </div>
+                  {bucket.corsRules.length > 0 ? (
+                    <div className="space-y-1.5 pt-1">
+                      {bucket.corsRules.map((rule, i) => (
+                        <div
+                          key={rule.ID ?? i}
+                          className="rounded-md border bg-muted/20 px-3 py-2 text-sm"
+                        >
+                          <div className="flex flex-wrap gap-x-4 gap-y-1">
+                            <span className="text-muted-foreground">
+                              Origins:{' '}
+                              <span className="font-mono text-foreground">
+                                {rule.AllowedOrigin.join(', ')}
+                              </span>
+                            </span>
+                            <span className="text-muted-foreground">
+                              Methods:{' '}
+                              <span className="font-mono text-foreground">
+                                {rule.AllowedMethod.join(', ')}
+                              </span>
+                            </span>
+                          </div>
+                          {rule.MaxAgeSeconds != null && (
+                            <div className="mt-0.5 text-xs text-muted-foreground">
+                              Max age: {rule.MaxAgeSeconds}s
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-sm text-muted-foreground">No CORS rules configured</div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* v2.3.0: Lifecycle rules (read-only) */}
+            {bucket.lifecycleRules != null && (
+              <div className="px-4 py-3.5">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <Timer className="h-4 w-4 text-muted-foreground" />
+                    Lifecycle Rules
+                    <Badge variant="secondary">{bucket.lifecycleRules.length}</Badge>
+                  </div>
+                  {bucket.lifecycleRules.length > 0 ? (
+                    <div className="space-y-1.5 pt-1">
+                      {bucket.lifecycleRules.map((rule, i) => (
+                        <div
+                          key={rule.ID ?? i}
+                          className="rounded-md border bg-muted/20 px-3 py-2 text-sm"
+                        >
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant={rule.Status === 'Enabled' ? 'success' : 'secondary'}>
+                              {rule.Status}
+                            </Badge>
+                            {rule.ID && (
+                              <span className="font-mono text-xs text-muted-foreground">
+                                {rule.ID}
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
+                            {rule.Filter?.Prefix && (
+                              <span>
+                                Prefix:{' '}
+                                <span className="font-mono text-foreground">
+                                  {rule.Filter.Prefix}
+                                </span>
+                              </span>
+                            )}
+                            {rule.Expiration?.Days != null && (
+                              <span>Expires after {rule.Expiration.Days} day(s)</span>
+                            )}
+                            {rule.Expiration?.Date && (
+                              <span>Expires on {rule.Expiration.Date}</span>
+                            )}
+                            {rule.AbortIncompleteMultipartUpload && (
+                              <span>
+                                Abort incomplete MPU after{' '}
+                                {rule.AbortIncompleteMultipartUpload.DaysAfterInitiation} day(s)
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-sm text-muted-foreground">
+                      No lifecycle rules configured
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* v2.3.0: Website routing rules (read-only) */}
+            {bucket.routingRules != null && bucket.routingRules.length > 0 && (
+              <div className="px-4 py-3.5">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <ArrowRightLeft className="h-4 w-4 text-muted-foreground" />
+                    Routing Rules
+                    <Badge variant="secondary">{bucket.routingRules.length}</Badge>
+                  </div>
+                  <div className="space-y-1.5 pt-1">
+                    {bucket.routingRules.map((rule, i) => (
+                      <div key={i} className="rounded-md border bg-muted/20 px-3 py-2 text-sm">
+                        <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
+                          {rule.Condition?.KeyPrefixEquals && (
+                            <span>
+                              Prefix:{' '}
+                              <span className="font-mono text-foreground">
+                                {rule.Condition.KeyPrefixEquals}
+                              </span>
+                            </span>
+                          )}
+                          {rule.Condition?.HttpErrorCodeReturnedEquals != null && (
+                            <span>HTTP {rule.Condition.HttpErrorCodeReturnedEquals}</span>
+                          )}
+                          {rule.Redirect.HostName && (
+                            <span>
+                              Redirect to{' '}
+                              <span className="font-mono text-foreground">
+                                {rule.Redirect.Protocol ? `${rule.Redirect.Protocol}://` : ''}
+                                {rule.Redirect.HostName}
+                              </span>
+                            </span>
+                          )}
+                          {rule.Redirect.ReplaceKeyPrefixWith && (
+                            <span>
+                              Replace prefix with{' '}
+                              <span className="font-mono text-foreground">
+                                {rule.Redirect.ReplaceKeyPrefixWith}
+                              </span>
+                            </span>
+                          )}
+                          {rule.Redirect.ReplaceKeyWith && (
+                            <span>
+                              Replace key with{' '}
+                              <span className="font-mono text-foreground">
+                                {rule.Redirect.ReplaceKeyWith}
+                              </span>
+                            </span>
+                          )}
+                          {rule.Redirect.HttpRedirectCode != null && (
+                            <span>HTTP {rule.Redirect.HttpRedirectCode}</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </TabsContent>
 

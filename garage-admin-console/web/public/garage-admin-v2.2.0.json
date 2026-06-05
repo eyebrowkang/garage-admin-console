@@ -23,9 +23,7 @@
   "paths": {
     "/check": {
       "get": {
-        "tags": [
-          "Special endpoints"
-        ],
+        "tags": ["Special endpoints"],
         "description": "\nStatic website domain name check. Checks whether a bucket is configured to serve\na static website for the requested domain. This is used by reverse proxies such\nas Caddy or Tricot, to avoid requesting TLS certificates for domain names that\ndo not correspond to an actual website.\n    ",
         "operationId": "CheckDomain",
         "parameters": [
@@ -47,16 +45,12 @@
             "description": "No static website bucket exists for this domain"
           }
         },
-        "security": [
-          {}
-        ]
+        "security": [{}]
       }
     },
     "/health": {
       "get": {
-        "tags": [
-          "Special endpoints"
-        ],
+        "tags": ["Special endpoints"],
         "description": "\nCheck cluster health. The status code returned by this function indicates\nwhether this Garage daemon can answer API requests.\nGarage will return `200 OK` even if some storage nodes are disconnected,\nas long as it is able to have a quorum of nodes for read and write operations.\n    ",
         "operationId": "Health",
         "responses": {
@@ -67,16 +61,12 @@
             "description": "This Garage daemon is not able to handle requests"
           }
         },
-        "security": [
-          {}
-        ]
+        "security": [{}]
       }
     },
     "/metrics": {
       "get": {
-        "tags": [
-          "Special endpoints"
-        ],
+        "tags": ["Special endpoints"],
         "description": "Prometheus metrics endpoint",
         "operationId": "Metrics",
         "responses": {
@@ -94,9 +84,7 @@
     },
     "/v2/AddBucketAlias": {
       "post": {
-        "tags": [
-          "Bucket alias"
-        ],
+        "tags": ["Bucket alias"],
         "description": "Add an alias for the target bucket.  This can be either a global or a local alias, depending on which fields are specified.",
         "operationId": "AddBucketAlias",
         "requestBody": {
@@ -128,9 +116,7 @@
     },
     "/v2/AllowBucketKey": {
       "post": {
-        "tags": [
-          "Permission"
-        ],
+        "tags": ["Permission"],
         "description": "\n⚠️ **DISCLAIMER**: Garage's developers are aware that this endpoint has an unconventional semantic. Be extra careful when implementing it, its behavior is not obvious.\n\nAllows a key to do read/write/owner operations on a bucket.\n\nFlags in permissions which have the value true will be activated. Other flags will remain unchanged (ie. they will keep their internal value).\n\nFor example, if you set read to true, the key will be allowed to read the bucket.\nIf you set it to false, the key will keeps its previous read permission.\nIf you want to disallow read for the key, check the DenyBucketKey operation.\n    ",
         "operationId": "AllowBucketKey",
         "requestBody": {
@@ -162,9 +148,7 @@
     },
     "/v2/ApplyClusterLayout": {
       "post": {
-        "tags": [
-          "Cluster layout"
-        ],
+        "tags": ["Cluster layout"],
         "description": "\nApplies to the cluster the layout changes currently registered as staged layout changes.\n\n*Note: do not try to parse the `message` field of the response, it is given as an array of string specifically because its format is not stable.*\n    ",
         "operationId": "ApplyClusterLayout",
         "requestBody": {
@@ -196,9 +180,7 @@
     },
     "/v2/CleanupIncompleteUploads": {
       "post": {
-        "tags": [
-          "Bucket"
-        ],
+        "tags": ["Bucket"],
         "description": "Removes all incomplete multipart uploads that are older than the specified number of seconds.",
         "operationId": "CleanupIncompleteUploads",
         "requestBody": {
@@ -230,9 +212,7 @@
     },
     "/v2/ClusterLayoutSkipDeadNodes": {
       "post": {
-        "tags": [
-          "Cluster layout"
-        ],
+        "tags": ["Cluster layout"],
         "description": "Force progress in layout update trackers",
         "operationId": "ClusterLayoutSkipDeadNodes",
         "requestBody": {
@@ -264,9 +244,7 @@
     },
     "/v2/ConnectClusterNodes": {
       "post": {
-        "tags": [
-          "Cluster"
-        ],
+        "tags": ["Cluster"],
         "description": "Instructs this Garage node to connect to other Garage nodes at specified `<node_id>@<net_address>`. `node_id` is generated automatically on node start.",
         "operationId": "ConnectClusterNodes",
         "requestBody": {
@@ -298,9 +276,7 @@
     },
     "/v2/CreateAdminToken": {
       "post": {
-        "tags": [
-          "Admin API token"
-        ],
+        "tags": ["Admin API token"],
         "description": "Creates a new admin API token",
         "operationId": "CreateAdminToken",
         "requestBody": {
@@ -332,9 +308,7 @@
     },
     "/v2/CreateBucket": {
       "post": {
-        "tags": [
-          "Bucket"
-        ],
+        "tags": ["Bucket"],
         "description": "\nCreates a new bucket, either with a global alias, a local one, or no alias at all.\nTechnically, you can also specify both `globalAlias` and `localAlias` and that would create two aliases.\n    ",
         "operationId": "CreateBucket",
         "requestBody": {
@@ -366,9 +340,7 @@
     },
     "/v2/CreateKey": {
       "post": {
-        "tags": [
-          "Access key"
-        ],
+        "tags": ["Access key"],
         "description": "Creates a new API access key.",
         "operationId": "CreateKey",
         "requestBody": {
@@ -400,9 +372,7 @@
     },
     "/v2/CreateMetadataSnapshot": {
       "post": {
-        "tags": [
-          "Node"
-        ],
+        "tags": ["Node"],
         "description": "\nInstruct one or several nodes to take a snapshot of their metadata databases.\n    ",
         "operationId": "CreateMetadataSnapshot",
         "parameters": [
@@ -435,9 +405,7 @@
     },
     "/v2/DeleteAdminToken": {
       "post": {
-        "tags": [
-          "Admin API token"
-        ],
+        "tags": ["Admin API token"],
         "description": "Delete an admin API token from the cluster, revoking all its permissions.",
         "operationId": "DeleteAdminToken",
         "parameters": [
@@ -463,9 +431,7 @@
     },
     "/v2/DeleteBucket": {
       "post": {
-        "tags": [
-          "Bucket"
-        ],
+        "tags": ["Bucket"],
         "description": "\nDeletes a storage bucket. A bucket cannot be deleted if it is not empty.\n\n**Warning:** this will delete all aliases associated with the bucket!\n    ",
         "operationId": "DeleteBucket",
         "parameters": [
@@ -497,9 +463,7 @@
     },
     "/v2/DeleteKey": {
       "post": {
-        "tags": [
-          "Access key"
-        ],
+        "tags": ["Access key"],
         "description": "Delete a key from the cluster. Its access will be removed from all the buckets. Buckets are not automatically deleted and can be dangling. You should manually delete them before. ",
         "operationId": "DeleteKey",
         "parameters": [
@@ -525,9 +489,7 @@
     },
     "/v2/DenyBucketKey": {
       "post": {
-        "tags": [
-          "Permission"
-        ],
+        "tags": ["Permission"],
         "description": "\n⚠️ **DISCLAIMER**: Garage's developers are aware that this endpoint has an unconventional semantic. Be extra careful when implementing it, its behavior is not obvious.\n\nDenies a key from doing read/write/owner operations on a bucket.\n\nFlags in permissions which have the value true will be deactivated. Other flags will remain unchanged.\n\nFor example, if you set read to true, the key will be denied from reading.\nIf you set read to false,  the key will keep its previous permissions.\nIf you want the key to have the reading permission, check the AllowBucketKey operation.\n    ",
         "operationId": "DenyBucketKey",
         "requestBody": {
@@ -559,9 +521,7 @@
     },
     "/v2/GetAdminTokenInfo": {
       "get": {
-        "tags": [
-          "Admin API token"
-        ],
+        "tags": ["Admin API token"],
         "description": "\nReturn information about a specific admin API token.\nYou can search by specifying the exact token identifier (`id`) or by specifying a pattern (`search`).\n    ",
         "operationId": "GetAdminTokenInfo",
         "parameters": [
@@ -603,9 +563,7 @@
     },
     "/v2/GetBlockInfo": {
       "post": {
-        "tags": [
-          "Block"
-        ],
+        "tags": ["Block"],
         "description": "\nGet detailed information about a data block stored on a Garage node, including all object versions and in-progress multipart uploads that contain a reference to this block.\n    ",
         "operationId": "GetBlockInfo",
         "parameters": [
@@ -648,9 +606,7 @@
     },
     "/v2/GetBucketInfo": {
       "get": {
-        "tags": [
-          "Bucket"
-        ],
+        "tags": ["Bucket"],
         "description": "\nGiven a bucket identifier (`id`) or a global alias (`alias`), get its information.\nIt includes its aliases, its web configuration, keys that have some permissions\non it, some statistics (number of objects, size), number of dangling multipart uploads,\nand its quotas (if any).\n    ",
         "operationId": "GetBucketInfo",
         "parameters": [
@@ -701,9 +657,7 @@
     },
     "/v2/GetClusterHealth": {
       "get": {
-        "tags": [
-          "Cluster"
-        ],
+        "tags": ["Cluster"],
         "description": "Returns the global status of the cluster, the number of connected nodes (over the number of known ones), the number of healthy storage nodes (over the declared ones), and the number of healthy partitions (over the total).",
         "operationId": "GetClusterHealth",
         "responses": {
@@ -722,9 +676,7 @@
     },
     "/v2/GetClusterLayout": {
       "get": {
-        "tags": [
-          "Cluster layout"
-        ],
+        "tags": ["Cluster layout"],
         "description": "\nReturns the cluster's current layout, including:\n\n- Currently configured cluster layout\n- Staged changes to the cluster layout\n\n*Capacity is given in bytes*\n    ",
         "operationId": "GetClusterLayout",
         "responses": {
@@ -746,9 +698,7 @@
     },
     "/v2/GetClusterLayoutHistory": {
       "get": {
-        "tags": [
-          "Cluster layout"
-        ],
+        "tags": ["Cluster layout"],
         "description": "\nReturns the history of layouts in the cluster\n    ",
         "operationId": "GetClusterLayoutHistory",
         "responses": {
@@ -770,9 +720,7 @@
     },
     "/v2/GetClusterStatistics": {
       "get": {
-        "tags": [
-          "Cluster"
-        ],
+        "tags": ["Cluster"],
         "description": "\nFetch global cluster statistics.\n\n*Note: do not try to parse the `freeform` field of the response, it is given as a string specifically because its format is not stable.*\n    ",
         "operationId": "GetClusterStatistics",
         "responses": {
@@ -794,9 +742,7 @@
     },
     "/v2/GetClusterStatus": {
       "get": {
-        "tags": [
-          "Cluster"
-        ],
+        "tags": ["Cluster"],
         "description": "\nReturns the cluster's current status, including:\n\n- ID of the node being queried and its version of the Garage daemon\n- Live nodes\n- Currently configured cluster layout\n- Staged changes to the cluster layout\n\n*Capacity is given in bytes*\n    ",
         "operationId": "GetClusterStatus",
         "responses": {
@@ -818,9 +764,7 @@
     },
     "/v2/GetCurrentAdminTokenInfo": {
       "get": {
-        "tags": [
-          "Admin API token"
-        ],
+        "tags": ["Admin API token"],
         "description": "\nReturn information about the calling admin API token.\n    ",
         "operationId": "GetCurrentAdminTokenInfo",
         "responses": {
@@ -842,9 +786,7 @@
     },
     "/v2/GetKeyInfo": {
       "get": {
-        "tags": [
-          "Access key"
-        ],
+        "tags": ["Access key"],
         "description": "\nReturn information about a specific key like its identifiers, its permissions and buckets on which it has permissions.\nYou can search by specifying the exact key identifier (`id`) or by specifying a pattern (`search`).\n\nFor confidentiality reasons, the secret key is not returned by default: you must pass the `showSecretKey` query parameter to get it.\n    ",
         "operationId": "GetKeyInfo",
         "parameters": [
@@ -895,9 +837,7 @@
     },
     "/v2/GetNodeInfo": {
       "get": {
-        "tags": [
-          "Node"
-        ],
+        "tags": ["Node"],
         "description": "\nReturn information about the Garage daemon running on one or several nodes.\n    ",
         "operationId": "GetNodeInfo",
         "parameters": [
@@ -930,9 +870,7 @@
     },
     "/v2/GetNodeStatistics": {
       "get": {
-        "tags": [
-          "Node"
-        ],
+        "tags": ["Node"],
         "description": "\nFetch statistics for one or several Garage nodes.\n\n*Note: do not try to parse the `freeform` field of the response, it is given as a string specifically because its format is not stable.*\n    ",
         "operationId": "GetNodeStatistics",
         "parameters": [
@@ -965,9 +903,7 @@
     },
     "/v2/GetWorkerInfo": {
       "post": {
-        "tags": [
-          "Worker"
-        ],
+        "tags": ["Worker"],
         "description": "\nGet information about the specified background worker on one or several cluster nodes.\n    ",
         "operationId": "GetWorkerInfo",
         "parameters": [
@@ -1010,9 +946,7 @@
     },
     "/v2/GetWorkerVariable": {
       "post": {
-        "tags": [
-          "Worker"
-        ],
+        "tags": ["Worker"],
         "description": "\nFetch values of one or several worker variables, from one or several cluster nodes.\n    ",
         "operationId": "GetWorkerVariable",
         "parameters": [
@@ -1055,9 +989,7 @@
     },
     "/v2/ImportKey": {
       "post": {
-        "tags": [
-          "Access key"
-        ],
+        "tags": ["Access key"],
         "description": "\nImports an existing API key. This feature must only be used for migrations and backup restore.\n\n**Do not use it to generate custom key identifiers or you will break your Garage cluster.**\n    ",
         "operationId": "ImportKey",
         "requestBody": {
@@ -1089,9 +1021,7 @@
     },
     "/v2/InspectObject": {
       "get": {
-        "tags": [
-          "Bucket"
-        ],
+        "tags": ["Bucket"],
         "description": "\nReturns detailed information about an object in a bucket, including its internal state in Garage.\n\nThis API call can be used to list the data blocks referenced by an object,\nas well as to view metadata associated to the object.\n\nThis call may return a list of more than one version for the object, for instance in the\ncase where there is a currently stored version of the object, and a newer version whose\nupload is in progress and not yet finished.\n    ",
         "operationId": "InspectObject",
         "parameters": [
@@ -1134,9 +1064,7 @@
     },
     "/v2/LaunchRepairOperation": {
       "post": {
-        "tags": [
-          "Node"
-        ],
+        "tags": ["Node"],
         "description": "\nLaunch a repair operation on one or several cluster nodes.\n    ",
         "operationId": "LaunchRepairOperation",
         "parameters": [
@@ -1179,9 +1107,7 @@
     },
     "/v2/ListAdminTokens": {
       "get": {
-        "tags": [
-          "Admin API token"
-        ],
+        "tags": ["Admin API token"],
         "description": "Returns all admin API tokens in the cluster.",
         "operationId": "ListAdminTokens",
         "responses": {
@@ -1203,9 +1129,7 @@
     },
     "/v2/ListBlockErrors": {
       "get": {
-        "tags": [
-          "Block"
-        ],
+        "tags": ["Block"],
         "description": "\nList data blocks that are currently in an errored state on one or several Garage nodes.\n    ",
         "operationId": "ListBlockErrors",
         "parameters": [
@@ -1238,9 +1162,7 @@
     },
     "/v2/ListBuckets": {
       "get": {
-        "tags": [
-          "Bucket"
-        ],
+        "tags": ["Bucket"],
         "description": "List all the buckets on the cluster with their UUID and their global and local aliases.",
         "operationId": "ListBuckets",
         "responses": {
@@ -1262,9 +1184,7 @@
     },
     "/v2/ListKeys": {
       "get": {
-        "tags": [
-          "Access key"
-        ],
+        "tags": ["Access key"],
         "description": "Returns all API access keys in the cluster.",
         "operationId": "ListKeys",
         "responses": {
@@ -1286,9 +1206,7 @@
     },
     "/v2/ListWorkers": {
       "post": {
-        "tags": [
-          "Worker"
-        ],
+        "tags": ["Worker"],
         "description": "\nList background workers currently running on one or several cluster nodes.\n    ",
         "operationId": "ListWorkers",
         "parameters": [
@@ -1331,9 +1249,7 @@
     },
     "/v2/PreviewClusterLayoutChanges": {
       "post": {
-        "tags": [
-          "Cluster layout"
-        ],
+        "tags": ["Cluster layout"],
         "description": "\nComputes a new layout taking into account the staged parameters, and returns it with detailed statistics. The new layout is not applied in the cluster.\n\n*Note: do not try to parse the `message` field of the response, it is given as an array of string specifically because its format is not stable.*\n    ",
         "operationId": "PreviewClusterLayoutChanges",
         "responses": {
@@ -1355,9 +1271,7 @@
     },
     "/v2/PurgeBlocks": {
       "post": {
-        "tags": [
-          "Block"
-        ],
+        "tags": ["Block"],
         "description": "\nPurge references to one or several missing data blocks.\n\nThis will remove all objects and in-progress multipart uploads that contain the specified data block(s). The objects will be permanently deleted from the buckets in which they appear. Use with caution.\n    ",
         "operationId": "PurgeBlocks",
         "parameters": [
@@ -1400,9 +1314,7 @@
     },
     "/v2/RemoveBucketAlias": {
       "post": {
-        "tags": [
-          "Bucket alias"
-        ],
+        "tags": ["Bucket alias"],
         "description": "Remove an alias for the target bucket.  This can be either a global or a local alias, depending on which fields are specified.",
         "operationId": "RemoveBucketAlias",
         "requestBody": {
@@ -1434,9 +1346,7 @@
     },
     "/v2/RetryBlockResync": {
       "post": {
-        "tags": [
-          "Block"
-        ],
+        "tags": ["Block"],
         "description": "\nInstruct Garage node(s) to retry the resynchronization of one or several missing data block(s).\n    ",
         "operationId": "RetryBlockResync",
         "parameters": [
@@ -1479,9 +1389,7 @@
     },
     "/v2/RevertClusterLayout": {
       "post": {
-        "tags": [
-          "Cluster layout"
-        ],
+        "tags": ["Cluster layout"],
         "description": "Clear staged layout changes",
         "operationId": "RevertClusterLayout",
         "responses": {
@@ -1503,9 +1411,7 @@
     },
     "/v2/SetWorkerVariable": {
       "post": {
-        "tags": [
-          "Worker"
-        ],
+        "tags": ["Worker"],
         "description": "\nSet the value for a worker variable, on one or several cluster nodes.\n    ",
         "operationId": "SetWorkerVariable",
         "parameters": [
@@ -1548,9 +1454,7 @@
     },
     "/v2/UpdateAdminToken": {
       "post": {
-        "tags": [
-          "Admin API token"
-        ],
+        "tags": ["Admin API token"],
         "description": "\nUpdates information about the specified admin API token.\n    ",
         "operationId": "UpdateAdminToken",
         "parameters": [
@@ -1593,9 +1497,7 @@
     },
     "/v2/UpdateBucket": {
       "post": {
-        "tags": [
-          "Bucket"
-        ],
+        "tags": ["Bucket"],
         "description": "\nAll fields (`websiteAccess` and `quotas`) are optional.\nIf they are present, the corresponding modifications are applied to the bucket, otherwise nothing is changed.\n\nIn `websiteAccess`: if `enabled` is `true`, `indexDocument` must be specified.\nThe field `errorDocument` is optional, if no error document is set a generic\nerror message is displayed when errors happen. Conversely, if `enabled` is\n`false`, neither `indexDocument` nor `errorDocument` must be specified.\n\nIn `quotas`: new values of `maxSize` and `maxObjects` must both be specified, or set to `null`\nto remove the quotas. An absent value will be considered the same as a `null`. It is not possible\nto change only one of the two quotas.\n    ",
         "operationId": "UpdateBucket",
         "parameters": [
@@ -1641,9 +1543,7 @@
     },
     "/v2/UpdateClusterLayout": {
       "post": {
-        "tags": [
-          "Cluster layout"
-        ],
+        "tags": ["Cluster layout"],
         "description": "\nSend modifications to the cluster layout. These modifications will be included in the staged role changes, visible in subsequent calls of `GET /GetClusterHealth`. Once the set of staged changes is satisfactory, the user may call `POST /ApplyClusterLayout` to apply the changed changes, or `POST /RevertClusterLayout` to clear all of the staged changes in the layout.\n\nSetting the capacity to `null` will configure the node as a gateway.\nOtherwise, capacity must be now set in bytes (before Garage 0.9 it was arbitrary weights).\nFor example to declare 100GB, you must set `capacity: 100000000000`.\n\nGarage uses internally the International System of Units (SI), it assumes that 1kB = 1000 bytes, and displays storage as kB, MB, GB (and not KiB, MiB, GiB that assume 1KiB = 1024 bytes).\n    ",
         "operationId": "UpdateClusterLayout",
         "requestBody": {
@@ -1676,9 +1576,7 @@
     },
     "/v2/UpdateKey": {
       "post": {
-        "tags": [
-          "Access key"
-        ],
+        "tags": ["Access key"],
         "description": "\nUpdates information about the specified API access key.\n\n*Note: the secret key is not returned in the response, `null` is sent instead.*\n    ",
         "operationId": "UpdateKey",
         "parameters": [
@@ -1749,18 +1647,12 @@
         "type": "object",
         "properties": {
           "maxObjects": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": ["integer", "null"],
             "format": "int64",
             "minimum": 0
           },
           "maxSize": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": ["integer", "null"],
             "format": "int64",
             "minimum": 0
           }
@@ -1768,9 +1660,7 @@
       },
       "ApplyClusterLayoutRequest": {
         "type": "object",
-        "required": [
-          "version"
-        ],
+        "required": ["version"],
         "properties": {
           "version": {
             "type": "integer",
@@ -1782,10 +1672,7 @@
       },
       "ApplyClusterLayoutResponse": {
         "type": "object",
-        "required": [
-          "message",
-          "layout"
-        ],
+        "required": ["message", "layout"],
         "properties": {
           "layout": {
             "$ref": "#/components/schemas/GetClusterLayoutResponse",
@@ -1802,13 +1689,7 @@
       },
       "BlockError": {
         "type": "object",
-        "required": [
-          "blockHash",
-          "refcount",
-          "errorCount",
-          "lastTrySecsAgo",
-          "nextTryInSecs"
-        ],
+        "required": ["blockHash", "refcount", "errorCount", "lastTrySecsAgo", "nextTryInSecs"],
         "properties": {
           "blockHash": {
             "type": "string"
@@ -1837,12 +1718,7 @@
       },
       "BlockVersion": {
         "type": "object",
-        "required": [
-          "versionId",
-          "refDeleted",
-          "versionDeleted",
-          "garbageCollected"
-        ],
+        "required": ["versionId", "refDeleted", "versionDeleted", "garbageCollected"],
         "properties": {
           "backlink": {
             "oneOf": [
@@ -1872,16 +1748,11 @@
         "oneOf": [
           {
             "type": "object",
-            "required": [
-              "object"
-            ],
+            "required": ["object"],
             "properties": {
               "object": {
                 "type": "object",
-                "required": [
-                  "bucketId",
-                  "key"
-                ],
+                "required": ["bucketId", "key"],
                 "properties": {
                   "bucketId": {
                     "type": "string"
@@ -1895,29 +1766,17 @@
           },
           {
             "type": "object",
-            "required": [
-              "upload"
-            ],
+            "required": ["upload"],
             "properties": {
               "upload": {
                 "type": "object",
-                "required": [
-                  "uploadId",
-                  "uploadDeleted",
-                  "uploadGarbageCollected"
-                ],
+                "required": ["uploadId", "uploadDeleted", "uploadGarbageCollected"],
                 "properties": {
                   "bucketId": {
-                    "type": [
-                      "string",
-                      "null"
-                    ]
+                    "type": ["string", "null"]
                   },
                   "key": {
-                    "type": [
-                      "string",
-                      "null"
-                    ]
+                    "type": ["string", "null"]
                   },
                   "uploadDeleted": {
                     "type": "boolean"
@@ -1938,10 +1797,7 @@
         "oneOf": [
           {
             "type": "object",
-            "required": [
-              "bucketId",
-              "globalAlias"
-            ],
+            "required": ["bucketId", "globalAlias"],
             "properties": {
               "bucketId": {
                 "type": "string"
@@ -1953,11 +1809,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "bucketId",
-              "localAlias",
-              "accessKeyId"
-            ],
+            "required": ["bucketId", "localAlias", "accessKeyId"],
             "properties": {
               "accessKeyId": {
                 "type": "string"
@@ -1974,11 +1826,7 @@
       },
       "BucketKeyPermChangeRequest": {
         "type": "object",
-        "required": [
-          "bucketId",
-          "accessKeyId",
-          "permissions"
-        ],
+        "required": ["bucketId", "accessKeyId", "permissions"],
         "properties": {
           "accessKeyId": {
             "type": "string"
@@ -1993,10 +1841,7 @@
       },
       "BucketLocalAlias": {
         "type": "object",
-        "required": [
-          "accessKeyId",
-          "alias"
-        ],
+        "required": ["accessKeyId", "alias"],
         "properties": {
           "accessKeyId": {
             "type": "string"
@@ -2008,10 +1853,7 @@
       },
       "CleanupIncompleteUploadsRequest": {
         "type": "object",
-        "required": [
-          "bucketId",
-          "olderThanSecs"
-        ],
+        "required": ["bucketId", "olderThanSecs"],
         "properties": {
           "bucketId": {
             "type": "string"
@@ -2025,9 +1867,7 @@
       },
       "CleanupIncompleteUploadsResponse": {
         "type": "object",
-        "required": [
-          "uploadsDeleted"
-        ],
+        "required": ["uploadsDeleted"],
         "properties": {
           "uploadsDeleted": {
             "type": "integer",
@@ -2038,10 +1878,7 @@
       },
       "ClusterLayoutSkipDeadNodesRequest": {
         "type": "object",
-        "required": [
-          "version",
-          "allowMissingData"
-        ],
+        "required": ["version", "allowMissingData"],
         "properties": {
           "allowMissingData": {
             "type": "boolean",
@@ -2057,10 +1894,7 @@
       },
       "ClusterLayoutSkipDeadNodesResponse": {
         "type": "object",
-        "required": [
-          "ackUpdated",
-          "syncUpdated"
-        ],
+        "required": ["ackUpdated", "syncUpdated"],
         "properties": {
           "ackUpdated": {
             "type": "array",
@@ -2080,12 +1914,7 @@
       },
       "ClusterLayoutVersion": {
         "type": "object",
-        "required": [
-          "version",
-          "status",
-          "storageNodes",
-          "gatewayNodes"
-        ],
+        "required": ["version", "status", "storageNodes", "gatewayNodes"],
         "properties": {
           "gatewayNodes": {
             "type": "integer",
@@ -2113,11 +1942,7 @@
       },
       "ClusterLayoutVersionStatus": {
         "type": "string",
-        "enum": [
-          "Current",
-          "Draining",
-          "Historical"
-        ]
+        "enum": ["Current", "Draining", "Historical"]
       },
       "ConnectClusterNodesRequest": {
         "type": "array",
@@ -2133,15 +1958,10 @@
       },
       "ConnectNodeResponse": {
         "type": "object",
-        "required": [
-          "success"
-        ],
+        "required": ["success"],
         "properties": {
           "error": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "description": "An error message if Garage did not manage to connect to this node"
           },
           "success": {
@@ -2157,9 +1977,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "secretToken"
-            ],
+            "required": ["secretToken"],
             "properties": {
               "secretToken": {
                 "type": "string",
@@ -2171,10 +1989,7 @@
       },
       "CreateBucketLocalAlias": {
         "type": "object",
-        "required": [
-          "accessKeyId",
-          "alias"
-        ],
+        "required": ["accessKeyId", "alias"],
         "properties": {
           "accessKeyId": {
             "type": "string"
@@ -2191,10 +2006,7 @@
         "type": "object",
         "properties": {
           "globalAlias": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "localAlias": {
             "oneOf": [
@@ -2225,10 +2037,7 @@
       },
       "FreeSpaceResp": {
         "type": "object",
-        "required": [
-          "available",
-          "total"
-        ],
+        "required": ["available", "total"],
         "properties": {
           "available": {
             "type": "integer",
@@ -2246,25 +2055,15 @@
       },
       "GetAdminTokenInfoResponse": {
         "type": "object",
-        "required": [
-          "name",
-          "expired",
-          "scope"
-        ],
+        "required": ["name", "expired", "scope"],
         "properties": {
           "created": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "format": "date-time",
             "description": "Creation date"
           },
           "expiration": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "format": "date-time",
             "description": "Expiration time and date, formatted according to RFC 3339"
           },
@@ -2273,10 +2072,7 @@
             "description": "Whether this admin token is expired already"
           },
           "id": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "description": "Identifier of the admin token (which is also a prefix of the full bearer token)"
           },
           "name": {
@@ -2294,12 +2090,7 @@
       },
       "GetBucketInfoKey": {
         "type": "object",
-        "required": [
-          "accessKeyId",
-          "name",
-          "permissions",
-          "bucketLocalAliases"
-        ],
+        "required": ["accessKeyId", "name", "permissions", "bucketLocalAliases"],
         "properties": {
           "accessKeyId": {
             "type": "string"
@@ -2411,15 +2202,10 @@
       },
       "GetBucketInfoWebsiteResponse": {
         "type": "object",
-        "required": [
-          "indexDocument"
-        ],
+        "required": ["indexDocument"],
         "properties": {
           "errorDocument": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "indexDocument": {
             "type": "string"
@@ -2482,11 +2268,7 @@
       },
       "GetClusterLayoutHistoryResponse": {
         "type": "object",
-        "required": [
-          "currentVersion",
-          "minAck",
-          "versions"
-        ],
+        "required": ["currentVersion", "minAck", "versions"],
         "properties": {
           "currentVersion": {
             "type": "integer",
@@ -2501,10 +2283,7 @@
             "minimum": 0
           },
           "updateTrackers": {
-            "type": [
-              "object",
-              "null"
-            ],
+            "type": ["object", "null"],
             "description": "Detailed update trackers for nodes (see\n`https://garagehq.deuxfleurs.fr/blog/2023-12-preserving-read-after-write-consistency/`)",
             "additionalProperties": {
               "$ref": "#/components/schemas/NodeUpdateTrackers"
@@ -2524,13 +2303,7 @@
       },
       "GetClusterLayoutResponse": {
         "type": "object",
-        "required": [
-          "version",
-          "roles",
-          "parameters",
-          "partitionSize",
-          "stagedRoleChanges"
-        ],
+        "required": ["version", "roles", "parameters", "partitionSize", "stagedRoleChanges"],
         "properties": {
           "parameters": {
             "$ref": "#/components/schemas/LayoutParameters",
@@ -2577,9 +2350,7 @@
       },
       "GetClusterStatisticsResponse": {
         "type": "object",
-        "required": [
-          "freeform"
-        ],
+        "required": ["freeform"],
         "properties": {
           "freeform": {
             "type": "string"
@@ -2588,10 +2359,7 @@
       },
       "GetClusterStatusResponse": {
         "type": "object",
-        "required": [
-          "layoutVersion",
-          "nodes"
-        ],
+        "required": ["layoutVersion", "nodes"],
         "properties": {
           "layoutVersion": {
             "type": "integer",
@@ -2613,13 +2381,7 @@
       },
       "GetKeyInfoResponse": {
         "type": "object",
-        "required": [
-          "accessKeyId",
-          "name",
-          "expired",
-          "permissions",
-          "buckets"
-        ],
+        "required": ["accessKeyId", "name", "expired", "permissions", "buckets"],
         "properties": {
           "accessKeyId": {
             "type": "string"
@@ -2631,17 +2393,11 @@
             }
           },
           "created": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "format": "date-time"
           },
           "expiration": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "format": "date-time"
           },
           "expired": {
@@ -2654,28 +2410,19 @@
             "$ref": "#/components/schemas/KeyPerm"
           },
           "secretAccessKey": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           }
         }
       },
       "ImportKeyRequest": {
         "type": "object",
-        "required": [
-          "accessKeyId",
-          "secretAccessKey"
-        ],
+        "required": ["accessKeyId", "secretAccessKey"],
         "properties": {
           "accessKeyId": {
             "type": "string"
           },
           "name": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "secretAccessKey": {
             "type": "string"
@@ -2687,12 +2434,7 @@
       },
       "InspectObjectBlock": {
         "type": "object",
-        "required": [
-          "partNumber",
-          "offset",
-          "hash",
-          "size"
-        ],
+        "required": ["partNumber", "offset", "hash", "size"],
         "properties": {
           "hash": {
             "type": "string",
@@ -2720,11 +2462,7 @@
       },
       "InspectObjectResponse": {
         "type": "object",
-        "required": [
-          "bucketId",
-          "key",
-          "versions"
-        ],
+        "required": ["bucketId", "key", "versions"],
         "properties": {
           "bucketId": {
             "type": "string",
@@ -2775,10 +2513,7 @@
             "description": "Whether this object version was created with SSE-C encryption"
           },
           "etag": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "description": "Etag of this object version"
           },
           "headers": {
@@ -2802,10 +2537,7 @@
             "description": "Whether the object's data is stored inline (for small objects)"
           },
           "size": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": ["integer", "null"],
             "format": "int64",
             "description": "Size of the object, in bytes",
             "minimum": 0
@@ -2827,12 +2559,7 @@
       },
       "KeyInfoBucketResponse": {
         "type": "object",
-        "required": [
-          "id",
-          "globalAliases",
-          "localAliases",
-          "permissions"
-        ],
+        "required": ["id", "globalAliases", "localAliases", "permissions"],
         "properties": {
           "globalAliases": {
             "type": "array",
@@ -2864,17 +2591,10 @@
       },
       "LayoutNodeRole": {
         "type": "object",
-        "required": [
-          "id",
-          "zone",
-          "tags"
-        ],
+        "required": ["id", "zone", "tags"],
         "properties": {
           "capacity": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": ["integer", "null"],
             "format": "int64",
             "description": "Capacity (in bytes) assigned by the cluster administrator,\nabsent for gateway nodes",
             "minimum": 0
@@ -2884,10 +2604,7 @@
             "description": "Identifier of the node"
           },
           "storedPartitions": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": ["integer", "null"],
             "format": "int64",
             "description": "Number of partitions stored on this node\n(a result of the layout computation)",
             "minimum": 0
@@ -2900,10 +2617,7 @@
             "description": "List of tags assigned by the cluster administrator"
           },
           "usableCapacity": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": ["integer", "null"],
             "format": "int64",
             "description": "Capacity (in bytes) that is actually usable on this node in the current\nlayout, which is equal to `stored_partitions` × `partition_size`",
             "minimum": 0
@@ -2916,9 +2630,7 @@
       },
       "LayoutParameters": {
         "type": "object",
-        "required": [
-          "zoneRedundancy"
-        ],
+        "required": ["zoneRedundancy"],
         "properties": {
           "zoneRedundancy": {
             "$ref": "#/components/schemas/ZoneRedundancy",
@@ -2940,12 +2652,7 @@
       },
       "ListBucketsResponseItem": {
         "type": "object",
-        "required": [
-          "id",
-          "created",
-          "globalAliases",
-          "localAliases"
-        ],
+        "required": ["id", "created", "globalAliases", "localAliases"],
         "properties": {
           "created": {
             "type": "string",
@@ -2976,24 +2683,14 @@
       },
       "ListKeysResponseItem": {
         "type": "object",
-        "required": [
-          "id",
-          "name",
-          "expired"
-        ],
+        "required": ["id", "name", "expired"],
         "properties": {
           "created": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "format": "date-time"
           },
           "expiration": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "format": "date-time"
           },
           "expired": {
@@ -3012,9 +2709,7 @@
       },
       "LocalGetBlockInfoRequest": {
         "type": "object",
-        "required": [
-          "blockHash"
-        ],
+        "required": ["blockHash"],
         "properties": {
           "blockHash": {
             "type": "string"
@@ -3023,11 +2718,7 @@
       },
       "LocalGetBlockInfoResponse": {
         "type": "object",
-        "required": [
-          "blockHash",
-          "refcount",
-          "versions"
-        ],
+        "required": ["blockHash", "refcount", "versions"],
         "properties": {
           "blockHash": {
             "type": "string"
@@ -3047,21 +2738,13 @@
       },
       "LocalGetNodeInfoResponse": {
         "type": "object",
-        "required": [
-          "nodeId",
-          "garageVersion",
-          "rustVersion",
-          "dbEngine"
-        ],
+        "required": ["nodeId", "garageVersion", "rustVersion", "dbEngine"],
         "properties": {
           "dbEngine": {
             "type": "string"
           },
           "garageFeatures": {
-            "type": [
-              "array",
-              "null"
-            ],
+            "type": ["array", "null"],
             "items": {
               "type": "string"
             }
@@ -3079,9 +2762,7 @@
       },
       "LocalGetNodeStatisticsResponse": {
         "type": "object",
-        "required": [
-          "freeform"
-        ],
+        "required": ["freeform"],
         "properties": {
           "freeform": {
             "type": "string"
@@ -3090,9 +2771,7 @@
       },
       "LocalGetWorkerInfoRequest": {
         "type": "object",
-        "required": [
-          "id"
-        ],
+        "required": ["id"],
         "properties": {
           "id": {
             "type": "integer",
@@ -3108,10 +2787,7 @@
         "type": "object",
         "properties": {
           "variable": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           }
         }
       },
@@ -3126,9 +2802,7 @@
       },
       "LocalLaunchRepairOperationRequest": {
         "type": "object",
-        "required": [
-          "repairType"
-        ],
+        "required": ["repairType"],
         "properties": {
           "repairType": {
             "$ref": "#/components/schemas/RepairType"
@@ -3208,9 +2882,7 @@
         "oneOf": [
           {
             "type": "object",
-            "required": [
-              "all"
-            ],
+            "required": ["all"],
             "properties": {
               "all": {
                 "type": "boolean"
@@ -3219,9 +2891,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "blockHashes"
-            ],
+            "required": ["blockHashes"],
             "properties": {
               "blockHashes": {
                 "type": "array",
@@ -3235,9 +2905,7 @@
       },
       "LocalRetryBlockResyncResponse": {
         "type": "object",
-        "required": [
-          "count"
-        ],
+        "required": ["count"],
         "properties": {
           "count": {
             "type": "integer",
@@ -3248,10 +2916,7 @@
       },
       "LocalSetWorkerVariableRequest": {
         "type": "object",
-        "required": [
-          "variable",
-          "value"
-        ],
+        "required": ["variable", "value"],
         "properties": {
           "value": {
             "type": "string"
@@ -3263,10 +2928,7 @@
       },
       "LocalSetWorkerVariableResponse": {
         "type": "object",
-        "required": [
-          "variable",
-          "value"
-        ],
+        "required": ["variable", "value"],
         "properties": {
           "value": {
             "type": "string"
@@ -3278,10 +2940,7 @@
       },
       "MultiResponse_LocalCreateMetadataSnapshotResponse": {
         "type": "object",
-        "required": [
-          "success",
-          "error"
-        ],
+        "required": ["success", "error"],
         "properties": {
           "error": {
             "type": "object",
@@ -3307,10 +2966,7 @@
       },
       "MultiResponse_LocalGetBlockInfoResponse": {
         "type": "object",
-        "required": [
-          "success",
-          "error"
-        ],
+        "required": ["success", "error"],
         "properties": {
           "error": {
             "type": "object",
@@ -3327,11 +2983,7 @@
             "description": "Map of node id to response returned by this node, for nodes that were able to\nsuccessfully complete the API call",
             "additionalProperties": {
               "type": "object",
-              "required": [
-                "blockHash",
-                "refcount",
-                "versions"
-              ],
+              "required": ["blockHash", "refcount", "versions"],
               "properties": {
                 "blockHash": {
                   "type": "string"
@@ -3357,10 +3009,7 @@
       },
       "MultiResponse_LocalGetNodeInfoResponse": {
         "type": "object",
-        "required": [
-          "success",
-          "error"
-        ],
+        "required": ["success", "error"],
         "properties": {
           "error": {
             "type": "object",
@@ -3377,21 +3026,13 @@
             "description": "Map of node id to response returned by this node, for nodes that were able to\nsuccessfully complete the API call",
             "additionalProperties": {
               "type": "object",
-              "required": [
-                "nodeId",
-                "garageVersion",
-                "rustVersion",
-                "dbEngine"
-              ],
+              "required": ["nodeId", "garageVersion", "rustVersion", "dbEngine"],
               "properties": {
                 "dbEngine": {
                   "type": "string"
                 },
                 "garageFeatures": {
-                  "type": [
-                    "array",
-                    "null"
-                  ],
+                  "type": ["array", "null"],
                   "items": {
                     "type": "string"
                   }
@@ -3415,10 +3056,7 @@
       },
       "MultiResponse_LocalGetNodeStatisticsResponse": {
         "type": "object",
-        "required": [
-          "success",
-          "error"
-        ],
+        "required": ["success", "error"],
         "properties": {
           "error": {
             "type": "object",
@@ -3435,9 +3073,7 @@
             "description": "Map of node id to response returned by this node, for nodes that were able to\nsuccessfully complete the API call",
             "additionalProperties": {
               "type": "object",
-              "required": [
-                "freeform"
-              ],
+              "required": ["freeform"],
               "properties": {
                 "freeform": {
                   "type": "string"
@@ -3452,10 +3088,7 @@
       },
       "MultiResponse_LocalGetWorkerInfoResponse": {
         "type": "object",
-        "required": [
-          "success",
-          "error"
-        ],
+        "required": ["success", "error"],
         "properties": {
           "error": {
             "type": "object",
@@ -3481,10 +3114,7 @@
       },
       "MultiResponse_LocalGetWorkerVariableResponse": {
         "type": "object",
-        "required": [
-          "success",
-          "error"
-        ],
+        "required": ["success", "error"],
         "properties": {
           "error": {
             "type": "object",
@@ -3516,10 +3146,7 @@
       },
       "MultiResponse_LocalLaunchRepairOperationResponse": {
         "type": "object",
-        "required": [
-          "success",
-          "error"
-        ],
+        "required": ["success", "error"],
         "properties": {
           "error": {
             "type": "object",
@@ -3545,10 +3172,7 @@
       },
       "MultiResponse_LocalListBlockErrorsResponse": {
         "type": "object",
-        "required": [
-          "success",
-          "error"
-        ],
+        "required": ["success", "error"],
         "properties": {
           "error": {
             "type": "object",
@@ -3577,10 +3201,7 @@
       },
       "MultiResponse_LocalListWorkersResponse": {
         "type": "object",
-        "required": [
-          "success",
-          "error"
-        ],
+        "required": ["success", "error"],
         "properties": {
           "error": {
             "type": "object",
@@ -3609,10 +3230,7 @@
       },
       "MultiResponse_LocalPurgeBlocksResponse": {
         "type": "object",
-        "required": [
-          "success",
-          "error"
-        ],
+        "required": ["success", "error"],
         "properties": {
           "error": {
             "type": "object",
@@ -3672,10 +3290,7 @@
       },
       "MultiResponse_LocalRetryBlockResyncResponse": {
         "type": "object",
-        "required": [
-          "success",
-          "error"
-        ],
+        "required": ["success", "error"],
         "properties": {
           "error": {
             "type": "object",
@@ -3692,9 +3307,7 @@
             "description": "Map of node id to response returned by this node, for nodes that were able to\nsuccessfully complete the API call",
             "additionalProperties": {
               "type": "object",
-              "required": [
-                "count"
-              ],
+              "required": ["count"],
               "properties": {
                 "count": {
                   "type": "integer",
@@ -3711,10 +3324,7 @@
       },
       "MultiResponse_LocalSetWorkerVariableResponse": {
         "type": "object",
-        "required": [
-          "success",
-          "error"
-        ],
+        "required": ["success", "error"],
         "properties": {
           "error": {
             "type": "object",
@@ -3731,10 +3341,7 @@
             "description": "Map of node id to response returned by this node, for nodes that were able to\nsuccessfully complete the API call",
             "additionalProperties": {
               "type": "object",
-              "required": [
-                "variable",
-                "value"
-              ],
+              "required": ["variable", "value"],
               "properties": {
                 "value": {
                   "type": "string"
@@ -3752,16 +3359,10 @@
       },
       "NodeAssignedRole": {
         "type": "object",
-        "required": [
-          "zone",
-          "tags"
-        ],
+        "required": ["zone", "tags"],
         "properties": {
           "capacity": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": ["integer", "null"],
             "format": "int64",
             "description": "Capacity (in bytes) assigned by the cluster administrator,\nabsent for gateway nodes",
             "minimum": 0
@@ -3781,17 +3382,10 @@
       },
       "NodeResp": {
         "type": "object",
-        "required": [
-          "id",
-          "isUp",
-          "draining"
-        ],
+        "required": ["id", "isUp", "draining"],
         "properties": {
           "addr": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "description": "Socket address used by other nodes to connect to this node for RPC"
           },
           "dataPartition": {
@@ -3810,17 +3404,11 @@
             "description": "Whether this node is part of an older layout version and is draining data."
           },
           "garageVersion": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "description": "Garage version"
           },
           "hostname": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "description": "Hostname of the node"
           },
           "id": {
@@ -3832,10 +3420,7 @@
             "description": "Whether this node is connected in the cluster"
           },
           "lastSeenSecsAgo": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": ["integer", "null"],
             "format": "int64",
             "description": "For disconnected nodes, the number of seconds since last contact,\nor `null` if no contact was established since Garage restarted.",
             "minimum": 0
@@ -3871,9 +3456,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "id"
-            ],
+            "required": ["id"],
             "properties": {
               "id": {
                 "type": "string",
@@ -3887,9 +3470,7 @@
         "oneOf": [
           {
             "type": "object",
-            "required": [
-              "remove"
-            ],
+            "required": ["remove"],
             "properties": {
               "remove": {
                 "type": "boolean",
@@ -3906,10 +3487,7 @@
         "oneOf": [
           {
             "type": "object",
-            "required": [
-              "id",
-              "remove"
-            ],
+            "required": ["id", "remove"],
             "properties": {
               "id": {
                 "type": "string",
@@ -3928,9 +3506,7 @@
               },
               {
                 "type": "object",
-                "required": [
-                  "id"
-                ],
+                "required": ["id"],
                 "properties": {
                   "id": {
                     "type": "string",
@@ -3944,11 +3520,7 @@
       },
       "NodeUpdateTrackers": {
         "type": "object",
-        "required": [
-          "ack",
-          "sync",
-          "syncAck"
-        ],
+        "required": ["ack", "sync", "syncAck"],
         "properties": {
           "ack": {
             "type": "integer",
@@ -3971,9 +3543,7 @@
         "oneOf": [
           {
             "type": "object",
-            "required": [
-              "error"
-            ],
+            "required": ["error"],
             "properties": {
               "error": {
                 "type": "string",
@@ -3983,10 +3553,7 @@
           },
           {
             "type": "object",
-            "required": [
-              "message",
-              "newLayout"
-            ],
+            "required": ["message", "newLayout"],
             "properties": {
               "message": {
                 "type": "array",
@@ -4010,51 +3577,35 @@
         "oneOf": [
           {
             "type": "string",
-            "enum": [
-              "tables"
-            ]
+            "enum": ["tables"]
           },
           {
             "type": "string",
-            "enum": [
-              "blocks"
-            ]
+            "enum": ["blocks"]
           },
           {
             "type": "string",
-            "enum": [
-              "versions"
-            ]
+            "enum": ["versions"]
           },
           {
             "type": "string",
-            "enum": [
-              "multipartUploads"
-            ]
+            "enum": ["multipartUploads"]
           },
           {
             "type": "string",
-            "enum": [
-              "blockRefs"
-            ]
+            "enum": ["blockRefs"]
           },
           {
             "type": "string",
-            "enum": [
-              "blockRc"
-            ]
+            "enum": ["blockRc"]
           },
           {
             "type": "string",
-            "enum": [
-              "rebalance"
-            ]
+            "enum": ["rebalance"]
           },
           {
             "type": "object",
-            "required": [
-              "scrub"
-            ],
+            "required": ["scrub"],
             "properties": {
               "scrub": {
                 "$ref": "#/components/schemas/ScrubCommand"
@@ -4063,15 +3614,11 @@
           },
           {
             "type": "string",
-            "enum": [
-              "aliases"
-            ]
+            "enum": ["aliases"]
           },
           {
             "type": "string",
-            "enum": [
-              "clearResyncQueue"
-            ]
+            "enum": ["clearResyncQueue"]
           }
         ]
       },
@@ -4080,29 +3627,18 @@
       },
       "ScrubCommand": {
         "type": "string",
-        "enum": [
-          "start",
-          "pause",
-          "resume",
-          "cancel"
-        ]
+        "enum": ["start", "pause", "resume", "cancel"]
       },
       "UpdateAdminTokenRequestBody": {
         "type": "object",
         "properties": {
           "expiration": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "format": "date-time",
             "description": "Expiration time and date, formatted according to RFC 3339"
           },
           "name": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "description": "Name of the admin API token"
           },
           "neverExpires": {
@@ -4110,10 +3646,7 @@
             "description": "Set the admin token to never expire"
           },
           "scope": {
-            "type": [
-              "array",
-              "null"
-            ],
+            "type": ["array", "null"],
             "items": {
               "type": "string"
             },
@@ -4154,24 +3687,16 @@
       },
       "UpdateBucketWebsiteAccess": {
         "type": "object",
-        "required": [
-          "enabled"
-        ],
+        "required": ["enabled"],
         "properties": {
           "enabled": {
             "type": "boolean"
           },
           "errorDocument": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "indexDocument": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           }
         }
       },
@@ -4227,18 +3752,12 @@
             ]
           },
           "expiration": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "format": "date-time",
             "description": "Expiration time and date, formatted according to RFC 3339"
           },
           "name": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "description": "Name of the API key"
           },
           "neverExpires": {
@@ -4252,14 +3771,7 @@
       },
       "WorkerInfoResp": {
         "type": "object",
-        "required": [
-          "id",
-          "name",
-          "state",
-          "errors",
-          "consecutiveErrors",
-          "freeform"
-        ],
+        "required": ["id", "name", "state", "errors", "consecutiveErrors", "freeform"],
         "properties": {
           "consecutiveErrors": {
             "type": "integer",
@@ -4296,24 +3808,15 @@
             "type": "string"
           },
           "persistentErrors": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": ["integer", "null"],
             "format": "int64",
             "minimum": 0
           },
           "progress": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "queueLength": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": ["integer", "null"],
             "format": "int64",
             "minimum": 0
           },
@@ -4321,10 +3824,7 @@
             "$ref": "#/components/schemas/WorkerStateResp"
           },
           "tranquility": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": ["integer", "null"],
             "format": "int32",
             "minimum": 0
           }
@@ -4332,10 +3832,7 @@
       },
       "WorkerLastError": {
         "type": "object",
-        "required": [
-          "message",
-          "secsAgo"
-        ],
+        "required": ["message", "secsAgo"],
         "properties": {
           "message": {
             "type": "string"
@@ -4351,21 +3848,15 @@
         "oneOf": [
           {
             "type": "string",
-            "enum": [
-              "busy"
-            ]
+            "enum": ["busy"]
           },
           {
             "type": "object",
-            "required": [
-              "throttled"
-            ],
+            "required": ["throttled"],
             "properties": {
               "throttled": {
                 "type": "object",
-                "required": [
-                  "durationSecs"
-                ],
+                "required": ["durationSecs"],
                 "properties": {
                   "durationSecs": {
                     "type": "number",
@@ -4377,15 +3868,11 @@
           },
           {
             "type": "string",
-            "enum": [
-              "idle"
-            ]
+            "enum": ["idle"]
           },
           {
             "type": "string",
-            "enum": [
-              "done"
-            ]
+            "enum": ["done"]
           }
         ]
       },
@@ -4394,9 +3881,7 @@
           {
             "type": "object",
             "description": "Partitions must be replicated in at least this number of\ndistinct zones.",
-            "required": [
-              "atLeast"
-            ],
+            "required": ["atLeast"],
             "properties": {
               "atLeast": {
                 "type": "integer",
@@ -4408,9 +3893,7 @@
           {
             "type": "string",
             "description": "Partitions must be replicated in as many zones as possible:\nas many zones as there are replicas, if there are enough distinct\nzones, or at least one in each zone otherwise.",
-            "enum": [
-              "maximum"
-            ]
+            "enum": ["maximum"]
           }
         ]
       }
