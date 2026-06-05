@@ -50,7 +50,12 @@ import { InlineLoadingState } from '@garage/ui';
 import { PageLoadingState } from '@garage/ui';
 import { AddActionIcon, DeleteActionIcon, EditActionIcon } from '@/lib/action-icons';
 import { BucketIcon, KeyIcon } from '@/lib/entity-icons';
-import { formatDateTime, formatShortId, getApiErrorMessage } from '@garage/web-shared';
+import {
+  formatDateTime,
+  formatShortId,
+  getApiErrorMessage,
+  parseExpiryParts,
+} from '@garage/web-shared';
 import { toast } from '@garage/ui';
 import type { GetKeyInfoResponse, UpdateKeyRequest } from '@/types/garage';
 
@@ -137,23 +142,6 @@ export function KeyDetail() {
     const assignedBucketIds = new Set(keyInfo?.buckets?.map((bucket) => bucket.id) ?? []);
     return (bucketsQuery.data ?? []).filter((bucket) => !assignedBucketIds.has(bucket.id));
   }, [bucketsQuery.data, keyInfo?.buckets]);
-
-  const toDateParts = (value?: string | null) => {
-    if (!value) {
-      return { date: '', hour: '00', minute: '00' };
-    }
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
-      return { date: '', hour: '00', minute: '00' };
-    }
-    const pad = (num: number) => String(num).padStart(2, '0');
-    const year = date.getFullYear();
-    const month = pad(date.getMonth() + 1);
-    const day = pad(date.getDate());
-    const hours = pad(date.getHours());
-    const minutes = pad(date.getMinutes());
-    return { date: `${year}-${month}-${day}`, hour: hours, minute: minutes };
-  };
 
   const editExpirationDateValue = editExpirationDate
     ? new Date(`${editExpirationDate}T${editExpirationHour}:${editExpirationMinute}:00`)
@@ -428,7 +416,7 @@ export function KeyDetail() {
               size="sm"
               className="flex-1 sm:flex-initial"
               onClick={() => {
-                const parts = toDateParts(keyInfo.expiration);
+                const parts = parseExpiryParts(keyInfo.expiration);
                 setNewName(keyInfo.name);
                 setEditExpirationDate(parts.date);
                 setEditExpirationHour(parts.hour);

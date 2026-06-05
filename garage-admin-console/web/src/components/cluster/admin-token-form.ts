@@ -1,3 +1,5 @@
+import { parseExpiryParts } from '@garage/web-shared';
+
 import type { AdminTokenInfo, CreateAdminTokenRequest } from '@/types/garage';
 
 /**
@@ -26,22 +28,10 @@ export const EMPTY_TOKEN_FORM: AdminTokenFormState = {
   neverExpires: true,
 };
 
-function toDateParts(value?: string | null) {
-  if (!value) return { date: '', hour: '00', minute: '00' };
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return { date: '', hour: '00', minute: '00' };
-  const pad = (num: number) => String(num).padStart(2, '0');
-  return {
-    date: `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`,
-    hour: pad(date.getHours()),
-    minute: pad(date.getMinutes()),
-  };
-}
-
 /** Seed the form from an existing token (edit). */
 export function tokenFormFromInfo(token: AdminTokenInfo): AdminTokenFormState {
   const isFull = token.scope.includes('*');
-  const parts = toDateParts(token.expiration);
+  const parts = parseExpiryParts(token.expiration);
   return {
     name: token.name,
     scopeMode: isFull ? 'full' : 'custom',
