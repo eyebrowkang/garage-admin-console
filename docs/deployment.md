@@ -9,6 +9,11 @@ Docker is the supported deployment path. The build is intentionally composable:
 - **Embedded combined** — run both images. Admin receives `S3_BROWSER_MF_URL` at
   runtime and proxies `/s3-browser/*` to the S3 Browser container, so only the
   Admin port needs to be published.
+- **All-in-one (`garage-admin-all`)** — a single image: the Admin Console with the
+  S3 Browser remote bundled in and served same-origin at `/s3-browser` (no proxy
+  hop, no separate container). The simplest embedded setup — one container, only
+  the Admin secrets. The embedded FileBrowser's data still flows through the Admin
+  BFF, exactly as in combined mode.
 
 Dockerfiles, the Compose file, and build-context ignores live under `docker/`.
 
@@ -43,6 +48,13 @@ docker build -f docker/garage-admin-console.Dockerfile -t garage-admin-console .
 docker run -d -p 3001:3001 -v garage-data:/data \
   -e JWT_SECRET=change-me -e ENCRYPTION_KEY=change-me-exactly-32-characters! \
   -e ADMIN_PASSWORD=change-me garage-admin-console
+
+# All-in-one: Admin Console + the embedded S3 Browser remote, served same-origin
+# (one container, no proxy). Same three secrets as Admin-only.
+docker build -f docker/garage-admin-all.Dockerfile -t garage-admin-all .
+docker run -d -p 3001:3001 -v garage-data:/data \
+  -e JWT_SECRET=change-me -e ENCRYPTION_KEY=change-me-exactly-32-characters! \
+  -e ADMIN_PASSWORD=change-me garage-admin-all
 
 # Standalone S3 Browser uses one image too:
 docker build -f docker/s3-browser.Dockerfile -t s3-browser .
