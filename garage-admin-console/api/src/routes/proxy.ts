@@ -74,7 +74,10 @@ router.all('/:clusterId/*splat', async (req: Request, res: Response) => {
     }
     res.status(response.status).send(response.data);
   } catch (error: unknown) {
-    logger.error({ err: error }, 'Proxy error');
+    // Log only the message: a raw AxiosError carries config.headers.Authorization
+    // (the decrypted admin token), which must never reach the logs.
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    logger.error({ err: message, clusterId }, 'Proxy error');
     res.status(502).json({ error: 'Bad Gateway' });
   }
 });
