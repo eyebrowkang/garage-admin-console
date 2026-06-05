@@ -1,25 +1,15 @@
 # Screenshots
 
-This page contains all current Garage Admin Console UI screenshots.
+This page contains some Garage Admin Console and S3 Browser screenshots.
 
-## Dashboard and Overview
+![Cluster Dashboard](./ClusterDashboard.png)
 
-| Dashboard | Overview |
-| --- | --- |
-| ![Dashboard](./dashboard.png) | ![Overview](./overview.png) |
+![Cluster Overview](./ClusterOverview.png)
 
-## Buckets
+![Cluster Overview Mobile](./ClusterOverviewMobile.png)
 
-| Bucket List | Bucket Detail |
-| --- | --- |
-| ![Bucket List](./bucket_list.png) | ![Bucket Detail](./bucket_detail.png) |
+![Cluster Layout](./ClusterLayout.png)
 
-## Access Keys
+![S3 File Browser](./S3FileBrowser.png)
 
-| Access Key List | Access Key Detail |
-| --- | --- |
-| ![Access Key List](./access_key_list.png) | ![Access Key Detail](./access_key_detail.png) |
-
-## Layout
-
-![Layout](./layout.png)
+![S3 File Browser Mobile](./S3FileBrowserMobile.png)
