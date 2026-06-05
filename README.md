@@ -21,7 +21,10 @@ A modern web-based administration interface for managing [Garage](https://garage
 
 ## Screenshots
 
-![Cluster Overview](./screenshots/overview.png)
+| Cluster Overview | S3 File Browser |
+| --- | --- |
+| ![Cluster Overview](./screenshots/ClusterOverview.png) | ![S3 File Browser](./screenshots/S3FileBrowser.png) |
+| ![Cluster Overview Mobile](./screenshots/ClusterOverviewMobile.png) | ![S3 File Browser Mobile](./screenshots/S3FileBrowserMobile.png) |
 
 See all screenshots in **[screenshots/README.md](./screenshots/README.md)**.
 
