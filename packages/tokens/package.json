@@ -24,6 +24,8 @@
     "build": "tsup src/index.ts --format esm --dts --clean",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "format": "prettier --write . --ignore-path ../../.prettierignore",
+    "format:check": "prettier --check . --ignore-path ../../.prettierignore",
     "dev": "tsup src/index.ts --format esm --dts --watch"
   },
   "devDependencies": {

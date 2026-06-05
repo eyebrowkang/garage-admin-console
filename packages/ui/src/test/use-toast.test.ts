@@ -19,7 +19,11 @@ type Action =
   | { type: 'REMOVE_TOAST'; toastId?: string };
 const reducer = rawReducer as unknown as (state: State, action: Action) => State;
 
-const mk = (id: string, extra: Partial<TestToast> = {}): TestToast => ({ id, open: true, ...extra });
+const mk = (id: string, extra: Partial<TestToast> = {}): TestToast => ({
+  id,
+  open: true,
+  ...extra,
+});
 
 afterEach(() => {
   // DISMISS_TOAST schedules a real removal timer; drain it so tests don't leak.
@@ -52,10 +56,7 @@ describe('toast reducer', () => {
 
   it('DISMISS_TOAST marks the targeted toast closed', () => {
     vi.useFakeTimers();
-    const next = reducer(
-      { toasts: [mk('1'), mk('2')] },
-      { type: 'DISMISS_TOAST', toastId: '1' },
-    );
+    const next = reducer({ toasts: [mk('1'), mk('2')] }, { type: 'DISMISS_TOAST', toastId: '1' });
     expect(next.toasts.find((t) => t.id === '1')?.open).toBe(false);
     expect(next.toasts.find((t) => t.id === '2')?.open).toBe(true);
   });

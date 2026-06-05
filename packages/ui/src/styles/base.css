@@ -110,7 +110,13 @@
 
 /* Horizontal scroll with fade edges. */
 .scroll-fade {
-  mask-image: linear-gradient(to right, transparent, black 16px, black calc(100% - 16px), transparent);
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 16px,
+    black calc(100% - 16px),
+    transparent
+  );
   -webkit-mask-image: linear-gradient(
     to right,
     transparent,

@@ -4,7 +4,9 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { LoginForm } from '../components/login-form';
 
-function renderForm(onSubmit: (password: string) => Promise<void> = vi.fn().mockResolvedValue(undefined)) {
+function renderForm(
+  onSubmit: (password: string) => Promise<void> = vi.fn().mockResolvedValue(undefined),
+) {
   render(
     <LoginForm
       logoSrc="/logo.svg"
