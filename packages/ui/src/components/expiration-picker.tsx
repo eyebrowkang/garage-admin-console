@@ -63,6 +63,8 @@ export function ExpirationPicker({
   const [presetDay, setPresetDay] = useState<number>(presetDays[0] ?? 7);
 
   const selectPreset = (days: number) => {
+    // Runs in a click handler, not during render — an impure Date is fine here.
+    // eslint-disable-next-line react-hooks/purity
     const target = new Date(Date.now() + days * 86_400_000);
     onNeverExpiresChange(false);
     onDateChange(`${target.getFullYear()}-${pad(target.getMonth() + 1)}-${pad(target.getDate())}`);
@@ -83,6 +85,8 @@ export function ExpirationPicker({
     // Seed an empty picker with "now" as a reference point to adjust from;
     // keep any value already chosen (e.g. an existing expiry on edit).
     if (!date) {
+      // Runs in a click handler, not during render — an impure Date is fine here.
+      // eslint-disable-next-line react-hooks/purity
       const now = new Date(Date.now());
       onDateChange(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`);
       onHourChange(pad(now.getHours()));

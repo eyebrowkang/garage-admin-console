@@ -55,6 +55,9 @@ export function Popover({ trigger, children, align = 'start', className }: Popov
 
   useLayoutEffect(() => {
     if (open) reposition();
+    // Measure-then-place before paint to avoid flicker; the synchronous setState
+    // in this layout effect is the intended pattern for positioning.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     else setStyle(OFFSCREEN);
   }, [open, reposition]);
 

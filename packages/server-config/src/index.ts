@@ -239,6 +239,9 @@ export function createServiceLoggers({
   };
 }
 
+// The ESC (\x1b) control char is exactly what we're stripping out of morgan's
+// colorized output, so the control-char-in-regex warning doesn't apply here.
+// eslint-disable-next-line no-control-regex
 const ANSI_COLOR_PATTERN = /\x1b\[[0-9;]*m/g;
 
 function stripAnsi(value: string): string {
@@ -312,7 +315,7 @@ async function executeSqliteQuery(
   sql: string,
   params: unknown[],
   method: SqliteProxyMethod,
-): Promise<{ rows: any[] }> {
+): Promise<{ rows: unknown[] }> {
   const statement = client.prepare(sql);
   const boundParams = bindParams(params);
 
@@ -324,10 +327,13 @@ async function executeSqliteQuery(
   statement.setReturnArrays(true);
 
   if (method === 'get') {
-    return { rows: statement.get(...boundParams) as unknown as any[] };
+    // setReturnArrays(true) makes the row come back as an array of column values,
+    // which the static node:sqlite return type (a record) doesn't reflect — hence
+    // the bridge through `unknown`. `unknown[]` keeps it off `any`.
+    return { rows: statement.get(...boundParams) as unknown as unknown[] };
   }
 
-  return { rows: statement.all(...boundParams) as unknown as any[] };
+  return { rows: statement.all(...boundParams) as unknown as unknown[][] };
 }
 
 export function createSqliteDb<TSchema extends Record<string, unknown>>(

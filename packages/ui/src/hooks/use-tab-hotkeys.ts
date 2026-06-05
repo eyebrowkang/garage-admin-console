@@ -9,7 +9,11 @@ import { useEffect, useRef } from 'react';
  */
 export function useTabHotkeys(values: string[], onSelect: (value: string) => void) {
   const latest = useRef({ values, onSelect });
-  latest.current = { values, onSelect };
+  // Keep the once-bound listener reading fresh args without re-binding. Writing
+  // the ref in an effect (not during render) is the pattern react-hooks/refs wants.
+  useEffect(() => {
+    latest.current = { values, onSelect };
+  });
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {

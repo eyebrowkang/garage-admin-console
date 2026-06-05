@@ -29,3 +29,12 @@ export function browserLanguageOptions(tsconfigRootDir) {
     parserOptions: { tsconfigRootDir },
   };
 }
+
+/** Node variant for the backend packages (BFF helpers, crypto, bucket-api-server). */
+export function nodeLanguageOptions(tsconfigRootDir) {
+  return {
+    ecmaVersion: 2023,
+    globals: globals.node,
+    parserOptions: { tsconfigRootDir },
+  };
+}
