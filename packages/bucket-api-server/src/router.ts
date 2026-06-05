@@ -57,7 +57,8 @@ function sendError(res: Response, err: unknown) {
   // 400, …) so callers can react to it; fall back to 502 for network failures
   // and anything without a usable status code.
   const upstream = httpStatusOf(err);
-  const status = typeof upstream === 'number' && upstream >= 400 && upstream <= 599 ? upstream : 502;
+  const status =
+    typeof upstream === 'number' && upstream >= 400 && upstream <= 599 ? upstream : 502;
   res.status(status).json({ error: message });
 }
 
@@ -81,6 +82,40 @@ function parseBody<S extends z.ZodTypeAny>(
     }
     throw err;
   }
+}
+
+interface UploadOutcome {
+  key: string;
+  etag: string;
+  size: number;
+}
+
+/**
+ * Decide the POST /upload response once every file has settled. Extracted as a
+ * pure function so the precedence rules are unit-testable without a multipart
+ * harness: a genuine upload failure (or client abort) outranks an oversize; an
+ * oversize still reports the files that DID fit (so a sibling tripping the size
+ * limit never drops an already-stored object); otherwise 200 with the uploads.
+ */
+export function decideUploadResponse(
+  results: PromiseSettledResult<void>[],
+  state: { aborted: boolean; oversized: boolean; uploaded: UploadOutcome[]; limit: number },
+): { status: number; body: Record<string, unknown> } {
+  const failure = results.find((r) => r.status === 'rejected') as PromiseRejectedResult | undefined;
+  if (failure || state.aborted) {
+    return { status: 502, body: { error: failure ? String(failure.reason) : 'upload aborted' } };
+  }
+  if (state.oversized) {
+    return {
+      status: 413,
+      body: {
+        error: `One or more files exceed the proxy upload limit (${state.limit} bytes). Use the multipart upload flow.`,
+        limit: state.limit,
+        uploaded: state.uploaded,
+      },
+    };
+  }
+  return { status: 200, body: { uploaded: state.uploaded } };
 }
 
 const defaultLogger: Logger = {
@@ -312,12 +347,6 @@ export function createBucketRouter({
   // multipart upload flow below — that path never touches the BFF stream.
   // ---------------------------------------------------------------------------
 
-  interface UploadResult {
-    key: string;
-    etag: string;
-    size: number;
-  }
-
   router.post('/upload', (req, res) => {
     const contentType = req.headers['content-type'] ?? '';
     if (!contentType.toLowerCase().startsWith('multipart/form-data')) {
@@ -330,7 +359,7 @@ export function createBucketRouter({
         if (!ctx) return;
 
         const bb = Busboy({ headers: req.headers, limits: { fileSize: proxyUploadMaxBytes } });
-        const uploaded: UploadResult[] = [];
+        const uploaded: UploadOutcome[] = [];
         const pending: Promise<void>[] = [];
         let prefix = '';
         let finished = false;
@@ -346,21 +375,19 @@ export function createBucketRouter({
           const cleanPrefix = prefix.replace(/^\/+|\/+$/g, '');
           const key = cleanPrefix ? `${cleanPrefix}/${info.filename}` : info.filename;
 
-          // Per-file abort: tripped on 'limit' so the (truncated) bytes spooled
-          // so far are never PutObject'd to the bucket.
+          // Oversize is tracked PER FILE: a file that blows past the limit is
+          // aborted (its truncated bytes are never PutObject'd) without affecting
+          // the files that fit. The status code is decided in 'finish' once every
+          // upload has settled, so a sibling's oversize can't drop an
+          // already-stored file from the response.
           const fileAbort = new AbortController();
+          let fileOversized = false;
 
           fileStream.on('limit', () => {
+            fileOversized = true;
             oversized = true;
-            aborted = true;
             fileAbort.abort();
             fileStream.resume();
-            if (!res.headersSent) {
-              res.status(413).json({
-                error: `File exceeds proxy upload limit (${proxyUploadMaxBytes} bytes). Use the multipart upload flow.`,
-                limit: proxyUploadMaxBytes,
-              });
-            }
           });
 
           const p = uploadStreamToS3({
@@ -372,11 +399,11 @@ export function createBucketRouter({
             signal: fileAbort.signal,
           })
             .then(({ etag, size }) => {
-              if (oversized) return; // discard truncated upload
+              if (fileOversized) return; // truncated — never recorded
               uploaded.push({ key, etag, size });
             })
             .catch((err) => {
-              if (oversized) return;
+              if (fileOversized) return; // expected abort, not a real failure
               aborted = true;
               logger.error({ err, key }, 'upload failed');
               throw err;
@@ -394,17 +421,13 @@ export function createBucketRouter({
         bb.on('finish', () => {
           finished = true;
           Promise.allSettled(pending).then((results) => {
-            if (oversized) return; // 413 already sent
-            const failures = results.filter((r) => r.status === 'rejected');
-            if (aborted || failures.length > 0) {
-              const message =
-                failures.length > 0 && failures[0]?.status === 'rejected'
-                  ? String((failures[0] as PromiseRejectedResult).reason)
-                  : 'upload aborted';
-              if (!res.headersSent) res.status(502).json({ error: message });
-              return;
-            }
-            res.json({ uploaded });
+            const { status, body } = decideUploadResponse(results, {
+              aborted,
+              oversized,
+              uploaded,
+              limit: proxyUploadMaxBytes,
+            });
+            if (!res.headersSent) res.status(status).json(body);
           });
         });
 
