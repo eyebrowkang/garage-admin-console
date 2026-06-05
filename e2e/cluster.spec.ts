@@ -14,7 +14,9 @@ test.describe('Cluster Management', () => {
     await openClusterConsole(page);
 
     // Should see cluster overview elements
-    await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('heading', { name: 'Overview', exact: true })).toBeVisible({
+      timeout: 15000,
+    });
   });
 
   test('can navigate to buckets page', async ({ authenticatedPage }) => {
@@ -22,7 +24,9 @@ test.describe('Cluster Management', () => {
 
     await openClusterModule(page, 'Buckets');
 
-    await expect(page.getByRole('heading', { name: 'Buckets' })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('heading', { name: 'Buckets', exact: true })).toBeVisible({
+      timeout: 10000,
+    });
   });
 
   test('can navigate to keys page', async ({ authenticatedPage }) => {
@@ -30,7 +34,7 @@ test.describe('Cluster Management', () => {
 
     await openClusterModule(page, 'Access Keys');
 
-    await expect(page.getByRole('heading', { name: 'Access Keys' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Access Keys', exact: true })).toBeVisible({
       timeout: 10000,
     });
   });
@@ -40,7 +44,9 @@ test.describe('Cluster Management', () => {
 
     await openClusterModule(page, 'Nodes');
 
-    await expect(page.getByRole('heading', { name: 'Nodes' })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('heading', { name: 'Nodes', exact: true })).toBeVisible({
+      timeout: 10000,
+    });
   });
 
   test('can navigate to layout page', async ({ authenticatedPage }) => {
@@ -48,6 +54,8 @@ test.describe('Cluster Management', () => {
 
     await openClusterModule(page, 'Layout');
 
-    await expect(page.getByRole('heading', { name: 'Layout' })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('heading', { name: 'Layout', exact: true })).toBeVisible({
+      timeout: 10000,
+    });
   });
 });
