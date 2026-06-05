@@ -30,7 +30,12 @@ import {
 } from '@garage/ui';
 import { MoreHorizontal } from 'lucide-react';
 import { api, proxyPath } from '@/lib/api';
-import { formatDateTime, formatShortId, getApiErrorMessage } from '@garage/web-shared';
+import {
+  formatDateTime,
+  formatShortId,
+  getApiErrorMessage,
+  parseExpiryParts,
+} from '@garage/web-shared';
 import { ConfirmDialog } from '@garage/ui';
 import { ModulePageHeader } from '@garage/ui';
 import { TableLoadingState } from '@/components/cluster/TableLoadingState';
@@ -245,18 +250,6 @@ export function KeyList() {
     }
   };
 
-  const toDateParts = (value?: string | null) => {
-    if (!value) return { date: '', hour: '00', minute: '00' };
-    const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return { date: '', hour: '00', minute: '00' };
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return {
-      date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
-      hour: pad(d.getHours()),
-      minute: pad(d.getMinutes()),
-    };
-  };
-
   const editExpirationValue = editExpirationDate
     ? new Date(`${editExpirationDate}T${editExpirationHour}:${editExpirationMinute}:00`)
     : null;
@@ -267,7 +260,7 @@ export function KeyList() {
   const editExpirationInvalid = Boolean(editExpirationDate) && !editExpirationIso;
 
   const openEdit = async (key: ListKeysResponseItem) => {
-    const parts = toDateParts(key.expiration);
+    const parts = parseExpiryParts(key.expiration);
     const req = ++editReqRef.current;
     setEditKey(key);
     setEditName(key.name ?? '');

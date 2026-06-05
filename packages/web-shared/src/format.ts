@@ -131,3 +131,30 @@ export function fileKind(name: string): FileKind {
 export function isTextLikeKind(kind: FileKind): boolean {
   return ['text', 'json', 'markdown', 'csv', 'code'].includes(kind);
 }
+
+export interface ExpiryParts {
+  /** Local calendar date as 'YYYY-MM-DD', or '' when absent/invalid. */
+  date: string;
+  /** Local hour as 'HH'. */
+  hour: string;
+  /** Local minute as 'mm'. */
+  minute: string;
+}
+
+/**
+ * Decompose an expiry timestamp into the local date/hour/minute string fields
+ * the ExpirationPicker inputs use. Absent or unparseable input yields an empty
+ * date with '00' time — the picker's "no expiry chosen" state. Shared so the key
+ * and admin-token forms can't drift in how they seed those fields.
+ */
+export function parseExpiryParts(value?: string | null): ExpiryParts {
+  if (!value) return { date: '', hour: '00', minute: '00' };
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return { date: '', hour: '00', minute: '00' };
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return {
+    date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+    hour: pad(d.getHours()),
+    minute: pad(d.getMinutes()),
+  };
+}

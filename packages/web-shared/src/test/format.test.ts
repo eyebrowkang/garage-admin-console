@@ -10,6 +10,7 @@ import {
   formatRelativeSeconds,
   formatShortId,
   isTextLikeKind,
+  parseExpiryParts,
 } from '../format';
 
 describe('formatBytes', () => {
@@ -171,4 +172,30 @@ describe('isTextLikeKind', () => {
       expect(isTextLikeKind(k)).toBe(false);
     }
   });
+});
+
+describe('parseExpiryParts', () => {
+  // web-shared's vitest pins TZ=UTC, so the local fields equal the UTC clock here.
+  it('decomposes a timestamp into local date/hour/minute strings', () => {
+    expect(parseExpiryParts('2026-05-31T14:30:00Z')).toEqual({
+      date: '2026-05-31',
+      hour: '14',
+      minute: '30',
+    });
+  });
+
+  it('zero-pads single-digit month/day/hour/minute', () => {
+    expect(parseExpiryParts('2026-01-02T03:05:00Z')).toEqual({
+      date: '2026-01-02',
+      hour: '03',
+      minute: '05',
+    });
+  });
+
+  it.each([[null], [undefined], [''], ['not-a-date']])(
+    'returns the empty "no expiry" parts for %s',
+    (input) => {
+      expect(parseExpiryParts(input)).toEqual({ date: '', hour: '00', minute: '00' });
+    },
+  );
 });
