@@ -1,7 +1,7 @@
-import { useEffect, useState, type MouseEvent, type ReactNode } from 'react';
+import { type MouseEvent, type ReactNode } from 'react';
 import { Check, Copy } from 'lucide-react';
 
-import { toast } from '../hooks/use-toast';
+import { useCopyToClipboard } from '../hooks/use-copy-to-clipboard';
 import { cn } from '../lib/cn';
 
 interface CopyValueProps {
@@ -30,29 +30,12 @@ export function CopyValue({
   className,
   variant = 'text',
 }: CopyValueProps) {
-  const [copied, setCopied] = useState(false);
+  const { copied, copy } = useCopyToClipboard({ successToast: true });
 
-  useEffect(() => {
-    if (!copied) return;
-    const timer = window.setTimeout(() => setCopied(false), 1200);
-    return () => window.clearTimeout(timer);
-  }, [copied]);
-
-  const handleCopy = async (e: MouseEvent) => {
-    // Don't let a copy bubble up into row navigation.
+  // Don't let a copy bubble up into row navigation.
+  const handleCopy = (e: MouseEvent) => {
     e.stopPropagation();
-    if (!value) return;
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied(true);
-      toast({ title: 'Copied', variant: 'success' });
-    } catch {
-      toast({
-        title: 'Copy failed',
-        description: 'Clipboard permission was denied.',
-        variant: 'destructive',
-      });
-    }
+    void copy(value);
   };
 
   return (

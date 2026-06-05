@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 
-import { toast } from '../hooks/use-toast';
+import { useCopyToClipboard } from '../hooks/use-copy-to-clipboard';
 import { cn } from '../lib/cn';
 import { Button } from './button';
 
@@ -18,28 +17,7 @@ export function CopyButton({
   className,
   compact = false,
 }: CopyButtonProps) {
-  const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    if (!copied) return;
-    const timer = window.setTimeout(() => setCopied(false), 1200);
-    return () => window.clearTimeout(timer);
-  }, [copied]);
-
-  const handleCopy = async () => {
-    if (!value) return;
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied(true);
-    } catch {
-      toast({
-        title: 'Copy failed',
-        description: 'Clipboard permission was denied.',
-        variant: 'destructive',
-      });
-    }
-  };
-
+  const { copied, copy } = useCopyToClipboard();
   const buttonLabel = copied ? `${label} copied` : `Copy ${label}`;
 
   return (
@@ -55,7 +33,7 @@ export function CopyButton({
       )}
       onClick={(e) => {
         e.stopPropagation();
-        void handleCopy();
+        void copy(value);
       }}
       disabled={!value}
       aria-label={buttonLabel}
