@@ -6,43 +6,30 @@ product
 
 ## Users
 
-Storage operators and platform engineers running self-hosted object storage.
-
-- **Garage Admin Console** — operators managing one or more [Garage](https://garagehq.deuxfleurs.fr/) clusters: connecting clusters, watching health/capacity, and drilling into nodes, buckets, keys, and workers.
-- **S3 Browser** — developers and admins managing S3-compatible connections and browsing bucket objects, either standalone or embedded into the Admin Console's bucket detail page.
-
-Context of use: a focused administrative task on desktop most of the time, but increasingly checked on a phone (incident triage, a quick health glance). The user is in a task, not browsing.
+Self-hosting sysadmins and platform/DevOps teams managing Garage distributed object storage clusters. Technical users comfortable with the CLI who reach for this console when they need a visual overview, want to perform bulk operations, or are onboarding a colleague who doesn't live in the terminal. The context is operational: they're checking cluster health, provisioning buckets, rotating keys, or diagnosing layout imbalances. Sessions are short and task-driven.
 
 ## Product Purpose
 
-Two sibling products that share a design system (`@garage/tokens` + `@garage/ui`) and a Bucket Backend API surface (`@garage/bucket-api-server`). The Admin Console tracks the Garage Admin API v2; the S3 Browser is a generic S3-protocol file browser that also federates into the Console via Module Federation. Success = an operator trusts the status they see at a glance and completes管理 tasks (connect, inspect, edit, disconnect) without friction, on either screen size, in either product, without relearning anything.
+A web admin console for Garage object storage. It makes cluster operations visible and actionable without memorizing CLI flags or parsing JSON output. Success means the operator trusts the console to show ground truth, completes their task without friction, and closes the tab.
 
 ## Brand Personality
 
-Calm, professional, operator-trustworthy. The tool disappears into the task. Warmth comes from a single brand orange `rgb(255, 148, 41)` and the Manrope typeface, not from decoration. Three words: **restrained, dependable, legible.**
-
-The brand orange is fixed and non-negotiable; readability is achieved by pairing it with dark ink, never by altering the hue. Light theme only. "List pages stay light, detail pages go deep."
+Confident, clear, calm. The interface conveys expert competence without showing off. It never over-explains, never dramatizes, and never makes the operator feel like a novice. Information density is welcome; visual noise is not.
 
 ## Anti-references
 
-- SaaS hero-metric dashboards (big gradient number + supporting stats template).
-- Glassmorphism, decorative blur, gradient text.
-- The "every card wears a colored left stripe" look — a recognizable AI tell, and redundant when a text status badge already carries the state.
-- Any color outside the four-color system (theme orange · red errors · green health · purple warnings).
-- Dark mode. Fluid/clamp display type. Forking the two apps so they drift apart.
+- **Flashy SaaS dashboards**: no gradient heroes, no vanity metrics, no sales-driven chrome. This is infrastructure tooling, not a growth product.
+- **Bare-bones CLI wrappers**: the console should feel deliberately designed, not like a terminal output piped into HTML tables. Visual hierarchy, spacing, and polish earn trust.
+- **Over-designed dev tools**: avoid excessive decoration that makes the tool feel like a consumer app. Components serve the task; ornament is suspect.
 
 ## Design Principles
 
-1. **One design, two products.** Shared primitives in `@garage/ui`; never fork a component or page-level pattern into both apps. If the "save" button differs in two places, one is wrong.
-2. **Status you can trust at a glance.** Live health, busy states, and specific errors over silence. State is always carried by text + icon, never by color alone.
-3. **Restrained color.** Four colors only; the accent marks actions, selection, and real anomalies — not every surface.
-4. **List light, detail deep.** Overview pages stay calm and neutral; depth and saturation are earned on detail pages.
-5. **AA is the floor, not a goal.** WCAG 2.1 AA contrast is a hard requirement; the brand bends typography/ink to meet it, never the reverse.
+1. **Show ground truth.** Every number, status, and identifier on screen must reflect the cluster's actual state. Prefer raw data with good formatting over abstracted summaries that obscure what's really happening.
+2. **Disappear into the task.** The interface succeeds when operators forget they're using it. Consistent patterns, predictable navigation, zero surprises. The tool is a window, not a destination.
+3. **Density without clutter.** These users want to see more, not less. Tables with many rows, sidebars with many links, and detail pages with all the fields are virtues. But every element earns its space through alignment, grouping, and whitespace rhythm.
+4. **Calm authority.** Use restraint in color, motion, and copy. The orange accent marks actionable elements; everything else stays neutral. Status changes are visible but never alarming unless something is genuinely wrong.
+5. **Respect the operator.** No tutorials for obvious actions, no confirmation dialogs for safe operations, no loading spinners where skeleton states work. Trust that users know what they're doing and show them the information they need.
 
 ## Accessibility & Inclusion
 
-- Target **WCAG 2.1 AA** (4.5:1 body text, 3:1 large text and UI). Brand orange is paired with dark ink to meet this, not lightened.
-- Light theme only; no color-only state (every status has a text/icon label).
-- Visible focus rings on all interactive elements; full keyboard operability (Radix primitives for dialogs/menus).
-- `prefers-reduced-motion`: every transition has a crossfade/instant fallback.
-- Mobile: touch targets ≥ ~44px; forms and dialogs adapt to small screens rather than overflowing.
+WCAG AA compliance: 4.5:1 minimum contrast for body text, 3:1 for large text and UI components. Full keyboard navigation. Meaningful focus indicators. Screen-reader-friendly markup with semantic HTML and ARIA where needed. Reduced-motion alternatives for any animations shipped.
