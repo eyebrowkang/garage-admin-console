@@ -1,6 +1,10 @@
 import express, { type Express } from 'express';
 import { sql } from 'drizzle-orm';
-import { createHttpLogMiddleware, createMultipartAwareJsonParser } from '@garage/server-config';
+import {
+  createHttpLogMiddleware,
+  createMultipartAwareJsonParser,
+  createSecurityHeaders,
+} from '@garage/server-config';
 
 import { env } from './config/env.js';
 import { httpLogger } from './logger.js';
@@ -13,6 +17,10 @@ import bucketRouter from './routes/buckets.js';
 import { authenticateToken } from './middleware/auth.middleware.js';
 
 export const app: Express = express();
+
+// Security response headers on every response (API + the served SPA).
+app.use(createSecurityHeaders());
+
 const httpLogMiddleware = createHttpLogMiddleware(env.httpLogFormat, httpLogger);
 
 if (httpLogMiddleware) {
