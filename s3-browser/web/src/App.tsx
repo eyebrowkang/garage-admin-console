@@ -30,15 +30,26 @@ import { ConnectionView } from '@/pages/ConnectionView';
 import { BucketView } from '@/pages/BucketView';
 import { Toaster } from '@garage/ui';
 
-// Dev-only FileBrowser mock playground (lazy so it — and its mock adapter —
-// never reach the production bundle). Reachable at /__playground in dev.
-const FileBrowserPlayground = lazy(() => import('@/dev/FileBrowserPlayground'));
+// Dev-only FileBrowser mock playground, reachable at /__playground. The lazy
+// import lives inside an `if (import.meta.env.DEV)` *statement* so that in a
+// production build (DEV → literal false) the dead branch — and with it the
+// dynamic import() — is dropped entirely, keeping the playground + mock out of
+// the prod bundle (no orphan chunk).
+let FileBrowserPlayground: React.LazyExoticComponent<React.ComponentType> | null = null;
+if (import.meta.env.DEV) {
+  FileBrowserPlayground = lazy(() => import('@/dev/FileBrowserPlayground'));
+}
 
 export function App() {
-  if (import.meta.env.DEV && window.location.pathname.startsWith('/__playground')) {
+  if (
+    import.meta.env.DEV &&
+    FileBrowserPlayground &&
+    window.location.pathname.startsWith('/__playground')
+  ) {
+    const Playground = FileBrowserPlayground;
     return (
       <Suspense fallback={null}>
-        <FileBrowserPlayground />
+        <Playground />
       </Suspense>
     );
   }
