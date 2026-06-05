@@ -88,6 +88,13 @@ API + standalone SPA/MF remote by default, or serves only static/MF assets when
 
 - Deploy behind a reverse proxy with HTTPS.
 - Use strong, unique `JWT_SECRET` / `ENCRYPTION_KEY` / `ADMIN_PASSWORD` per BFF.
+- **Rotating `ENCRYPTION_KEY`:** it encrypts stored secrets at rest (cluster admin
+  tokens; S3 keypairs). There is no automatic re-encryption, so changing the key
+  makes existing rows undecryptable — proxied calls and the object browser then
+  error. To rotate: stop the service, set the new key, and re-enter the affected
+  credentials (edit each cluster/connection to set its token or keypair again,
+  which re-encrypts it under the new key). Plan a maintenance window; for many
+  rows treat it as a re-provisioning.
 - The console targets internal-network deployment; consider an extra auth layer
   (VPN, SSO) for production.
 - If you statically host the Admin SPA elsewhere (not via the BFF), set
