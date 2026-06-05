@@ -12,7 +12,7 @@
  */
 import { LogOut } from 'lucide-react';
 import { lazy, Suspense, useState } from 'react';
-import { BrowserRouter, Route, Routes, Link } from 'react-router-dom';
+import { BrowserRouter, Navigate, Outlet, Route, Routes, Link, useNavigate } from 'react-router-dom';
 
 import {
   Button,
@@ -57,21 +57,39 @@ export function App() {
 }
 
 function MainApp() {
-  const [authed, setAuthed] = useState(() => readStoredToken() !== null);
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route element={<ProtectedShell />}>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/connections/:id" element={<ConnectionView />} />
+          <Route path="/connections/:id/b/:bucket/*" element={<BucketView />} />
+          <Route path="*" element={<HomePage />} />
+        </Route>
+      </Routes>
+      <Toaster />
+    </BrowserRouter>
+  );
+}
+
+/** Auth gate + shared chrome (header / footer) for every signed-in route. */
+function ProtectedShell() {
+  const navigate = useNavigate();
   const [confirmSignOut, setConfirmSignOut] = useState(false);
 
-  if (!authed) {
-    return <LoginPage onAuthed={() => setAuthed(true)} />;
+  if (readStoredToken() === null) {
+    return <Navigate to="/login" replace />;
   }
 
   const handleSignOut = () => {
     writeStoredToken(null);
     setConfirmSignOut(false);
-    setAuthed(false);
+    navigate('/login', { replace: true });
   };
 
   return (
-    <BrowserRouter>
+    <>
       <div className="flex min-h-screen w-full flex-col bg-background/50">
         <header className="sticky top-0 z-50 border-b bg-card/80 backdrop-blur-xl">
           <div className="max-w-full mx-auto px-4 lg:px-8 h-14 flex items-center justify-between">
@@ -111,12 +129,7 @@ function MainApp() {
         </Dialog>
 
         <main className="w-full max-w-full mx-auto px-4 lg:px-8 py-5 sm:py-6 flex-1">
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/connections/:id" element={<ConnectionView />} />
-            <Route path="/connections/:id/b/:bucket/*" element={<BucketView />} />
-            <Route path="*" element={<HomePage />} />
-          </Routes>
+          <Outlet />
         </main>
 
         <footer className="border-t mt-auto">
@@ -134,8 +147,7 @@ function MainApp() {
           </div>
         </footer>
       </div>
-      <Toaster />
-    </BrowserRouter>
+    </>
   );
 }
 

@@ -1,14 +1,17 @@
 /**
- * Standalone-only login screen. Talks to POST /api/auth/login, stores the JWT,
- * and notifies the parent on success.
+ * Standalone-only login screen at the `/login` route. Talks to
+ * POST /api/auth/login, stores the JWT, then navigates home — the
+ * ProtectedShell re-reads the token and lets the app through.
  *
  * Renders the shared <LoginForm> (from @garage/ui) so the two products feel
  * like one suite.
  */
+import { useNavigate } from 'react-router-dom';
 import { LoginForm } from '@garage/ui';
 import { api, writeStoredToken } from '@/lib/api';
 
-export function LoginPage({ onAuthed }: { onAuthed: () => void }) {
+export function LoginPage() {
+  const navigate = useNavigate();
   return (
     <LoginForm
       logoSrc="/s3-browser-logo.svg"
@@ -18,7 +21,7 @@ export function LoginPage({ onAuthed }: { onAuthed: () => void }) {
       onSubmit={async (password) => {
         const res = await api.post<{ token: string }>('/auth/login', { password });
         writeStoredToken(res.data.token);
-        onAuthed();
+        navigate('/', { replace: true });
       }}
     />
   );
