@@ -12,6 +12,14 @@ import { buildS3Client } from '../lib/s3-client.js';
 
 const router: Router = express.Router({ mergeParams: true });
 
+// Browser-direct (large-file) CORS: managed by default, scoped to the app origin.
+// Operators can pin origins (S3_CORS_ALLOWED_ORIGINS) or opt out (S3_MANAGE_CORS=false).
+const manageCors = process.env.S3_MANAGE_CORS !== 'false';
+const corsAllowedOrigins =
+  process.env.S3_CORS_ALLOWED_ORIGINS?.split(',')
+    .map((s) => s.trim())
+    .filter(Boolean) ?? [];
+
 // ---------------------------------------------------------------------------
 // GET /keys — list keys authorized on this bucket.
 // Uses the cluster admin token; no S3 access key required from the caller.
@@ -77,6 +85,8 @@ router.use(
         throw new BucketAccessError(502, 'Failed to resolve bucket credentials');
       }
     },
+    manageCors,
+    corsAllowedOrigins,
     logger,
   }),
 );

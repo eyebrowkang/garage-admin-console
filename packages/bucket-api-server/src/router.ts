@@ -126,6 +126,17 @@ function cacheKeyFor(ctx: BucketContext): string {
   return ctx.cacheKey ?? ctx.bucketName;
 }
 
+/**
+ * Origins to allow for browser-direct upload/download CORS. Operator config wins;
+ * otherwise default to the requesting app's Origin; fall back to `*` only when no
+ * Origin is present (e.g. a non-browser caller) and nothing is configured.
+ */
+function corsOriginsFor(req: Request, configured?: string[]): string[] {
+  if (configured && configured.length > 0) return configured;
+  const origin = req.headers.origin;
+  return typeof origin === 'string' && origin ? [origin] : ['*'];
+}
+
 async function withContext(
   req: Request,
   res: Response,
@@ -159,6 +170,16 @@ export interface CreateBucketRouterOptions {
    * MULTIPART_PART_SIZE_BYTES (8 MiB). Must be >= 5 MiB per S3 rules.
    */
   multipartPartSize?: number;
+  /**
+   * Auto-manage the bucket's CORS rules for browser-direct transfers. Default
+   * true; set false to leave bucket CORS entirely to the operator.
+   */
+  manageCors?: boolean;
+  /**
+   * Explicit allowed origins for the auto-managed CORS rule. When unset, the
+   * requesting app's Origin header is used (falling back to `*` if absent).
+   */
+  corsAllowedOrigins?: string[];
 }
 
 export function createBucketRouter({
@@ -166,6 +187,8 @@ export function createBucketRouter({
   logger = defaultLogger,
   proxyUploadMaxBytes = LARGE_FILE_THRESHOLD_BYTES,
   multipartPartSize = MULTIPART_PART_SIZE_BYTES,
+  manageCors = true,
+  corsAllowedOrigins,
 }: CreateBucketRouterOptions): ExpressRouter {
   const router = Router({ mergeParams: true });
 
@@ -314,11 +337,12 @@ export function createBucketRouter({
     if (!ctx) return;
     try {
       // Browser direct GET also needs CORS — ensure once per (endpoint, bucket).
-      if (body.operation === 'getObject') {
+      if (body.operation === 'getObject' && manageCors) {
         await ensureBucketCors({
           client: ctx.client,
           bucket: ctx.bucketName,
           cacheKey: cacheKeyFor(ctx),
+          allowedOrigins: corsOriginsFor(req, corsAllowedOrigins),
           logger,
         });
       }
@@ -463,12 +487,15 @@ export function createBucketRouter({
     const ctx = await withContext(req, res, resolveContext, logger);
     if (!ctx) return;
     try {
-      await ensureBucketCors({
-        client: ctx.client,
-        bucket: ctx.bucketName,
-        cacheKey: cacheKeyFor(ctx),
-        logger,
-      });
+      if (manageCors) {
+        await ensureBucketCors({
+          client: ctx.client,
+          bucket: ctx.bucketName,
+          cacheKey: cacheKeyFor(ctx),
+          allowedOrigins: corsOriginsFor(req, corsAllowedOrigins),
+          logger,
+        });
+      }
 
       const out = await ctx.client.send(
         new CreateMultipartUploadCommand({

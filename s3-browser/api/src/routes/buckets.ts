@@ -8,6 +8,14 @@ import { getParam } from '@garage/server-config';
 import { logger } from '../logger.js';
 import { clientForConnection } from '../lib/s3-client.js';
 
+// Browser-direct (large-file) CORS: managed by default, scoped to the app origin.
+// Operators can pin origins (S3_CORS_ALLOWED_ORIGINS) or opt out (S3_MANAGE_CORS=false).
+const manageCors = process.env.S3_MANAGE_CORS !== 'false';
+const corsAllowedOrigins =
+  process.env.S3_CORS_ALLOWED_ORIGINS?.split(',')
+    .map((s) => s.trim())
+    .filter(Boolean) ?? [];
+
 export default createBucketRouter({
   async resolveContext(req) {
     const connId = getParam(req.params, 'connId');
@@ -31,5 +39,7 @@ export default createBucketRouter({
       ),
     };
   },
+  manageCors,
+  corsAllowedOrigins,
   logger,
 });

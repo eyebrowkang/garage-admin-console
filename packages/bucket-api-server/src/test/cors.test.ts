@@ -33,7 +33,7 @@ function makeClient(handlers: ClientHandlers) {
   return { send } as unknown as S3Client & { send: typeof send };
 }
 
-const COVERING_RULE: CORSRule = {
+const WILDCARD_RULE: CORSRule = {
   AllowedOrigins: ['*'],
   AllowedMethods: ['GET', 'PUT', 'HEAD', 'POST'],
   AllowedHeaders: ['*'],
@@ -60,14 +60,20 @@ describe('createBucketCorsCacheKey', () => {
 });
 
 describe('ensureBucketCors — rule reconciliation', () => {
-  it('appends a default rule when the bucket has no CORS config', async () => {
+  it('appends a default rule scoped to the given origins when none exists', async () => {
     const client = makeClient({});
-    await ensureBucketCors({ client, bucket: 'b', cacheKey: 'k1', logger });
+    await ensureBucketCors({
+      client,
+      bucket: 'b',
+      cacheKey: 'k1',
+      allowedOrigins: ['https://app.example'],
+      logger,
+    });
 
     const rules = putRulesFrom(client);
     expect(rules).toHaveLength(1);
     expect(rules![0]).toMatchObject({
-      AllowedOrigins: ['*'],
+      AllowedOrigins: ['https://app.example'],
       AllowedMethods: ['GET', 'PUT', 'HEAD', 'POST'],
       AllowedHeaders: ['*'],
       ExposeHeaders: ['ETag'],
@@ -75,16 +81,68 @@ describe('ensureBucketCors — rule reconciliation', () => {
     expect(logger.error).not.toHaveBeenCalled();
   });
 
-  it('skips PutBucketCors when an existing rule already covers the requirements', async () => {
-    const client = makeClient({ get: () => ({ CORSRules: [COVERING_RULE] }) });
-    await ensureBucketCors({ client, bucket: 'b', cacheKey: 'k2', logger });
+  it('reuses a wildcard rule for any requested origin', async () => {
+    const client = makeClient({ get: () => ({ CORSRules: [WILDCARD_RULE] }) });
+    await ensureBucketCors({
+      client,
+      bucket: 'b',
+      cacheKey: 'k2',
+      allowedOrigins: ['https://app.example'],
+      logger,
+    });
     expect(putRulesFrom(client)).toBeUndefined();
+  });
+
+  it('reuses a rule that already allows the exact requested origin', async () => {
+    const exact: CORSRule = {
+      AllowedOrigins: ['https://app.example'],
+      AllowedMethods: ['GET', 'PUT', 'HEAD', 'POST'],
+      AllowedHeaders: ['*'],
+      ExposeHeaders: ['ETag'],
+    };
+    const client = makeClient({ get: () => ({ CORSRules: [exact] }) });
+    await ensureBucketCors({
+      client,
+      bucket: 'b',
+      cacheKey: 'k2b',
+      allowedOrigins: ['https://app.example'],
+      logger,
+    });
+    expect(putRulesFrom(client)).toBeUndefined();
+  });
+
+  it('appends a scoped rule when the existing rule covers only a different origin', async () => {
+    const other: CORSRule = {
+      AllowedOrigins: ['https://other.example'],
+      AllowedMethods: ['GET', 'PUT', 'HEAD', 'POST'],
+      AllowedHeaders: ['*'],
+      ExposeHeaders: ['ETag'],
+    };
+    const client = makeClient({ get: () => ({ CORSRules: [other] }) });
+    await ensureBucketCors({
+      client,
+      bucket: 'b',
+      cacheKey: 'k2c',
+      allowedOrigins: ['https://app.example'],
+      logger,
+    });
+
+    const rules = putRulesFrom(client)!;
+    expect(rules).toHaveLength(2);
+    expect(rules[0]).toBe(other); // existing rule preserved, in place
+    expect(rules[1]!.AllowedOrigins).toEqual(['https://app.example']);
   });
 
   it('preserves existing user rules and appends the default when they fall short', async () => {
     const userRule: CORSRule = { AllowedOrigins: ['https://example.com'], AllowedMethods: ['GET'] };
     const client = makeClient({ get: () => ({ CORSRules: [userRule] }) });
-    await ensureBucketCors({ client, bucket: 'b', cacheKey: 'k3', logger });
+    await ensureBucketCors({
+      client,
+      bucket: 'b',
+      cacheKey: 'k3',
+      allowedOrigins: ['*'],
+      logger,
+    });
 
     const rules = putRulesFrom(client)!;
     expect(rules).toHaveLength(2);
@@ -100,7 +158,13 @@ describe('ensureBucketCors — rule reconciliation', () => {
       ExposeHeaders: ['etag'],
     };
     const client = makeClient({ get: () => ({ CORSRules: [lowercased] }) });
-    await ensureBucketCors({ client, bucket: 'b', cacheKey: 'k3b', logger });
+    await ensureBucketCors({
+      client,
+      bucket: 'b',
+      cacheKey: 'k3b',
+      allowedOrigins: ['https://app.example'],
+      logger,
+    });
     expect(putRulesFrom(client)).toBeUndefined();
   });
 });
@@ -108,37 +172,60 @@ describe('ensureBucketCors — rule reconciliation', () => {
 describe('ensureBucketCors — caching', () => {
   it('caches success so a second call within the TTL makes no S3 calls', async () => {
     const client = makeClient({});
-    await ensureBucketCors({ client, bucket: 'b', cacheKey: 'k4', logger });
+    const opts = { client, bucket: 'b', cacheKey: 'k4', allowedOrigins: ['*'], logger };
+    await ensureBucketCors(opts);
     const after = client.send.mock.calls.length;
-    await ensureBucketCors({ client, bucket: 'b', cacheKey: 'k4', logger });
+    await ensureBucketCors(opts);
     expect(client.send.mock.calls.length).toBe(after);
   });
 
   it('re-checks after the cache TTL expires', async () => {
     let t = 1_000_000;
     const nowSpy = vi.spyOn(Date, 'now').mockImplementation(() => t);
-    const client = makeClient({ get: () => ({ CORSRules: [COVERING_RULE] }) });
+    const client = makeClient({ get: () => ({ CORSRules: [WILDCARD_RULE] }) });
+    const opts = { client, bucket: 'b', cacheKey: 'k5', allowedOrigins: ['*'], logger };
 
-    await ensureBucketCors({ client, bucket: 'b', cacheKey: 'k5', logger });
+    await ensureBucketCors(opts);
     const after = client.send.mock.calls.length;
 
     t += 5 * 60 * 1000 + 1; // past the 5-minute TTL
-    await ensureBucketCors({ client, bucket: 'b', cacheKey: 'k5', logger });
+    await ensureBucketCors(opts);
     expect(client.send.mock.calls.length).toBeGreaterThan(after);
     nowSpy.mockRestore();
+  });
+
+  it('re-checks when the allowed origins change (distinct cache entry)', async () => {
+    const client = makeClient({ get: () => ({ CORSRules: [] }) });
+    await ensureBucketCors({
+      client,
+      bucket: 'b',
+      cacheKey: 'k5b',
+      allowedOrigins: ['https://a'],
+      logger,
+    });
+    const after = client.send.mock.calls.length;
+    await ensureBucketCors({
+      client,
+      bucket: 'b',
+      cacheKey: 'k5b',
+      allowedOrigins: ['https://b'],
+      logger,
+    });
+    expect(client.send.mock.calls.length).toBeGreaterThan(after);
   });
 });
 
 describe('ensureBucketCors — resilience', () => {
-  it('logs but still writes rules when GetBucketCors fails unexpectedly', async () => {
+  it('skips the write to avoid clobbering when GetBucketCors fails unexpectedly', async () => {
     const client = makeClient({
       get: () => {
         throw Object.assign(new Error('denied'), { name: 'AccessDenied' });
       },
     });
-    await ensureBucketCors({ client, bucket: 'b', cacheKey: 'k6', logger });
+    await ensureBucketCors({ client, bucket: 'b', cacheKey: 'k6', allowedOrigins: ['*'], logger });
     expect(logger.error).toHaveBeenCalled();
-    expect(putRulesFrom(client)).toBeDefined();
+    // Must NOT PutBucketCors — that would replace rules we couldn't read.
+    expect(putRulesFrom(client)).toBeUndefined();
   });
 
   it('never throws and does not cache when PutBucketCors fails', async () => {
@@ -147,14 +234,13 @@ describe('ensureBucketCors — resilience', () => {
         throw new Error('put failed');
       },
     });
-    await expect(
-      ensureBucketCors({ client, bucket: 'b', cacheKey: 'k7', logger }),
-    ).resolves.toBeUndefined();
+    const opts = { client, bucket: 'b', cacheKey: 'k7', allowedOrigins: ['*'], logger };
+    await expect(ensureBucketCors(opts)).resolves.toBeUndefined();
     expect(logger.error).toHaveBeenCalled();
 
     // Failure is not cached → the next call retries (more S3 calls).
     const after = client.send.mock.calls.length;
-    await ensureBucketCors({ client, bucket: 'b', cacheKey: 'k7', logger });
+    await ensureBucketCors(opts);
     expect(client.send.mock.calls.length).toBeGreaterThan(after);
   });
 });
