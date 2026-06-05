@@ -115,7 +115,10 @@ function UploadDialogBody({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3 py-2">
+        {/* min-w-0: DialogContent is a grid, whose items default to min-width:auto
+            and would otherwise refuse to shrink below a long filename's intrinsic
+            width — breaking the truncate below and widening the whole dialog. */}
+        <div className="min-w-0 space-y-3 py-2">
           {/* Drop zone */}
           <div
             className={`relative flex flex-col items-center justify-center gap-2 p-7 border-[1.5px] border-dashed rounded-xl text-center cursor-pointer transition-colors ${dragOver ? 'border-primary bg-primary/8 text-primary' : 'border-border bg-muted/35 text-muted-foreground hover:border-primary/60 hover:bg-primary/4'}`}
@@ -188,7 +191,7 @@ function UploadDialogBody({
                       className="flex items-center gap-2.5 px-3 py-2 text-sm"
                     >
                       <FileIcon size={14} className="text-muted-foreground shrink-0" />
-                      <span className="flex-1 truncate text-foreground">{f.name}</span>
+                      <span className="min-w-0 flex-1 truncate text-foreground">{f.name}</span>
                       {isLarge && (
                         <span
                           className="inline-flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-primary shrink-0"
