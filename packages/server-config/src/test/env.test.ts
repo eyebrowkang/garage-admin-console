@@ -36,10 +36,13 @@ describe('loadEnv — required vars', () => {
     });
   });
 
-  it.each(['JWT_SECRET', 'ADMIN_PASSWORD', 'ENCRYPTION_KEY'])('throws when %s is missing', (key) => {
-    delete process.env[key];
-    expect(() => loadEnv(3001)).toThrow(new RegExp(key));
-  });
+  it.each(['JWT_SECRET', 'ADMIN_PASSWORD', 'ENCRYPTION_KEY'])(
+    'throws when %s is missing',
+    (key) => {
+      delete process.env[key];
+      expect(() => loadEnv(3001)).toThrow(new RegExp(key));
+    },
+  );
 
   it('treats a whitespace-only required var as missing', () => {
     process.env.JWT_SECRET = '   ';

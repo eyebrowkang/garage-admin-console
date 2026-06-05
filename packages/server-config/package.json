@@ -18,6 +18,8 @@
     "build": "tsc",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "format": "prettier --write . --ignore-path ../../.prettierignore",
+    "format:check": "prettier --check . --ignore-path ../../.prettierignore",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
     "test:run": "vitest run"

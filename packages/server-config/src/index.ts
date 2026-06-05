@@ -338,7 +338,10 @@ async function executeSqliteQuery(
 
 export function createSqliteDb<TSchema extends Record<string, unknown>>(
   schema: TSchema,
-  { dataDir = process.env.DATA_DIR ?? process.cwd(), filename = 'data.db' }: CreateSqliteDbOptions = {},
+  {
+    dataDir = process.env.DATA_DIR ?? process.cwd(),
+    filename = 'data.db',
+  }: CreateSqliteDbOptions = {},
 ) {
   const dbPath = path.resolve(dataDir, filename);
   const client = new DatabaseSync(dbPath);
@@ -365,7 +368,9 @@ export async function runSqliteMigrations<TSchema extends Record<string, unknown
 
       const client = sqliteClients.get(db as AnySqliteDatabase);
       if (!client) {
-        throw new Error('SQLite migrations can only run against a database created by createSqliteDb().');
+        throw new Error(
+          'SQLite migrations can only run against a database created by createSqliteDb().',
+        );
       }
 
       client.exec('BEGIN');
