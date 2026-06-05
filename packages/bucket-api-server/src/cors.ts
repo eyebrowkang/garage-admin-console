@@ -82,6 +82,17 @@ export interface EnsureCorsInput {
   logger: Logger;
 }
 
+export type BucketCorsCacheKeyPart = string | number | boolean;
+
+/**
+ * Builds a delimiter-safe, non-secret cache key for bucket CORS setup.
+ * Include the resolved S3 endpoint and bucket, plus any non-secret client
+ * identity fields needed to distinguish tenant/account scoped services.
+ */
+export function createBucketCorsCacheKey(...parts: BucketCorsCacheKeyPart[]): string {
+  return parts.map((part) => encodeURIComponent(String(part))).join(':');
+}
+
 /**
  * Ensures the bucket has a CORS rule sufficient for browser direct
  * upload/download. Never throws — CORS failures are logged but do not

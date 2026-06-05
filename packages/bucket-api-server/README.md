@@ -10,7 +10,9 @@ const router = createBucketRouter({ resolveContext, logger });
 ```
 
 `resolveContext(req)` maps a request to `{ client: S3Client, bucketName, cacheKey? }`;
-the package owns all S3, presign, multipart, lazy-CORS, and streaming-upload
+`cacheKey` should include the resolved S3 endpoint, bucket, and non-secret
+connection identity fields. Use `createBucketCorsCacheKey(...)` to escape parts.
+The package owns all S3, presign, multipart, lazy-CORS, and streaming-upload
 logic. Also exports `getCachedS3Client`, `BucketAccessError`, and
 `LARGE_FILE_THRESHOLD_BYTES` (via the `@garage/bucket-api-server/constants` entry).
 

@@ -1,5 +1,9 @@
 import express, { type Router } from 'express';
-import { createBucketRouter, BucketAccessError } from '@garage/bucket-api-server';
+import {
+  createBucketCorsCacheKey,
+  createBucketRouter,
+  BucketAccessError,
+} from '@garage/bucket-api-server';
 import { getParam } from '@garage/server-config';
 
 import { logger } from '../logger.js';
@@ -57,7 +61,15 @@ router.use(
         return {
           client: buildS3Client(key),
           bucketName: bucket,
-          cacheKey: `${clusterId}:${bucket}`,
+          cacheKey: createBucketCorsCacheKey(
+            'garage-admin',
+            clusterId,
+            key.s3Endpoint,
+            key.s3Region,
+            key.s3ForcePathStyle,
+            key.accessKeyId,
+            bucket,
+          ),
         };
       } catch (err) {
         if (err instanceof BucketAccessError) throw err;

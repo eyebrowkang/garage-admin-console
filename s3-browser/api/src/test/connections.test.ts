@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { HeadBucketCommand, ListBucketsCommand } from '@aws-sdk/client-s3';
 import { eq } from 'drizzle-orm';
 import jwt from 'jsonwebtoken';
@@ -44,6 +45,10 @@ async function insertConnection(overrides: Partial<typeof connections.$inferInse
     })
     .returning();
   return row!;
+}
+
+function s3CommandName(command: unknown): string {
+  return (command as { constructor?: { name?: string } })?.constructor?.name ?? 'unknown';
 }
 
 beforeAll(async () => {
@@ -245,5 +250,50 @@ describe('GET /api/connections/:connId/buckets — bucket listing', () => {
     mockSend.mockRejectedValue(new Error('network down'));
     const res = await request(app).get(`/api/connections/${conn.id}/buckets`).set(authHeader());
     expect(res.status).toBe(502);
+  });
+});
+
+describe('Bucket Backend API — CORS cache identity', () => {
+  it('re-checks CORS when the same connection bucket moves to another endpoint', async () => {
+    const bucket = `cors-cache-${randomUUID()}`;
+    const conn = await insertConnection({ endpoint: 'http://s3-a.local:3900' });
+    let uploadId = 0;
+    mockSend.mockImplementation(async (command: unknown) => {
+      const commandName = s3CommandName(command);
+      if (commandName === 'GetBucketCorsCommand') {
+        throw Object.assign(new Error('no rules'), { name: 'NoSuchCORSConfiguration' });
+      }
+      if (commandName === 'PutBucketCorsCommand') return {};
+      if (commandName === 'CreateMultipartUploadCommand') {
+        uploadId += 1;
+        return { UploadId: `upload-${uploadId}` };
+      }
+      throw new Error(`unexpected S3 command: ${commandName}`);
+    });
+
+    const first = await request(app)
+      .post(`/api/connections/${conn.id}/buckets/${bucket}/multipart/create`)
+      .set(authHeader())
+      .send({ key: 'large.bin' });
+    expect(first.status).toBe(200);
+
+    const update = await request(app)
+      .put(`/api/connections/${conn.id}`)
+      .set(authHeader())
+      .send({ endpoint: 'http://s3-b.local:3900' });
+    expect(update.status).toBe(200);
+
+    const second = await request(app)
+      .post(`/api/connections/${conn.id}/buckets/${bucket}/multipart/create`)
+      .set(authHeader())
+      .send({ key: 'large-again.bin' });
+    expect(second.status).toBe(200);
+
+    expect(
+      mockSend.mock.calls.filter(([command]) => s3CommandName(command) === 'GetBucketCorsCommand'),
+    ).toHaveLength(2);
+    expect(
+      mockSend.mock.calls.filter(([command]) => s3CommandName(command) === 'PutBucketCorsCommand'),
+    ).toHaveLength(2);
   });
 });

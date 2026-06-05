@@ -6,7 +6,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { _resetCorsCache, ensureBucketCors } from '../cors.js';
+import { _resetCorsCache, createBucketCorsCacheKey, ensureBucketCors } from '../cors.js';
 
 const logger = { error: vi.fn() };
 
@@ -49,6 +49,14 @@ function putRulesFrom(client: ReturnType<typeof makeClient>): CORSRule[] | undef
 beforeEach(() => {
   _resetCorsCache();
   logger.error.mockClear();
+});
+
+describe('createBucketCorsCacheKey', () => {
+  it('escapes delimiter-bearing parts', () => {
+    expect(createBucketCorsCacheKey('conn:1', 'http://s3.local:3900', true, 'bucket/name')).toBe(
+      'conn%3A1:http%3A%2F%2Fs3.local%3A3900:true:bucket%2Fname',
+    );
+  });
 });
 
 describe('ensureBucketCors — rule reconciliation', () => {
