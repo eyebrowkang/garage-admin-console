@@ -9,11 +9,11 @@ import {
   Download,
   ExternalLink,
   FolderInput,
-  ListChecks,
   MoreHorizontal,
   Pencil,
   RefreshCw,
   Search,
+  SquareCheck,
   Trash2,
   Upload,
   type LucideIcon,
@@ -29,6 +29,6 @@ export const OpenExternalActionIcon = ExternalLink;
 export const MoreActionIcon = MoreHorizontal;
 export const SearchActionIcon = Search;
 export const RefreshActionIcon = RefreshCw;
-export const SelectActionIcon = ListChecks;
+export const SelectActionIcon = SquareCheck;
 
 export type { LucideIcon };

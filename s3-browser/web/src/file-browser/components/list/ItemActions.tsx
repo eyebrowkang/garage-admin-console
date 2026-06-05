@@ -1,4 +1,4 @@
-import { Hash, Link2 } from 'lucide-react';
+import { Link2, Tag } from 'lucide-react';
 import {
   cn,
   DropdownMenu,
@@ -177,7 +177,7 @@ export function ItemActions({ item, itemKey, className, menuClassName }: ItemAct
               void copyText('Key', itemKey);
             }}
           >
-            <Hash />
+            <Tag />
             Copy key
           </DropdownMenuItem>
           <DropdownMenuItem
