@@ -21,7 +21,10 @@
 
 ## 截图
 
-![Cluster Overview](./screenshots/overview.png)
+| 集群概览 | S3 文件浏览器 |
+| --- | --- |
+| ![集群概览](./screenshots/ClusterOverview.png) | ![S3 文件浏览器](./screenshots/S3FileBrowser.png) |
+| ![集群概览（移动端）](./screenshots/ClusterOverviewMobile.png) | ![S3 文件浏览器（移动端）](./screenshots/S3FileBrowserMobile.png) |
 
 更多截图见 **[screenshots/README.md](./screenshots/README.md)**。
 
@@ -38,7 +41,7 @@ cp docker/.env.compose.example docker/.env
 docker compose -f docker/docker-compose.yml --env-file docker/.env up -d --build
 ```
 
-Admin 访问地址为 **http://localhost:3001**。单镜像构建、生产环境变量、以及全部 Compose 选项见 **[docs/deployment.md](./docs/deployment.md)**。
+Admin 访问地址为 **http://localhost:3001**。单镜像构建、生产环境变量、以及全部 Compose 选项见 **[docs/deployment_zh.md](./docs/deployment_zh.md)**。
 
 ## 架构（简述）
 
@@ -70,7 +73,7 @@ pnpm dev          # Admin api :3001 + web :5173
 | [docs/development.md](./docs/development.md) | 本地环境、env、开发服务、常见任务、排错 |
 | [docs/bucket-api.md](./docs/bucket-api.md) | 共享的 Bucket Backend API 契约 + 一致性测试套件 |
 | [docs/testing.md](./docs/testing.md) | 测试策略、覆盖率、离线 vs. 实机 |
-| [docs/deployment.md](./docs/deployment.md) | Docker 镜像、生产环境变量、Compose |
+| [docs/deployment_zh.md](./docs/deployment_zh.md) | Docker 镜像、生产环境变量、Compose |
 | [CONTRIBUTING.md](./CONTRIBUTING.md) | 分支、Conventional Commits、版本、代码风格 |
 | [AGENTS.md](./AGENTS.md) | 面向 Agent 的仓库导览 |
 
