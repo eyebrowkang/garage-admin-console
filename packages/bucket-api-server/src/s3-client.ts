@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto';
 import { S3Client, type S3ClientConfig } from '@aws-sdk/client-s3';
 
+import { createTtlSweeper } from './ttl-sweep.js';
+
 export type { S3Client } from '@aws-sdk/client-s3';
 
 export interface S3ClientCredentials {
@@ -56,6 +58,15 @@ interface CachedClient {
 
 const clientCache = new Map<string, CachedClient>();
 
+// Reclaim clients that go idle (never re-looked-up) so their keep-alive agents
+// don't linger. The relookup path below still evicts on access; this sweeper
+// covers the idle case. Timer is unref'd and self-stops when the cache empties.
+const CLIENT_SWEEP_INTERVAL_MS = 60 * 1000;
+const sweeper = createTtlSweeper(clientCache, (entry, now) => entry.expiresAt <= now, {
+  intervalMs: CLIENT_SWEEP_INTERVAL_MS,
+  onEvict: (entry) => entry.client.destroy(),
+});
+
 function clientCacheKey(o: S3ClientOptions): string {
   return createHash('sha256')
     .update(
@@ -81,6 +92,7 @@ export function getCachedS3Client(options: S3ClientOptions): S3Client {
   if (hit) hit.client.destroy();
   const client = createS3Client(options);
   clientCache.set(key, { client, expiresAt: now + CLIENT_TTL_MS });
+  sweeper.ensure();
   return client;
 }
 
@@ -88,4 +100,5 @@ export function getCachedS3Client(options: S3ClientOptions): S3Client {
 export function _resetS3ClientCacheForTests(): void {
   for (const { client } of clientCache.values()) client.destroy();
   clientCache.clear();
+  sweeper.stop();
 }
