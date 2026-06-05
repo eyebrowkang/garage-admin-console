@@ -1,5 +1,6 @@
 export { cn } from './lib/cn';
 export { useToast, toast } from './hooks/use-toast';
+export * from './hooks/use-copy-to-clipboard';
 export * from './hooks/use-media-query';
 export * from './hooks/use-tab-hotkeys';
 export * from './hooks/use-view-mode';

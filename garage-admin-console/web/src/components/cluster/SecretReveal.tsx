@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
-import { Copy, Eye, EyeOff } from 'lucide-react';
-import { Button } from '@garage/ui';
+import { useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
+import { Button, CopyButton } from '@garage/ui';
 
 interface SecretRevealProps {
   label: string;
@@ -10,22 +10,6 @@ interface SecretRevealProps {
 
 export function SecretReveal({ label, value, hidden = true }: SecretRevealProps) {
   const [isRevealed, setIsRevealed] = useState(!hidden);
-  const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    if (!copied) return;
-    const timer = window.setTimeout(() => setCopied(false), 1500);
-    return () => window.clearTimeout(timer);
-  }, [copied]);
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied(true);
-    } catch {
-      // Clipboard API not available
-    }
-  };
 
   const maskedValue = '•'.repeat(Math.min(32, value.length));
 
@@ -47,12 +31,9 @@ export function SecretReveal({ label, value, hidden = true }: SecretRevealProps)
               {isRevealed ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </Button>
           )}
-          <Button variant="ghost" size="icon" onClick={handleCopy} title="Copy">
-            <Copy className="h-4 w-4" />
-          </Button>
+          <CopyButton value={value} label={label} />
         </div>
       </div>
-      {copied && <div className="text-xs text-success mt-1">Copied!</div>}
     </div>
   );
 }
