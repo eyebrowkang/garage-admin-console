@@ -1,0 +1,184 @@
+name: Live tests (contract + E2E)
+
+# The offline `pnpm test` suite gates every PR. The contract suite and Playwright
+# E2E need a real Garage/S3 backend, so they run here against an ephemeral Garage
+# spun up in the job. Kept off the per-PR critical path (slow + needs Docker):
+# runs post-merge on main and on demand.
+#
+# NOTE: validate-on-first-run. The Garage provisioning below follows the standard
+# quick-start, but the exact CLI/admin-token behaviour is version-specific — pin
+# GARAGE_IMAGE to the tag matching your cluster and adjust if the first run fails.
+
+on:
+  workflow_dispatch:
+    inputs:
+      garage_image:
+        description: 'Garage Docker image (pin to your cluster version)'
+        required: false
+        type: string
+        default: 'dxflrs/garage:v2.0.0'
+  push:
+    branches: [main]
+
+concurrency:
+  group: live-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  GARAGE_IMAGE: ${{ inputs.garage_image || 'dxflrs/garage:v2.0.0' }}
+  ADMIN_TOKEN: ci-admin-token-please-change
+  RPC_SECRET: 0000000000000000000000000000000000000000000000000000000000000000
+  TEST_S3_BUCKET: s3-browser-test
+  TEST_S3_REGION: garage
+  BFF_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef
+  BFF_JWT_SECRET: ci-jwt-secret
+  BFF_ADMIN_PASSWORD: ci-admin-password
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Start and provision Garage
+        id: garage
+        run: |
+          set -euo pipefail
+          cat > /tmp/garage.toml <<EOF
+          metadata_dir = "/var/lib/garage/meta"
+          data_dir = "/var/lib/garage/data"
+          db_engine = "sqlite"
+          replication_factor = 1
+          rpc_bind_addr = "[::]:3901"
+          rpc_secret = "${RPC_SECRET}"
+          [s3_api]
+          s3_region = "${TEST_S3_REGION}"
+          api_bind_addr = "[::]:3900"
+          root_domain = ".s3.garage.local"
+          [admin]
+          api_bind_addr = "[::]:3903"
+          admin_token = "${ADMIN_TOKEN}"
+          EOF
+
+          docker run -d --name garage --network host \
+            -v /tmp/garage.toml:/etc/garage.toml "${GARAGE_IMAGE}"
+
+          g() { docker exec garage /garage -c /etc/garage.toml "$@"; }
+
+          # Wait for the node to be up, then assign a layout (single node).
+          for i in $(seq 1 30); do g status >/dev/null 2>&1 && break || sleep 2; done
+          NODE_ID=$(g status | awk 'NR>2 && $1 ~ /^[0-9a-f]/ {print $1; exit}')
+          echo "Node: $NODE_ID"
+          g layout assign -z dc1 -c 1G "$NODE_ID"
+          g layout apply --version 1
+
+          # Create the test bucket + an access key that owns it.
+          g bucket create "${TEST_S3_BUCKET}"
+          KEY_OUT=$(g key create ci-key)
+          ACCESS_KEY=$(echo "$KEY_OUT" | grep -iE 'Key ID' | grep -oE 'GK[0-9a-f]+' | head -1)
+          SECRET_KEY=$(echo "$KEY_OUT" | grep -iE 'Secret key' | awk '{print $NF}' | head -1)
+          g bucket allow --read --write --owner "${TEST_S3_BUCKET}" --key ci-key
+
+          echo "access_key=$ACCESS_KEY" >> "$GITHUB_OUTPUT"
+          echo "secret_key=$SECRET_KEY" >> "$GITHUB_OUTPUT"
+
+      - name: Build packages + S3 Browser BFF
+        run: |
+          pnpm build:packages
+          pnpm -C s3-browser/api build
+
+      - name: Run the Bucket Backend API contract suite (connections flavor)
+        env:
+          # BFF under test
+          JWT_SECRET: ${{ env.BFF_JWT_SECRET }}
+          ENCRYPTION_KEY: ${{ env.BFF_ENCRYPTION_KEY }}
+          ADMIN_PASSWORD: ${{ env.BFF_ADMIN_PASSWORD }}
+          PORT: '3002'
+          DATA_DIR: /tmp/s3-browser-data
+          LOG_LEVEL: warn
+          # Contract suite config
+          TEST_BFF_URL: http://localhost:3002/api
+          TEST_BFF_PASSWORD: ${{ env.BFF_ADMIN_PASSWORD }}
+          TEST_S3_ENDPOINT: http://localhost:3900
+          TEST_S3_ACCESS_KEY: ${{ steps.garage.outputs.access_key }}
+          TEST_S3_SECRET_KEY: ${{ steps.garage.outputs.secret_key }}
+          TEST_S3_REGION: ${{ env.TEST_S3_REGION }}
+          TEST_S3_FORCE_PATH_STYLE: 'true'
+          TEST_S3_BUCKET: ${{ env.TEST_S3_BUCKET }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/s3-browser-data
+          node s3-browser/api/dist/index.js &
+          BFF_PID=$!
+          trap "kill $BFF_PID 2>/dev/null || true" EXIT
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3002/api/health >/dev/null && break || sleep 1
+          done
+          pnpm -F @garage/bucket-api-contract-tests test:run
+
+      - name: Garage logs on failure
+        if: failure()
+        run: docker logs garage 2>&1 | tail -100
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile --prefer-offline
+      - run: pnpm exec playwright install --with-deps chromium
+
+      - name: Start and provision Garage
+        id: garage
+        run: |
+          set -euo pipefail
+          cat > /tmp/garage.toml <<EOF
+          metadata_dir = "/var/lib/garage/meta"
+          data_dir = "/var/lib/garage/data"
+          db_engine = "sqlite"
+          replication_factor = 1
+          rpc_bind_addr = "[::]:3901"
+          rpc_secret = "${RPC_SECRET}"
+          [s3_api]
+          s3_region = "${TEST_S3_REGION}"
+          api_bind_addr = "[::]:3900"
+          root_domain = ".s3.garage.local"
+          [admin]
+          api_bind_addr = "[::]:3903"
+          admin_token = "${ADMIN_TOKEN}"
+          EOF
+          docker run -d --name garage --network host \
+            -v /tmp/garage.toml:/etc/garage.toml "${GARAGE_IMAGE}"
+          g() { docker exec garage /garage -c /etc/garage.toml "$@"; }
+          for i in $(seq 1 30); do g status >/dev/null 2>&1 && break || sleep 2; done
+          NODE_ID=$(g status | awk 'NR>2 && $1 ~ /^[0-9a-f]/ {print $1; exit}')
+          g layout assign -z dc1 -c 1G "$NODE_ID"
+          g layout apply --version 1
+
+      - name: Run Playwright E2E against the Admin Console
+        env:
+          ADMIN_PASSWORD: ${{ env.BFF_ADMIN_PASSWORD }}
+          JWT_SECRET: ${{ env.BFF_JWT_SECRET }}
+          ENCRYPTION_KEY: ${{ env.BFF_ENCRYPTION_KEY }}
+          TEST_GARAGE_ENDPOINT: http://localhost:3903
+          TEST_GARAGE_ADMIN_TOKEN: ${{ env.ADMIN_TOKEN }}
+        run: pnpm e2e
+
+      - name: Garage logs on failure
+        if: failure()
+        run: docker logs garage 2>&1 | tail -100
