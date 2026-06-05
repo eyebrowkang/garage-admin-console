@@ -14,6 +14,7 @@ import clusterRouter from './routes/clusters.js';
 import authRouter from './routes/auth.js';
 import proxyRouter from './routes/proxy.js';
 import bucketRouter from './routes/buckets.js';
+import { rawMetricsHandler } from './routes/metrics.js';
 import { authenticateToken } from './middleware/auth.middleware.js';
 
 export const app: Express = express();
@@ -43,6 +44,13 @@ app.get('/api/health', async (_req, res) => {
     res.status(503).json({ status: 'error', timestamp: new Date() });
   }
 });
+
+// Raw Prometheus metrics — intentionally PUBLIC (browser-navigable / scrapeable;
+// a browser or Prometheus can't carry the console JWT). Transparently proxies
+// the cluster's Garage /metrics. There is no Metrics UI by design. Registered
+// before the SPA fallback so /clusters/:id/metrics returns raw text, not HTML.
+// See routes/metrics.ts for the rationale + the security trade-off.
+app.get('/clusters/:clusterId/metrics', rawMetricsHandler);
 
 // Protected routes
 app.use('/api/clusters', authenticateToken, clusterRouter);
