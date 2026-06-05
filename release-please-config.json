@@ -12,9 +12,7 @@
     "s3-browser": {
       "release-type": "simple",
       "component": "s3-browser",
-      "changelog-path": "CHANGELOG.md",
-      "bootstrap-sha": "588cdfdd1763b87241cc6f19867773d1f5955084",
-      "release-as": "1.0.0"
+      "changelog-path": "CHANGELOG.md"
     }
   }
 }
