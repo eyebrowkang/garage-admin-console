@@ -20,6 +20,7 @@ export interface S3Object {
   etag: string;
   lastModified: string | null;
   storageClass: string | null;
+  contentType?: string | null;
 }
 
 export interface ListResult {

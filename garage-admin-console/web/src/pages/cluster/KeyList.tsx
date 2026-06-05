@@ -1,51 +1,51 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowUpDown, ArrowUp, ArrowDown, Search } from 'lucide-react';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
   Button,
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogTrigger,
   DialogFooter,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
   Input,
   Label,
   Badge,
-  Checkbox,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Alert,
   AlertDescription,
   AlertTitle,
+  ResourceList,
+  type ResourceListColumn,
+  CopyValue,
+  EmptyValue,
+  ExpirationPicker,
+  InlineLoadingState,
+  PermissionSegmented,
 } from '@garage/ui';
+import { MoreHorizontal } from 'lucide-react';
 import { api, proxyPath } from '@/lib/api';
-import { formatDateTime24h, formatShortId } from '@/lib/format';
-import { getApiErrorMessage } from '@/lib/errors';
-import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
-import { CopyButton } from '@/components/cluster/CopyButton';
-import { TableEmptyState } from '@/components/cluster/TableEmptyState';
-import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
+import { formatDateTime, formatShortId, getApiErrorMessage } from '@garage/web-shared';
+import { ConfirmDialog } from '@garage/ui';
+import { ModulePageHeader } from '@garage/ui';
 import { TableLoadingState } from '@/components/cluster/TableLoadingState';
 import { useClusterContext } from '@/contexts/ClusterContext';
-import { AddActionIcon, CopyActionIcon, DeleteActionIcon } from '@/lib/action-icons';
+import { AddActionIcon, DeleteActionIcon, EditActionIcon } from '@/lib/action-icons';
 import { KeyIcon } from '@/lib/entity-icons';
-import { toast } from '@/hooks/use-toast';
+import { toast } from '@garage/ui';
+import { runBulkDelete } from '@/lib/bulk-delete';
 import { useKeys, useImportKey } from '@/hooks/useKeys';
-import type { CreateKeyRequest, GetKeyInfoResponse } from '@/types/garage';
-
-const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
-const MINUTE_OPTIONS = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
+import type {
+  CreateKeyRequest,
+  GetKeyInfoResponse,
+  ListKeysResponseItem,
+  UpdateKeyRequest,
+} from '@/types/garage';
 
 export function KeyList() {
   const { clusterId } = useClusterContext();
@@ -61,33 +61,39 @@ export function KeyList() {
 
   const [isDialogOpen, setIsDialogOpen] = useState(createParam === '1');
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortField, setSortField] = useState<'id' | 'name' | 'created' | 'expiration'>('created');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [newKeyName, setNewKeyName] = useState(prefillNameParam);
   const [createExpirationDate, setCreateExpirationDate] = useState('');
   const [createExpirationHour, setCreateExpirationHour] = useState('00');
   const [createExpirationMinute, setCreateExpirationMinute] = useState('00');
-  const [createNeverExpires, setCreateNeverExpires] = useState(false);
-  const [createBucketPermission, setCreateBucketPermission] = useState<
-    'default' | 'allow' | 'deny'
-  >('default');
+  const [createNeverExpires, setCreateNeverExpires] = useState(true);
+  const [createBucketPermission, setCreateBucketPermission] = useState<'allow' | 'deny'>('deny');
   const [importAccessKeyId, setImportAccessKeyId] = useState('');
   const [importSecretAccessKey, setImportSecretAccessKey] = useState('');
   const [importKeyName, setImportKeyName] = useState('');
   const [importError, setImportError] = useState('');
   const [actionError, setActionError] = useState('');
   const [createdKey, setCreatedKey] = useState<GetKeyInfoResponse | null>(null);
-  const [copiedValue, setCopiedValue] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
+  const [bulkDelete, setBulkDelete] = useState<{ ids: string[]; clear: () => void } | null>(null);
+  const [bulkPending, setBulkPending] = useState(false);
+  const [editKey, setEditKey] = useState<ListKeysResponseItem | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editExpirationDate, setEditExpirationDate] = useState('');
+  const [editExpirationHour, setEditExpirationHour] = useState('00');
+  const [editExpirationMinute, setEditExpirationMinute] = useState('00');
+  const [editNeverExpires, setEditNeverExpires] = useState(false);
+  const [editBucketPermission, setEditBucketPermission] = useState<'allow' | 'deny'>('deny');
+  const [editPermStatus, setEditPermStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [editError, setEditError] = useState('');
+  const editReqRef = useRef(0);
 
   const resetCreateForm = () => {
     setNewKeyName('');
     setCreateExpirationDate('');
     setCreateExpirationHour('00');
     setCreateExpirationMinute('00');
-    setCreateNeverExpires(false);
-    setCreateBucketPermission('default');
+    setCreateNeverExpires(true);
+    setCreateBucketPermission('deny');
     setActionError('');
   };
 
@@ -161,7 +167,7 @@ export function KeyList() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['keys', clusterId] });
       setDeleteConfirm(null);
-      toast({ title: 'Key deleted' });
+      toast({ title: 'Key deleted', variant: 'success' });
     },
     onError: (err) => {
       toast({
@@ -172,13 +178,33 @@ export function KeyList() {
     },
   });
 
-  const handleCopy = async (value: string) => {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopiedValue(value);
-      setTimeout(() => setCopiedValue(null), 1500);
-    } catch {
-      // ignore clipboard errors
+  const handleBulkDelete = async () => {
+    if (!bulkDelete) return;
+    setBulkPending(true);
+    const outcome = await runBulkDelete(bulkDelete.ids, (id) =>
+      api
+        .post(proxyPath(clusterId, `/v2/DeleteKey?id=${encodeURIComponent(id)}`), {})
+        .then(() => undefined),
+    );
+    setBulkPending(false);
+    queryClient.invalidateQueries({ queryKey: ['keys', clusterId] });
+    bulkDelete.clear();
+    setBulkDelete(null);
+
+    if (outcome.failed.length === 0) {
+      toast({
+        title: `Deleted ${outcome.ok.length} key${outcome.ok.length === 1 ? '' : 's'}`,
+        variant: 'success',
+      });
+    } else {
+      toast({
+        title:
+          outcome.ok.length === 0
+            ? `Couldn't delete ${outcome.failed.length} key${outcome.failed.length === 1 ? '' : 's'}`
+            : `Deleted ${outcome.ok.length}, ${outcome.failed.length} failed`,
+        description: `${outcome.failed[0].message}${outcome.failed.length > 1 ? ` (+${outcome.failed.length - 1} more)` : ''}`,
+        variant: 'destructive',
+      });
     }
   };
 
@@ -213,55 +239,146 @@ export function KeyList() {
       queryClient.invalidateQueries({ queryKey: ['keys', clusterId] });
       setIsImportDialogOpen(false);
       resetImportForm();
-      toast({ title: 'Key imported' });
+      toast({ title: 'Key imported', variant: 'success' });
     } catch (err) {
       setImportError(getApiErrorMessage(err, 'Failed to import key.'));
     }
   };
 
-  const toggleSort = (field: typeof sortField) => {
-    if (sortField === field) {
-      setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
+  const toDateParts = (value?: string | null) => {
+    if (!value) return { date: '', hour: '00', minute: '00' };
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return { date: '', hour: '00', minute: '00' };
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return {
+      date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+      hour: pad(d.getHours()),
+      minute: pad(d.getMinutes()),
+    };
   };
 
-  const sortIcon = (field: typeof sortField) => {
-    if (sortField !== field)
-      return <ArrowUpDown className="ml-1 inline h-3 w-3 text-muted-foreground/50" />;
-    return sortDirection === 'asc' ? (
-      <ArrowUp className="ml-1 inline h-3 w-3" />
-    ) : (
-      <ArrowDown className="ml-1 inline h-3 w-3" />
-    );
-  };
+  const editExpirationValue = editExpirationDate
+    ? new Date(`${editExpirationDate}T${editExpirationHour}:${editExpirationMinute}:00`)
+    : null;
+  const editExpirationIso =
+    editExpirationValue && !Number.isNaN(editExpirationValue.getTime())
+      ? editExpirationValue.toISOString()
+      : null;
+  const editExpirationInvalid = Boolean(editExpirationDate) && !editExpirationIso;
 
-  const filteredAndSorted = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim();
-    let result = keys;
-    if (q) {
-      result = result.filter(
-        (k) => k.id.toLowerCase().includes(q) || k.name.toLowerCase().includes(q),
+  const openEdit = async (key: ListKeysResponseItem) => {
+    const parts = toDateParts(key.expiration);
+    const req = ++editReqRef.current;
+    setEditKey(key);
+    setEditName(key.name ?? '');
+    setEditExpirationDate(parts.date);
+    setEditExpirationHour(parts.hour);
+    setEditExpirationMinute(parts.minute);
+    setEditNeverExpires(!key.expiration);
+    setEditBucketPermission('deny');
+    setEditPermStatus('loading');
+    setEditError('');
+    // The list endpoint omits permissions, so fetch them to complete the form.
+    try {
+      const res = await api.get<GetKeyInfoResponse>(
+        proxyPath(clusterId, `/v2/GetKeyInfo?id=${encodeURIComponent(key.id)}`),
       );
+      if (editReqRef.current !== req) return; // a newer edit superseded this one
+      setEditBucketPermission(res.data?.permissions?.createBucket ? 'allow' : 'deny');
+      setEditPermStatus('ready');
+    } catch {
+      if (editReqRef.current !== req) return;
+      setEditPermStatus('error');
     }
-    return [...result].sort((a, b) => {
-      const dir = sortDirection === 'asc' ? 1 : -1;
-      switch (sortField) {
-        case 'id':
-          return dir * a.id.localeCompare(b.id);
-        case 'name':
-          return dir * (a.name || '').localeCompare(b.name || '');
-        case 'created':
-          return dir * (a.created || '').localeCompare(b.created || '');
-        case 'expiration':
-          return dir * (a.expiration || '').localeCompare(b.expiration || '');
-        default:
-          return 0;
+  };
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, payload }: { id: string; payload: UpdateKeyRequest }) => {
+      await api.post(proxyPath(clusterId, `/v2/UpdateKey?id=${encodeURIComponent(id)}`), payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['keys', clusterId] });
+      setEditKey(null);
+      toast({ title: 'Key updated', variant: 'success' });
+    },
+    onError: (err) => {
+      setEditError(getApiErrorMessage(err, 'Failed to update key.'));
+    },
+  });
+
+  const handleUpdate = () => {
+    if (!editKey || editExpirationInvalid) return;
+    const payload: UpdateKeyRequest = {};
+    const trimmedName = editName.trim();
+    if (trimmedName !== (editKey.name ?? '')) {
+      payload.name = trimmedName || null;
+    }
+    if (editNeverExpires) {
+      payload.neverExpires = true;
+    } else if (editExpirationIso) {
+      payload.expiration = editExpirationIso;
+    } else if (editKey.expiration) {
+      payload.expiration = null;
+    }
+    if (editPermStatus === 'ready') {
+      if (editBucketPermission === 'allow') {
+        payload.allow = { createBucket: true };
+      } else {
+        payload.deny = { createBucket: true };
       }
-    });
-  }, [keys, searchQuery, sortField, sortDirection]);
+    }
+    updateMutation.mutate({ id: editKey.id, payload });
+  };
+
+  const columns: ResourceListColumn<ListKeysResponseItem>[] = [
+    {
+      id: 'name',
+      header: 'Name',
+      sortable: true,
+      sortAccessor: (k) => k.name ?? '',
+      mobileHidden: true, // becomes the mobile card title
+      cell: (k) => (k.name ? k.name : <EmptyValue />),
+    },
+    {
+      id: 'id',
+      header: 'Access Key ID',
+      sortable: true,
+      sortAccessor: (k) => k.id,
+      mobileHidden: true, // mobile identity is the name (title) + id (subtitle)
+      cellClassName: 'text-xs',
+      cell: (k) => (
+        <CopyValue value={k.id} label="Access key ID" className="max-w-[26ch] font-mono">
+          {k.id}
+        </CopyValue>
+      ),
+    },
+    {
+      id: 'status',
+      header: 'Status',
+      cell: (k) =>
+        k.expired ? (
+          <Badge variant="destructive">Expired</Badge>
+        ) : (
+          <Badge variant="success">Active</Badge>
+        ),
+    },
+    {
+      id: 'created',
+      header: 'Created',
+      sortable: true,
+      sortAccessor: (k) => k.created ?? '',
+      cellClassName: 'text-xs text-muted-foreground',
+      cell: (k) => (k.created ? formatDateTime(k.created) : <EmptyValue />),
+    },
+    {
+      id: 'expiration',
+      header: 'Expires',
+      sortable: true,
+      sortAccessor: (k) => k.expiration ?? '',
+      cellClassName: 'text-xs text-muted-foreground',
+      cell: (k) => (k.expiration ? formatDateTime(k.expiration) : <EmptyValue />),
+    },
+  ];
 
   if (isLoading) return <TableLoadingState label="Loading access keys..." />;
 
@@ -271,7 +388,7 @@ export function KeyList() {
         title="Access Keys"
         description="Top-level key inventory. Open a key for granular permission controls."
         actions={
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2">
             <Dialog
               open={isImportDialogOpen}
               onOpenChange={(open) => {
@@ -279,14 +396,12 @@ export function KeyList() {
                 if (!open) resetImportForm();
               }}
             >
-              <DialogTrigger asChild>
-                <Button size="sm" variant="outline">
-                  Import Key
-                </Button>
-              </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Import Access Key</DialogTitle>
+                  <DialogDescription>
+                    Migration only — re-register an existing key from its id and secret.
+                  </DialogDescription>
                 </DialogHeader>
                 <Alert variant="warning">
                   <AlertTitle>Migration only</AlertTitle>
@@ -296,50 +411,60 @@ export function KeyList() {
                     break your Garage cluster.
                   </AlertDescription>
                 </Alert>
-                <div className="space-y-4">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleImport();
+                  }}
+                  className="space-y-4"
+                >
                   <div className="space-y-2">
-                    <Label>Access Key ID</Label>
+                    <Label htmlFor="import-id">Access Key ID</Label>
                     <Input
+                      id="import-id"
+                      autoFocus
                       value={importAccessKeyId}
                       onChange={(e) => setImportAccessKeyId(e.target.value)}
                       placeholder="AKIA..."
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Secret Access Key</Label>
+                    <Label htmlFor="import-secret">Secret Access Key</Label>
                     <Input
+                      id="import-secret"
                       type="password"
                       value={importSecretAccessKey}
                       onChange={(e) => setImportSecretAccessKey(e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Key Name (optional)</Label>
+                    <Label htmlFor="import-name">Key Name (optional)</Label>
                     <Input
+                      id="import-name"
                       value={importKeyName}
                       onChange={(e) => setImportKeyName(e.target.value)}
                       placeholder="migrated-key"
                     />
                   </div>
-                </div>
-                {importError && (
-                  <Alert variant="destructive">
-                    <AlertTitle>Import failed</AlertTitle>
-                    <AlertDescription>{importError}</AlertDescription>
-                  </Alert>
-                )}
-                <DialogFooter>
-                  <Button
-                    onClick={handleImport}
-                    disabled={
-                      importKeyMutation.isPending ||
-                      !importAccessKeyId.trim() ||
-                      !importSecretAccessKey.trim()
-                    }
-                  >
-                    {importKeyMutation.isPending ? 'Importing...' : 'Import'}
-                  </Button>
-                </DialogFooter>
+                  {importError && (
+                    <Alert variant="destructive">
+                      <AlertTitle>Import failed</AlertTitle>
+                      <AlertDescription>{importError}</AlertDescription>
+                    </Alert>
+                  )}
+                  <DialogFooter>
+                    <Button
+                      type="submit"
+                      disabled={
+                        importKeyMutation.isPending ||
+                        !importAccessKeyId.trim() ||
+                        !importSecretAccessKey.trim()
+                      }
+                    >
+                      {importKeyMutation.isPending ? 'Importing...' : 'Import Key'}
+                    </Button>
+                  </DialogFooter>
+                </form>
               </DialogContent>
             </Dialog>
             <Dialog
@@ -350,136 +475,85 @@ export function KeyList() {
               }}
             >
               <DialogTrigger asChild>
-                <Button size="sm">
+                <Button className="flex-1 sm:flex-initial">
                   <AddActionIcon className="h-4 w-4" /> Create Key
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Create Access Key</DialogTitle>
+                  <DialogDescription>
+                    Generates a new S3 access key and secret. The secret is shown once.
+                  </DialogDescription>
                 </DialogHeader>
-                <div className="space-y-4">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleCreate();
+                  }}
+                  className="space-y-4"
+                >
                   <div className="space-y-2">
-                    <Label>Key Name</Label>
+                    <Label htmlFor="key-name">Key name</Label>
                     <Input
+                      id="key-name"
+                      autoFocus
                       value={newKeyName}
                       onChange={(e) => setNewKeyName(e.target.value)}
                       placeholder="my-app-key"
                     />
                   </div>
-                  <div className="space-y-3">
-                    <div className="space-y-2">
-                      <Label>Expiration (24h)</Label>
-                      <div className="flex flex-wrap items-end gap-3">
-                        <div className="space-y-1">
-                          <div className="text-xs text-muted-foreground">Date</div>
-                          <Input
-                            type="date"
-                            value={createExpirationDate}
-                            onChange={(e) => setCreateExpirationDate(e.target.value)}
-                            disabled={createNeverExpires}
-                            className="min-w-[170px]"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <div className="text-xs text-muted-foreground">Time</div>
-                          <div className="flex items-center gap-2">
-                            <Select
-                              value={createExpirationHour}
-                              onValueChange={setCreateExpirationHour}
-                              disabled={createNeverExpires}
-                            >
-                              <SelectTrigger className="w-[84px]">
-                                <SelectValue placeholder="HH" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {HOUR_OPTIONS.map((hour) => (
-                                  <SelectItem key={hour} value={hour}>
-                                    {hour}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <span className="text-sm text-muted-foreground">:</span>
-                            <Select
-                              value={createExpirationMinute}
-                              onValueChange={setCreateExpirationMinute}
-                              disabled={createNeverExpires}
-                            >
-                              <SelectTrigger className="w-[84px]">
-                                <SelectValue placeholder="MM" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {MINUTE_OPTIONS.map((minute) => (
-                                  <SelectItem key={minute} value={minute}>
-                                    {minute}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Leave empty to use the default expiration policy.
-                      </p>
-                      {expirationInvalid && (
-                        <p className="text-xs text-destructive">Invalid date and time.</p>
-                      )}
-                    </div>
-                    <label className="flex items-center gap-2 text-sm text-foreground">
-                      <Checkbox
-                        checked={createNeverExpires}
-                        onCheckedChange={(checked) => {
-                          setCreateNeverExpires(checked);
-                          if (checked) {
-                            setCreateExpirationDate('');
-                            setCreateExpirationHour('00');
-                            setCreateExpirationMinute('00');
-                          }
-                        }}
-                      />
-                      Never expires
-                    </label>
+                  <div className="space-y-2">
+                    <Label>Expiration</Label>
+                    <ExpirationPicker
+                      date={createExpirationDate}
+                      hour={createExpirationHour}
+                      minute={createExpirationMinute}
+                      neverExpires={createNeverExpires}
+                      onDateChange={setCreateExpirationDate}
+                      onHourChange={setCreateExpirationHour}
+                      onMinuteChange={setCreateExpirationMinute}
+                      onNeverExpiresChange={setCreateNeverExpires}
+                      invalid={expirationInvalid}
+                    />
                   </div>
                   <div className="space-y-2">
-                    <Label>Bucket Creation Permission</Label>
-                    <Select
+                    <Label>Bucket creation permission</Label>
+                    <PermissionSegmented
                       value={createBucketPermission}
-                      onValueChange={(value) =>
-                        setCreateBucketPermission(value as 'default' | 'allow' | 'deny')
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Default" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="default">Default (no override)</SelectItem>
-                        <SelectItem value="allow">Allow create bucket</SelectItem>
-                        <SelectItem value="deny">Deny create bucket</SelectItem>
-                      </SelectContent>
-                    </Select>
+                      onChange={setCreateBucketPermission}
+                      ariaLabel="Bucket creation permission"
+                    />
                     <p className="text-xs text-muted-foreground">
-                      Controls whether the key can create buckets.
+                      Whether this key may create buckets.
                     </p>
                   </div>
-                </div>
-                {actionError && (
-                  <Alert variant="destructive">
-                    <AlertTitle>Key creation failed</AlertTitle>
-                    <AlertDescription>{actionError}</AlertDescription>
-                  </Alert>
-                )}
-                <DialogFooter>
-                  <Button
-                    onClick={handleCreate}
-                    disabled={expirationInvalid || createMutation.isPending}
-                  >
-                    {createMutation.isPending ? 'Creating...' : 'Create'}
-                  </Button>
-                </DialogFooter>
+                  {actionError && (
+                    <Alert variant="destructive">
+                      <AlertTitle>Key creation failed</AlertTitle>
+                      <AlertDescription>{actionError}</AlertDescription>
+                    </Alert>
+                  )}
+                  <DialogFooter>
+                    <Button type="submit" disabled={expirationInvalid || createMutation.isPending}>
+                      {createMutation.isPending ? 'Creating...' : 'Create Key'}
+                    </Button>
+                  </DialogFooter>
+                </form>
               </DialogContent>
             </Dialog>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon" aria-label="More key actions">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={() => setIsImportDialogOpen(true)}>
+                  Import key
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         }
       />
@@ -492,117 +566,86 @@ export function KeyList() {
           </AlertDescription>
         </Alert>
       )}
-      {actionError && !isDialogOpen && (
-        <Alert variant="destructive">
-          <AlertTitle>Key action failed</AlertTitle>
-          <AlertDescription>{actionError}</AlertDescription>
-        </Alert>
-      )}
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search by ID or name..."
-          className="pl-9"
-        />
-      </div>
-
-      <div className="overflow-hidden rounded-lg border bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('id')}>
-                Access Key ID
-                {sortIcon('id')}
-              </TableHead>
-              <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('name')}>
-                Name
-                {sortIcon('name')}
-              </TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead
-                className="cursor-pointer select-none"
-                onClick={() => toggleSort('created')}
-              >
-                Created
-                {sortIcon('created')}
-              </TableHead>
-              <TableHead
-                className="cursor-pointer select-none"
-                onClick={() => toggleSort('expiration')}
-              >
-                Expires
-                {sortIcon('expiration')}
-              </TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredAndSorted.map((k) => (
-              <TableRow
-                key={k.id}
-                className="cursor-pointer hover:bg-muted/50"
-                onClick={() => navigate(`/clusters/${clusterId}/keys/${k.id}`)}
-              >
-                <TableCell className="text-xs">
-                  <div className="inline-flex items-center gap-1">
-                    <span>{formatShortId(k.id, 12)}</span>
-                    <CopyButton value={k.id} label="Access key ID" compact />
-                  </div>
-                </TableCell>
-                <TableCell>{k.name || '-'}</TableCell>
-                <TableCell>
-                  {k.expired ? (
-                    <Badge variant="destructive">Expired</Badge>
-                  ) : (
-                    <Badge variant="success">Active</Badge>
-                  )}
-                </TableCell>
-                <TableCell className="text-xs text-muted-foreground">
-                  {formatDateTime24h(k.created)}
-                </TableCell>
-                <TableCell className="text-xs text-muted-foreground">
-                  {formatDateTime24h(k.expiration)}
-                </TableCell>
-                <TableCell>
-                  <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive"
-                      onClick={() => setDeleteConfirm({ id: k.id, name: k.name || k.id })}
-                    >
-                      <DeleteActionIcon className="h-3.5 w-3.5" />
-                      Delete
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-            {filteredAndSorted.length === 0 && (
-              <TableEmptyState
-                icon={KeyIcon}
-                title={searchQuery ? 'No keys match search' : 'No keys found'}
-                description={
-                  searchQuery
-                    ? `No results for "${searchQuery}". Try a different term.`
-                    : 'Create or import an access key to get started.'
-                }
-                colSpan={6}
-                action={
-                  !searchQuery && (
-                    <Button variant="outline" size="sm" onClick={() => setIsDialogOpen(true)}>
-                      <AddActionIcon className="h-4 w-4 mr-2" /> Create Key
-                    </Button>
-                  )
-                }
-              />
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      <ResourceList
+        items={keys}
+        getRowId={(k) => k.id}
+        columns={columns}
+        onRowClick={(k) => navigate(`/clusters/${clusterId}/keys/${k.id}`)}
+        getRowLabel={(k) => `Open access key ${k.name || formatShortId(k.id, 12)}`}
+        renderTitle={(k) =>
+          k.name ? (
+            <CopyValue value={k.name} label="Key name" className="max-w-full">
+              {k.name}
+            </CopyValue>
+          ) : (
+            <CopyValue value={k.id} label="Access key ID" className="max-w-full font-mono">
+              {k.id}
+            </CopyValue>
+          )
+        }
+        renderSubtitle={(k) =>
+          k.name ? (
+            <CopyValue
+              value={k.id}
+              label="Access key ID"
+              className="max-w-full font-mono text-xs text-muted-foreground"
+            >
+              {k.id}
+            </CopyValue>
+          ) : null
+        }
+        search={{
+          placeholder: 'Search by ID or name...',
+          predicate: (k, q) => k.id.toLowerCase().includes(q) || k.name.toLowerCase().includes(q),
+        }}
+        defaultSort={{ columnId: 'created', direction: 'desc' }}
+        filters={[
+          {
+            id: 'status',
+            label: 'Status',
+            options: [
+              { value: 'active', label: 'Active', predicate: (k) => !k.expired },
+              { value: 'expired', label: 'Expired', predicate: (k) => k.expired },
+            ],
+          },
+        ]}
+        selection={{
+          renderActions: (selected, clear) => (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setBulkDelete({ ids: selected.map((k) => k.id), clear })}
+            >
+              <DeleteActionIcon className="h-3.5 w-3.5" />
+              Delete {selected.length}
+            </Button>
+          ),
+        }}
+        actions={(k) => [
+          {
+            label: 'Edit',
+            icon: EditActionIcon,
+            onSelect: () => openEdit(k),
+          },
+          {
+            label: 'Delete',
+            icon: DeleteActionIcon,
+            destructive: true,
+            onSelect: () => setDeleteConfirm({ id: k.id, name: k.name || k.id }),
+          },
+        ]}
+        emptyState={{
+          icon: KeyIcon,
+          title: 'No keys found',
+          description: 'Create or import an access key to get started.',
+          action: (
+            <Button variant="outline" size="sm" onClick={() => setIsDialogOpen(true)}>
+              <AddActionIcon className="h-4 w-4 mr-2" /> Create Key
+            </Button>
+          ),
+        }}
+      />
 
       <Dialog
         open={Boolean(createdKey)}
@@ -615,47 +658,33 @@ export function KeyList() {
             <DialogTitle>Access Key Created</DialogTitle>
           </DialogHeader>
           {createdKey && (
-            <div className="space-y-4">
+            <div className="min-w-0 space-y-4">
               <div className="rounded-lg border bg-muted/40 p-3">
                 <div className="text-xs text-muted-foreground">Access Key ID</div>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm text-foreground break-all">
-                    {createdKey.accessKeyId}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleCopy(createdKey.accessKeyId)}
-                  >
-                    <CopyActionIcon className="h-4 w-4" />
-                  </Button>
-                </div>
-                {copiedValue === createdKey.accessKeyId && (
-                  <div className="text-xs text-green-600 mt-1">Copied!</div>
-                )}
+                <CopyValue
+                  value={createdKey.accessKeyId}
+                  label="Access key ID"
+                  className="mt-1 max-w-full font-mono text-sm"
+                >
+                  {createdKey.accessKeyId}
+                </CopyValue>
               </div>
               <div className="rounded-lg border bg-muted/40 p-3">
                 <div className="text-xs text-muted-foreground">Secret Access Key</div>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm text-foreground break-all">
-                    {createdKey.secretAccessKey || '-'}
-                  </span>
-                  {createdKey.secretAccessKey && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleCopy(createdKey.secretAccessKey || '')}
-                    >
-                      <CopyActionIcon className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-                {createdKey.secretAccessKey && copiedValue === createdKey.secretAccessKey && (
-                  <div className="text-xs text-green-600 mt-1">Copied!</div>
+                {createdKey.secretAccessKey ? (
+                  <CopyValue
+                    value={createdKey.secretAccessKey}
+                    label="Secret access key"
+                    className="mt-1 max-w-full font-mono text-sm"
+                  >
+                    {createdKey.secretAccessKey}
+                  </CopyValue>
+                ) : (
+                  <div className="mt-1 text-sm text-muted-foreground">—</div>
                 )}
               </div>
               <div className="text-xs text-muted-foreground">
-                Secret access keys are only shown once. Store it securely.
+                Store it securely. You can also reveal it later on the key&rsquo;s page.
               </div>
             </div>
           )}
@@ -665,16 +694,109 @@ export function KeyList() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation */}
+      <Dialog
+        open={!!editKey}
+        onOpenChange={(open) => {
+          if (!open) setEditKey(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Access Key</DialogTitle>
+            <DialogDescription>
+              Rename the key or change when it expires. Manage permissions on the key&rsquo;s page.
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleUpdate();
+            }}
+            className="space-y-4"
+          >
+            <div className="space-y-2">
+              <Label htmlFor="edit-key-name">Key name</Label>
+              <Input
+                id="edit-key-name"
+                autoFocus
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="my-app-key"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Expiration</Label>
+              <ExpirationPicker
+                date={editExpirationDate}
+                hour={editExpirationHour}
+                minute={editExpirationMinute}
+                neverExpires={editNeverExpires}
+                onDateChange={setEditExpirationDate}
+                onHourChange={setEditExpirationHour}
+                onMinuteChange={setEditExpirationMinute}
+                onNeverExpiresChange={setEditNeverExpires}
+                currentLabel={editKey?.expiration ? formatDateTime(editKey.expiration) : 'Never'}
+                invalid={editExpirationInvalid}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Bucket creation permission</Label>
+              {editPermStatus === 'loading' ? (
+                <InlineLoadingState label="Loading permission..." />
+              ) : editPermStatus === 'error' ? (
+                <p className="text-sm text-destructive">
+                  Couldn&rsquo;t load this key&rsquo;s permission. Close and try again.
+                </p>
+              ) : (
+                <PermissionSegmented
+                  value={editBucketPermission}
+                  onChange={setEditBucketPermission}
+                  ariaLabel="Bucket creation permission"
+                />
+              )}
+            </div>
+            {editError && (
+              <Alert variant="destructive">
+                <AlertTitle>Update failed</AlertTitle>
+                <AlertDescription>{editError}</AlertDescription>
+              </Alert>
+            )}
+            <DialogFooter>
+              <Button
+                type="submit"
+                disabled={
+                  editExpirationInvalid || updateMutation.isPending || editPermStatus !== 'ready'
+                }
+              >
+                {updateMutation.isPending ? 'Saving...' : 'Save'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       <ConfirmDialog
         open={!!deleteConfirm}
         onOpenChange={(open) => !open && setDeleteConfirm(null)}
         title="Delete Access Key"
-        description={`Are you sure you want to delete the key "${deleteConfirm?.name}"? This will revoke access to all buckets using this key.`}
-        tier="danger"
+        description={`Permanently delete the key "${deleteConfirm?.name}"? This revokes access to every bucket using it and cannot be undone.`}
+        tier="type-to-confirm"
+        typeToConfirmValue="DELETE"
         confirmText="Delete Key"
         onConfirm={() => deleteConfirm && deleteMutation.mutate(deleteConfirm.id)}
         isLoading={deleteMutation.isPending}
+      />
+
+      <ConfirmDialog
+        open={!!bulkDelete}
+        onOpenChange={(open) => !open && !bulkPending && setBulkDelete(null)}
+        title={`Delete ${bulkDelete?.ids.length ?? 0} keys`}
+        description={`Permanently delete ${bulkDelete?.ids.length ?? 0} selected key(s)? This revokes access to every bucket using them and cannot be undone.`}
+        tier="type-to-confirm"
+        typeToConfirmValue={`DELETE${bulkDelete?.ids.length ?? 0}`}
+        confirmText={`Delete ${bulkDelete?.ids.length ?? 0} keys`}
+        onConfirm={handleBulkDelete}
+        isLoading={bulkPending}
       />
     </div>
   );

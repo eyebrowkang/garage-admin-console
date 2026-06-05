@@ -13,5 +13,6 @@
     "rootDir": "src",
     "ignoreDeprecations": "6.0"
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx"]
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "exclude": ["src/test/**/*", "src/**/*.test.ts", "src/**/*.test.tsx"]
 }

@@ -1,5 +1,5 @@
 import { useNodes } from '@/hooks/useNodes';
-import { formatShortId } from '@/lib/format';
+import { formatShortId } from '@garage/web-shared';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@garage/ui';
 
 interface NodeSelectorProps {

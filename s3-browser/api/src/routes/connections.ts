@@ -2,12 +2,13 @@ import { Router, type Router as ExpressRouter } from 'express';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { HeadBucketCommand, ListBucketsCommand } from '@aws-sdk/client-s3';
+import { createS3Client } from '@garage/bucket-api-server';
 
 import db from '../db/index.js';
 import { connections } from '../db/schema.js';
 import { encrypt } from '../encryption.js';
 import { logger } from '../logger.js';
-import { buildS3Client, clientForConnection } from '../lib/s3-client.js';
+import { clientForConnection } from '../lib/s3-client.js';
 import bucketsRouter from './buckets.js';
 
 const router: ExpressRouter = Router();
@@ -66,15 +67,16 @@ router.post('/test', async (req, res) => {
   try {
     const body = TestSchema.parse(req.body);
     const bucket = body.bucket?.trim();
-    const client = buildS3Client({
-      id: '',
-      name: '',
+    // Transient probe credentials — use an uncached client so one-off test
+    // creds never linger in the shared S3 client cache.
+    const client = createS3Client({
       endpoint: body.endpoint.replace(/\/+$/, ''),
       region: body.region,
       forcePathStyle: body.forcePathStyle,
-      accessKeyId: body.accessKeyId,
-      secretAccessKey: body.secretAccessKey,
-      bucket: bucket ?? null,
+      credentials: {
+        accessKeyId: body.accessKeyId,
+        secretAccessKey: body.secretAccessKey,
+      },
     });
     if (bucket) {
       // Bucket-scoped probe — works for keys without ListBuckets permission.

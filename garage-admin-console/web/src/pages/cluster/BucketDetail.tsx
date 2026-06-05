@@ -1,14 +1,12 @@
 import { useEffect, useState } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
-import { Globe, Tags, Settings, RefreshCw, Pencil } from 'lucide-react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Globe, Tags, Settings, Fingerprint, AlertTriangle } from 'lucide-react';
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
   Button,
   Badge,
+  Meter,
+  type MeterTone,
+  cn,
   Checkbox,
   Input,
   Label,
@@ -32,6 +30,12 @@ import {
   Alert,
   AlertDescription,
   AlertTitle,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+  TabHotkeys,
+  PermissionPill,
 } from '@garage/ui';
 import { useClusterContext } from '@/contexts/ClusterContext';
 import {
@@ -42,35 +46,72 @@ import {
   useRemoveBucketAlias,
   useInspectObject,
 } from '@/hooks/useBuckets';
-import { useAllowBucketKey, useDenyBucketKey } from '@/hooks/usePermissions';
-import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
-import { CopyButton } from '@/components/cluster/CopyButton';
+import { ConfirmDialog } from '@garage/ui';
+import { CopyButton } from '@garage/ui';
 import { DetailPageHeader } from '@/components/cluster/DetailPageHeader';
 import { BucketObjectBrowser } from '@/components/cluster/BucketObjectBrowser';
 import { isMfExplicitlyConfigured } from '@/mf-init';
 import { JsonViewer } from '@/components/cluster/JsonViewer';
-import { PageLoadingState } from '@/components/cluster/PageLoadingState';
-import { DeleteActionIcon } from '@/lib/action-icons';
+import { PageLoadingState } from '@garage/ui';
+import { AddActionIcon, DeleteActionIcon, OpenActionIcon } from '@/lib/action-icons';
 import { KeyIcon } from '@/lib/entity-icons';
-import { formatBytes, formatShortId } from '@/lib/format';
-import { getApiErrorMessage } from '@/lib/errors';
-import { toast } from '@/hooks/use-toast';
+import { formatBytes, formatNum, formatShortId, getApiErrorMessage } from '@garage/web-shared';
+import { toast } from '@garage/ui';
+
+/** A usage stat: the value, an optional `/ max`, and a quota meter when a limit
+ *  is set (color-coded by how close usage is to the cap). */
+function UsageStat({
+  label,
+  used,
+  max,
+  format,
+}: {
+  label: string;
+  used: number;
+  max?: number | null;
+  format: (n: number) => string;
+}) {
+  const pct = max && max > 0 ? Math.min(100, (used / max) * 100) : null;
+  const tone: MeterTone =
+    pct === null ? 'neutral' : pct >= 90 ? 'destructive' : pct >= 70 ? 'warning' : 'success';
+  return (
+    <div className="bg-card px-4 py-3">
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="text-lg font-semibold tabular-nums">
+        {format(used)}
+        {max ? (
+          <span className="text-sm font-normal text-muted-foreground"> / {format(max)}</span>
+        ) : null}
+      </div>
+      {pct !== null && (
+        <Meter
+          className="mt-1.5"
+          value={pct}
+          tone={tone}
+          ariaLabel={`${label}: ${Math.round(pct)}% of quota`}
+        />
+      )}
+    </div>
+  );
+}
 
 export function BucketDetail() {
   const { bid } = useParams<{ bid: string }>();
   const { clusterId } = useClusterContext();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // After KeyList creates a key via the guided flow, it redirects here with
-  // ?selectKey=<id>. Capture it once, pass to BucketObjectBrowser, then remove
-  // from the URL so refreshes don't re-trigger the selection logic.
-  const selectKeyParam = searchParams.get('selectKey') ?? undefined;
+  // ?selectKey=<id>. Capture it once (before we strip it from the URL), open the
+  // Files tab, and hand it to BucketObjectBrowser so the new key is preselected.
+  const [initialSelectKey] = useState(() => searchParams.get('selectKey') ?? undefined);
   useEffect(() => {
-    if (selectKeyParam) {
+    if (initialSelectKey) {
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev);
           next.delete('selectKey');
+          if (isMfExplicitlyConfigured) next.set('tab', 'files');
           return next;
         },
         { replace: true },
@@ -98,23 +139,12 @@ export function BucketDetail() {
     alias: string;
     accessKeyId?: string;
   } | null>(null);
-  const [permDialogOpen, setPermDialogOpen] = useState(false);
-  const [permKey, setPermKey] = useState<{
-    accessKeyId: string;
-    name: string;
-    read: boolean;
-    write: boolean;
-    owner: boolean;
-  } | null>(null);
-
   const { data: bucket, isLoading, error } = useBucketInfo(clusterId, bid || '');
   const updateBucketMutation = useUpdateBucket(clusterId, bid || '');
   const cleanupMutation = useCleanupIncompleteUploads(clusterId, bid || '');
   const addAliasMutation = useAddBucketAlias(clusterId);
   const removeAliasMutation = useRemoveBucketAlias(clusterId);
   const inspectMutation = useInspectObject(clusterId, bid || '');
-  const allowKeyMutation = useAllowBucketKey(clusterId);
-  const denyKeyMutation = useDenyBucketKey(clusterId);
 
   if (!bid) {
     return (
@@ -161,6 +191,34 @@ export function BucketDetail() {
   const canAddAlias =
     Boolean(newAlias.trim()) && (aliasType === 'global' || Boolean(aliasAccessKeyId));
 
+  // Lead with a global alias; otherwise the full id — the breadcrumb truncates
+  // it with an ellipsis (same as a long alias) rather than hard-capping the chars.
+  const bucketLabel = bucket.globalAliases[0] || bucket.id;
+  // CTA for the permissions tab: open the key list's Create dialog pre-wired to
+  // grant the new key access to this bucket, then return here.
+  const grantKeyCta = `/clusters/${clusterId}/keys?create=1&grantBucketId=${encodeURIComponent(
+    bucket.id,
+  )}&returnTo=${encodeURIComponent(`/clusters/${clusterId}/buckets/${bucket.id}?tab=permissions`)}`;
+  const showFilesTab = isMfExplicitlyConfigured && Boolean(bucket.globalAliases[0]);
+  const tabValues = ['overview', ...(showFilesTab ? ['files'] : []), 'permissions', 'maintenance'];
+  const requestedTab = searchParams.get('tab');
+  const activeTab = requestedTab && tabValues.includes(requestedTab) ? requestedTab : 'overview';
+  const handleTabChange = (value: string) => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (value === 'overview') next.delete('tab');
+        else next.set('tab', value);
+        return next;
+      },
+      { replace: true },
+    );
+  };
+
+  const quotaSummary = `Max objects: ${
+    bucket.quotas.maxObjects ? formatNum(bucket.quotas.maxObjects) : 'Unlimited'
+  } · Max size: ${bucket.quotas.maxSize ? formatBytes(bucket.quotas.maxSize) : 'Unlimited'}`;
+
   const handleUpdateWebsiteAccess = async () => {
     try {
       const indexDocument = websiteIndex.trim();
@@ -172,7 +230,7 @@ export function BucketDetail() {
           errorDocument: websiteEnabled && errorDocument ? errorDocument : null,
         },
       });
-      toast({ title: 'Website access updated' });
+      toast({ title: 'Website access updated', variant: 'success' });
       setWebsiteDialogOpen(false);
     } catch (err) {
       toast({
@@ -198,7 +256,11 @@ export function BucketDetail() {
         alias: newAlias.trim(),
         accessKeyId: aliasType === 'local' ? aliasAccessKeyId : undefined,
       });
-      toast({ title: 'Alias added', description: `Added alias "${newAlias}"` });
+      toast({
+        title: 'Alias added',
+        description: `Added alias "${newAlias}"`,
+        variant: 'success',
+      });
       setAliasDialogOpen(false);
       setNewAlias('');
     } catch (err) {
@@ -218,7 +280,11 @@ export function BucketDetail() {
         alias: removeAliasConfirm.alias,
         accessKeyId: removeAliasConfirm.accessKeyId,
       });
-      toast({ title: 'Alias removed', description: `Removed alias "${removeAliasConfirm.alias}"` });
+      toast({
+        title: 'Alias removed',
+        description: `Removed alias "${removeAliasConfirm.alias}"`,
+        variant: 'success',
+      });
       setRemoveAliasConfirm(null);
     } catch (err) {
       toast({
@@ -269,7 +335,7 @@ export function BucketDetail() {
           maxSize: maxSize ? parseInt(maxSize, 10) * 1_000_000_000 : null,
         },
       });
-      toast({ title: 'Quotas updated' });
+      toast({ title: 'Quotas updated', variant: 'success' });
       setQuotasDialogOpen(false);
     } catch (err) {
       toast({
@@ -280,414 +346,428 @@ export function BucketDetail() {
     }
   };
 
-  const handleUpdatePermissions = async () => {
-    if (!permKey) return;
-    try {
-      const currentPerms = bucket?.keys.find(
-        (k) => k.accessKeyId === permKey.accessKeyId,
-      )?.permissions;
-      if (!currentPerms) return;
-
-      // Allow permissions that are newly enabled
-      const toAllow = {
-        read: permKey.read && !currentPerms.read,
-        write: permKey.write && !currentPerms.write,
-        owner: permKey.owner && !currentPerms.owner,
-      };
-      // Deny permissions that are newly disabled
-      const toDeny = {
-        read: !permKey.read && currentPerms.read,
-        write: !permKey.write && currentPerms.write,
-        owner: !permKey.owner && currentPerms.owner,
-      };
-
-      if (toAllow.read || toAllow.write || toAllow.owner) {
-        await allowKeyMutation.mutateAsync({
-          bucketId: bid,
-          accessKeyId: permKey.accessKeyId,
-          permissions: toAllow,
-        });
-      }
-      if (toDeny.read || toDeny.write || toDeny.owner) {
-        await denyKeyMutation.mutateAsync({
-          bucketId: bid,
-          accessKeyId: permKey.accessKeyId,
-          permissions: toDeny,
-        });
-      }
-      toast({ title: 'Permissions updated' });
-      setPermDialogOpen(false);
-      setPermKey(null);
-    } catch (err) {
-      toast({
-        title: 'Failed to update permissions',
-        description: getApiErrorMessage(err),
-        variant: 'destructive',
-      });
-    }
-  };
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <DetailPageHeader
-        backTo={`/clusters/${clusterId}/buckets`}
-        title={bucket.globalAliases[0] || `${bucket.id.slice(0, 12)}...`}
-        subtitle={bucket.id}
+        breadcrumbs={[
+          { label: 'Buckets', to: `/clusters/${clusterId}/buckets` },
+          { label: bucketLabel },
+        ]}
       />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Bucket Summary</CardTitle>
-          <CardDescription>Primary status and usage metrics for this bucket</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-3 md:grid-cols-4">
-            <div className="rounded-lg border bg-muted/30 p-3">
-              <div className="text-xs text-muted-foreground">Objects</div>
-              <div className="text-xl font-semibold">{bucket.objects.toLocaleString()}</div>
-            </div>
-            <div className="rounded-lg border bg-muted/30 p-3">
-              <div className="text-xs text-muted-foreground">Total Size</div>
-              <div className="text-xl font-semibold">{formatBytes(bucket.bytes)}</div>
-            </div>
-            <div className="rounded-lg border bg-muted/30 p-3">
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
+        <TabHotkeys values={tabValues} onSelect={handleTabChange} />
+        <TabsList>
+          <TabsTrigger
+            value="overview"
+            title={`Overview (press ${tabValues.indexOf('overview') + 1})`}
+          >
+            Overview
+          </TabsTrigger>
+          {showFilesTab && (
+            <TabsTrigger value="files" title={`Files (press ${tabValues.indexOf('files') + 1})`}>
+              Files
+            </TabsTrigger>
+          )}
+          <TabsTrigger
+            value="permissions"
+            title={`Permissions (press ${tabValues.indexOf('permissions') + 1})`}
+          >
+            Permissions
+            {bucket.keys.length > 0 && (
+              <span className="rounded bg-muted px-1.5 text-xs text-muted-foreground">
+                {bucket.keys.length}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger
+            value="maintenance"
+            title={`Maintenance (press ${tabValues.indexOf('maintenance') + 1})`}
+          >
+            Maintenance
+          </TabsTrigger>
+        </TabsList>
+
+        {/* ---------------- Overview ---------------- */}
+        <TabsContent value="overview" className="space-y-4">
+          {/* Usage metrics — one dense strip with hairline dividers, not 4 cards */}
+          <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border sm:grid-cols-4">
+            <UsageStat
+              label="Objects"
+              used={bucket.objects}
+              max={bucket.quotas.maxObjects}
+              format={formatNum}
+            />
+            <UsageStat
+              label="Total Size"
+              used={bucket.bytes}
+              max={bucket.quotas.maxSize}
+              format={formatBytes}
+            />
+            <div className="bg-card px-4 py-3">
               <div className="text-xs text-muted-foreground">Incomplete Uploads</div>
-              <div className="text-xl font-semibold">{bucket.unfinishedUploads}</div>
+              <div className="text-lg font-semibold tabular-nums">{bucket.unfinishedUploads}</div>
             </div>
-            <div className="rounded-lg border bg-muted/30 p-3">
+            <div className="bg-card px-4 py-3">
               <div className="text-xs text-muted-foreground">Multipart Uploads</div>
-              <div className="text-xl font-semibold">{bucket.unfinishedMultipartUploads}</div>
+              <div className="text-lg font-semibold tabular-nums">
+                {bucket.unfinishedMultipartUploads}
+              </div>
               <div className="text-xs text-muted-foreground">
                 {formatBytes(bucket.unfinishedMultipartUploadBytes)}
               </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Embedded S3 Browser — only shown when the MF remote is configured.
-          s3Endpoint is optional; the BFF derives a default from the cluster's
-          admin hostname on port 3900 when not explicitly set. */}
-      {isMfExplicitlyConfigured && bucket.globalAliases[0] && (
-        <BucketObjectBrowser
-          clusterId={clusterId}
-          bucketId={bucket.id}
-          bucketAlias={bucket.globalAliases[0]}
-          initialKeyId={selectKeyParam}
-        />
-      )}
-
-      {/* Aliases Section */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Tags className="h-5 w-5" />
-                Aliases
-              </CardTitle>
-              <CardDescription>Global and local bucket aliases</CardDescription>
+          {/* Configuration — id, aliases, website, quotas as compact rows */}
+          <div className="divide-y rounded-lg border">
+            <div className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0 space-y-1">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Fingerprint className="h-4 w-4 text-muted-foreground" />
+                  Bucket ID
+                </div>
+                <div className="inline-flex max-w-full items-center gap-1">
+                  <span className="break-all font-mono text-sm text-muted-foreground">
+                    {bucket.id}
+                  </span>
+                  <CopyButton value={bucket.id} label="Bucket ID" compact />
+                </div>
+              </div>
             </div>
-            <Button variant="outline" size="sm" onClick={() => setAliasDialogOpen(true)}>
-              Add Alias
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-5">
-            <div className="space-y-2.5">
-              <h4 className="text-sm font-medium">Global Aliases</h4>
-              {bucket.globalAliases.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {bucket.globalAliases.map((alias) => (
-                    <div
-                      key={alias}
-                      className="group inline-flex items-center gap-2 rounded-md border bg-muted/20 px-2.5 py-1.5 text-sm"
-                    >
-                      <span className="font-medium">{alias}</span>
-                      <div className="ml-1 flex items-center gap-0.5 border-l border-border/60 pl-1">
-                        <CopyButton
-                          value={alias}
-                          label="Global alias"
-                          compact
-                          className="h-5 w-5 rounded-sm"
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-5 w-5 rounded-sm text-muted-foreground hover:text-destructive"
-                          onClick={() => setRemoveAliasConfirm({ alias })}
-                        >
-                          <DeleteActionIcon className="h-3.5 w-3.5" />
-                        </Button>
+            <div className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0 space-y-2">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Tags className="h-4 w-4 text-muted-foreground" />
+                  Aliases
+                </div>
+                <div className="space-y-2">
+                  <div className="space-y-1">
+                    <div className="text-xs text-muted-foreground">Global</div>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {bucket.globalAliases.length > 0 ? (
+                        bucket.globalAliases.map((alias) => (
+                          <span
+                            key={alias}
+                            className="group inline-flex items-center gap-1.5 rounded-md border bg-muted/20 px-2 py-1 text-sm"
+                          >
+                            <span className="font-medium">{alias}</span>
+                            <span className="flex items-center gap-0.5 border-l border-border/60 pl-1">
+                              <CopyButton
+                                value={alias}
+                                label="Global alias"
+                                compact
+                                className="h-5 w-5 rounded-sm"
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-5 w-5 rounded-sm text-muted-foreground hover:text-destructive"
+                                onClick={() => setRemoveAliasConfirm({ alias })}
+                              >
+                                <DeleteActionIcon className="h-3.5 w-3.5" />
+                              </Button>
+                            </span>
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-sm text-muted-foreground">None</span>
+                      )}
+                    </div>
+                  </div>
+                  {localAliases.length > 0 && (
+                    <div className="space-y-1">
+                      <div className="text-xs text-muted-foreground">Local (per key)</div>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {localAliases.map((alias) => (
+                          <span
+                            key={`${alias.accessKeyId}-${alias.alias}`}
+                            className="group inline-flex items-center gap-1.5 rounded-md border bg-background px-2 py-1"
+                          >
+                            <span className="min-w-0">
+                              <span className="block text-sm font-medium leading-none">
+                                {alias.alias}
+                              </span>
+                              <span className="mt-0.5 block text-[11px] leading-none text-muted-foreground">
+                                {alias.keyName || formatShortId(alias.accessKeyId, 10)}
+                              </span>
+                            </span>
+                            <span className="flex items-center gap-0.5 border-l border-border/60 pl-1">
+                              <CopyButton
+                                value={alias.alias}
+                                label="Local alias"
+                                compact
+                                className="h-5 w-5 rounded-sm"
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-5 w-5 rounded-sm text-muted-foreground hover:text-destructive"
+                                onClick={() =>
+                                  setRemoveAliasConfirm({
+                                    alias: alias.alias,
+                                    accessKeyId: alias.accessKeyId,
+                                  })
+                                }
+                              >
+                                <DeleteActionIcon className="h-3.5 w-3.5" />
+                              </Button>
+                            </span>
+                          </span>
+                        ))}
                       </div>
                     </div>
-                  ))}
+                  )}
                 </div>
-              ) : (
-                <span className="text-sm text-muted-foreground">No global aliases</span>
-              )}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="shrink-0"
+                onClick={() => setAliasDialogOpen(true)}
+              >
+                Add Alias
+              </Button>
             </div>
 
-            <div className="space-y-2.5">
-              <h4 className="text-sm font-medium">Local Aliases</h4>
-              {localAliases.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {localAliases.map((alias) => (
-                    <div
-                      key={`${alias.accessKeyId}-${alias.alias}`}
-                      className="group inline-flex items-center gap-2 rounded-md border bg-background px-2.5 py-1.5"
-                    >
+            <div className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0 space-y-1">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Globe className="h-4 w-4 text-muted-foreground" />
+                  Website Access
+                </div>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                  {bucket.websiteAccess ? (
+                    <Badge variant="success">Enabled</Badge>
+                  ) : (
+                    <Badge variant="secondary">Disabled</Badge>
+                  )}
+                  {bucket.websiteAccess && (
+                    <>
+                      {bucket.websiteConfig?.indexDocument && (
+                        <span className="text-muted-foreground">
+                          index:{' '}
+                          <span className="font-mono text-foreground">
+                            {bucket.websiteConfig.indexDocument}
+                          </span>
+                        </span>
+                      )}
+                      {bucket.websiteConfig?.errorDocument && (
+                        <span className="text-muted-foreground">
+                          error:{' '}
+                          <span className="font-mono text-foreground">
+                            {bucket.websiteConfig.errorDocument}
+                          </span>
+                        </span>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="shrink-0"
+                onClick={() => {
+                  setWebsiteEnabled(bucket.websiteAccess);
+                  setWebsiteIndex(bucket.websiteConfig?.indexDocument || '');
+                  setWebsiteError(bucket.websiteConfig?.errorDocument || '');
+                  setWebsiteDialogOpen(true);
+                }}
+              >
+                Edit
+              </Button>
+            </div>
+
+            <div className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0 space-y-1">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Settings className="h-4 w-4 text-muted-foreground" />
+                  Quotas
+                </div>
+                <div className="text-sm text-muted-foreground">{quotaSummary}</div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="shrink-0"
+                onClick={() => {
+                  setMaxObjects(bucket.quotas.maxObjects?.toString() || '');
+                  setMaxSize(
+                    bucket.quotas.maxSize ? (bucket.quotas.maxSize / 1_000_000_000).toString() : '',
+                  );
+                  setQuotasDialogOpen(true);
+                }}
+              >
+                Edit
+              </Button>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* ---------------- Files (embedded S3 Browser, lazy per tab) ---------------- */}
+        {showFilesTab && bucket.globalAliases[0] && (
+          <TabsContent value="files">
+            <BucketObjectBrowser
+              clusterId={clusterId}
+              bucketId={bucket.id}
+              bucketAlias={bucket.globalAliases[0]}
+              initialKeyId={initialSelectKey}
+            />
+          </TabsContent>
+        )}
+
+        {/* ---------------- Permissions ---------------- */}
+        <TabsContent value="permissions" className="space-y-3">
+          {bucket.keys.length > 0 ? (
+            <>
+              {/* Desktop / tablet: read-only Key · Access · View table */}
+              <div className="hidden overflow-hidden rounded-lg border sm:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Key</TableHead>
+                      <TableHead>Access</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {bucket.keys.map((key) => (
+                      <TableRow key={key.accessKeyId}>
+                        <TableCell>
+                          <div className="min-w-0">
+                            <div className="font-medium">{key.name || 'Unnamed key'}</div>
+                            <div className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                              <span className="font-mono">
+                                {formatShortId(key.accessKeyId, 16)}
+                              </span>
+                              <CopyButton value={key.accessKeyId} label="Access key ID" compact />
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1.5">
+                            <PermissionPill label="Read" granted={key.permissions.read} />
+                            <PermissionPill label="Write" granted={key.permissions.write} />
+                            <PermissionPill label="Owner" granted={key.permissions.owner} />
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              navigate(`/clusters/${clusterId}/keys/${key.accessKeyId}`)
+                            }
+                          >
+                            <OpenActionIcon className="h-3.5 w-3.5" />
+                            View
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobile: one card per key */}
+              <div className="space-y-2 sm:hidden">
+                {bucket.keys.map((key) => (
+                  <div key={key.accessKeyId} className="space-y-2.5 rounded-lg border p-3">
+                    <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <div className="text-sm font-medium leading-none">{alias.alias}</div>
-                        <div className="mt-1 text-[11px] leading-none text-muted-foreground">
-                          {alias.keyName || formatShortId(alias.accessKeyId, 10)}
+                        <div className="truncate text-sm font-medium">
+                          {key.name || 'Unnamed key'}
+                        </div>
+                        <div className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                          <span className="font-mono">{formatShortId(key.accessKeyId, 16)}</span>
+                          <CopyButton value={key.accessKeyId} label="Access key ID" compact />
                         </div>
                       </div>
-                      <div className="ml-1 flex items-center gap-0.5 border-l border-border/60 pl-1">
-                        <CopyButton
-                          value={alias.alias}
-                          label="Local alias"
-                          compact
-                          className="h-5 w-5 rounded-sm"
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-5 w-5 rounded-sm text-muted-foreground hover:text-destructive"
-                          onClick={() =>
-                            setRemoveAliasConfirm({
-                              alias: alias.alias,
-                              accessKeyId: alias.accessKeyId,
-                            })
-                          }
-                        >
-                          <DeleteActionIcon className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <span className="text-sm text-muted-foreground">No local aliases</span>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Key Permissions */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <KeyIcon className="h-5 w-5" />
-            Key Permissions
-          </CardTitle>
-          <CardDescription>Access keys with permissions on this bucket</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {bucket.keys.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Access Key</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead className="text-center">Read</TableHead>
-                  <TableHead className="text-center">Write</TableHead>
-                  <TableHead className="text-center">Owner</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {bucket.keys.map((key) => (
-                  <TableRow key={key.accessKeyId}>
-                    <TableCell className="text-xs">
-                      <div className="inline-flex items-center gap-1">
-                        <span>{key.accessKeyId.slice(0, 12)}...</span>
-                        <CopyButton value={key.accessKeyId} label="Access key ID" compact />
-                      </div>
-                    </TableCell>
-                    <TableCell>{key.name || '-'}</TableCell>
-                    <TableCell className="text-center">
-                      {key.permissions.read ? (
-                        <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
-                          Yes
-                        </Badge>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">No</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {key.permissions.write ? (
-                        <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
-                          Yes
-                        </Badge>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">No</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {key.permissions.owner ? (
-                        <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
-                          Yes
-                        </Badge>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">No</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => {
-                          setPermKey({
-                            accessKeyId: key.accessKeyId,
-                            name: key.name || key.accessKeyId,
-                            read: key.permissions.read,
-                            write: key.permissions.write,
-                            owner: key.permissions.owner,
-                          });
-                          setPermDialogOpen(true);
-                        }}
+                        className="shrink-0"
+                        onClick={() => navigate(`/clusters/${clusterId}/keys/${key.accessKeyId}`)}
                       >
-                        <Pencil className="h-3.5 w-3.5" />
-                        Edit
+                        <OpenActionIcon className="h-3.5 w-3.5" />
+                        View
                       </Button>
-                    </TableCell>
-                  </TableRow>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      <PermissionPill label="Read" granted={key.permissions.read} />
+                      <PermissionPill label="Write" granted={key.permissions.write} />
+                      <PermissionPill label="Owner" granted={key.permissions.owner} />
+                    </div>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+            </>
           ) : (
-            <p className="text-sm text-muted-foreground">No keys have access to this bucket</p>
+            <div className="flex flex-col items-center gap-4 rounded-lg border border-dashed p-10 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                <KeyIcon className="h-6 w-6 text-muted-foreground" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="font-medium text-foreground">No keys have access</h3>
+                <p className="mx-auto max-w-sm text-sm text-muted-foreground">
+                  Create an access key and grant it permissions on this bucket in one step.
+                </p>
+              </div>
+              <Button size="sm" onClick={() => navigate(grantKeyCta)}>
+                <AddActionIcon className="h-4 w-4" />
+                Create &amp; grant a key
+              </Button>
+            </div>
           )}
-        </CardContent>
-      </Card>
+        </TabsContent>
 
-      {/* Website Access Section */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Globe className="h-5 w-5" />
-                Website Access
-              </CardTitle>
-              <CardDescription>Static website configuration for this bucket</CardDescription>
-            </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                setWebsiteEnabled(bucket.websiteAccess);
-                setWebsiteIndex(bucket.websiteConfig?.indexDocument || '');
-                setWebsiteError(bucket.websiteConfig?.errorDocument || '');
-                setWebsiteDialogOpen(true);
-              }}
-            >
-              Edit Website
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-3">
-            <div>
-              <div className="text-sm text-muted-foreground">Status</div>
-              <div className="font-medium">{bucket.websiteAccess ? 'Enabled' : 'Disabled'}</div>
-            </div>
-            <div>
-              <div className="text-sm text-muted-foreground">Index Document</div>
-              <div className="font-medium">{bucket.websiteConfig?.indexDocument || '-'}</div>
-            </div>
-            <div>
-              <div className="text-sm text-muted-foreground">Error Document</div>
-              <div className="font-medium">{bucket.websiteConfig?.errorDocument || '-'}</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Quotas Section */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="h-5 w-5" />
-                Quotas
-              </CardTitle>
-              <CardDescription>Storage limits for this bucket</CardDescription>
-            </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                setMaxObjects(bucket.quotas.maxObjects?.toString() || '');
-                setMaxSize(
-                  bucket.quotas.maxSize ? (bucket.quotas.maxSize / 1_000_000_000).toString() : '',
-                );
-                setQuotasDialogOpen(true);
-              }}
-            >
-              Edit Quotas
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <div className="text-sm text-muted-foreground">Max Objects</div>
-              <div className="font-medium">
-                {bucket.quotas.maxObjects?.toLocaleString() || 'Unlimited'}
-              </div>
-            </div>
-            <div>
-              <div className="text-sm text-muted-foreground">Max Size</div>
-              <div className="font-medium">
-                {bucket.quotas.maxSize ? formatBytes(bucket.quotas.maxSize) : 'Unlimited'}
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Maintenance Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <RefreshCw className="h-5 w-5" />
-            Maintenance
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h4 className="font-medium">Cleanup Incomplete Uploads</h4>
+        {/* ---------------- Maintenance ---------------- */}
+        <TabsContent value="maintenance" className="space-y-3">
+          <div className="space-y-2 rounded-lg border p-4">
+            <div className="space-y-1">
+              <h4 className="text-sm font-medium">Inspect Object</h4>
               <p className="text-sm text-muted-foreground">
-                Delete incomplete multipart uploads older than a specified age
+                Look up the metadata and versions for a single object key.
               </p>
             </div>
-            <Button variant="outline" onClick={() => setCleanupDialogOpen(true)}>
-              Cleanup
-            </Button>
-          </div>
-          <div className="border-t pt-4">
-            <h4 className="font-medium mb-2">Inspect Object</h4>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <Input
                 placeholder="Enter object key..."
                 value={inspectKey}
                 onChange={(e) => setInspectKey(e.target.value)}
               />
-              <Button variant="outline" onClick={handleInspect} disabled={!inspectKey.trim()}>
+              <Button
+                variant="outline"
+                className="shrink-0"
+                onClick={handleInspect}
+                disabled={!inspectKey.trim()}
+              >
                 Inspect
               </Button>
             </div>
           </div>
-        </CardContent>
-      </Card>
+
+          {/* Cleanup is irreversible — flagged in the warning (purple) color. */}
+          <div className="flex flex-col gap-3 rounded-lg border border-warning/30 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
+              <h4 className="text-sm font-medium">Cleanup Incomplete Uploads</h4>
+              <p className="text-sm text-muted-foreground">
+                Permanently delete incomplete multipart uploads older than a chosen age.
+              </p>
+            </div>
+            <Button
+              variant="warning"
+              className="shrink-0"
+              onClick={() => setCleanupDialogOpen(true)}
+            >
+              Cleanup
+            </Button>
+          </div>
+        </TabsContent>
+      </Tabs>
 
       {/* Add Alias Dialog */}
       <Dialog
@@ -709,19 +789,25 @@ export function BucketDetail() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Alias Type</Label>
-              <Select
-                value={aliasType}
-                onValueChange={(value) => setAliasType(value as 'global' | 'local')}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select alias type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="global">Global alias</SelectItem>
-                  <SelectItem value="local">Local alias (per access key)</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label>Alias type</Label>
+              <div className="flex gap-2" role="group" aria-label="Alias type">
+                {(['global', 'local'] as const).map((type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => setAliasType(type)}
+                    aria-pressed={aliasType === type}
+                    className={cn(
+                      'min-h-9 flex-1 rounded-md border px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                      aliasType === type
+                        ? 'border-primary/40 bg-primary/10 text-primary'
+                        : 'border-border text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    {type === 'global' ? 'Global' : 'Local (per key)'}
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Alias Name</Label>
@@ -789,12 +875,19 @@ export function BucketDetail() {
           <DialogHeader>
             <DialogTitle>Cleanup Incomplete Uploads</DialogTitle>
             <DialogDescription>
-              Delete incomplete multipart uploads older than the specified age
+              Delete incomplete multipart uploads older than the specified age.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            <Alert variant="warning">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                This permanently removes in-progress multipart uploads older than the threshold and
+                can&rsquo;t be undone.
+              </AlertDescription>
+            </Alert>
             <div className="space-y-2">
-              <Label>Age Threshold (seconds)</Label>
+              <Label>Age threshold (seconds)</Label>
               <Input
                 type="number"
                 value={cleanupAge}
@@ -810,7 +903,7 @@ export function BucketDetail() {
             <Button variant="outline" onClick={() => setCleanupDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleCleanup} disabled={cleanupMutation.isPending}>
+            <Button variant="warning" onClick={handleCleanup} disabled={cleanupMutation.isPending}>
               {cleanupMutation.isPending ? 'Cleaning...' : 'Cleanup'}
             </Button>
           </DialogFooter>
@@ -847,6 +940,11 @@ export function BucketDetail() {
                 disabled={!websiteEnabled}
               />
             </div>
+            <p className="text-xs text-muted-foreground">
+              When enabled, Garage serves this bucket as a static website at your configured web
+              endpoint — the index document for directory roots, the error document for 4xx
+              responses.
+            </p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setWebsiteDialogOpen(false)}>
@@ -868,21 +966,43 @@ export function BucketDetail() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Max Objects</Label>
+              <div className="flex items-center justify-between gap-2">
+                <Label>Max objects</Label>
+                <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+                  <Checkbox
+                    checked={!maxObjects}
+                    onCheckedChange={(c) => {
+                      if (c) setMaxObjects('');
+                    }}
+                  />
+                  No limit
+                </label>
+              </div>
               <Input
                 type="number"
                 value={maxObjects}
                 onChange={(e) => setMaxObjects(e.target.value)}
-                placeholder="Leave empty for unlimited"
+                placeholder="Unlimited"
               />
             </div>
             <div className="space-y-2">
-              <Label>Max Size (GB)</Label>
+              <div className="flex items-center justify-between gap-2">
+                <Label>Max size (GB)</Label>
+                <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+                  <Checkbox
+                    checked={!maxSize}
+                    onCheckedChange={(c) => {
+                      if (c) setMaxSize('');
+                    }}
+                  />
+                  No limit
+                </label>
+              </div>
               <Input
                 type="number"
                 value={maxSize}
                 onChange={(e) => setMaxSize(e.target.value)}
-                placeholder="Leave empty for unlimited"
+                placeholder="Unlimited"
               />
             </div>
           </div>
@@ -902,69 +1022,21 @@ export function BucketDetail() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Object Details</DialogTitle>
+            <DialogDescription className="[overflow-wrap:anywhere]">
+              Metadata and versions for{' '}
+              <span className="font-mono text-foreground">{inspectKey.trim()}</span>
+            </DialogDescription>
           </DialogHeader>
-          {inspectMutation.data && <JsonViewer data={inspectMutation.data} />}
+          {inspectMutation.data ? (
+            <JsonViewer data={inspectMutation.data} />
+          ) : (
+            <p className="py-4 text-sm text-muted-foreground">
+              No details returned for this object.
+            </p>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setInspectDialogOpen(false)}>
               Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Key Permissions Dialog */}
-      <Dialog
-        open={permDialogOpen}
-        onOpenChange={(open) => {
-          setPermDialogOpen(open);
-          if (!open) setPermKey(null);
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Key Permissions</DialogTitle>
-            <DialogDescription>Update permissions for key {permKey?.name || ''}</DialogDescription>
-          </DialogHeader>
-          {permKey && (
-            <div className="space-y-4 py-4">
-              <label className="flex items-center gap-3">
-                <Checkbox
-                  checked={permKey.read}
-                  onCheckedChange={(checked) =>
-                    setPermKey((prev) => (prev ? { ...prev, read: !!checked } : prev))
-                  }
-                />
-                <span className="text-sm font-medium">Read</span>
-              </label>
-              <label className="flex items-center gap-3">
-                <Checkbox
-                  checked={permKey.write}
-                  onCheckedChange={(checked) =>
-                    setPermKey((prev) => (prev ? { ...prev, write: !!checked } : prev))
-                  }
-                />
-                <span className="text-sm font-medium">Write</span>
-              </label>
-              <label className="flex items-center gap-3">
-                <Checkbox
-                  checked={permKey.owner}
-                  onCheckedChange={(checked) =>
-                    setPermKey((prev) => (prev ? { ...prev, owner: !!checked } : prev))
-                  }
-                />
-                <span className="text-sm font-medium">Owner</span>
-              </label>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPermDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleUpdatePermissions}
-              disabled={allowKeyMutation.isPending || denyKeyMutation.isPending}
-            >
-              {allowKeyMutation.isPending || denyKeyMutation.isPending ? 'Saving...' : 'Save'}
             </Button>
           </DialogFooter>
         </DialogContent>

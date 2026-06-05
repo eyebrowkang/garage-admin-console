@@ -37,6 +37,7 @@ import {
   AlertTitle,
 } from '@garage/ui';
 import { useClusterContext } from '@/contexts/ClusterContext';
+import { useNodes } from '@/hooks/useNodes';
 import {
   useWorkers,
   useWorkerInfo,
@@ -44,16 +45,23 @@ import {
   useSetWorkerVariable,
 } from '@/hooks/useWorkers';
 import { NodeSelector } from '@/components/cluster/NodeSelector';
-import { InlineLoadingState } from '@/components/cluster/InlineLoadingState';
-import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
+import { InlineLoadingState } from '@garage/ui';
+import { ModulePageHeader } from '@garage/ui';
 import { RefreshActionIcon, SettingsActionIcon } from '@/lib/action-icons';
-import { formatRelativeSeconds, formatShortId } from '@/lib/format';
-import { getApiErrorMessage } from '@/lib/errors';
-import { toast } from '@/hooks/use-toast';
+import { formatRelativeSeconds, formatShortId, getApiErrorMessage } from '@garage/web-shared';
+import { toast } from '@garage/ui';
 import type { WorkerInfo } from '@/types/garage';
 
 export function WorkerManager() {
   const { clusterId } = useClusterContext();
+  const { data: nodesStatus } = useNodes(clusterId);
+  const nodeHostnameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const node of nodesStatus?.nodes ?? []) {
+      if (node.hostname) map.set(node.id, node.hostname);
+    }
+    return map;
+  }, [nodesStatus?.nodes]);
 
   const [selectedNode, setSelectedNode] = useState<string>('*');
   const [stateFilter, setStateFilter] = useState<'all' | 'busy' | 'error'>('all');
@@ -171,7 +179,7 @@ export function WorkerManager() {
     if (typeof state === 'string') {
       switch (state) {
         case 'busy':
-          return { label: 'Busy', variant: 'default' as const };
+          return { label: 'Busy', variant: 'secondary' as const };
         case 'idle':
           return { label: 'Idle', variant: 'secondary' as const };
         case 'done':
@@ -280,9 +288,23 @@ export function WorkerManager() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Variable</TableHead>
-                    {nodeIds.map((nodeId) => (
-                      <TableHead key={nodeId}>{formatShortId(nodeId, 10)}</TableHead>
-                    ))}
+                    {nodeIds.map((nodeId) => {
+                      const hostname = nodeHostnameById.get(nodeId);
+                      return (
+                        <TableHead key={nodeId} title={nodeId}>
+                          {hostname ? (
+                            <span className="flex flex-col leading-tight">
+                              <span className="text-foreground">{hostname}</span>
+                              <span className="font-mono text-[10px] text-muted-foreground">
+                                {formatShortId(nodeId, 8)}
+                              </span>
+                            </span>
+                          ) : (
+                            <span className="font-mono text-xs">{formatShortId(nodeId, 10)}</span>
+                          )}
+                        </TableHead>
+                      );
+                    })}
                     <TableHead />
                   </TableRow>
                 </TableHeader>
@@ -393,7 +415,7 @@ export function WorkerManager() {
                         </TableCell>
                         <TableCell className="text-xs">{formatShortId(worker.nodeId, 8)}</TableCell>
                         <TableCell>{getStateBadge(worker.state)}</TableCell>
-                        <TableCell className="tabular-nums">{worker.queueLength ?? '-'}</TableCell>
+                        <TableCell className="tabular-nums">{worker.queueLength ?? '—'}</TableCell>
                         <TableCell>
                           <div className="tabular-nums font-medium">{worker.errors}</div>
                           <div className="text-xs text-muted-foreground">
@@ -404,13 +426,13 @@ export function WorkerManager() {
                           {worker.progress ? (
                             <span className="text-xs">{worker.progress}</span>
                           ) : (
-                            '-'
+                            '—'
                           )}
                         </TableCell>
                         <TableCell className="tabular-nums">
                           {worker.tranquility !== undefined && worker.tranquility !== null
                             ? `${worker.tranquility}ms`
-                            : '-'}
+                            : '—'}
                         </TableCell>
                         <TableCell>
                           <Button
@@ -451,7 +473,7 @@ export function WorkerManager() {
           <SheetHeader>
             <SheetTitle>{selectedWorker?.name}</SheetTitle>
             <SheetDescription className="text-xs">
-              Node: {selectedWorker?.nodeId ? formatShortId(selectedWorker.nodeId, 12) : '-'}
+              Node: {selectedWorker?.nodeId ? formatShortId(selectedWorker.nodeId, 12) : '—'}
             </SheetDescription>
           </SheetHeader>
           <div className="mt-6 space-y-6">
@@ -471,7 +493,7 @@ export function WorkerManager() {
                       </div>
                       <div>
                         <div className="text-sm text-muted-foreground">Queue length</div>
-                        <div className="font-medium tabular-nums">{info.queueLength ?? '-'}</div>
+                        <div className="font-medium tabular-nums">{info.queueLength ?? '—'}</div>
                       </div>
                       <div>
                         <div className="text-sm text-muted-foreground">Errors</div>
@@ -484,7 +506,7 @@ export function WorkerManager() {
                       <div>
                         <div className="text-sm text-muted-foreground">Persistent errors</div>
                         <div className="font-medium tabular-nums">
-                          {info.persistentErrors ?? '-'}
+                          {info.persistentErrors ?? '—'}
                         </div>
                       </div>
                       <div>
@@ -492,19 +514,19 @@ export function WorkerManager() {
                         <div className="font-medium tabular-nums">
                           {info.tranquility !== undefined && info.tranquility !== null
                             ? `${info.tranquility}ms`
-                            : '-'}
+                            : '—'}
                         </div>
                       </div>
                       <div className="sm:col-span-2">
                         <div className="text-sm text-muted-foreground">Progress</div>
-                        <div className="font-medium">{info.progress || '-'}</div>
+                        <div className="font-medium">{info.progress || '—'}</div>
                       </div>
                     </div>
                     {info.lastError && (
-                      <div className="rounded-md border border-violet-200 bg-violet-50 p-3 text-sm text-violet-900">
+                      <div className="rounded-md border border-warning/30 bg-warning/10 p-3 text-sm text-warning">
                         <div className="font-medium">Last error</div>
                         <div className="mt-1">{info.lastError.message}</div>
-                        <div className="text-xs text-violet-700 mt-1">
+                        <div className="text-xs text-warning mt-1">
                           {formatRelativeSeconds(info.lastError.secsAgo)}
                         </div>
                       </div>

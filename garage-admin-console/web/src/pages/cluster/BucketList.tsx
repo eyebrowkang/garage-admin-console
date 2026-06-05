@@ -1,23 +1,18 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowUpDown, ArrowUp, ArrowDown, Search } from 'lucide-react';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
   Button,
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogTrigger,
   DialogFooter,
   Input,
   Label,
+  Checkbox,
   Alert,
   AlertDescription,
   AlertTitle,
@@ -26,39 +21,53 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  ResourceList,
+  type ResourceListColumn,
+  CopyValue,
+  AliasOverflow,
+  EmptyValue,
+  cn,
 } from '@garage/ui';
+import { ChevronRight } from 'lucide-react';
 import { api, proxyPath } from '@/lib/api';
-import { formatDateTime24h, formatShortId } from '@/lib/format';
-import { getApiErrorMessage } from '@/lib/errors';
-import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
-import { AliasMiniChip } from '@/components/cluster/AliasMiniChip';
-import { CopyButton } from '@/components/cluster/CopyButton';
-import { TableEmptyState } from '@/components/cluster/TableEmptyState';
-import { InlineLoadingState } from '@/components/cluster/InlineLoadingState';
-import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
+import { formatDateTime, formatShortId, getApiErrorMessage } from '@garage/web-shared';
+import { ConfirmDialog } from '@garage/ui';
+import { InlineLoadingState } from '@garage/ui';
+import { ModulePageHeader } from '@garage/ui';
 import { TableLoadingState } from '@/components/cluster/TableLoadingState';
 import { useClusterContext } from '@/contexts/ClusterContext';
 import { AddActionIcon, DeleteActionIcon } from '@/lib/action-icons';
 import { BucketIcon } from '@/lib/entity-icons';
-import { toast } from '@/hooks/use-toast';
+import { toast } from '@garage/ui';
+import { runBulkDelete } from '@/lib/bulk-delete';
 import { useBuckets } from '@/hooks/useBuckets';
 import { useKeys } from '@/hooks/useKeys';
-import type { CreateBucketRequest } from '@/types/garage';
+import { validateBucketAlias } from '@/lib/bucket-name';
+import type { CreateBucketRequest, ListBucketsResponseItem } from '@/types/garage';
 
 export function BucketList() {
   const { clusterId } = useClusterContext();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortField, setSortField] = useState<'id' | 'globalAliases' | 'created'>('created');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
-  const [aliasType, setAliasType] = useState<'none' | 'global' | 'local' | 'both'>('global');
   const [globalAlias, setGlobalAlias] = useState('');
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [localAlias, setLocalAlias] = useState('');
   const [localAccessKeyId, setLocalAccessKeyId] = useState('');
+  const [noAlias, setNoAlias] = useState(false);
   const [actionError, setActionError] = useState('');
+
+  const resetForm = () => {
+    setGlobalAlias('');
+    setAdvancedOpen(false);
+    setLocalAlias('');
+    setLocalAccessKeyId('');
+    setNoAlias(false);
+    setActionError('');
+  };
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
+  const [bulkDelete, setBulkDelete] = useState<{ ids: string[]; clear: () => void } | null>(null);
+  const [bulkPending, setBulkPending] = useState(false);
   const keysQuery = useKeys(clusterId);
   const keys = keysQuery.data ?? [];
 
@@ -71,37 +80,45 @@ export function BucketList() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['buckets', clusterId] });
       setIsDialogOpen(false);
-      setGlobalAlias('');
-      setLocalAlias('');
-      setLocalAccessKeyId('');
-      setActionError('');
+      resetForm();
     },
     onError: (err) => {
       setActionError(getApiErrorMessage(err, 'Failed to create bucket.'));
     },
   });
 
-  const needsGlobal = aliasType === 'global' || aliasType === 'both';
-  const needsLocal = aliasType === 'local' || aliasType === 'both';
+  const trimmedGlobal = globalAlias.trim();
+  const trimmedLocal = localAlias.trim();
+
   const selectedLocalAccessKeyId =
     localAccessKeyId && keys.some((key) => key.id === localAccessKeyId)
       ? localAccessKeyId
       : keys[0]?.id || '';
   const hasLocalKey = Boolean(selectedLocalAccessKeyId);
+
+  const hasGlobal = !noAlias && trimmedGlobal.length > 0;
+  const hasLocal = !noAlias && advancedOpen && trimmedLocal.length > 0;
+
+  const globalError = hasGlobal ? validateBucketAlias(trimmedGlobal) : null;
+  const localError = hasLocal ? validateBucketAlias(trimmedLocal) : null;
+
   const canCreate =
     !createMutation.isPending &&
-    (!needsGlobal || Boolean(globalAlias.trim())) &&
-    (!needsLocal || (Boolean(localAlias.trim()) && hasLocalKey));
+    !globalError &&
+    !localError &&
+    (noAlias || hasGlobal || hasLocal) &&
+    (!hasLocal || hasLocalKey);
 
   const handleCreate = () => {
+    if (!canCreate) return;
     const payload: CreateBucketRequest = {};
-    if (needsGlobal) {
-      payload.globalAlias = globalAlias.trim();
+    if (hasGlobal) {
+      payload.globalAlias = trimmedGlobal;
     }
-    if (needsLocal) {
+    if (hasLocal) {
       payload.localAlias = {
         accessKeyId: selectedLocalAccessKeyId,
-        alias: localAlias.trim(),
+        alias: trimmedLocal,
       };
     }
     createMutation.mutate(payload);
@@ -114,7 +131,7 @@ export function BucketList() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['buckets', clusterId] });
       setDeleteConfirm(null);
-      toast({ title: 'Bucket deleted' });
+      toast({ title: 'Bucket deleted', variant: 'success' });
     },
     onError: (err) => {
       toast({
@@ -125,53 +142,75 @@ export function BucketList() {
     },
   });
 
-  const toggleSort = (field: typeof sortField) => {
-    if (sortField === field) {
-      setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
-
-  const sortIcon = (field: typeof sortField) => {
-    if (sortField !== field)
-      return <ArrowUpDown className="ml-1 inline h-3 w-3 text-muted-foreground/50" />;
-    return sortDirection === 'asc' ? (
-      <ArrowUp className="ml-1 inline h-3 w-3" />
-    ) : (
-      <ArrowDown className="ml-1 inline h-3 w-3" />
+  const handleBulkDelete = async () => {
+    if (!bulkDelete) return;
+    setBulkPending(true);
+    const outcome = await runBulkDelete(bulkDelete.ids, (id) =>
+      api
+        .post(proxyPath(clusterId, `/v2/DeleteBucket?id=${encodeURIComponent(id)}`), {})
+        .then(() => undefined),
     );
+    setBulkPending(false);
+    queryClient.invalidateQueries({ queryKey: ['buckets', clusterId] });
+    bulkDelete.clear();
+    setBulkDelete(null);
+
+    if (outcome.failed.length === 0) {
+      toast({
+        title: `Deleted ${outcome.ok.length} bucket${outcome.ok.length === 1 ? '' : 's'}`,
+        variant: 'success',
+      });
+    } else {
+      toast({
+        title:
+          outcome.ok.length === 0
+            ? `Couldn't delete ${outcome.failed.length} bucket${outcome.failed.length === 1 ? '' : 's'}`
+            : `Deleted ${outcome.ok.length}, ${outcome.failed.length} failed`,
+        description: `${outcome.failed[0].message}${outcome.failed.length > 1 ? ` (+${outcome.failed.length - 1} more)` : ''}`,
+        variant: 'destructive',
+      });
+    }
   };
 
-  const filteredAndSorted = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim();
-    let result = buckets;
-    if (q) {
-      result = result.filter(
-        (b) =>
-          b.id.toLowerCase().includes(q) ||
-          b.globalAliases.some((a) => a.toLowerCase().includes(q)) ||
-          b.localAliases.some((a) => a.alias.toLowerCase().includes(q)),
-      );
-    }
-    return [...result].sort((a, b) => {
-      const dir = sortDirection === 'asc' ? 1 : -1;
-      switch (sortField) {
-        case 'id':
-          return dir * a.id.localeCompare(b.id);
-        case 'globalAliases': {
-          const aName = a.globalAliases[0] || '';
-          const bName = b.globalAliases[0] || '';
-          return dir * aName.localeCompare(bName);
-        }
-        case 'created':
-          return dir * (a.created || '').localeCompare(b.created || '');
-        default:
-          return 0;
-      }
-    });
-  }, [buckets, searchQuery, sortField, sortDirection]);
+  const columns: ResourceListColumn<ListBucketsResponseItem>[] = [
+    {
+      id: 'name',
+      header: 'Name',
+      sortable: true,
+      sortAccessor: (b) => b.globalAliases[0] ?? '',
+      mobileHidden: true, // becomes the mobile card title
+      cell: (b) => (
+        <AliasOverflow
+          items={b.globalAliases.map((alias) => ({
+            key: alias,
+            value: alias,
+            label: 'Global alias',
+          }))}
+        />
+      ),
+    },
+    {
+      id: 'id',
+      header: 'Bucket ID',
+      sortable: true,
+      sortAccessor: (b) => b.id,
+      mobileHidden: true, // mobile identity is the name (title) + id (subtitle)
+      cellClassName: 'text-xs',
+      cell: (b) => (
+        <CopyValue value={b.id} label="Bucket ID" className="max-w-[26ch] font-mono">
+          {b.id}
+        </CopyValue>
+      ),
+    },
+    {
+      id: 'created',
+      header: 'Created',
+      sortable: true,
+      sortAccessor: (b) => b.created ?? '',
+      cellClassName: 'text-xs text-muted-foreground',
+      cell: (b) => (b.created ? formatDateTime(b.created) : <EmptyValue />),
+    },
+  ];
 
   if (isLoading) return <TableLoadingState label="Loading buckets..." />;
 
@@ -185,111 +224,164 @@ export function BucketList() {
             open={isDialogOpen}
             onOpenChange={(open) => {
               setIsDialogOpen(open);
-              if (open) {
-                setAliasType('global');
-                setGlobalAlias('');
-                setLocalAlias('');
-                setLocalAccessKeyId('');
-              } else {
-                setActionError('');
-              }
+              resetForm();
             }}
           >
             <DialogTrigger asChild>
-              <Button size="sm">
+              <Button>
                 <AddActionIcon className="h-4 w-4" /> Create Bucket
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Create Bucket</DialogTitle>
+                <DialogDescription>
+                  Buckets store objects. Name it now, or create an ID-only bucket and add a name
+                  later.
+                </DialogDescription>
               </DialogHeader>
-              <div className="space-y-4">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleCreate();
+                }}
+                className="space-y-4"
+              >
                 <div className="space-y-2">
-                  <Label>Alias Type</Label>
-                  <Select
-                    value={aliasType}
-                    onValueChange={(value) =>
-                      setAliasType(value as 'none' | 'global' | 'local' | 'both')
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select alias type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="global">Global alias</SelectItem>
-                      <SelectItem value="local">Local alias</SelectItem>
-                      <SelectItem value="both">Global + Local</SelectItem>
-                      <SelectItem value="none">No alias</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="bucket-name">Bucket name</Label>
+                  <Input
+                    id="bucket-name"
+                    autoFocus
+                    value={globalAlias}
+                    onChange={(e) => setGlobalAlias(e.target.value)}
+                    placeholder="app-assets"
+                    disabled={noAlias}
+                    aria-invalid={globalError ? true : undefined}
+                    aria-describedby={globalError ? 'bucket-name-error' : 'bucket-name-hint'}
+                    className={cn(
+                      globalError && 'border-destructive focus-visible:ring-destructive/40',
+                    )}
+                  />
+                  {globalError ? (
+                    <p id="bucket-name-error" className="text-xs text-destructive">
+                      {globalError}
+                    </p>
+                  ) : (
+                    <p id="bucket-name-hint" className="text-xs text-muted-foreground">
+                      Cluster-wide alias. Lowercase letters, numbers, dots and hyphens; 3–63
+                      characters.
+                    </p>
+                  )}
                 </div>
 
-                {needsGlobal && (
-                  <div className="space-y-2">
-                    <Label>Global Alias</Label>
-                    <Input
-                      value={globalAlias}
-                      onChange={(e) => setGlobalAlias(e.target.value)}
-                      placeholder="my-bucket"
+                <div className="space-y-3">
+                  <button
+                    type="button"
+                    onClick={() => setAdvancedOpen((open) => !open)}
+                    aria-expanded={advancedOpen}
+                    disabled={noAlias}
+                    className={cn(
+                      'flex items-center gap-1 rounded-sm text-sm font-medium text-foreground transition-colors hover:text-primary',
+                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                      'disabled:cursor-not-allowed disabled:opacity-50',
+                    )}
+                  >
+                    <ChevronRight
+                      className={cn('h-4 w-4 transition-transform', advancedOpen && 'rotate-90')}
                     />
+                    Advanced — private alias for a key
+                  </button>
+
+                  {advancedOpen && !noAlias && (
+                    <div className="space-y-3 border-l-2 border-border pl-3">
+                      <p className="text-xs text-muted-foreground">
+                        A bucket name visible only to one access key, in addition to (or instead of)
+                        the cluster-wide name above.
+                      </p>
+                      <div className="space-y-2">
+                        <Label htmlFor="local-alias">Local alias</Label>
+                        <Input
+                          id="local-alias"
+                          value={localAlias}
+                          onChange={(e) => setLocalAlias(e.target.value)}
+                          placeholder="app-assets"
+                          aria-invalid={localError ? true : undefined}
+                          aria-describedby={localError ? 'local-alias-error' : undefined}
+                          className={cn(
+                            localError && 'border-destructive focus-visible:ring-destructive/40',
+                          )}
+                        />
+                        {localError && (
+                          <p id="local-alias-error" className="text-xs text-destructive">
+                            {localError}
+                          </p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="access-key">Access key</Label>
+                        {keysQuery.isLoading ? (
+                          <InlineLoadingState label="Loading access keys..." />
+                        ) : keysQuery.error ? (
+                          <div className="text-sm text-destructive">
+                            {getApiErrorMessage(keysQuery.error, 'Failed to load access keys.')}
+                          </div>
+                        ) : keys.length > 0 ? (
+                          <Select
+                            value={selectedLocalAccessKeyId}
+                            onValueChange={setLocalAccessKeyId}
+                          >
+                            <SelectTrigger id="access-key">
+                              <SelectValue placeholder="Select access key" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {keys.map((key) => (
+                                <SelectItem key={key.id} value={key.id}>
+                                  {key.name || formatShortId(key.id, 12)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">
+                            No access keys available. Create a key first to use a local alias.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-start gap-2">
+                  <Checkbox
+                    id="no-alias"
+                    checked={noAlias}
+                    onCheckedChange={setNoAlias}
+                    aria-describedby="no-alias-desc"
+                    className="mt-0.5"
+                  />
+                  <div className="text-sm leading-snug">
+                    <Label htmlFor="no-alias" className="font-medium">
+                      Create without a name
+                    </Label>
+                    <p id="no-alias-desc" className="text-xs text-muted-foreground">
+                      The bucket will be addressable only by its ID until you add an alias.
+                    </p>
                   </div>
+                </div>
+
+                {actionError && (
+                  <Alert variant="destructive">
+                    <AlertTitle>Bucket creation failed</AlertTitle>
+                    <AlertDescription>{actionError}</AlertDescription>
+                  </Alert>
                 )}
 
-                {needsLocal && (
-                  <>
-                    <div className="space-y-2">
-                      <Label>Local Alias</Label>
-                      <Input
-                        value={localAlias}
-                        onChange={(e) => setLocalAlias(e.target.value)}
-                        placeholder="my-bucket"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Access Key</Label>
-                      {keysQuery.isLoading ? (
-                        <InlineLoadingState label="Loading access keys..." />
-                      ) : keysQuery.error ? (
-                        <div className="text-sm text-destructive">
-                          {getApiErrorMessage(keysQuery.error, 'Failed to load access keys.')}
-                        </div>
-                      ) : keys.length > 0 ? (
-                        <Select
-                          value={selectedLocalAccessKeyId}
-                          onValueChange={setLocalAccessKeyId}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select access key" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {keys.map((key) => (
-                              <SelectItem key={key.id} value={key.id}>
-                                {key.name || formatShortId(key.id, 12)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <div className="text-sm text-muted-foreground">
-                          No access keys available for local alias creation.
-                        </div>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-              {actionError && (
-                <Alert variant="destructive">
-                  <AlertTitle>Bucket creation failed</AlertTitle>
-                  <AlertDescription>{actionError}</AlertDescription>
-                </Alert>
-              )}
-              <DialogFooter>
-                <Button onClick={handleCreate} disabled={!canCreate}>
-                  {createMutation.isPending ? 'Creating...' : 'Create'}
-                </Button>
-              </DialogFooter>
+                <DialogFooter>
+                  <Button type="submit" disabled={!canCreate}>
+                    {createMutation.isPending ? 'Creating...' : 'Create Bucket'}
+                  </Button>
+                </DialogFooter>
+              </form>
             </DialogContent>
           </Dialog>
         }
@@ -303,135 +395,75 @@ export function BucketList() {
           </AlertDescription>
         </Alert>
       )}
-      {actionError && !isDialogOpen && (
-        <Alert variant="destructive">
-          <AlertTitle>Bucket action failed</AlertTitle>
-          <AlertDescription>{actionError}</AlertDescription>
-        </Alert>
-      )}
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search by ID or alias..."
-          className="pl-9"
-        />
-      </div>
+      <ResourceList
+        items={buckets}
+        getRowId={(b) => b.id}
+        columns={columns}
+        onRowClick={(b) => navigate(`/clusters/${clusterId}/buckets/${b.id}`)}
+        getRowLabel={(b) => `Open bucket ${b.globalAliases[0] || formatShortId(b.id, 10)}`}
+        renderTitle={(b) =>
+          b.globalAliases[0] ? (
+            <CopyValue value={b.globalAliases[0]} label="Bucket name" className="max-w-full">
+              {b.globalAliases[0]}
+            </CopyValue>
+          ) : (
+            <CopyValue value={b.id} label="Bucket ID" className="max-w-full font-mono">
+              {b.id}
+            </CopyValue>
+          )
+        }
+        renderSubtitle={(b) =>
+          b.globalAliases[0] ? (
+            <CopyValue
+              value={b.id}
+              label="Bucket ID"
+              className="max-w-full font-mono text-xs text-muted-foreground"
+            >
+              {b.id}
+            </CopyValue>
+          ) : null
+        }
+        search={{
+          placeholder: 'Search by ID or alias...',
+          predicate: (b, q) =>
+            b.id.toLowerCase().includes(q) ||
+            b.globalAliases.some((a) => a.toLowerCase().includes(q)) ||
+            b.localAliases.some((a) => a.alias.toLowerCase().includes(q)),
+        }}
+        defaultSort={{ columnId: 'created', direction: 'desc' }}
+        selection={{
+          renderActions: (selected, clear) => (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setBulkDelete({ ids: selected.map((b) => b.id), clear })}
+            >
+              <DeleteActionIcon className="h-3.5 w-3.5" />
+              Delete {selected.length}
+            </Button>
+          ),
+        }}
+        actions={(b) => [
+          {
+            label: 'Delete',
+            icon: DeleteActionIcon,
+            destructive: true,
+            onSelect: () => setDeleteConfirm({ id: b.id, name: b.globalAliases[0] || b.id }),
+          },
+        ]}
+        emptyState={{
+          icon: BucketIcon,
+          title: 'No buckets found',
+          description: 'Create a bucket to get started.',
+          action: (
+            <Button variant="outline" size="sm" onClick={() => setIsDialogOpen(true)}>
+              <AddActionIcon className="h-4 w-4 mr-2" /> Create Bucket
+            </Button>
+          ),
+        }}
+      />
 
-      <div className="overflow-hidden rounded-lg border bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('id')}>
-                Bucket ID
-                {sortIcon('id')}
-              </TableHead>
-              <TableHead
-                className="cursor-pointer select-none"
-                onClick={() => toggleSort('globalAliases')}
-              >
-                Global Aliases
-                {sortIcon('globalAliases')}
-              </TableHead>
-              <TableHead>Local Aliases</TableHead>
-              <TableHead
-                className="cursor-pointer select-none"
-                onClick={() => toggleSort('created')}
-              >
-                Created
-                {sortIcon('created')}
-              </TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredAndSorted.map((bucket) => (
-              <TableRow
-                key={bucket.id}
-                className="cursor-pointer hover:bg-muted/50"
-                onClick={() => navigate(`/clusters/${clusterId}/buckets/${bucket.id}`)}
-              >
-                <TableCell className="text-xs">
-                  <div className="inline-flex items-center gap-1">
-                    <span>{formatShortId(bucket.id, 10)}</span>
-                    <CopyButton value={bucket.id} label="Bucket ID" compact />
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-1">
-                    {bucket.globalAliases.length > 0 ? (
-                      bucket.globalAliases.map((alias) => (
-                        <AliasMiniChip key={alias} value={alias} kind="global" />
-                      ))
-                    ) : (
-                      <span className="text-xs text-muted-foreground">-</span>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-1">
-                    {bucket.localAliases.length > 0 ? (
-                      bucket.localAliases.map((alias) => (
-                        <AliasMiniChip
-                          key={`${alias.accessKeyId}-${alias.alias}`}
-                          value={alias.alias}
-                          kind="local"
-                        />
-                      ))
-                    ) : (
-                      <span className="text-xs text-muted-foreground">-</span>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell className="text-xs text-muted-foreground">
-                  {formatDateTime24h(bucket.created)}
-                </TableCell>
-                <TableCell>
-                  <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive"
-                      onClick={() =>
-                        setDeleteConfirm({
-                          id: bucket.id,
-                          name: bucket.globalAliases[0] || bucket.id,
-                        })
-                      }
-                    >
-                      <DeleteActionIcon className="h-3.5 w-3.5" />
-                      Delete
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-            {filteredAndSorted.length === 0 && (
-              <TableEmptyState
-                icon={BucketIcon}
-                title={searchQuery ? 'No buckets match search' : 'No buckets found'}
-                description={
-                  searchQuery
-                    ? `No results for "${searchQuery}". Try a different term.`
-                    : 'Create a bucket to get started.'
-                }
-                colSpan={5}
-                action={
-                  !searchQuery && (
-                    <Button variant="outline" size="sm" onClick={() => setIsDialogOpen(true)}>
-                      <AddActionIcon className="h-4 w-4 mr-2" /> Create Bucket
-                    </Button>
-                  )
-                }
-              />
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* Delete Confirmation */}
       <ConfirmDialog
         open={!!deleteConfirm}
         onOpenChange={(open) => !open && setDeleteConfirm(null)}
@@ -441,6 +473,17 @@ export function BucketList() {
         confirmText="Delete Bucket"
         onConfirm={() => deleteConfirm && deleteMutation.mutate(deleteConfirm.id)}
         isLoading={deleteMutation.isPending}
+      />
+
+      <ConfirmDialog
+        open={!!bulkDelete}
+        onOpenChange={(open) => !open && !bulkPending && setBulkDelete(null)}
+        title={`Delete ${bulkDelete?.ids.length ?? 0} buckets`}
+        description={`Permanently delete ${bulkDelete?.ids.length ?? 0} selected bucket(s)? Each bucket must be empty; any that still hold objects are skipped and reported.`}
+        tier="danger"
+        confirmText={`Delete ${bulkDelete?.ids.length ?? 0} buckets`}
+        onConfirm={handleBulkDelete}
+        isLoading={bulkPending}
       />
     </div>
   );

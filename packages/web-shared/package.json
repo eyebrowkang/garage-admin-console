@@ -1,0 +1,39 @@
+{
+  "name": "@garage/web-shared",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Shared non-UI web logic for Garage Admin Console and S3 Browser — api-client factory, query-client factory, formatters, error normalization",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest",
+    "test:run": "vitest run"
+  },
+  "peerDependencies": {
+    "@tanstack/react-query": "^5",
+    "axios": "^1"
+  },
+  "devDependencies": {
+    "@tanstack/react-query": "^5.100.13",
+    "axios": "^1.16.1",
+    "eslint": "^10.4.0",
+    "jsdom": "^29.1.1",
+    "tsup": "^8.5.0",
+    "typescript": "~6.0.3",
+    "vitest": "^4.1.7"
+  }
+}

@@ -34,20 +34,19 @@ import {
   usePurgeBlocks,
 } from '@/hooks/useBlocks';
 import { NodeSelector } from '@/components/cluster/NodeSelector';
-import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
-import { InlineLoadingState } from '@/components/cluster/InlineLoadingState';
+import { ConfirmDialog } from '@garage/ui';
+import { InlineLoadingState } from '@garage/ui';
 import { JsonViewer } from '@/components/cluster/JsonViewer';
-import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
+import { ModulePageHeader } from '@garage/ui';
 import {
   DeleteActionIcon,
   InfoActionIcon,
   RefreshActionIcon,
   SearchActionIcon,
 } from '@/lib/action-icons';
-import { formatDateTime24h, formatShortId } from '@/lib/format';
-import { getApiErrorMessage } from '@/lib/errors';
+import { formatDateTime, formatShortId, getApiErrorMessage } from '@garage/web-shared';
 import { BlockIcon } from '@/lib/entity-icons';
-import { toast } from '@/hooks/use-toast';
+import { toast } from '@garage/ui';
 import type { BlockError } from '@/types/garage';
 
 export function BlockManager() {
@@ -264,7 +263,7 @@ export function BlockManager() {
                     <TableRow key={`${blockError.nodeId}-${blockError.blockHash}`}>
                       <TableCell>
                         <button
-                          className="text-xs text-primary hover:underline"
+                          className="text-xs text-foreground hover:underline"
                           onClick={() => {
                             openBlockInfo(blockError.blockHash, blockError.nodeId);
                           }}
@@ -284,10 +283,10 @@ export function BlockManager() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
-                        {blockError.lastTry ? formatDateTime24h(blockError.lastTry) : '-'}
+                        {blockError.lastTry ? formatDateTime(blockError.lastTry) : '—'}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
-                        {blockError.nextTry ? formatDateTime24h(blockError.nextTry) : '-'}
+                        {blockError.nextTry ? formatDateTime(blockError.nextTry) : '—'}
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">

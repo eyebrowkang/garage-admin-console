@@ -1,0 +1,146 @@
+/*
+ * @garage/ui/base.css — shared app base layer (single source of truth).
+ *
+ * Source CSS (NOT precompiled). Each app @imports this from its index.css
+ * AFTER `@import 'tailwindcss'`, so `* { @apply border-border }` lands in the
+ * `base` layer *after* Preflight and wins: Tailwind v4 defaults borders to
+ * `currentColor`, and the warm token must override that. Baking this into the
+ * precompiled @garage/ui/style.css (which apps import BEFORE Tailwind) would
+ * lose that battle, so it stays a raw source import.
+ *
+ * Owns everything both apps share: base reset, body shell, cursors, the radix
+ * scroll-lock fix, the unified warm scrollbar + selection, and two scroll
+ * utilities. Requires @garage/ui/theme.css (for the token utilities used here)
+ * and @garage/tokens/style.css (for the underlying CSS variables).
+ */
+
+@layer base {
+  html {
+    color-scheme: light;
+    scrollbar-gutter: stable;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Manrope', sans-serif;
+    background-image: linear-gradient(
+      to bottom right,
+      hsl(var(--background)),
+      hsl(var(--secondary))
+    );
+    min-height: 100vh;
+    overflow-y: scroll;
+    margin: 0;
+  }
+
+  button,
+  [role='button'],
+  a,
+  select,
+  [type='checkbox'],
+  [type='radio'],
+  label[for],
+  summary {
+    cursor: pointer;
+  }
+
+  input[type='checkbox'] {
+    accent-color: hsl(var(--primary));
+  }
+
+  /* Radix locks body scroll via inline margin/padding; neutralize it so the
+   * fixed layout doesn't shift when a dialog/toast/sheet opens. */
+  html body[data-scroll-locked],
+  html body[data-radix-scroll-lock] {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  /* Prevent iOS auto-zoom on input focus (triggered when font-size < 16px). */
+  @media (max-width: 767px) {
+    input,
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
+  }
+}
+
+/* Unified warm scrollbar — applies globally in both apps. */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: hsl(28 18% 80% / 0.6);
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(28 18% 70% / 0.8);
+  background-clip: padding-box;
+}
+
+::selection {
+  background: hsl(var(--primary) / 0.25);
+}
+
+/* Hide scrollbar but keep scroll functionality. */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* Horizontal scroll with fade edges. */
+.scroll-fade {
+  mask-image: linear-gradient(to right, transparent, black 16px, black calc(100% - 16px), transparent);
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 16px,
+    black calc(100% - 16px),
+    transparent
+  );
+}
+
+/* List/card view switch: fade the newly selected layout in instead of hard
+ * cutting between two different-height layouts. Driven by <FleetViewTransition>
+ * (a keyed remount replays this); disabled under reduced-motion. Raw CSS so it
+ * works in both apps without the tailwindcss-animate plugin. */
+@keyframes fleet-view-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.25rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fleet-view-enter {
+  animation: fleet-view-in 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fleet-view-enter {
+    animation: none;
+  }
+}

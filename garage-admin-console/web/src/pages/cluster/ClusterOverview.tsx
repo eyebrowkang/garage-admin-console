@@ -3,12 +3,10 @@ import { Link } from 'react-router-dom';
 import {
   Activity,
   AlertTriangle,
-  BarChart2,
   CheckCircle2,
   LayoutGrid,
   Layers,
   ShieldCheck,
-  RefreshCw,
   XCircle,
 } from 'lucide-react';
 import {
@@ -17,19 +15,19 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
-  Badge,
   Button,
   Alert,
   AlertDescription,
   AlertTitle,
+  Meter,
+  type MeterTone,
+  TerminalOutput,
 } from '@garage/ui';
-import { InlineLoadingState } from '@/components/cluster/InlineLoadingState';
-import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
+import { ModulePageHeader } from '@garage/ui';
 import { useClusterContext } from '@/contexts/ClusterContext';
 import { useNodes } from '@/hooks/useNodes';
 import { api, proxyPath } from '@/lib/api';
-import { formatBytes } from '@/lib/format';
-import { getApiErrorMessage } from '@/lib/errors';
+import { formatBytes, getApiErrorMessage } from '@garage/web-shared';
 import { NodeIcon } from '@/lib/entity-icons';
 import type {
   GetClusterHealthResponse,
@@ -38,6 +36,14 @@ import type {
   MultiNodeResponse,
   BlockErrorsResponse,
 } from '@/types/garage';
+
+/** Ratio → fill percent + health tone for the inline health meters. */
+function ratio(num?: number, den?: number): { pct: number; tone: MeterTone } {
+  if (!den || den <= 0) return { pct: 0, tone: 'neutral' };
+  const pct = Math.max(0, Math.min(100, Math.round(((num ?? 0) / den) * 100)));
+  const tone: MeterTone = pct >= 100 ? 'success' : pct >= 50 ? 'warning' : 'destructive';
+  return { pct, tone };
+}
 
 export function ClusterOverview() {
   const { clusterId } = useClusterContext();
@@ -102,41 +108,41 @@ export function ClusterOverview() {
 
   const statusConfig = {
     healthy: {
-      color: 'text-green-600',
-      bgColor: 'bg-green-50',
-      borderColor: 'border-green-200',
+      color: 'text-success',
+      bgColor: 'bg-success/10',
+      borderColor: 'border-success/30',
       icon: CheckCircle2,
       label: 'Healthy',
       badge: 'success' as const,
     },
     degraded: {
-      color: 'text-violet-700',
-      bgColor: 'bg-violet-50',
-      borderColor: 'border-violet-200',
+      color: 'text-warning',
+      bgColor: 'bg-warning/10',
+      borderColor: 'border-warning/30',
       icon: AlertTriangle,
       label: 'Degraded',
       badge: 'warning' as const,
     },
     unavailable: {
-      color: 'text-red-600',
-      bgColor: 'bg-red-50',
-      borderColor: 'border-red-200',
+      color: 'text-destructive',
+      bgColor: 'bg-destructive/10',
+      borderColor: 'border-destructive/30',
       icon: XCircle,
       label: 'Unavailable',
       badge: 'destructive' as const,
     },
     unreachable: {
-      color: 'text-red-600',
-      bgColor: 'bg-red-50',
-      borderColor: 'border-red-200',
+      color: 'text-destructive',
+      bgColor: 'bg-destructive/10',
+      borderColor: 'border-destructive/30',
       icon: XCircle,
       label: 'Unreachable',
       badge: 'destructive' as const,
     },
     unknown: {
-      color: 'text-slate-600',
-      bgColor: 'bg-slate-50',
-      borderColor: 'border-slate-200',
+      color: 'text-muted-foreground',
+      bgColor: 'bg-muted',
+      borderColor: 'border-border',
       icon: Activity,
       label: 'Checking',
       badge: 'secondary' as const,
@@ -188,7 +194,11 @@ export function ClusterOverview() {
   })();
 
   const hasLayout = Boolean(layout);
-  const hasStats = Boolean(stats?.freeform);
+
+  const connectedRatio = ratio(health?.connectedNodes, health?.knownNodes);
+  const storageRatio = ratio(health?.storageNodesUp, health?.storageNodes);
+  const partitionsRatio = ratio(health?.partitionsAllOk, health?.partitions);
+  const quorumRatio = ratio(health?.partitionsQuorum, health?.partitions);
 
   return (
     <div className="space-y-6">
@@ -250,66 +260,69 @@ export function ClusterOverview() {
               <CardDescription>{statusMessage}</CardDescription>
             </div>
           </div>
-          <Badge variant={config.badge} className="text-sm px-3 py-1">
-            {config.label}
-          </Badge>
         </CardHeader>
         <CardContent className="relative z-10 space-y-4">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="flex items-center gap-3 rounded-lg bg-slate-50 px-3 py-2">
-              <div className="h-8 w-8 rounded-lg bg-white flex items-center justify-center shadow-sm">
-                <Activity className="h-4 w-4 text-slate-500" />
-              </div>
-              <div>
-                <div className="text-xs text-muted-foreground">Connected Nodes</div>
-                <div className="font-semibold text-slate-900 tabular-nums">
-                  {health ? `${health.connectedNodes}/${health.knownNodes}` : '-'}
+            {(
+              [
+                {
+                  icon: Activity,
+                  label: 'Connected Nodes',
+                  value: health ? `${health.connectedNodes}/${health.knownNodes}` : '—',
+                  r: connectedRatio,
+                },
+                {
+                  icon: NodeIcon,
+                  label: 'Storage Nodes',
+                  value: health ? `${health.storageNodesUp}/${health.storageNodes}` : '—',
+                  r: storageRatio,
+                },
+                {
+                  icon: Layers,
+                  label: 'Partitions OK',
+                  value: health ? `${health.partitionsAllOk}/${health.partitions}` : '—',
+                  r: partitionsRatio,
+                },
+                {
+                  icon: ShieldCheck,
+                  label: 'Quorum OK',
+                  value: health ? `${health.partitionsQuorum}/${health.partitions}` : '—',
+                  r: quorumRatio,
+                },
+              ] as const
+            ).map(({ icon: Icon, label, value, r }) => (
+              <div key={label} className="space-y-2 rounded-lg bg-muted px-3 py-2.5">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-card shadow-sm">
+                    <Icon className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs text-muted-foreground">{label}</div>
+                    <div className="font-semibold tabular-nums text-foreground">{value}</div>
+                  </div>
+                  {health && (
+                    <div className="text-xs font-medium tabular-nums text-muted-foreground">
+                      {r.pct}%
+                    </div>
+                  )}
                 </div>
+                <Meter
+                  value={health ? r.pct : 0}
+                  tone={health ? r.tone : 'neutral'}
+                  ariaLabel={label}
+                />
               </div>
-            </div>
-            <div className="flex items-center gap-3 rounded-lg bg-slate-50 px-3 py-2">
-              <div className="h-8 w-8 rounded-lg bg-white flex items-center justify-center shadow-sm">
-                <NodeIcon className="h-4 w-4 text-slate-500" />
-              </div>
-              <div>
-                <div className="text-xs text-muted-foreground">Storage Nodes</div>
-                <div className="font-semibold text-slate-900 tabular-nums">
-                  {health ? `${health.storageNodesUp}/${health.storageNodes}` : '-'}
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 rounded-lg bg-slate-50 px-3 py-2">
-              <div className="h-8 w-8 rounded-lg bg-white flex items-center justify-center shadow-sm">
-                <Layers className="h-4 w-4 text-slate-500" />
-              </div>
-              <div>
-                <div className="text-xs text-muted-foreground">Partitions OK</div>
-                <div className="font-semibold text-slate-900 tabular-nums">
-                  {health ? `${health.partitionsAllOk}/${health.partitions}` : '-'}
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 rounded-lg bg-slate-50 px-3 py-2">
-              <div className="h-8 w-8 rounded-lg bg-white flex items-center justify-center shadow-sm">
-                <ShieldCheck className="h-4 w-4 text-slate-500" />
-              </div>
-              <div>
-                <div className="text-xs text-muted-foreground">Quorum OK</div>
-                <div className="font-semibold text-slate-900 tabular-nums">
-                  {health ? `${health.partitionsQuorum}/${health.partitions}` : '-'}
-                </div>
-              </div>
-            </div>
+            ))}
           </div>
           <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-            <span className="rounded-full border bg-white px-2 py-1">
-              Nodes up: {status ? nodesUp : '-'}
+            <span className="rounded-full border bg-card px-2 py-1">
+              Nodes up: {status ? nodesUp : '—'}
             </span>
-            <span className="rounded-full border bg-white px-2 py-1">
-              Nodes down: {status ? nodesDown : '-'}
+            <span className="rounded-full border bg-card px-2 py-1">
+              Nodes down: {status ? nodesDown : '—'}
             </span>
-            <span className="rounded-full border bg-white px-2 py-1">
-              Draining: {status ? nodesDraining : '-'}
+            <span className="rounded-full border bg-card px-2 py-1">
+              Draining: {status ? nodesDraining : '—'}
             </span>
           </div>
         </CardContent>
@@ -327,16 +340,16 @@ export function ClusterOverview() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-1">
               <div className="text-sm text-muted-foreground">Layout Version</div>
-              <div className="text-xl font-semibold">{hasLayout ? `v${layout?.version}` : '-'}</div>
+              <div className="text-xl font-semibold">{hasLayout ? `v${layout?.version}` : '—'}</div>
             </div>
             <div className="space-y-1">
               <div className="text-sm text-muted-foreground">Roles in Layout</div>
-              <div className="text-xl font-semibold">{hasLayout ? layout?.roles?.length : '-'}</div>
+              <div className="text-xl font-semibold">{hasLayout ? layout?.roles?.length : '—'}</div>
             </div>
             <div className="space-y-1">
               <div className="text-sm text-muted-foreground">Partition Size</div>
               <div className="text-xl font-semibold">
-                {hasLayout ? formatBytes(layout?.partitionSize ?? 0) : '-'}
+                {hasLayout ? formatBytes(layout?.partitionSize ?? 0) : '—'}
               </div>
             </div>
             <div className="space-y-1">
@@ -344,44 +357,30 @@ export function ClusterOverview() {
               <div className="text-xl font-semibold">
                 {hasLayout
                   ? (layout?.stagedRoleChanges?.length ?? 0) + (layout?.stagedParameters ? 1 : 0)
-                  : '-'}
+                  : '—'}
               </div>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart2 className="h-4 w-4 text-muted-foreground" />
-                Cluster Statistics
-              </CardTitle>
-              <CardDescription>Raw statistics from the cluster</CardDescription>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => statsQuery.refetch()}
-              disabled={statsQuery.isFetching}
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${statsQuery.isFetching ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {statsQuery.isLoading ? (
-            <InlineLoadingState label="Loading statistics..." />
-          ) : (
-            <pre className="max-h-[400px] overflow-auto whitespace-pre rounded-lg border bg-muted/40 p-4 font-mono text-xs leading-relaxed">
-              {hasStats ? stats?.freeform : 'No statistics available.'}
-            </pre>
-          )}
-        </CardContent>
-      </Card>
+      {/* Cluster statistics — the freeform payload is literally a CLI command's
+          stdout, so it's presented as the terminal output it is. */}
+      <div>
+        <div className="mb-2 flex items-baseline justify-between gap-2">
+          <h2 className="text-sm font-semibold text-foreground">Cluster Statistics</h2>
+          <span className="text-xs text-muted-foreground">Raw output from the cluster</span>
+        </div>
+        <TerminalOutput
+          command="garage stats"
+          content={stats?.freeform ?? ''}
+          onRefresh={() => statsQuery.refetch()}
+          refreshing={statsQuery.isFetching}
+          loading={statsQuery.isLoading}
+          loadingLabel="Fetching cluster statistics…"
+          emptyLabel="No statistics available."
+        />
+      </div>
     </div>
   );
 }

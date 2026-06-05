@@ -65,7 +65,17 @@ function mountS3BrowserProxy() {
         return;
       }
 
-      Readable.fromWeb(response.body as Parameters<typeof Readable.fromWeb>[0]).pipe(res);
+      const upstream = Readable.fromWeb(response.body as Parameters<typeof Readable.fromWeb>[0]);
+      // pipe() does not forward source errors, so an upstream failure after
+      // headers are flushed would otherwise throw as an unhandled 'error'.
+      upstream.on('error', (streamError) => {
+        logger.warn(
+          { error: streamError, target: targetUrl.href },
+          'S3 Browser MF proxy stream error',
+        );
+        res.destroy();
+      });
+      upstream.pipe(res);
     } catch (error) {
       logger.warn({ error, target: targetUrl.href }, 'S3 Browser MF proxy request failed');
       if (!res.headersSent) {
@@ -99,11 +109,25 @@ if (staticDir) {
     res.send(`window.__GARAGE_RUNTIME_CONFIG__ = ${serialized};\n`);
   });
 
-  app.use(express.static(resolved));
+  // index.html must never be cached so new deploys roll out immediately; every
+  // other file is content-hashed by Vite and safe to cache immutably.
+  app.use(
+    express.static(resolved, {
+      setHeaders: (res, filePath) => {
+        if (path.basename(filePath) === 'index.html') {
+          res.setHeader('Cache-Control', 'no-store');
+        } else {
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        }
+      },
+    }),
+  );
 
-  // SPA fallback: serve index.html for unmatched GET requests that accept HTML
+  // SPA fallback: only browser navigations (paths without a file extension) get
+  // index.html. A missing hashed asset must stay a 404 instead of being masked
+  // as HTML (which would surface as an "Unexpected token <" parse error).
   app.use((req, res, next) => {
-    if (req.method === 'GET' && req.accepts('html')) {
+    if (req.method === 'GET' && req.accepts('html') && !path.extname(req.path)) {
       res.sendFile(path.join(resolved, 'index.html'));
     } else {
       next();

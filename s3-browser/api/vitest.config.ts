@@ -6,7 +6,6 @@ export default defineConfig({
     setupFiles: ['src/test/setup.ts'],
     include: ['src/test/**/*.test.ts'],
     fileParallelism: false,
-    maxThreads: 1,
-    minThreads: 1,
+    maxWorkers: 1,
   },
 });

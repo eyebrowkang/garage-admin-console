@@ -1,0 +1,71 @@
+import { useEffect, useState } from 'react';
+import { Check, Copy } from 'lucide-react';
+
+import { toast } from '../hooks/use-toast';
+import { cn } from '../lib/cn';
+import { Button } from './button';
+
+interface CopyButtonProps {
+  value?: string | null;
+  label?: string;
+  className?: string;
+  compact?: boolean;
+}
+
+export function CopyButton({
+  value,
+  label = 'Value',
+  className,
+  compact = false,
+}: CopyButtonProps) {
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!copied) return;
+    const timer = window.setTimeout(() => setCopied(false), 1200);
+    return () => window.clearTimeout(timer);
+  }, [copied]);
+
+  const handleCopy = async () => {
+    if (!value) return;
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+    } catch {
+      toast({
+        title: 'Copy failed',
+        description: 'Clipboard permission was denied.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const buttonLabel = copied ? `${label} copied` : `Copy ${label}`;
+
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      className={cn(
+        compact
+          ? 'h-6 w-6 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground'
+          : 'h-8 w-8 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground',
+        className,
+      )}
+      onClick={(e) => {
+        e.stopPropagation();
+        void handleCopy();
+      }}
+      disabled={!value}
+      aria-label={buttonLabel}
+      title={buttonLabel}
+    >
+      {copied ? (
+        <Check className={compact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
+      ) : (
+        <Copy className={compact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
+      )}
+    </Button>
+  );
+}

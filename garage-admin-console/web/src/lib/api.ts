@@ -1,35 +1,24 @@
-import axios from 'axios';
+import { createApiClient } from '@garage/web-shared';
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
-export const api = axios.create({
+const client = createApiClient({
   baseURL: API_BASE_URL,
-});
-
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers = config.headers ?? {};
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    const status = error?.response?.status;
-    const url = error?.config?.url ?? '';
-    const isProxyRequest = typeof url === 'string' && url.includes('/proxy/');
-    if ((status === 401 || status === 403) && !isProxyRequest) {
-      localStorage.removeItem('token');
-      if (typeof window !== 'undefined') {
-        window.location.href = '/login';
-      }
+  tokenKey: 'garage-admin.jwt',
+  onUnauthorized: (error) => {
+    // Proxy sub-requests can 401/403 without the session being dead — leave
+    // those to the caller. For everything else, drop the token and bounce to
+    // the login screen.
+    const url = (error as { config?: { url?: string } })?.config?.url;
+    if (typeof url === 'string' && url.includes('/proxy/')) return;
+    client.writeStoredToken(null);
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login';
     }
-    return Promise.reject(error);
   },
-);
+});
+
+export const { api, readStoredToken, writeStoredToken } = client;
 
 export function proxyPath(clusterId: string, path: string): string {
   const normalized = path.startsWith('/') ? path : `/${path}`;

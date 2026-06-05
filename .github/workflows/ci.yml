@@ -56,10 +56,15 @@ jobs:
           pnpm build:packages
           pnpm -r --filter @garage-admin/api --filter @garage-admin/web --filter @s3-browser/api --filter @s3-browser/web --if-present build
 
+      - name: Check CSS cascade invariants
+        run: pnpm check:css
+
       - name: Typecheck
         run: pnpm typecheck
 
       - name: Test
+        # No shared DATA_DIR: each workspace's vitest runs in its own cwd, and
+        # the two BFF suites isolate their Sqlite DB in a per-process temp dir
+        # (see each api/src/test/setup.ts). A single shared DATA_DIR would
+        # collide both BFFs on one data.db and break migrations.
         run: pnpm test
-        env:
-          DATA_DIR: ${{ runner.temp }}

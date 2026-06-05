@@ -1,6 +1,6 @@
 import express, { type Express } from 'express';
-import morgan from 'morgan';
 import { sql } from 'drizzle-orm';
+import { createHttpLogMiddleware, createMultipartAwareJsonParser } from '@garage/server-config';
 
 import { env } from './config/env.js';
 import { httpLogger } from './logger.js';
@@ -13,37 +13,17 @@ import bucketRouter from './routes/buckets.js';
 import { authenticateToken } from './middleware/auth.middleware.js';
 
 export const app: Express = express();
-const ANSI_COLOR_PATTERN = new RegExp(String.raw`\[[0-9;]*m`, 'g');
-const stripAnsi = (value: string) => value.replace(ANSI_COLOR_PATTERN, '');
+const httpLogMiddleware = createHttpLogMiddleware(env.httpLogFormat, httpLogger);
 
-if (env.httpLogFormat) {
-  app.use(
-    morgan(env.httpLogFormat, {
-      stream: {
-        write: (message) => {
-          const cleaned = stripAnsi(message).trim();
-          if (cleaned) {
-            httpLogger.info(cleaned);
-          }
-        },
-      },
-    }),
-  );
+if (httpLogMiddleware) {
+  app.use(httpLogMiddleware);
 }
 
 // JSON body parser. The proxy needs to forward valid JSON primitives (e.g.
 // top-level strings), so strict mode is off. Multipart uploads (the
 // embedded FileBrowser's POST /upload) need busboy to read the raw stream,
 // so skip JSON parsing for that content type.
-app.use(
-  express.json({
-    strict: false,
-    type: (req) => {
-      const contentType = req.headers['content-type'] ?? '';
-      return !contentType.toLowerCase().startsWith('multipart/form-data');
-    },
-  }),
-);
+app.use(createMultipartAwareJsonParser());
 
 // Public routes
 app.use('/api/auth', authRouter);

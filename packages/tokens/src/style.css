@@ -24,9 +24,11 @@
   --popover: 0 0% 100%;
   --popover-foreground: 24 23% 12%;
 
-  /* Primary — orange theme color */
+  /* Primary — orange theme color. Foreground is dark ink, NOT white: white on
+   * this orange is only 2.21:1 (fails WCAG AA); dark ink keeps the brand orange
+   * exactly rgb(255,148,41) while reaching 7.49:1 on every solid orange fill. */
   --primary: 30 100% 58%;
-  --primary-foreground: 0 0% 100%;
+  --primary-foreground: 24 23% 12%;
 
   /* Secondary, muted, accent — all warm neutrals */
   --secondary: 35 45% 95%;
@@ -35,17 +37,19 @@
   --muted: 32 35% 95%;
   --muted-foreground: 24 10% 40%;
 
-  --accent: 32 35% 95%;
+  --accent: 32 48% 92%;
   --accent-foreground: 24 20% 18%;
 
   /* Semantic */
   --destructive: 0 78% 56%;
   --destructive-foreground: 0 0% 100%;
 
-  --success: 142 71% 41%;
+  /* Calibrated dark enough to pass WCAG AA as text/borders on light tints,
+   * while staying vivid enough for solid fills (white foreground). */
+  --success: 142 72% 29%;
   --success-foreground: 0 0% 100%;
 
-  --warning: 271 60% 56%;
+  --warning: 263 70% 50%;
   --warning-foreground: 0 0% 100%;
 
   /* Borders, inputs, focus rings */

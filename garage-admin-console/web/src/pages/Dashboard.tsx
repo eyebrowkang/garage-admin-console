@@ -19,11 +19,11 @@ import {
 } from '@garage/ui';
 import { AddActionIcon } from '@/lib/action-icons';
 import { api, proxyPath } from '@/lib/api';
-import { getApiErrorMessage } from '@/lib/errors';
-import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
+import { getApiErrorMessage } from '@garage/web-shared';
+import { ConfirmDialog } from '@garage/ui';
 import { ClusterStatusMonitor } from '@/components/dashboard/ClusterStatusMonitor';
-import { ModulePageHeader } from '@/components/cluster/ModulePageHeader';
-import { toast } from '@/hooks/use-toast';
+import { ModulePageHeader } from '@garage/ui';
+import { toast } from '@garage/ui';
 import { useClusters } from '@/hooks/useClusters';
 import type {
   ClusterSummary,
@@ -37,6 +37,16 @@ type ClusterFormState = {
   adminToken: string;
   metricToken: string;
   s3Endpoint: string;
+};
+
+// Update payload sent to the API. s3Endpoint accepts null to clear it, which
+// the form's all-string state can't express on its own.
+type ClusterUpdatePayload = {
+  name?: string;
+  endpoint?: string;
+  adminToken?: string;
+  metricToken?: string;
+  s3Endpoint?: string | null;
 };
 
 const normalizeEndpoint = (value: string) => value.trim().replace(/\/+$/, '');
@@ -94,18 +104,11 @@ export default function Dashboard() {
     })),
   });
 
-  // Build maps for quick lookup
-  const healthById = new Map<string, GetClusterHealthResponse | undefined>();
-  const statusById = new Map<string, GetClusterStatusResponse | undefined>();
-  clusters.forEach((cluster, index) => {
-    healthById.set(cluster.id, healthQueries[index]?.data);
-    statusById.set(cluster.id, statusQueries[index]?.data);
-  });
-
-  // Build clusters with status for monitoring
+  // Build clusters with status for monitoring. useQueries preserves input
+  // order, so the per-cluster results line up with `clusters` by index.
   const clustersWithStatus = clusters.map((cluster, index) => {
     const healthQuery = healthQueries[index];
-    const health = healthById.get(cluster.id);
+    const health = healthQuery?.data;
     const healthError = healthQuery?.error;
     const healthStatus = health?.status ?? (healthError ? 'unreachable' : 'unknown');
     const isLoading = !health && !healthError;
@@ -113,7 +116,7 @@ export default function Dashboard() {
     return {
       cluster,
       health,
-      status: statusById.get(cluster.id),
+      status: statusQueries[index]?.data,
       healthStatus: healthStatus as
         | 'healthy'
         | 'degraded'
@@ -148,7 +151,7 @@ export default function Dashboard() {
       setIsCreateDialogOpen(false);
       setClusterForm(emptyForm);
       setFormError('');
-      toast({ title: 'Cluster connected' });
+      toast({ title: 'Cluster connected', variant: 'success' });
     },
     onError: (err) => {
       setFormError(getApiErrorMessage(err, 'Failed to connect cluster.'));
@@ -156,7 +159,7 @@ export default function Dashboard() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<ClusterFormState> }) => {
+    mutationFn: async ({ id, data }: { id: string; data: ClusterUpdatePayload }) => {
       await api.put(`/clusters/${id}`, data);
     },
     onSuccess: (_, variables) => {
@@ -167,7 +170,7 @@ export default function Dashboard() {
       setEditForm(emptyForm);
       setEditCluster(null);
       setEditError('');
-      toast({ title: 'Cluster updated' });
+      toast({ title: 'Cluster updated', variant: 'success' });
     },
     onError: (err) => {
       setEditError(getApiErrorMessage(err, 'Failed to update cluster.'));
@@ -181,7 +184,7 @@ export default function Dashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clusters'] });
       setDeleteConfirm(null);
-      toast({ title: 'Cluster disconnected' });
+      toast({ title: 'Cluster disconnected', variant: 'success' });
     },
     onError: (err) => {
       toast({
@@ -217,7 +220,7 @@ export default function Dashboard() {
   const handleEditSave = () => {
     if (!editCluster) return;
 
-    const payload: Partial<ClusterFormState> = {};
+    const payload: ClusterUpdatePayload = {};
     const name = editForm.name.trim();
     const endpoint = normalizeEndpoint(editForm.endpoint);
 
@@ -248,8 +251,7 @@ export default function Dashboard() {
 
     const newS3Endpoint = editForm.s3Endpoint.trim() || null;
     if (newS3Endpoint !== (editCluster.s3Endpoint ?? null)) {
-      // API accepts null to clear; use a cast since the form state type is string.
-      (payload as Record<string, unknown>).s3Endpoint = newS3Endpoint;
+      payload.s3Endpoint = newS3Endpoint;
     }
 
     if (Object.keys(payload).length === 0) {
@@ -260,15 +262,8 @@ export default function Dashboard() {
     updateMutation.mutate({ id: editCluster.id, data: payload });
   };
 
-  if (isLoading)
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-
   return (
-    <div className="space-y-6">
+    <div className="mx-auto w-full max-w-6xl space-y-4">
       <ModulePageHeader
         title="Dashboard"
         description="Cluster-level overview first. Open a cluster for deeper operations and diagnostics."
@@ -285,7 +280,7 @@ export default function Dashboard() {
           >
             <DialogTrigger asChild>
               <Button>
-                <AddActionIcon className="mr-2 h-4 w-4" /> Connect Cluster
+                <AddActionIcon className="h-4 w-4" /> Connect
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[500px]">
@@ -348,17 +343,30 @@ export default function Dashboard() {
         </Alert>
       )}
 
+      {/* Initial load skeleton — mirrors the S3 Browser HomePage card grid so
+          the two dashboards load identically (skeleton, not a bare spinner). */}
+      {isLoading && (
+        <div className="grid gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Card key={i} className="border-border/70">
+              <CardContent className="h-44 animate-pulse bg-muted/30" />
+            </Card>
+          ))}
+        </div>
+      )}
+
       {/* Cluster Status Monitor */}
       {clusters.length > 0 && (
         <ClusterStatusMonitor
           clustersWithStatus={clustersWithStatus}
           onEditCluster={openEditDialog}
           onDeleteCluster={setDeleteConfirm}
+          onAddCluster={() => setIsCreateDialogOpen(true)}
         />
       )}
 
       {/* Empty State */}
-      {clusters.length === 0 && (
+      {!isLoading && clusters.length === 0 && (
         <Card className="border-dashed border-2 bg-muted/30">
           <CardContent className="h-64 flex flex-col items-center justify-center text-center p-8 space-y-4">
             <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
@@ -406,79 +414,84 @@ function ClusterForm({
 }) {
   const isEdit = mode === 'edit';
   return (
-    <div className="grid gap-4 py-4">
-      <div className="grid gap-2">
-        <Label htmlFor="name">Friendly Name</Label>
-        <Input
-          id="name"
-          value={form.name}
-          onChange={(e) => setForm({ ...form, name: e.target.value })}
-          placeholder="Production Cluster"
-        />
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor="endpoint">Endpoint URL</Label>
-        <Input
-          id="endpoint"
-          value={form.endpoint}
-          onChange={(e) => setForm({ ...form, endpoint: e.target.value })}
-          placeholder="http://10.0.0.1:3903"
-        />
-      </div>
-      <>
+    // Scroll within the dialog on short viewports (mirrors the S3 ConnectionForm).
+    // px-1 -mx-1 keeps fields aligned while giving the focus ring room so the
+    // overflow box never clips its left edge.
+    <div className="-mx-1 max-h-[min(70vh,560px)] overflow-y-auto px-1">
+      <div className="grid gap-4 py-4">
         <div className="grid gap-2">
-          <Label htmlFor="token">Admin Token{isEdit ? ' (optional)' : ''}</Label>
+          <Label htmlFor="name">Friendly Name</Label>
           <Input
-            id="token"
-            type="password"
-            value={form.adminToken}
-            onChange={(e) => setForm({ ...form, adminToken: e.target.value })}
-            placeholder={isEdit ? 'Leave blank to keep current token' : 'Garage Admin API Token'}
+            id="name"
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            placeholder="Production Cluster"
           />
-          {isEdit && (
-            <p className="text-xs text-muted-foreground">
-              Leave blank to keep the existing admin token.
-            </p>
-          )}
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="metric-token">
-            Metric Token (optional){isEdit ? ' — keep if blank' : ''}
-          </Label>
+          <Label htmlFor="endpoint">Endpoint URL</Label>
           <Input
-            id="metric-token"
-            type="password"
-            value={form.metricToken}
-            onChange={(e) => setForm({ ...form, metricToken: e.target.value })}
-            placeholder={
-              isEdit ? 'Leave blank to keep current metric token' : 'Token for /metrics endpoint'
-            }
+            id="endpoint"
+            value={form.endpoint}
+            onChange={(e) => setForm({ ...form, endpoint: e.target.value })}
+            placeholder="http://10.0.0.1:3903"
+          />
+        </div>
+        <>
+          <div className="grid gap-2">
+            <Label htmlFor="token">Admin Token{isEdit ? ' (optional)' : ''}</Label>
+            <Input
+              id="token"
+              type="password"
+              value={form.adminToken}
+              onChange={(e) => setForm({ ...form, adminToken: e.target.value })}
+              placeholder={isEdit ? 'Leave blank to keep current token' : 'Garage Admin API Token'}
+            />
+            {isEdit && (
+              <p className="text-xs text-muted-foreground">
+                Leave blank to keep the existing admin token.
+              </p>
+            )}
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="metric-token">
+              Metric Token (optional){isEdit ? ' — keep if blank' : ''}
+            </Label>
+            <Input
+              id="metric-token"
+              type="password"
+              value={form.metricToken}
+              onChange={(e) => setForm({ ...form, metricToken: e.target.value })}
+              placeholder={
+                isEdit ? 'Leave blank to keep current metric token' : 'Token for /metrics endpoint'
+              }
+            />
+            <p className="text-xs text-muted-foreground">
+              {isEdit
+                ? 'Leave blank to keep the existing token. Falls back to admin token if not set.'
+                : 'Falls back to admin token if not set.'}
+            </p>
+          </div>
+        </>
+        <div className="grid gap-2">
+          <Label htmlFor="s3-endpoint">S3 Endpoint (optional)</Label>
+          <Input
+            id="s3-endpoint"
+            value={form.s3Endpoint}
+            onChange={(e) => setForm({ ...form, s3Endpoint: e.target.value })}
+            placeholder="Auto: same host as Admin API, port 3900"
           />
           <p className="text-xs text-muted-foreground">
-            {isEdit
-              ? 'Leave blank to keep the existing token. Falls back to admin token if not set.'
-              : 'Falls back to admin token if not set.'}
+            Leave blank to use the Garage default (admin hostname : 3900).
           </p>
         </div>
-      </>
-      <div className="grid gap-2">
-        <Label htmlFor="s3-endpoint">S3 Endpoint (optional)</Label>
-        <Input
-          id="s3-endpoint"
-          value={form.s3Endpoint}
-          onChange={(e) => setForm({ ...form, s3Endpoint: e.target.value })}
-          placeholder="Auto: same host as Admin API, port 3900"
-        />
-        <p className="text-xs text-muted-foreground">
-          Leave blank to use the Garage default (admin hostname : 3900).
-        </p>
+        {error && (
+          <Alert variant="destructive">
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
       </div>
-      {error && (
-        <Alert variant="destructive">
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
     </div>
   );
 }

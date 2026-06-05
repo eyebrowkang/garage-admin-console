@@ -26,16 +26,16 @@ export const tokens = {
   muted: '32 35% 95%',
   mutedForeground: '24 10% 40%',
 
-  accent: '32 35% 95%',
+  accent: '32 48% 92%',
   accentForeground: '24 20% 18%',
 
   destructive: '0 78% 56%',
   destructiveForeground: '0 0% 100%',
 
-  success: '142 71% 41%',
+  success: '142 72% 29%',
   successForeground: '0 0% 100%',
 
-  warning: '271 60% 56%',
+  warning: '263 70% 50%',
   warningForeground: '0 0% 100%',
 
   border: '28 22% 88%',

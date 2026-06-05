@@ -123,6 +123,83 @@ describe.skipIf(config === null)('Bucket Backend API regression', () => {
     expect(meta.size).toBe(11);
   });
 
+  it('POST /presign honours responseContentDisposition on getObject', async () => {
+    const res = await client.presign({
+      key: `${prefix}/small.txt`,
+      operation: 'getObject',
+      expiresIn: 60,
+      responseContentDisposition: 'attachment; filename="renamed.txt"',
+    });
+    const fetched = await fetch(res.url);
+    expect(fetched.status).toBe(200);
+    // S3 (and Garage) override Content-Disposition when ResponseContentDisposition is signed in.
+    const disp = fetched.headers.get('content-disposition') ?? '';
+    expect(disp.toLowerCase()).toContain('attachment');
+    expect(disp).toContain('renamed.txt');
+  });
+
+  it('POST /multipart round-trip stitches presigned PUT parts into one object', async () => {
+    // Build a body large enough to need two parts: 5MiB + 1KiB total.
+    // S3 requires every part except the last to be >= 5 MiB.
+    const partSize = 5 * 1024 * 1024;
+    const tail = 1024;
+    const total = partSize + tail;
+    const key = `${prefix}/multipart.bin`;
+
+    const created = await client.multipartCreate({
+      key,
+      contentType: 'application/octet-stream',
+    });
+    expect(created.uploadId).toBeTruthy();
+    expect(created.partSize).toBeGreaterThanOrEqual(5 * 1024 * 1024);
+
+    const signed = await client.multipartSign({
+      key,
+      uploadId: created.uploadId,
+      partNumbers: [1, 2],
+    });
+    expect(signed.urls).toHaveLength(2);
+
+    // Allocate the deterministic-but-not-all-zero body so etags differ between parts.
+    const body = Buffer.alloc(total);
+    for (let i = 0; i < total; i++) body[i] = (i * 13) & 0xff;
+
+    const parts: { partNumber: number; etag: string }[] = [];
+    for (const u of signed.urls) {
+      const start = (u.partNumber - 1) * partSize;
+      const end = u.partNumber === 1 ? partSize : total;
+      const chunk = body.subarray(start, end);
+      const put = await fetch(u.url, { method: 'PUT', body: chunk });
+      expect(put.status).toBe(200);
+      const etag = put.headers.get('etag');
+      expect(etag).toBeTruthy();
+      parts.push({ partNumber: u.partNumber, etag: etag! });
+    }
+
+    const completed = await client.multipartComplete({
+      key,
+      uploadId: created.uploadId,
+      parts,
+    });
+    expect(completed.key).toBe(key);
+    expect(completed.etag).toBeTruthy();
+
+    const meta = await client.object(key);
+    expect(meta.size).toBe(total);
+  });
+
+  it('POST /multipart/abort cleans up an in-progress upload', async () => {
+    const key = `${prefix}/multipart-abort.bin`;
+    const created = await client.multipartCreate({ key });
+    const aborted = await client.multipartAbort({ key, uploadId: created.uploadId });
+    expect(aborted.ok).toBe(true);
+
+    // After abort, the object must not exist as a finalized key.
+    await expect(client.object(key)).rejects.toMatchObject({
+      response: { status: 404 },
+    });
+  });
+
   it('POST /copy duplicates an object', async () => {
     const res = await client.copy(`${prefix}/small.txt`, `${prefix}/small-copy.txt`);
     expect(res.etag).toMatch(/^[a-f0-9]{32}$/);

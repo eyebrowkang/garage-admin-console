@@ -7,11 +7,14 @@ async function closeDialogIfOpen(page: Page) {
     return;
   }
 
+  // The create dialog auto-closes on success, so this explicit close is
+  // best-effort: tolerate the overlay intercepting clicks / the element
+  // detaching mid-animation, and just confirm the dialog ends up hidden.
   const closeButton = dialog.getByRole('button', { name: 'Close' }).first();
   if (await closeButton.isVisible({ timeout: 500 }).catch(() => false)) {
-    await closeButton.click();
+    await closeButton.click({ timeout: 2000 }).catch(() => {});
   } else {
-    await page.keyboard.press('Escape');
+    await page.keyboard.press('Escape').catch(() => {});
   }
 
   await expect(dialog).toBeHidden({ timeout: 5000 });
@@ -20,8 +23,10 @@ async function closeDialogIfOpen(page: Page) {
 export async function ensureClusterExists(page: Page) {
   const clusterLink = page.locator('main a[href^="/clusters/"]').first();
 
-  if (!(await clusterLink.isVisible({ timeout: 5000 }).catch(() => false))) {
-    await page.getByRole('button', { name: 'Connect Cluster' }).click();
+  if (!(await clusterLink.isVisible({ timeout: 10000 }).catch(() => false))) {
+    // The Dashboard header trigger is labelled "Connect" (exact, to avoid the
+    // empty-state "Connect Now" CTA and the dialog's "Connecting…" state).
+    await page.getByRole('button', { name: 'Connect', exact: true }).click();
 
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();

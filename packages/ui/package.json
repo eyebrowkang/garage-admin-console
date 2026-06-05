@@ -6,23 +6,30 @@
   "license": "AGPL-3.0-only",
   "type": "module",
   "sideEffects": [
-    "./dist/style.css"
+    "./dist/style.css",
+    "./src/styles/theme.css",
+    "./src/styles/base.css"
   ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./style.css": "./dist/style.css"
+    "./style.css": "./dist/style.css",
+    "./theme.css": "./src/styles/theme.css",
+    "./base.css": "./src/styles/base.css"
   },
   "files": [
-    "dist"
+    "dist",
+    "src/styles"
   ],
   "scripts": {
     "build:js": "tsup",
-    "build:css": "tailwindcss -i src/styles/input.css -o dist/style.css --minify",
+    "build:css": "tailwindcss -i src/styles/input.css -o dist/style.css",
     "build": "pnpm build:js && pnpm build:css",
-    "dev": "tsup --watch"
+    "dev": "tsup --watch",
+    "test": "vitest",
+    "test:run": "vitest run"
   },
   "dependencies": {
     "@garage/tokens": "workspace:*",
@@ -31,6 +38,7 @@
     "@radix-ui/react-label": "^2.1.8",
     "@radix-ui/react-select": "^2.2.6",
     "@radix-ui/react-slot": "^1.2.4",
+    "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-toast": "^1.2.15",
     "@radix-ui/react-tooltip": "^1.2.8",
     "class-variance-authority": "^0.7.1",
@@ -45,10 +53,17 @@
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.3.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",
+    "jsdom": "^29.1.1",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
     "tailwindcss": "^4.3.0",
     "tsup": "^8.5.0",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "vitest": "^4.1.7"
   }
 }

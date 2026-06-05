@@ -1,13 +1,12 @@
-import { createBucketRouter, BucketAccessError } from '@garage/bucket-api-server';
+import {
+  createBucketCorsCacheKey,
+  createBucketRouter,
+  BucketAccessError,
+} from '@garage/bucket-api-server';
+import { getParam } from '@garage/server-config';
 
 import { logger } from '../logger.js';
 import { clientForConnection } from '../lib/s3-client.js';
-
-function getParam(params: Record<string, string | string[] | undefined>, name: string): string {
-  const val = params[name];
-  if (Array.isArray(val)) return val[0] ?? '';
-  return val ?? '';
-}
 
 export default createBucketRouter({
   async resolveContext(req) {
@@ -18,7 +17,19 @@ export default createBucketRouter({
     }
     const resolved = await clientForConnection(connId);
     if (!resolved) throw new BucketAccessError(404, 'Connection not found');
-    return { client: resolved.client, bucketName: bucket };
+    return {
+      client: resolved.client,
+      bucketName: bucket,
+      cacheKey: createBucketCorsCacheKey(
+        's3-browser',
+        resolved.conn.id,
+        resolved.conn.endpoint,
+        resolved.conn.region,
+        resolved.conn.forcePathStyle,
+        resolved.conn.accessKeyId,
+        bucket,
+      ),
+    };
   },
   logger,
 });

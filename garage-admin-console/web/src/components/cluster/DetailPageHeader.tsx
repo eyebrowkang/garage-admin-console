@@ -1,46 +1,74 @@
-import { Link } from 'react-router-dom';
-import type { ReactNode } from 'react';
-import { ArrowLeft } from 'lucide-react';
-import { Button } from '@garage/ui';
+import { Fragment, type ReactNode } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import {
+  DetailPageHeader as UiDetailPageHeader,
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@garage/ui';
+
+export interface BreadcrumbSpec {
+  label: string;
+  /** When set (and not the last crumb), the label becomes a react-router link. */
+  to?: string;
+}
 
 interface DetailPageHeaderProps {
-  backTo: string;
-  title: ReactNode;
+  /** Legacy back-button target. Ignored when `breadcrumbs` is provided. */
+  backTo?: string;
+  /** Wayfinding crumbs, root → current. The last entry renders as the page. */
+  breadcrumbs?: BreadcrumbSpec[];
+  /** Page title (h1). Optional — omit when the breadcrumb + content carry the identity. */
+  title?: ReactNode;
   subtitle?: ReactNode;
   badges?: ReactNode;
   actions?: ReactNode;
 }
 
-export function DetailPageHeader({
-  backTo,
-  title,
-  subtitle,
-  badges,
-  actions,
-}: DetailPageHeaderProps) {
+/**
+ * Router-bound wrapper over @garage/ui's DetailPageHeader. Renders react-router
+ * `<Link>`s into the shared, router-free Breadcrumb primitive (via
+ * `BreadcrumbLink asChild`) so the visual chrome stays single-sourced while
+ * navigation remains react-router driven. Falls back to the legacy `backTo`
+ * button when no breadcrumbs are supplied.
+ */
+export function DetailPageHeader({ backTo, breadcrumbs, ...rest }: DetailPageHeaderProps) {
+  const navigate = useNavigate();
+
+  const breadcrumb = breadcrumbs?.length ? (
+    <Breadcrumb>
+      <BreadcrumbList>
+        {breadcrumbs.map((crumb, index) => {
+          const isLast = index === breadcrumbs.length - 1;
+          return (
+            <Fragment key={`${crumb.label}-${index}`}>
+              <BreadcrumbItem className="min-w-0">
+                {crumb.to && !isLast ? (
+                  <BreadcrumbLink asChild>
+                    <Link to={crumb.to}>{crumb.label}</Link>
+                  </BreadcrumbLink>
+                ) : (
+                  <BreadcrumbPage className="max-w-[55vw] sm:max-w-sm">
+                    {crumb.label}
+                  </BreadcrumbPage>
+                )}
+              </BreadcrumbItem>
+              {!isLast && <BreadcrumbSeparator />}
+            </Fragment>
+          );
+        })}
+      </BreadcrumbList>
+    </Breadcrumb>
+  ) : undefined;
+
   return (
-    <div className="flex flex-col gap-2 sm:gap-3 border-b border-border/70 pb-3 sm:pb-4 sm:flex-row sm:items-start sm:justify-between">
-      <div className="flex min-w-0 items-start gap-2.5 sm:gap-3">
-        <Link to={backTo}>
-          <Button variant="outline" size="icon" className="h-8 w-8 shrink-0">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        </Link>
-        <div className="min-w-0 space-y-0.5 sm:space-y-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-lg sm:text-xl font-semibold tracking-tight">{title}</h1>
-            {badges}
-          </div>
-          {subtitle && (
-            <p className="break-all text-xs sm:text-sm text-muted-foreground">{subtitle}</p>
-          )}
-        </div>
-      </div>
-      {actions && (
-        <div className="flex flex-wrap items-center gap-2 sm:justify-end pl-10 sm:pl-0">
-          {actions}
-        </div>
-      )}
-    </div>
+    <UiDetailPageHeader
+      breadcrumb={breadcrumb}
+      onBack={!breadcrumb && backTo ? () => navigate(backTo) : undefined}
+      {...rest}
+    />
   );
 }

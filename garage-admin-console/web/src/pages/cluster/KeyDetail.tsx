@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -31,6 +32,10 @@ import {
   Alert,
   AlertDescription,
   AlertTitle,
+  ExpirationPicker,
+  PermissionCheckboxes,
+  PermissionPill,
+  PermissionSegmented,
 } from '@garage/ui';
 import { useClusterContext } from '@/contexts/ClusterContext';
 import { api, proxyPath } from '@/lib/api';
@@ -38,20 +43,16 @@ import { useKeyInfo, useUpdateKey, useDeleteKey } from '@/hooks/useKeys';
 import { useBuckets } from '@/hooks/useBuckets';
 import { useAllowBucketKey, useDenyBucketKey } from '@/hooks/usePermissions';
 import { AliasMiniChip } from '@/components/cluster/AliasMiniChip';
-import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
-import { CopyButton } from '@/components/cluster/CopyButton';
+import { ConfirmDialog } from '@garage/ui';
+import { CopyButton } from '@garage/ui';
 import { DetailPageHeader } from '@/components/cluster/DetailPageHeader';
-import { InlineLoadingState } from '@/components/cluster/InlineLoadingState';
-import { PageLoadingState } from '@/components/cluster/PageLoadingState';
+import { InlineLoadingState } from '@garage/ui';
+import { PageLoadingState } from '@garage/ui';
 import { AddActionIcon, DeleteActionIcon, EditActionIcon } from '@/lib/action-icons';
 import { BucketIcon, KeyIcon } from '@/lib/entity-icons';
-import { formatDateTime24h, formatShortId } from '@/lib/format';
-import { getApiErrorMessage } from '@/lib/errors';
-import { toast } from '@/hooks/use-toast';
+import { formatDateTime, formatShortId, getApiErrorMessage } from '@garage/web-shared';
+import { toast } from '@garage/ui';
 import type { GetKeyInfoResponse, UpdateKeyRequest } from '@/types/garage';
-
-const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
-const MINUTE_OPTIONS = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
 
 export function KeyDetail() {
   const { kid } = useParams<{ kid: string }>();
@@ -64,16 +65,15 @@ export function KeyDetail() {
   const [editExpirationHour, setEditExpirationHour] = useState('00');
   const [editExpirationMinute, setEditExpirationMinute] = useState('00');
   const [editNeverExpires, setEditNeverExpires] = useState(false);
-  const [editBucketPermission, setEditBucketPermission] = useState<'default' | 'allow' | 'deny'>(
-    'default',
-  );
+  const [editBucketPermission, setEditBucketPermission] = useState<'allow' | 'deny'>('deny');
   const [editError, setEditError] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [grantDialogOpen, setGrantDialogOpen] = useState(false);
-  const [grantBucketId, setGrantBucketId] = useState('');
+  const [grantBucketIds, setGrantBucketIds] = useState<Set<string>>(new Set());
   const [grantRead, setGrantRead] = useState(true);
   const [grantWrite, setGrantWrite] = useState(false);
   const [grantOwner, setGrantOwner] = useState(false);
+  const [grantBusy, setGrantBusy] = useState(false);
   const [permDialogOpen, setPermDialogOpen] = useState(false);
   const [editingBucketPerm, setEditingBucketPerm] = useState<{
     bucketId: string;
@@ -82,6 +82,9 @@ export function KeyDetail() {
     write: boolean;
     owner: boolean;
   } | null>(null);
+  const [selectedBucketIds, setSelectedBucketIds] = useState<Set<string>>(new Set());
+  const [bulkPerm, setBulkPerm] = useState<'read' | 'write' | 'owner'>('read');
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const { data: keyInfo, isLoading, error } = useKeyInfo(clusterId, kid || '');
   const bucketsQuery = useBuckets(clusterId);
@@ -115,7 +118,7 @@ export function KeyDetail() {
     if (!secretKey) return;
     try {
       await navigator.clipboard.writeText(secretKey);
-      toast({ title: 'Secret copied' });
+      toast({ title: 'Secret copied', variant: 'success' });
     } catch (err) {
       toast({
         title: 'Failed to copy secret',
@@ -160,11 +163,6 @@ export function KeyDetail() {
       ? editExpirationDateValue.toISOString()
       : null;
   const editExpirationInvalid = Boolean(editExpirationDate) && !editExpirationIso;
-
-  const currentBucketPermission = keyInfo?.permissions?.createBucket ? 'Allowed' : 'Denied';
-  const selectedGrantBucketId = availableBuckets.some((bucket) => bucket.id === grantBucketId)
-    ? grantBucketId
-    : (availableBuckets[0]?.id ?? '');
 
   if (!kid) {
     return (
@@ -214,12 +212,16 @@ export function KeyDetail() {
     }
     if (editBucketPermission === 'allow') {
       payload.allow = { createBucket: true };
-    } else if (editBucketPermission === 'deny') {
+    } else {
       payload.deny = { createBucket: true };
     }
     try {
       await updateKeyMutation.mutateAsync(payload);
-      toast({ title: 'Key updated', description: 'Key settings have been updated' });
+      toast({
+        title: 'Key updated',
+        description: 'Key settings have been updated',
+        variant: 'success',
+      });
       setEditDialogOpen(false);
     } catch (err) {
       setEditError(getApiErrorMessage(err));
@@ -234,7 +236,7 @@ export function KeyDetail() {
   const handleDelete = async () => {
     try {
       await deleteKeyMutation.mutateAsync(kid);
-      toast({ title: 'Key deleted' });
+      toast({ title: 'Key deleted', variant: 'success' });
       navigate(`/clusters/${clusterId}/keys`);
     } catch (err) {
       toast({
@@ -278,7 +280,7 @@ export function KeyDetail() {
           permissions: toDeny,
         });
       }
-      toast({ title: 'Permissions updated' });
+      toast({ title: 'Permissions updated', variant: 'success' });
       setPermDialogOpen(false);
       setEditingBucketPerm(null);
     } catch (err) {
@@ -290,11 +292,13 @@ export function KeyDetail() {
     }
   };
 
+  // Grant the chosen permissions across every selected bucket. No batch
+  // endpoint exists, so loop the per-bucket Allow mutation and aggregate.
   const handleGrantAccess = async () => {
-    if (!selectedGrantBucketId) {
+    if (grantBucketIds.size === 0) {
       toast({
         title: 'Select a bucket',
-        description: 'Choose a bucket to grant access.',
+        description: 'Choose at least one bucket to grant access.',
         variant: 'destructive',
       });
       return;
@@ -308,40 +312,121 @@ export function KeyDetail() {
       return;
     }
 
-    try {
-      await allowKeyMutation.mutateAsync({
-        bucketId: selectedGrantBucketId,
-        accessKeyId: kid,
-        permissions: { read: grantRead, write: grantWrite, owner: grantOwner },
-      });
-      toast({ title: 'Access granted' });
-    } catch (err) {
-      toast({
-        title: 'Failed to grant access',
-        description: getApiErrorMessage(err),
-        variant: 'destructive',
-      });
+    setGrantBusy(true);
+    const permissions = { read: grantRead, write: grantWrite, owner: grantOwner };
+    let ok = 0;
+    let failed = 0;
+    for (const bucketId of grantBucketIds) {
+      try {
+        await allowKeyMutation.mutateAsync({ bucketId, accessKeyId: kid, permissions });
+        ok += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+    setGrantBusy(false);
+    toast({
+      title: `Access granted on ${ok} bucket${ok === 1 ? '' : 's'}${
+        failed ? ` (${failed} failed)` : ''
+      }`,
+      variant: failed ? 'destructive' : 'success',
+    });
+    if (failed === 0) {
+      setGrantDialogOpen(false);
+      setGrantBucketIds(new Set());
     }
   };
 
+  const openBucketPerm = (bucket: {
+    id: string;
+    globalAliases: string[];
+    localAliases: string[];
+    permissions: { read: boolean; write: boolean; owner: boolean };
+  }) => {
+    const bucketName =
+      bucket.globalAliases[0] || bucket.localAliases[0] || formatShortId(bucket.id, 12);
+    setEditingBucketPerm({
+      bucketId: bucket.id,
+      bucketName,
+      read: bucket.permissions.read,
+      write: bucket.permissions.write,
+      owner: bucket.permissions.owner,
+    });
+    setPermDialogOpen(true);
+  };
+
+  const assignedBuckets = keyInfo.buckets ?? [];
+  const allBucketsSelected =
+    assignedBuckets.length > 0 && assignedBuckets.every((b) => selectedBucketIds.has(b.id));
+  const toggleBucketSelection = (bucketId: string) =>
+    setSelectedBucketIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(bucketId)) next.delete(bucketId);
+      else next.add(bucketId);
+      return next;
+    });
+  const toggleAllBuckets = () =>
+    setSelectedBucketIds(
+      allBucketsSelected ? new Set() : new Set(assignedBuckets.map((b) => b.id)),
+    );
+
+  // Grant Access dialog: multi-select over the buckets this key can still be added to.
+  const allGrantSelected =
+    availableBuckets.length > 0 && availableBuckets.every((b) => grantBucketIds.has(b.id));
+  const toggleGrantBucket = (bucketId: string) =>
+    setGrantBucketIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(bucketId)) next.delete(bucketId);
+      else next.add(bucketId);
+      return next;
+    });
+  const toggleAllGrantBuckets = () =>
+    setGrantBucketIds(allGrantSelected ? new Set() : new Set(availableBuckets.map((b) => b.id)));
+
+  // Bulk grant/revoke one permission across every selected bucket for this key.
+  // No batch endpoint exists, so loop the per-bucket Allow/Deny mutations.
+  const handleBulkPermission = async (grant: boolean) => {
+    if (!kid || selectedBucketIds.size === 0) return;
+    setBulkBusy(true);
+    const permissions = {
+      read: bulkPerm === 'read',
+      write: bulkPerm === 'write',
+      owner: bulkPerm === 'owner',
+    };
+    const mutation = grant ? allowKeyMutation : denyKeyMutation;
+    let ok = 0;
+    let failed = 0;
+    for (const bucketId of selectedBucketIds) {
+      try {
+        await mutation.mutateAsync({ bucketId, accessKeyId: kid, permissions });
+        ok += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+    setBulkBusy(false);
+    setSelectedBucketIds(new Set());
+    toast({
+      title: `${grant ? 'Granted' : 'Revoked'} ${bulkPerm} on ${ok} bucket${ok === 1 ? '' : 's'}${
+        failed ? ` (${failed} failed)` : ''
+      }`,
+      variant: failed ? 'destructive' : 'success',
+    });
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <DetailPageHeader
-        backTo={`/clusters/${clusterId}/keys`}
-        title={keyInfo.name || 'Unnamed Key'}
-        subtitle={keyInfo.accessKeyId}
-        badges={
-          keyInfo.expired ? (
-            <Badge variant="destructive">Expired</Badge>
-          ) : (
-            <Badge variant="success">Active</Badge>
-          )
-        }
+        breadcrumbs={[
+          { label: 'Access Keys', to: `/clusters/${clusterId}/keys` },
+          { label: keyInfo.name || 'Unnamed Key' },
+        ]}
         actions={
           <>
             <Button
               variant="outline"
               size="sm"
+              className="flex-1 sm:flex-initial"
               onClick={() => {
                 const parts = toDateParts(keyInfo.expiration);
                 setNewName(keyInfo.name);
@@ -349,7 +434,7 @@ export function KeyDetail() {
                 setEditExpirationHour(parts.hour);
                 setEditExpirationMinute(parts.minute);
                 setEditNeverExpires(!keyInfo.expiration);
-                setEditBucketPermission('default');
+                setEditBucketPermission(keyInfo.permissions?.createBucket ? 'allow' : 'deny');
                 setEditError('');
                 setEditDialogOpen(true);
               }}
@@ -357,7 +442,12 @@ export function KeyDetail() {
               <EditActionIcon className="h-4 w-4" />
               Edit
             </Button>
-            <Button variant="destructive" size="sm" onClick={() => setDeleteDialogOpen(true)}>
+            <Button
+              variant="destructive"
+              size="sm"
+              className="flex-1 sm:flex-initial"
+              onClick={() => setDeleteDialogOpen(true)}
+            >
               <DeleteActionIcon className="h-4 w-4" />
               Delete
             </Button>
@@ -377,32 +467,41 @@ export function KeyDetail() {
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <div className="text-sm text-muted-foreground">Access Key ID</div>
-              <div className="inline-flex items-center gap-1">
-                <span>{keyInfo.accessKeyId}</span>
+              <div className="flex items-center gap-1">
+                <span className="break-all font-mono text-sm">{keyInfo.accessKeyId}</span>
                 <CopyButton value={keyInfo.accessKeyId} label="Access key ID" />
               </div>
             </div>
             <div>
               <div className="text-sm text-muted-foreground">Name</div>
-              <div className="font-medium">{keyInfo.name || '-'}</div>
+              <div className="font-medium">{keyInfo.name || '—'}</div>
             </div>
             <div>
               <div className="text-sm text-muted-foreground">Create Bucket</div>
-              <div>
-                {keyInfo.permissions?.createBucket === true
-                  ? 'Allowed'
-                  : keyInfo.permissions?.createBucket === false
-                    ? 'Denied'
-                    : 'Default'}
+              <div className="mt-0.5">
+                {keyInfo.permissions?.createBucket === true ? (
+                  <Badge variant="success">Allowed</Badge>
+                ) : keyInfo.permissions?.createBucket === false ? (
+                  <Badge variant="secondary">Denied</Badge>
+                ) : (
+                  <Badge variant="outline">Default</Badge>
+                )}
               </div>
             </div>
             <div>
               <div className="text-sm text-muted-foreground">Created</div>
-              <div>{formatDateTime24h(keyInfo.created)}</div>
+              <div>{formatDateTime(keyInfo.created)}</div>
             </div>
             <div>
               <div className="text-sm text-muted-foreground">Expiration</div>
-              <div>{keyInfo.expiration ? formatDateTime24h(keyInfo.expiration) : 'Never'}</div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span>{keyInfo.expiration ? formatDateTime(keyInfo.expiration) : 'Never'}</span>
+                {keyInfo.expired ? (
+                  <Badge variant="destructive">Expired</Badge>
+                ) : (
+                  <Badge variant="success">Active</Badge>
+                )}
+              </div>
             </div>
           </div>
 
@@ -458,7 +557,7 @@ export function KeyDetail() {
               variant="outline"
               size="sm"
               onClick={() => {
-                setGrantBucketId('');
+                setGrantBucketIds(new Set());
                 setGrantRead(true);
                 setGrantWrite(false);
                 setGrantOwner(false);
@@ -473,85 +572,178 @@ export function KeyDetail() {
         </CardHeader>
         <CardContent className="space-y-4">
           {keyInfo.buckets && keyInfo.buckets.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Bucket</TableHead>
-                  <TableHead>Aliases</TableHead>
-                  <TableHead className="text-center">Read</TableHead>
-                  <TableHead className="text-center">Write</TableHead>
-                  <TableHead className="text-center">Owner</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {selectedBucketIds.size > 0 && (
+                <div className="flex flex-col gap-2 rounded-lg border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="text-sm font-medium">{selectedBucketIds.size} selected</div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Select
+                      value={bulkPerm}
+                      onValueChange={(value) => setBulkPerm(value as 'read' | 'write' | 'owner')}
+                    >
+                      <SelectTrigger className="w-[130px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="read">Read</SelectItem>
+                        <SelectItem value="write">Write</SelectItem>
+                        <SelectItem value="owner">Owner</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleBulkPermission(true)}
+                      disabled={bulkBusy}
+                    >
+                      Grant
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-destructive"
+                      onClick={() => handleBulkPermission(false)}
+                      disabled={bulkBusy}
+                    >
+                      Revoke
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedBucketIds(new Set())}
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Desktop / tablet: table */}
+              <div className="hidden overflow-hidden rounded-lg border sm:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-10">
+                        <Checkbox
+                          checked={allBucketsSelected}
+                          onCheckedChange={toggleAllBuckets}
+                          aria-label="Select all buckets"
+                        />
+                      </TableHead>
+                      <TableHead>Bucket</TableHead>
+                      <TableHead>Aliases</TableHead>
+                      <TableHead className="text-center">Read</TableHead>
+                      <TableHead className="text-center">Write</TableHead>
+                      <TableHead className="text-center">Owner</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {keyInfo.buckets.map((bucket) => (
+                      <TableRow
+                        key={bucket.id}
+                        data-state={selectedBucketIds.has(bucket.id) ? 'selected' : undefined}
+                      >
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedBucketIds.has(bucket.id)}
+                            onCheckedChange={() => toggleBucketSelection(bucket.id)}
+                            aria-label={`Select bucket ${formatShortId(bucket.id, 12)}`}
+                          />
+                        </TableCell>
+                        <TableCell className="font-mono text-xs">
+                          {formatShortId(bucket.id, 12)}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {bucket.globalAliases.map((alias) => (
+                              <AliasMiniChip key={alias} value={alias} kind="global" />
+                            ))}
+                            {bucket.localAliases.map((alias) => (
+                              <AliasMiniChip key={alias} value={alias} kind="local" />
+                            ))}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {bucket.permissions.read ? (
+                            <PermissionPill label="Yes" granted />
+                          ) : (
+                            <span className="text-xs text-muted-foreground">No</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {bucket.permissions.write ? (
+                            <PermissionPill label="Yes" granted />
+                          ) : (
+                            <span className="text-xs text-muted-foreground">No</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {bucket.permissions.owner ? (
+                            <PermissionPill label="Yes" granted />
+                          ) : (
+                            <span className="text-xs text-muted-foreground">No</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="sm" onClick={() => openBucketPerm(bucket)}>
+                            <EditActionIcon className="h-3.5 w-3.5" />
+                            Edit
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobile: one card per bucket */}
+              <div className="space-y-2 sm:hidden">
                 {keyInfo.buckets.map((bucket) => (
-                  <TableRow key={bucket.id}>
-                    <TableCell className="text-xs">{bucket.id.slice(0, 12)}...</TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {bucket.globalAliases.map((alias) => (
-                          <AliasMiniChip key={alias} value={alias} kind="global" />
-                        ))}
-                        {bucket.localAliases.map((alias) => (
-                          <AliasMiniChip key={alias} value={alias} kind="local" />
-                        ))}
+                  <div key={bucket.id} className="space-y-2.5 rounded-lg border p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex min-w-0 items-start gap-2.5">
+                        <Checkbox
+                          checked={selectedBucketIds.has(bucket.id)}
+                          onCheckedChange={() => toggleBucketSelection(bucket.id)}
+                          aria-label={`Select bucket ${formatShortId(bucket.id, 12)}`}
+                          className="mt-0.5"
+                        />
+                        <div className="min-w-0 space-y-1">
+                          <div className="truncate text-sm font-medium">
+                            {bucket.globalAliases[0] ||
+                              bucket.localAliases[0] ||
+                              formatShortId(bucket.id, 12)}
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {bucket.globalAliases.map((alias) => (
+                              <AliasMiniChip key={alias} value={alias} kind="global" />
+                            ))}
+                            {bucket.localAliases.map((alias) => (
+                              <AliasMiniChip key={alias} value={alias} kind="local" />
+                            ))}
+                          </div>
+                        </div>
                       </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {bucket.permissions.read ? (
-                        <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
-                          Yes
-                        </Badge>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">No</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {bucket.permissions.write ? (
-                        <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
-                          Yes
-                        </Badge>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">No</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {bucket.permissions.owner ? (
-                        <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
-                          Yes
-                        </Badge>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">No</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => {
-                          const bucketName =
-                            bucket.globalAliases[0] ||
-                            bucket.localAliases[0] ||
-                            formatShortId(bucket.id, 12);
-                          setEditingBucketPerm({
-                            bucketId: bucket.id,
-                            bucketName,
-                            read: bucket.permissions.read,
-                            write: bucket.permissions.write,
-                            owner: bucket.permissions.owner,
-                          });
-                          setPermDialogOpen(true);
-                        }}
+                        className="shrink-0"
+                        onClick={() => openBucketPerm(bucket)}
                       >
                         <EditActionIcon className="h-3.5 w-3.5" />
                         Edit
                       </Button>
-                    </TableCell>
-                  </TableRow>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 pl-7">
+                      <PermissionPill label="Read" granted={bucket.permissions.read} />
+                      <PermissionPill label="Write" granted={bucket.permissions.write} />
+                      <PermissionPill label="Owner" granted={bucket.permissions.owner} />
+                    </div>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+            </>
           ) : (
             <p className="text-sm text-muted-foreground">This key has no bucket permissions</p>
           )}
@@ -580,99 +772,36 @@ export function KeyDetail() {
                 placeholder="my-app-key"
               />
             </div>
-            <div className="space-y-3">
-              <div className="space-y-2">
-                <Label>Expiration (24h)</Label>
-                <div className="flex flex-wrap items-end gap-3">
-                  <div className="space-y-1">
-                    <div className="text-xs text-muted-foreground">Date</div>
-                    <Input
-                      type="date"
-                      value={editExpirationDate}
-                      onChange={(e) => setEditExpirationDate(e.target.value)}
-                      disabled={editNeverExpires}
-                      className="min-w-[170px]"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <div className="text-xs text-muted-foreground">Time</div>
-                    <div className="flex items-center gap-2">
-                      <Select
-                        value={editExpirationHour}
-                        onValueChange={setEditExpirationHour}
-                        disabled={editNeverExpires}
-                      >
-                        <SelectTrigger className="w-[84px]">
-                          <SelectValue placeholder="HH" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {HOUR_OPTIONS.map((hour) => (
-                            <SelectItem key={hour} value={hour}>
-                              {hour}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <span className="text-sm text-muted-foreground">:</span>
-                      <Select
-                        value={editExpirationMinute}
-                        onValueChange={setEditExpirationMinute}
-                        disabled={editNeverExpires}
-                      >
-                        <SelectTrigger className="w-[84px]">
-                          <SelectValue placeholder="MM" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {MINUTE_OPTIONS.map((minute) => (
-                            <SelectItem key={minute} value={minute}>
-                              {minute}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Current: {keyInfo.expiration ? formatDateTime24h(keyInfo.expiration) : 'Never'}
-                </p>
-                {editExpirationInvalid && (
-                  <p className="text-xs text-destructive">Invalid date and time.</p>
-                )}
-              </div>
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={editNeverExpires}
-                  onCheckedChange={(checked) => {
-                    setEditNeverExpires(checked);
-                    if (checked) {
-                      setEditExpirationDate('');
-                      setEditExpirationHour('00');
-                      setEditExpirationMinute('00');
-                    }
-                  }}
-                />
-                Never expires
-              </label>
+            <div className="space-y-2">
+              <Label>Expiration</Label>
+              <ExpirationPicker
+                date={editExpirationDate}
+                hour={editExpirationHour}
+                minute={editExpirationMinute}
+                neverExpires={editNeverExpires}
+                onDateChange={setEditExpirationDate}
+                onHourChange={setEditExpirationHour}
+                onMinuteChange={setEditExpirationMinute}
+                onNeverExpiresChange={(checked) => {
+                  setEditNeverExpires(checked);
+                  if (checked) {
+                    setEditExpirationDate('');
+                    setEditExpirationHour('00');
+                    setEditExpirationMinute('00');
+                  }
+                }}
+                currentLabel={keyInfo.expiration ? formatDateTime(keyInfo.expiration) : 'Never'}
+                invalid={editExpirationInvalid}
+              />
             </div>
             <div className="space-y-2">
-              <Label>Bucket Creation Permission</Label>
-              <Select
+              <Label>Bucket creation permission</Label>
+              <PermissionSegmented
                 value={editBucketPermission}
-                onValueChange={(value) =>
-                  setEditBucketPermission(value as 'default' | 'allow' | 'deny')
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Default" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="default">No change</SelectItem>
-                  <SelectItem value="allow">Allow create bucket</SelectItem>
-                  <SelectItem value="deny">Deny create bucket</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">Current: {currentBucketPermission}</p>
+                onChange={setEditBucketPermission}
+                ariaLabel="Bucket creation permission"
+              />
+              <p className="text-xs text-muted-foreground">Whether this key may create buckets.</p>
             </div>
             {editError && (
               <Alert variant="destructive">
@@ -711,34 +840,17 @@ export function KeyDetail() {
             </DialogDescription>
           </DialogHeader>
           {editingBucketPerm && (
-            <div className="space-y-4 py-4">
-              <label className="flex items-center gap-3">
-                <Checkbox
-                  checked={editingBucketPerm.read}
-                  onCheckedChange={(checked) =>
-                    setEditingBucketPerm((prev) => (prev ? { ...prev, read: !!checked } : prev))
-                  }
-                />
-                <span className="text-sm font-medium">Read</span>
-              </label>
-              <label className="flex items-center gap-3">
-                <Checkbox
-                  checked={editingBucketPerm.write}
-                  onCheckedChange={(checked) =>
-                    setEditingBucketPerm((prev) => (prev ? { ...prev, write: !!checked } : prev))
-                  }
-                />
-                <span className="text-sm font-medium">Write</span>
-              </label>
-              <label className="flex items-center gap-3">
-                <Checkbox
-                  checked={editingBucketPerm.owner}
-                  onCheckedChange={(checked) =>
-                    setEditingBucketPerm((prev) => (prev ? { ...prev, owner: !!checked } : prev))
-                  }
-                />
-                <span className="text-sm font-medium">Owner</span>
-              </label>
+            <div className="py-4">
+              <PermissionCheckboxes
+                value={{
+                  read: editingBucketPerm.read,
+                  write: editingBucketPerm.write,
+                  owner: editingBucketPerm.owner,
+                }}
+                onChange={(next) =>
+                  setEditingBucketPerm((prev) => (prev ? { ...prev, ...next } : prev))
+                }
+              />
             </div>
           )}
           <DialogFooter>
@@ -759,9 +871,10 @@ export function KeyDetail() {
       <Dialog
         open={grantDialogOpen}
         onOpenChange={(open) => {
+          if (grantBusy) return;
           setGrantDialogOpen(open);
           if (open) {
-            setGrantBucketId('');
+            setGrantBucketIds(new Set());
             setGrantRead(true);
             setGrantWrite(false);
             setGrantOwner(false);
@@ -772,7 +885,7 @@ export function KeyDetail() {
           <DialogHeader>
             <DialogTitle>Grant Bucket Access</DialogTitle>
             <DialogDescription>
-              Select a bucket and permissions to grant for this key.
+              Select one or more buckets and the permissions to grant for this key.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -785,25 +898,43 @@ export function KeyDetail() {
             ) : availableBuckets.length > 0 ? (
               <>
                 <div className="space-y-2">
-                  <Label>Bucket</Label>
-                  <Select value={selectedGrantBucketId} onValueChange={setGrantBucketId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select bucket" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableBuckets.map((bucket) => {
-                        const alias = bucket.globalAliases[0];
-                        const label = alias
-                          ? `${alias} (${formatShortId(bucket.id, 10)})`
-                          : formatShortId(bucket.id, 12);
-                        return (
-                          <SelectItem key={bucket.id} value={bucket.id}>
-                            {label}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex items-center justify-between">
+                    <Label>Buckets</Label>
+                    <button
+                      type="button"
+                      className="text-xs font-medium text-primary hover:underline"
+                      onClick={toggleAllGrantBuckets}
+                    >
+                      {allGrantSelected ? 'Clear all' : 'Select all'}
+                    </button>
+                  </div>
+                  <div className="max-h-52 space-y-0.5 overflow-y-auto rounded-md border p-1">
+                    {availableBuckets.map((bucket) => {
+                      const alias = bucket.globalAliases[0];
+                      return (
+                        <label
+                          key={bucket.id}
+                          className="flex cursor-pointer items-center gap-2.5 rounded px-2 py-1.5 text-sm hover:bg-accent"
+                        >
+                          <Checkbox
+                            checked={grantBucketIds.has(bucket.id)}
+                            onCheckedChange={() => toggleGrantBucket(bucket.id)}
+                          />
+                          <span className="min-w-0 flex-1 truncate font-medium">
+                            {alias || formatShortId(bucket.id, 12)}
+                          </span>
+                          <span className="shrink-0 font-mono text-xs text-muted-foreground">
+                            {formatShortId(bucket.id, 8)}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {grantBucketIds.size > 0
+                      ? `${grantBucketIds.size} selected`
+                      : 'No buckets selected'}
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label>Permissions</Label>
@@ -830,17 +961,27 @@ export function KeyDetail() {
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setGrantDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setGrantDialogOpen(false)}
+              disabled={grantBusy}
+            >
               Cancel
             </Button>
             <Button
-              onClick={async () => {
-                await handleGrantAccess();
-                setGrantDialogOpen(false);
-              }}
-              disabled={!selectedGrantBucketId || (!grantRead && !grantWrite && !grantOwner)}
+              onClick={handleGrantAccess}
+              disabled={
+                grantBucketIds.size === 0 || (!grantRead && !grantWrite && !grantOwner) || grantBusy
+              }
             >
-              Grant Access
+              {grantBusy ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Granting...
+                </>
+              ) : (
+                `Grant Access${grantBucketIds.size > 1 ? ` (${grantBucketIds.size})` : ''}`
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -851,8 +992,9 @@ export function KeyDetail() {
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
         title="Delete Access Key"
-        description={`Are you sure you want to delete this access key? This will revoke all bucket permissions and cannot be undone.`}
-        tier="danger"
+        description={`Permanently delete the key "${keyInfo.name || 'Unnamed Key'}"? This revokes access to every bucket using it and cannot be undone.`}
+        tier="type-to-confirm"
+        typeToConfirmValue="DELETE"
         confirmText="Delete Key"
         onConfirm={handleDelete}
         isLoading={deleteKeyMutation.isPending}

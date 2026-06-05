@@ -1,18 +1,24 @@
-// Bootstrap the Module Federation runtime BEFORE React is touched so the
-// shared scope is populated for any federated remote (e.g. s3Browser/FileBrowser).
+// Initialize the Module Federation runtime BEFORE React is touched so the shared
+// scope is populated for any federated remote (e.g. s3Browser/FileBrowser). As
+// the MF *host*, this app provides React to the scope, so a synchronous entry is
+// fine — unlike the S3 Browser *remote*, which needs an async bootstrap boundary.
 import './mf-init';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import '@fontsource/manrope/400.css';
-import '@fontsource/manrope/500.css';
-import '@fontsource/manrope/600.css';
-import '@fontsource/manrope/700.css';
-import '@fontsource/manrope/800.css';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { createAppQueryClient } from '@garage/web-shared';
 import './index.css';
-import App from './App.tsx';
+import App from './App';
 
-createRoot(document.getElementById('root')!).render(
+const queryClient = createAppQueryClient();
+
+const rootEl = document.getElementById('root');
+if (!rootEl) throw new Error('#root not found');
+
+createRoot(rootEl).render(
   <StrictMode>
-    <App />
+    <QueryClientProvider client={queryClient}>
+      <App />
+    </QueryClientProvider>
   </StrictMode>,
 );

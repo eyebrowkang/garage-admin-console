@@ -1,15 +1,22 @@
-import { Outlet, useNavigate, Link } from 'react-router-dom';
+import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useState } from 'react';
 import { LogOut } from 'lucide-react';
 import { Button } from '@garage/ui';
-import { ConfirmDialog } from '@/components/cluster/ConfirmDialog';
+import { writeStoredToken } from '@/lib/api';
+import { ConfirmDialog } from '@garage/ui';
+import { ClusterMobileNav } from '@/components/cluster/ClusterMobileNav';
 
 export function MainLayout() {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const [confirmOpen, setConfirmOpen] = useState(false);
 
+  // On a cluster route, surface the cluster nav as a hamburger drawer in the
+  // header (mobile only). Excludes the bare /clusters dashboard and home.
+  const clusterId = pathname.match(/^\/clusters\/([^/]+)(?:\/|$)/)?.[1];
+
   const handleLogout = () => {
-    localStorage.removeItem('token');
+    writeStoredToken(null);
     setConfirmOpen(false);
     navigate('/login');
   };
@@ -18,23 +25,27 @@ export function MainLayout() {
     <div className="flex min-h-screen w-full flex-col bg-background/50">
       {/* Header */}
       <header className="sticky top-0 z-50 border-b bg-card/80 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-4 lg:px-8 h-14 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
-            <img
-              src="/garage-admin-logo.svg"
-              alt="Garage Admin"
-              className="h-7 w-7 sm:h-8 sm:w-8"
-            />
-            <span className="font-bold text-base sm:text-lg tracking-tight">Garage Admin</span>
-          </Link>
+        <div className="max-w-full mx-auto px-4 lg:px-8 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            {clusterId && <ClusterMobileNav clusterId={clusterId} />}
+            <Link to="/" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
+              <img
+                src="/garage-admin-logo.svg"
+                alt="Garage Admin"
+                className="h-7 w-7 sm:h-8 sm:w-8"
+              />
+              <span className="font-bold text-base sm:text-lg tracking-tight">Garage Admin</span>
+            </Link>
+          </div>
 
           <Button
             variant="outline"
             size="sm"
+            aria-label="Sign out"
             className="h-9 px-3 text-muted-foreground hover:text-foreground transition-colors"
             onClick={() => setConfirmOpen(true)}
           >
-            <LogOut className="h-4 w-4 mr-2" />
+            <LogOut className="h-4 w-4 sm:mr-2" />
             <span className="hidden sm:inline">Sign Out</span>
           </Button>
         </div>
@@ -50,13 +61,13 @@ export function MainLayout() {
       />
 
       {/* Main Content */}
-      <main className="w-full max-w-7xl mx-auto px-4 lg:px-8 py-5 sm:py-6">
+      <main className="w-full max-w-full mx-auto px-4 lg:px-8 py-5 sm:py-6">
         <Outlet />
       </main>
 
       {/* Footer */}
       <footer className="border-t mt-auto">
-        <div className="max-w-7xl mx-auto px-4 lg:px-8 py-4 flex items-center justify-center text-xs text-muted-foreground">
+        <div className="max-w-full mx-auto px-4 lg:px-8 py-4 flex items-center justify-center text-xs text-muted-foreground">
           <a
             href="https://github.com/eyebrowkang/garage-admin-console"
             target="_blank"

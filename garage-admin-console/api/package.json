@@ -1,6 +1,6 @@
 {
   "name": "@garage-admin/api",
-  "version": "0.0.0",
+  "private": true,
   "description": "Garage Admin Console BFF API",
   "main": "dist/index.js",
   "type": "module",
@@ -21,15 +21,11 @@
     "db:seed": "tsx src/db/seed.ts",
     "db:studio": "drizzle-kit studio"
   },
-  "keywords": [],
-  "author": "",
   "license": "AGPL-3.0-only",
   "dependencies": {
     "@garage/bucket-api-server": "workspace:*",
     "@garage/crypto": "workspace:*",
-    "@aws-sdk/client-s3": "^3.1053.0",
-    "@aws-sdk/s3-request-presigner": "^3.1053.0",
-    "@libsql/client": "^0.17.3",
+    "@garage/server-config": "workspace:*",
     "axios": "^1.16.1",
     "busboy": "^1.6.0",
     "dotenv": "^17.4.2",

@@ -12,6 +12,12 @@ interface UploadStreamToS3Input {
   key: string;
   body: NodeJS.ReadableStream;
   contentType?: string | undefined;
+  /**
+   * Aborts the upload before the object is sent to S3. Used by the proxy
+   * upload route to discard files that blow past the size limit — without
+   * this, the truncated bytes spooled so far would still be PutObject'd.
+   */
+  signal?: AbortSignal | undefined;
 }
 
 interface UploadStreamToS3Output {
@@ -37,6 +43,7 @@ export async function uploadStreamToS3({
   key,
   body,
   contentType,
+  signal,
 }: UploadStreamToS3Input): Promise<UploadStreamToS3Output> {
   const tempDir = await mkdtemp(join(tmpdir(), 'garage-s3-upload-'));
   const tempPath = join(tempDir, 'body');
@@ -51,6 +58,13 @@ export async function uploadStreamToS3({
     });
 
     await pipeline(body, counter, createWriteStream(tempPath));
+
+    // The stream is fully spooled by now. If it was aborted mid-flight (e.g.
+    // the file exceeded the proxy limit and got truncated), bail before
+    // persisting a partial object to the bucket.
+    if (signal?.aborted) {
+      throw new Error('Upload aborted before send');
+    }
 
     const out = await client.send(
       new PutObjectCommand({

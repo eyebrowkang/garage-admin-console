@@ -5,9 +5,9 @@ Regression test suite for the **Bucket Backend API** — the shared HTTP surface
 Both BFFs are expected to pass this suite so the same `FileBrowser` can run against either:
 
 - `@s3-browser/api` — exposes the surface under `/api/connections/:connId/buckets/:bucket/*` (the "connections" flavor)
-- `@garage-admin/api` — exposes the surface under `/api/clusters/:clusterId/buckets/:bucket/*` (the "clusters" flavor; mints per-bucket S3 keypairs on the fly)
+- `@garage-admin/api` — exposes the surface under `/api/clusters/:clusterId/buckets/:bucket/*` (the "clusters" flavor; resolves the secret for a host-supplied `X-Garage-Access-Key-Id`)
 
-A single set of 12 tests runs against either flavor via the `TEST_BFF_FLAVOR` env var. When you add or change a route, update both BFFs and the cases here together so they stay in sync.
+A single set of tests runs against either flavor via the `TEST_BFF_FLAVOR` env var. When you add or change a route, update both BFFs and the cases here together so they stay in sync.
 
 ## Running
 
@@ -28,7 +28,7 @@ export TEST_BFF_PASSWORD=admin
 export TEST_CONNECTION_ID=<connection-id>
 
 # …or let the suite create one for you on the fly:
-# export TEST_S3_ENDPOINT=http://192.168.88.62:3900
+# export TEST_S3_ENDPOINT=http://127.0.0.1:3900
 # export TEST_S3_ACCESS_KEY=…
 # export TEST_S3_SECRET_KEY=…
 # export TEST_S3_REGION=garage
@@ -48,6 +48,7 @@ export TEST_BFF_FLAVOR=clusters
 
 # The cluster MUST already exist in the Admin DB and have its s3Endpoint set.
 export TEST_CLUSTER_ID=<cluster-id-from-/api/clusters>
+export TEST_ACCESS_KEY_ID=<access-key-id authorized on the bucket>
 export TEST_S3_BUCKET=s3-browser-test
 
 pnpm -F @garage/bucket-api-contract-tests test:run
@@ -57,18 +58,19 @@ Cluster auto-creation is not supported (the suite never creates/deletes cluster 
 
 ## Environment reference
 
-| Variable                                    | Required                | Description                                                   |
-| ------------------------------------------- | ----------------------- | ------------------------------------------------------------- |
-| `TEST_BFF_URL`                              | Yes                     | BFF base URL — must include `/api`.                           |
-| `TEST_BFF_PASSWORD`                         | Yes                     | Password for `POST /api/auth/login`.                          |
-| `TEST_S3_BUCKET`                            | Yes                     | Existing bucket the BFF's key owns.                           |
-| `TEST_BFF_FLAVOR`                           | No                      | `connections` (default) or `clusters`.                        |
-| `TEST_CONNECTION_ID`                        | When flavor=connections | Existing connection id. Omit to auto-create from `TEST_S3_*`. |
-| `TEST_CLUSTER_ID`                           | When flavor=clusters    | Existing cluster id (auto-create not supported).              |
-| `TEST_S3_ENDPOINT`                          | Auto-create only        | S3 endpoint URL.                                              |
-| `TEST_S3_ACCESS_KEY` / `TEST_S3_SECRET_KEY` | Auto-create only        | S3 credentials.                                               |
-| `TEST_S3_REGION`                            | No                      | Defaults to `us-east-1`.                                      |
-| `TEST_S3_FORCE_PATH_STYLE`                  | No                      | Defaults to `true`.                                           |
+| Variable                                    | Required                | Description                                                               |
+| ------------------------------------------- | ----------------------- | ------------------------------------------------------------------------- |
+| `TEST_BFF_URL`                              | Yes                     | BFF base URL — must include `/api`.                                       |
+| `TEST_BFF_PASSWORD`                         | Yes                     | Password for `POST /api/auth/login`.                                      |
+| `TEST_S3_BUCKET`                            | Yes                     | Existing bucket the BFF's key owns.                                       |
+| `TEST_BFF_FLAVOR`                           | No                      | `connections` (default) or `clusters`.                                    |
+| `TEST_CONNECTION_ID`                        | When flavor=connections | Existing connection id. Omit to auto-create from `TEST_S3_*`.             |
+| `TEST_CLUSTER_ID`                           | When flavor=clusters    | Existing cluster id (auto-create not supported).                          |
+| `TEST_ACCESS_KEY_ID`                        | When flavor=clusters    | Access key id authorized on the bucket; sent as `X-Garage-Access-Key-Id`. |
+| `TEST_S3_ENDPOINT`                          | Auto-create only        | S3 endpoint URL.                                                          |
+| `TEST_S3_ACCESS_KEY` / `TEST_S3_SECRET_KEY` | Auto-create only        | S3 credentials.                                                           |
+| `TEST_S3_REGION`                            | No                      | Defaults to `us-east-1`.                                                  |
+| `TEST_S3_FORCE_PATH_STYLE`                  | No                      | Defaults to `true`.                                                       |
 
 ## What the suite covers
 

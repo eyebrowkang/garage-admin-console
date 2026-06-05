@@ -7,7 +7,7 @@ const dbPath = path.resolve(dataDir, 'data.db');
 export default defineConfig({
   out: './drizzle',
   schema: './src/db/schema.ts',
-  dialect: 'turso',
+  dialect: 'sqlite',
   dbCredentials: {
     url: `file:${dbPath}`,
   },

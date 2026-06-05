@@ -23,11 +23,20 @@ export function createCrypto(encryptionKey: string | Buffer): {
     },
 
     decrypt(text: string): string {
+      // Empty in → empty out: the empty string is the sentinel for "no value",
+      // which is how optional encrypted columns (e.g. metricToken) are stored.
+      // A non-empty but malformed value, by contrast, is a real error and
+      // throws below rather than being silently swallowed.
       if (!text) return '';
       const parts = text.split(':');
       if (parts.length !== 3) throw new Error('Invalid encrypted string format');
       const [ivHex, authTagHex, encryptedHex] = parts;
-      if (!ivHex || !authTagHex || !encryptedHex) {
+      // IV and auth tag must be non-empty; the ciphertext segment may be empty
+      // (encrypt('') produces no ciphertext bytes — the GCM auth tag still
+      // authenticates that empty message, so it round-trips to ''). The
+      // `=== undefined` check narrows encryptedHex to `string` for the cipher
+      // call without rejecting an empty string.
+      if (!ivHex || !authTagHex || encryptedHex === undefined) {
         throw new Error('Invalid encrypted string components');
       }
       const iv = Buffer.from(ivHex, 'hex');
