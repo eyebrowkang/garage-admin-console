@@ -348,8 +348,14 @@ export function ResourceList<T>({
   // the label/actions don't flicker to "0" mid-animation.
   const selectionVisible = selectedItems.length > 0;
   const lastSelectionRef = useRef<T[]>([]);
+  // The bar keeps showing the last non-empty selection while it slides out, so
+  // barItems is derived from this ref during render. The value is render-derived,
+  // not reactive (storing it in state would force an extra re-render) — the idiom
+  // react-hooks/refs over-flags here.
+  /* eslint-disable react-hooks/refs */
   if (selectionVisible) lastSelectionRef.current = selectedItems;
   const barItems = selectionVisible ? selectedItems : lastSelectionRef.current;
+  /* eslint-enable react-hooks/refs */
 
   return (
     <div className={cn('space-y-3', className)}>

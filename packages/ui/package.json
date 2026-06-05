@@ -27,6 +27,8 @@
     "build:js": "tsup",
     "build:css": "tailwindcss -i src/styles/input.css -o dist/style.css",
     "build": "pnpm build:js && pnpm build:css",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "dev": "tsup --watch",
     "test": "vitest",
     "test:run": "vitest run"
