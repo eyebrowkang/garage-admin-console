@@ -1,17 +1,19 @@
 /**
  * Lazy, idempotent CORS-rule ensure helper.
  *
- * Browser-direct PUTs (multipart upload parts) and presigned GETs only
- * work if the target bucket has CORS rules allowing the browser's origin
- * and exposing ETag. We try the cheapest path:
+ * Browser-direct PUTs (multipart upload parts) and presigned GETs only work if
+ * the target bucket has CORS rules allowing the browser's origin and exposing
+ * ETag. We try the cheapest path:
  *
- *   1. Cache-hit (per bucket cache key) → return immediately.
+ *   1. Cache-hit (per (bucket, origins) cache key) → return immediately.
  *   2. GetBucketCors. If an existing rule covers our needs, cache + return.
- *   3. Otherwise APPEND our rule to the existing list and PutBucketCors.
- *      We never replace user-defined rules — only add what's missing.
+ *   3. Otherwise APPEND our rule to the existing list and PutBucketCors. We never
+ *      replace user-defined rules — only add what's missing — and if we can't
+ *      READ the existing rules we bail rather than clobber them.
  *
- * The cache is in-memory and TTL'd so a CORS reset on the S3 side recovers
- * within a few minutes without a process restart.
+ * The allowed origins are caller-supplied (the app origin by default, or an
+ * operator-configured list) instead of a blanket `*`. The cache is in-memory and
+ * TTL'd so a CORS reset on the S3 side recovers within a few minutes.
  */
 import {
   GetBucketCorsCommand,
@@ -50,8 +52,11 @@ function ruleCoversMethods(rule: CORSRule): boolean {
   return REQUIRED_METHODS.every((m) => allowed.includes(m));
 }
 
-function ruleCoversOriginWildcard(rule: CORSRule): boolean {
-  return (rule.AllowedOrigins ?? []).includes('*');
+/** A rule covers the request when it allows `*` or every required origin. */
+function ruleCoversOrigins(rule: CORSRule, origins: string[]): boolean {
+  const allowed = rule.AllowedOrigins ?? [];
+  if (allowed.includes('*')) return true;
+  return origins.every((o) => allowed.includes(o));
 }
 
 function ruleExposesEtag(rule: CORSRule): boolean {
@@ -62,19 +67,19 @@ function ruleAllowsAnyHeader(rule: CORSRule): boolean {
   return (rule.AllowedHeaders ?? []).includes('*');
 }
 
-function isCoveredByExistingRule(rules: CORSRule[]): boolean {
+function isCoveredByExistingRule(rules: CORSRule[], origins: string[]): boolean {
   return rules.some(
     (r) =>
-      ruleCoversOriginWildcard(r) &&
+      ruleCoversOrigins(r, origins) &&
       ruleCoversMethods(r) &&
       ruleAllowsAnyHeader(r) &&
       ruleExposesEtag(r),
   );
 }
 
-function defaultRule(): CORSRule {
+function defaultRule(allowedOrigins: string[]): CORSRule {
   return {
-    AllowedOrigins: ['*'],
+    AllowedOrigins: allowedOrigins,
     AllowedMethods: [...REQUIRED_METHODS],
     AllowedHeaders: ['*'],
     ExposeHeaders: [...REQUIRED_EXPOSE_HEADERS],
@@ -87,6 +92,11 @@ export interface EnsureCorsInput {
   bucket: string;
   /** Stable identity for the (endpoint, bucket) pair, used as cache key. */
   cacheKey: string;
+  /**
+   * Origins to allow for browser-direct upload/download — the app origin by
+   * default, or an operator-configured list. Use `['*']` only as a last resort.
+   */
+  allowedOrigins: string[];
   logger: Logger;
 }
 
@@ -103,17 +113,20 @@ export function createBucketCorsCacheKey(...parts: BucketCorsCacheKeyPart[]): st
 
 /**
  * Ensures the bucket has a CORS rule sufficient for browser direct
- * upload/download. Never throws — CORS failures are logged but do not
- * block the calling route. (If CORS can't be configured, the browser
- * request will fail visibly with a CORS error and the user can act.)
+ * upload/download. Never throws — CORS failures are logged but do not block the
+ * calling route. (If CORS can't be configured, the browser request will fail
+ * visibly with a CORS error and the user can act.)
  */
 export async function ensureBucketCors({
   client,
   bucket,
   cacheKey,
+  allowedOrigins,
   logger,
 }: EnsureCorsInput): Promise<void> {
-  const cached = cache.get(cacheKey);
+  // Fold the origins into the cache key so a change in allowed origins re-checks.
+  const key = `${cacheKey}:${[...allowedOrigins].sort().join(',')}`;
+  const cached = cache.get(key);
   if (cached && cached.expiresAt > Date.now()) return;
 
   try {
@@ -122,29 +135,36 @@ export async function ensureBucketCors({
       const out = await client.send(new GetBucketCorsCommand({ Bucket: bucket }));
       existing = out.CORSRules ?? [];
     } catch (err) {
-      // NoSuchCORSConfiguration is the expected "no rules yet" response —
-      // any other error we still try to recover from by writing fresh rules.
       const code =
         (err as { name?: string; Code?: string }).name ?? (err as { Code?: string }).Code;
-      if (code && code !== 'NoSuchCORSConfiguration' && code !== 'NoSuchCORSConfigurationError') {
-        logger.error({ err, bucket }, 'GetBucketCors failed; will attempt PutBucketCors anyway');
+      const absent = code === 'NoSuchCORSConfiguration' || code === 'NoSuchCORSConfigurationError';
+      if (!absent) {
+        // We couldn't read the existing rules. PutBucketCors REPLACES the whole
+        // config (it isn't additive server-side), so writing now would silently
+        // drop rules we couldn't see. Bail rather than clobber; retry next time.
+        logger.error(
+          { err, bucket },
+          'GetBucketCors failed; skipping CORS update to avoid clobbering existing rules',
+        );
+        return;
       }
+      // absent → genuinely no rules yet; fall through and create the default.
     }
 
-    if (isCoveredByExistingRule(existing)) {
-      cache.set(cacheKey, { expiresAt: Date.now() + TTL_MS });
+    if (isCoveredByExistingRule(existing, allowedOrigins)) {
+      cache.set(key, { expiresAt: Date.now() + TTL_MS });
       sweeper.ensure();
       return;
     }
 
-    const merged = [...existing, defaultRule()];
+    const merged = [...existing, defaultRule(allowedOrigins)];
     await client.send(
       new PutBucketCorsCommand({
         Bucket: bucket,
         CORSConfiguration: { CORSRules: merged },
       }),
     );
-    cache.set(cacheKey, { expiresAt: Date.now() + TTL_MS });
+    cache.set(key, { expiresAt: Date.now() + TTL_MS });
     sweeper.ensure();
   } catch (err) {
     logger.error({ err, bucket }, 'ensureBucketCors failed');

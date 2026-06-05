@@ -28,10 +28,12 @@ in two:
 - **At or above the threshold** — uploads use `POST /multipart/*` and downloads
   use a presigned `getObject` URL; the browser talks to the S3 endpoint directly.
   On the first such request per `(endpoint, bucket)`, the BFF idempotently
-  appends a permissive CORS rule (`AllowedOrigins:['*']`,
-  `AllowedMethods:['GET','PUT','HEAD','POST']`, `AllowedHeaders:['*']`,
-  `ExposeHeaders:['ETag']`, `MaxAgeSeconds:3000`) without disturbing pre-existing
-  rules.
+  appends a CORS rule (`AllowedMethods:['GET','PUT','HEAD','POST']`,
+  `AllowedHeaders:['*']`, `ExposeHeaders:['ETag']`, `MaxAgeSeconds:3000`) without
+  disturbing pre-existing rules — and, if it can't *read* the existing rules, it
+  skips the update rather than clobber them. `AllowedOrigins` defaults to the
+  requesting app's origin; set `S3_CORS_ALLOWED_ORIGINS` (comma-separated) to pin
+  explicit origins, or `S3_MANAGE_CORS=false` to leave bucket CORS to the operator.
 
 ## Routes (relative to the bucket scope)
 
