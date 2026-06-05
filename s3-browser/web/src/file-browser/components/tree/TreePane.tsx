@@ -94,7 +94,7 @@ function buildTree(
 }
 
 function TreeNodeRow({ node, style }: NodeRendererProps<TreeNodeData>) {
-  const { onPathChange, currentPrefix, activeFileKey, setActiveFile } = useBrowser();
+  const { onPathChange, currentPrefix, activeFileKey, setActiveFile, isNarrow } = useBrowser();
   const isFolderish = node.data.type === 'bucket' || node.data.type === 'folder';
   const fileItem =
     node.data.type === 'file' && node.data.item?.type === 'file' ? node.data.item : null;
@@ -133,7 +133,8 @@ function TreeNodeRow({ node, style }: NodeRendererProps<TreeNodeData>) {
     <div
       style={style}
       className={cn(
-        'group relative flex items-center rounded-md text-[14px] leading-none',
+        'group relative flex items-center rounded-md leading-none',
+        isNarrow ? 'text-[15px]' : 'text-[14px]',
         'cursor-pointer select-none transition-colors duration-100',
         isActive ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-muted/55',
       )}
@@ -151,8 +152,9 @@ function TreeNodeRow({ node, style }: NodeRendererProps<TreeNodeData>) {
 
       <button
         className={cn(
-          'ml-1 flex h-6 w-5 shrink-0 items-center justify-center rounded text-muted-foreground',
+          'ml-1 flex h-full shrink-0 items-center justify-center rounded text-muted-foreground',
           'hover:bg-muted hover:text-foreground',
+          isNarrow ? 'w-8' : 'w-5',
           !hasChevron && 'invisible',
         )}
         onClick={handleChevronClick}
@@ -160,16 +162,19 @@ function TreeNodeRow({ node, style }: NodeRendererProps<TreeNodeData>) {
         aria-label={node.isOpen ? 'Collapse folder' : 'Expand folder'}
       >
         {isLoading ? (
-          <Loader2 size={11} className="animate-spin" />
+          <Loader2 size={isNarrow ? 14 : 11} className="animate-spin" />
         ) : node.isOpen ? (
-          <ChevronDown size={12} />
+          <ChevronDown size={isNarrow ? 16 : 12} />
         ) : (
-          <ChevronRight size={12} />
+          <ChevronRight size={isNarrow ? 16 : 12} />
         )}
       </button>
 
       <button
-        className="flex h-7 min-w-0 flex-1 items-center gap-2 rounded-md bg-transparent py-0 pr-2 text-left font-[inherit] text-[inherit] leading-[1.5]"
+        className={cn(
+          'flex h-full min-w-0 flex-1 items-center rounded-md bg-transparent py-0 pr-2 text-left font-[inherit] text-[inherit]',
+          isNarrow ? 'gap-2.5' : 'gap-2 leading-[1.5]',
+        )}
         onClick={handleNodeClick}
       >
         <span
@@ -179,7 +184,11 @@ function TreeNodeRow({ node, style }: NodeRendererProps<TreeNodeData>) {
             isError && 'text-destructive',
           )}
         >
-          {isError ? <MoreActionIcon size={14} /> : createElement(Icon, { size: 15 })}
+          {isError ? (
+            <MoreActionIcon size={isNarrow ? 16 : 14} />
+          ) : (
+            createElement(Icon, { size: isNarrow ? 18 : 15 })
+          )}
         </span>
         <span className={cn('truncate', isActive && 'font-semibold')}>
           {node.data.name}
@@ -369,8 +378,8 @@ export function TreePane() {
               selection={treeSelection}
               disableMultiSelection
               disableDrag
-              rowHeight={30}
-              indent={14}
+              rowHeight={44}
+              indent={16}
               width={treeDims.width}
               height={treeDims.height}
               onToggle={handleToggle}
