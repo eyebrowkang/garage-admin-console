@@ -205,6 +205,75 @@ export interface CreateServiceLoggersOptions {
   logPretty: boolean;
 }
 
+/**
+ * HTTP header names whose values must never appear in logs.
+ */
+const SENSITIVE_HEADERS = new Set([
+  'authorization',
+  'proxy-authorization',
+  'cookie',
+  'set-cookie',
+  'x-api-key',
+]);
+
+/**
+ * Property names (compared case-insensitively) whose string values are
+ * unconditionally replaced with '[REDACTED]'.
+ */
+const SENSITIVE_PROPS = new Set([
+  'secretaccesskey',
+  'secretaccesskeyduplicate',
+  'password',
+  'admintoken',
+  'metrictoken',
+]);
+
+const REDACTED = '[REDACTED]';
+const MAX_DEPTH = 8;
+
+function redactHeaders(headers: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(headers)) {
+    result[key] = SENSITIVE_HEADERS.has(key.toLowerCase()) ? REDACTED : value;
+  }
+  return result;
+}
+
+function deepRedact(obj: unknown, depth: number): unknown {
+  if (depth > MAX_DEPTH || obj == null || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map((item) => deepRedact(item, depth + 1));
+
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
+    const lower = key.toLowerCase();
+
+    if (SENSITIVE_PROPS.has(lower) && typeof value === 'string') {
+      result[key] = REDACTED;
+      continue;
+    }
+
+    if (lower === 'headers' && value && typeof value === 'object' && !Array.isArray(value)) {
+      result[key] = redactHeaders(value as Record<string, unknown>);
+      continue;
+    }
+
+    result[key] =
+      value !== null && typeof value === 'object' ? deepRedact(value, depth + 1) : value;
+  }
+  return result;
+}
+
+/**
+ * Pino error serializer that strips credentials from serialized error objects.
+ * Catches AxiosError `config.headers.Authorization`, AWS SDK metadata, and any
+ * property whose name matches a known-sensitive pattern. Exported so call sites
+ * can also use it directly if needed.
+ */
+export function safeErrorSerializer(err: Error): Record<string, unknown> {
+  const base = pino.stdSerializers.err(err);
+  return deepRedact(base, 0) as Record<string, unknown>;
+}
+
 export function createServiceLoggers({
   service,
   logLevel,
@@ -228,6 +297,7 @@ export function createServiceLoggers({
         level,
         base: { service, component },
         timestamp: pino.stdTimeFunctions.isoTime,
+        serializers: { err: safeErrorSerializer },
       },
       transport,
     );
