@@ -156,3 +156,67 @@ export function mockUpload(keys: string[]): void {
     if (!OBJECTS.some((o) => o.key === key)) OBJECTS.push(obj(key, key.endsWith('.keep') ? 0 : 2048, now));
   }
 }
+
+// ---------------------------------------------------------------------------
+// Standalone app fixtures (connections + buckets) — only used in full-app mock
+// mode (?mock=1), so HomePage / ConnectionView / BucketView render with no BFF.
+// ---------------------------------------------------------------------------
+
+export interface MockConnection {
+  id: string;
+  name: string;
+  endpoint: string;
+  region: string;
+  forcePathStyle: boolean;
+  bucket?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const CONNECTIONS: MockConnection[] = [
+  {
+    id: 'conn-garage',
+    name: 'Garage Production',
+    endpoint: 'https://s3.garage.example.com',
+    region: 'garage',
+    forcePathStyle: true,
+    createdAt: D('2024-01-10'),
+    updatedAt: D('2024-11-01'),
+  },
+  {
+    id: 'conn-backup',
+    name: 'Backup Store',
+    endpoint: 'https://minio.internal:9000',
+    region: 'us-east-1',
+    forcePathStyle: true,
+    createdAt: D('2023-09-22'),
+    updatedAt: D('2024-08-15'),
+  },
+];
+
+const bucket = (name: string, date: string) => ({ name, creationDate: date });
+
+const BUCKETS_BY_CONNECTION: Record<string, Array<{ name: string; creationDate: string }>> = {
+  'conn-garage': [
+    bucket('analytics-events', D('2024-10-02')),
+    bucket('assets', D('2024-03-18')),
+    bucket('backups-daily', D('2024-01-15')),
+    bucket('logs-2024', D('2024-06-30')),
+    bucket('media-uploads', D('2024-09-12')),
+    bucket('static-site', D('2023-12-01')),
+    bucket('temp-scratch', D('2025-01-20')),
+    bucket('user-data', D('2024-05-05')),
+  ],
+  'conn-backup': [
+    bucket('nightly-snapshots', D('2023-09-22')),
+    bucket('offsite-archive', D('2024-02-14')),
+  ],
+};
+
+export function mockConnections(): MockConnection[] {
+  return CONNECTIONS;
+}
+
+export function mockBuckets(connectionId: string): Array<{ name: string; creationDate: string }> {
+  return BUCKETS_BY_CONNECTION[connectionId] ?? [bucket('demo-bucket', D('2024-01-01'))];
+}

@@ -5,7 +5,15 @@
  * Garage cluster, and no credentials. Never imported by the production app.
  */
 import axios, { type AxiosAdapter, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
-import { mockCopy, mockDelete, mockGetObject, mockList, mockUpload } from './mockData';
+import {
+  mockBuckets,
+  mockConnections,
+  mockCopy,
+  mockDelete,
+  mockGetObject,
+  mockList,
+  mockUpload,
+} from './mockData';
 
 const LATENCY_MS = 140;
 
@@ -65,11 +73,38 @@ function uploadKeys(config: InternalAxiosRequestConfig): string[] {
 }
 
 const mockAdapter: AxiosAdapter = async (config) => {
-  const path = (config.url ?? '').replace(/^\//, '').split('?')[0];
+  const path = (config.url ?? '').replace(/^\//, '').split('?')[0] ?? '';
   const params = (config.params ?? {}) as Record<string, string>;
+  const method = (config.method ?? 'get').toUpperCase();
   await delay(LATENCY_MS);
 
-  switch (`${(config.method ?? 'get').toUpperCase()} ${path}`) {
+  // Standalone app shell (full-app mock mode). Parameterized paths need pattern
+  // matches, so handle them before the FileBrowser exact-match switch. The
+  // FileBrowser's own requests are baseURL-relative ('list', 'object', …), so
+  // they never collide with these 'connections/…' paths.
+  if (method === 'POST' && path === 'auth/login') {
+    return reply(config, { token: 'mock-jwt-token' });
+  }
+  if (method === 'GET' && path === 'connections') {
+    return reply(config, mockConnections());
+  }
+  if (method === 'POST' && path === 'connections') {
+    const now = new Date().toISOString();
+    return reply(config, { ...jsonBody(config), id: 'conn-new', createdAt: now, updatedAt: now });
+  }
+  const connBuckets = /^connections\/([^/]+)\/buckets$/.exec(path);
+  if (method === 'GET' && connBuckets) {
+    return reply(config, { buckets: mockBuckets(connBuckets[1] ?? '') });
+  }
+  const connOne = /^connections\/([^/]+)$/.exec(path);
+  if (method === 'PUT' && connOne) {
+    return reply(config, { ...jsonBody(config), id: connOne[1] ?? '' });
+  }
+  if (method === 'DELETE' && connOne) {
+    return reply(config, {});
+  }
+
+  switch (`${method} ${path}`) {
     case 'GET list':
       return reply(config, mockList(params.prefix ?? '', params.continuationToken));
     case 'GET object':
