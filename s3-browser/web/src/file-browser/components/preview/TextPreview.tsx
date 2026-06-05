@@ -5,6 +5,13 @@ import type { AxiosInstance } from 'axios';
 
 const RENDER_MAX_BYTES = 1_000_000; // 1 MB soft limit
 
+/** Total object size from a `bytes 0-N/TOTAL` Content-Range header, or null. */
+function parseContentRangeTotal(header: unknown): number | null {
+  if (typeof header !== 'string') return null;
+  const match = /\/(\d+)\s*$/.exec(header);
+  return match ? Number(match[1]) : null;
+}
+
 interface TextPreviewProps {
   fileKey: string;
   http: AxiosInstance;
@@ -32,7 +39,15 @@ export function TextPreview({ fileKey, http, forceText }: TextPreviewProps) {
         if (cancelled) return;
         const buf = res.data as ArrayBuffer;
         const text = new TextDecoder('utf-8', { fatal: false }).decode(buf);
-        const isTruncated = !expanded && (res.status === 206 || buf.byteLength >= RENDER_MAX_BYTES);
+        // A ranged request returns 206 even when the whole (small) file fits the
+        // requested window, so 206 alone is NOT "truncated". The object's real
+        // size is the "/<total>" in Content-Range — only flag truncation when
+        // that exceeds the render limit. No header → fall back to whether we
+        // actually filled the 1 MB window.
+        const total = parseContentRangeTotal(res.headers['content-range']);
+        const isTruncated =
+          !expanded &&
+          (total != null ? total > RENDER_MAX_BYTES : buf.byteLength >= RENDER_MAX_BYTES);
         setContent(text);
         setTruncated(isTruncated);
         setError(null);

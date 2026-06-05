@@ -69,6 +69,9 @@ let OBJECTS: S3Object[] = [
   obj('Documents/meeting-minutes-2024.docx', 132_000, D('2024-11-28'), 'application/msword'),
   obj('Documents/contract-signed.pdf', 540_000, D('2024-05-09'), 'application/pdf'),
   obj('Documents/Drafts/draft-proposal.md', 6200, D('2024-10-02'), 'text/markdown'),
+  // A text file between 1 MB and the 10 MB preview cap — exercises the
+  // "preview truncated at 1 MB" path (only this should show the banner).
+  obj('Documents/server-2024.log', 3_200_000, D('2024-12-30'), 'text/plain'),
   ...invoices,
   // Photos
   obj('Photos/cover.jpg', 2_300_000, D('2024-06-15'), 'image/jpeg'),

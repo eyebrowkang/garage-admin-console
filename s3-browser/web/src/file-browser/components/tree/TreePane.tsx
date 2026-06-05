@@ -190,7 +190,7 @@ function TreeNodeRow({ node, style }: NodeRendererProps<TreeNodeData>) {
             createElement(Icon, { size: isNarrow ? 18 : 15 })
           )}
         </span>
-        <span className={cn('truncate', isActive && 'font-semibold')}>
+        <span className={cn('truncate font-medium', isActive && 'font-semibold')}>
           {node.data.name}
           {node.data.type === 'folder' ? '/' : ''}
         </span>

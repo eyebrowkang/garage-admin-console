@@ -11,14 +11,31 @@ const LATENCY_MS = 140;
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-function reply(config: InternalAxiosRequestConfig, data: unknown, status = 200): AxiosResponse {
+const STATUS_TEXT: Record<number, string> = { 200: 'OK', 206: 'Partial Content' };
+
+function reply(
+  config: InternalAxiosRequestConfig,
+  data: unknown,
+  status = 200,
+  headers: Record<string, string> = {},
+): AxiosResponse {
   return {
     data,
     status,
-    statusText: status === 200 ? 'OK' : 'Error',
-    headers: {},
+    statusText: STATUS_TEXT[status] ?? 'Error',
+    headers,
     config,
   } as AxiosResponse;
+}
+
+/** Read a request header case-insensitively from an axios config. */
+function header(config: InternalAxiosRequestConfig, name: string): string | undefined {
+  const h = config.headers as
+    | { get?: (n: string) => unknown; [k: string]: unknown }
+    | undefined;
+  if (!h) return undefined;
+  const raw = typeof h.get === 'function' ? h.get(name) : (h[name] ?? h[name.toLowerCase()]);
+  return typeof raw === 'string' ? raw : undefined;
 }
 
 /** Body is JSON-stringified by axios's transformRequest before the adapter runs. */
@@ -58,18 +75,27 @@ const mockAdapter: AxiosAdapter = async (config) => {
     case 'GET object':
       return reply(config, mockGetObject(params.key ?? ''));
     case 'GET download': {
+      const key = params.key ?? '';
       const text =
-        `# ${params.key}\n\n` +
+        `# ${key}\n\n` +
         `This is mock fixture content served by the FileBrowser dev playground.\n` +
         `No BFF, Garage cluster, or credentials are involved.\n\n` +
-        `- key: ${params.key}\n- generated for: mobile UX iteration\n`;
+        `- key: ${key}\n- generated for: mobile UX iteration\n`;
       // TextPreview asks for an ArrayBuffer; useDownload asks for a Blob.
-      return reply(
-        config,
+      const body =
         config.responseType === 'arraybuffer'
           ? new TextEncoder().encode(text).buffer
-          : new Blob([text], { type: 'text/plain' }),
-      );
+          : new Blob([text], { type: 'text/plain' });
+      // Mimic a real backend: when a Range is requested, answer 206 and report
+      // the object's *true* size in Content-Range so the text preview can tell
+      // whether content was actually truncated (vs. a small file that fit).
+      if (header(config, 'Range')) {
+        const total = mockGetObject(key).size || (body instanceof ArrayBuffer ? body.byteLength : 0);
+        return reply(config, body, 206, {
+          'content-range': `bytes 0-${Math.max(0, total - 1)}/${total}`,
+        });
+      }
+      return reply(config, body);
     }
     case 'POST presign': {
       const key = (jsonBody(config).key as string) ?? params.key ?? '';

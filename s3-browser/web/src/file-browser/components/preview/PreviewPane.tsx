@@ -1,9 +1,9 @@
 import { createElement, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { AlertCircle, Eye, X } from 'lucide-react';
+import { AlertCircle, Eye, Link2, Tag, X } from 'lucide-react';
 import { Button, cn } from '@garage/ui';
 import { fileKind, formatBytes, formatDateTime, isTextLikeKind } from '@garage/web-shared';
-import { CopyActionIcon, DownloadActionIcon, OpenExternalActionIcon } from '@/lib/action-icons';
+import { DownloadActionIcon, OpenExternalActionIcon } from '@/lib/action-icons';
 import type { S3Object } from '@/lib/types';
 import type { FileItem } from '../../types';
 import { getFileKindIcon, iconBgClass, iconColorClass } from '../../icons';
@@ -130,7 +130,7 @@ function PreviewPaneInner({ activeFile }: { activeFile: FileItem }) {
                   className="justify-start gap-2"
                   onClick={() => copyText('S3 URI', `s3://${bucket}/${object.key}`)}
                 >
-                  <CopyActionIcon size={14} /> Copy S3 URI
+                  <Link2 size={14} /> Copy S3 URI
                 </Button>
                 <Button
                   variant="outline"
@@ -138,7 +138,7 @@ function PreviewPaneInner({ activeFile }: { activeFile: FileItem }) {
                   className="justify-start gap-2"
                   onClick={() => copyText('Key', object.key)}
                 >
-                  <CopyActionIcon size={14} /> Copy key
+                  <Tag size={14} /> Copy key
                 </Button>
               </div>
             </section>
