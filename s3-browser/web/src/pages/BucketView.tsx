@@ -14,7 +14,6 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import {
@@ -26,7 +25,6 @@ import {
   BreadcrumbLink,
   BreadcrumbList,
   BreadcrumbSeparator,
-  Button,
   InlineLoadingState,
 } from '@garage/ui';
 
@@ -98,24 +96,7 @@ export function BucketView() {
   // below the fold, which is fine for a file-browser-dominant page.
   return (
     <div className="-mx-4 lg:-mx-8 -my-5 sm:-my-6 flex h-[calc(100vh-3.5rem)] flex-col bg-card">
-      <div className="flex h-11 shrink-0 items-center gap-2 border-b border-border bg-card/60 px-2 sm:px-3">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
-          onClick={() => {
-            // Prefer history back so single-bucket users who skipped the
-            // ConnectionView step return straight to the Dashboard instead of
-            // landing on a one-row bucket list. Fresh-tab deep links land
-            // here without history — fall back to ConnectionView in that case.
-            if (window.history.state?.idx > 0) navigate(-1);
-            else navigate(`/connections/${id}`);
-          }}
-          aria-label="Back"
-          title="Back"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
+      <div className="flex h-11 shrink-0 items-center gap-2 border-b border-border bg-card/60 px-3 sm:px-4">
         <Breadcrumb className="min-w-0 flex-1">
           <BreadcrumbList className="flex-nowrap text-xs sm:text-xs">
             <BreadcrumbItem>
