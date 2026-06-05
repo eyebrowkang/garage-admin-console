@@ -15,14 +15,10 @@ afterEach(() => {
 });
 
 describe('createTtlSweeper', () => {
-  it('sweep() drops expired entries and invokes onEvict', () => {
+  it('sweep() drops expired entries and keeps fresh ones', () => {
     vi.spyOn(Date, 'now').mockReturnValue(1000);
     const map = new Map<string, Entry>();
-    const evicted: string[] = [];
-    const sweeper = createTtlSweeper<Entry>(map, isExpired, {
-      intervalMs: 60_000,
-      onEvict: (e) => evicted.push(e.tag),
-    });
+    const sweeper = createTtlSweeper<Entry>(map, isExpired, { intervalMs: 60_000 });
 
     map.set('stale', { expiresAt: 500, tag: 'stale' });
     map.set('fresh', { expiresAt: 5000, tag: 'fresh' });
@@ -30,7 +26,6 @@ describe('createTtlSweeper', () => {
 
     expect(map.has('stale')).toBe(false);
     expect(map.has('fresh')).toBe(true);
-    expect(evicted).toEqual(['stale']);
   });
 
   it('runs sweeps on the configured interval after ensure()', () => {

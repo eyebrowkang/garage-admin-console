@@ -3,10 +3,11 @@
  *
  * The S3-client and CORS caches evict an entry when it is next looked up past
  * its TTL — but an entry whose key is never requested again would otherwise
- * linger forever (and, for the S3-client cache, keep a live keep-alive HTTP
- * agent open). This sweeper walks the map on an interval and drops expired
- * entries regardless of re-lookup, invoking `onEvict` so the S3-client cache can
- * destroy the stale client.
+ * linger forever. This sweeper walks the map on an interval and drops expired
+ * entries regardless of re-lookup, so the caches can't grow without bound. It
+ * only removes map entries; any resource teardown is the caller's concern (the
+ * S3-client cache deliberately leaves stale clients for GC — destroying one
+ * could abort an in-flight stream still borrowing it).
  *
  * The interval timer is `unref`'d — it never keeps the process alive — and it
  * stops itself once the map is empty, restarting on the next `ensure()`.
@@ -20,25 +21,21 @@ export interface TtlSweeper {
   sweep(): void;
 }
 
-export interface TtlSweeperOptions<V> {
+export interface TtlSweeperOptions {
   intervalMs: number;
-  onEvict?: (value: V) => void;
 }
 
 export function createTtlSweeper<V>(
   map: Map<string, V>,
   isExpired: (value: V, now: number) => boolean,
-  options: TtlSweeperOptions<V>,
+  options: TtlSweeperOptions,
 ): TtlSweeper {
   let timer: ReturnType<typeof setInterval> | null = null;
 
   function sweep(): void {
     const now = Date.now();
     for (const [key, value] of map) {
-      if (isExpired(value, now)) {
-        map.delete(key);
-        options.onEvict?.(value);
-      }
+      if (isExpired(value, now)) map.delete(key);
     }
     if (map.size === 0) stop();
   }
