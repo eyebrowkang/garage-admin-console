@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import path from 'node:path';
 import { DatabaseSync, type SQLInputValue } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
@@ -137,7 +138,10 @@ export function createAuthenticateToken(jwtSecret: string) {
 
     if (!token) return res.sendStatus(401);
 
-    jwt.verify(token, jwtSecret, (err, user) => {
+    // Pin the accepted algorithm: the secret is symmetric (HMAC), so refusing
+    // any non-HS256 `alg` in the token header closes the algorithm-confusion
+    // class of attacks instead of trusting whatever the token claims.
+    jwt.verify(token, jwtSecret, { algorithms: ['HS256'] }, (err, user) => {
       if (err || !user) return res.sendStatus(401);
       (req as AuthenticatedRequest).user = user;
       next();
@@ -155,6 +159,18 @@ export interface CreateAuthRouterOptions {
   tokenExpiresIn?: SignOptions['expiresIn'];
 }
 
+/**
+ * Constant-time credential comparison. Both sides are reduced to a fixed-length
+ * SHA-256 digest first, so `timingSafeEqual` never sees mismatched buffer
+ * lengths (which would throw, itself leaking length) and the compare time is
+ * independent of how many leading characters happen to match.
+ */
+function safeEqual(a: string, b: string): boolean {
+  const ah = crypto.createHash('sha256').update(a).digest();
+  const bh = crypto.createHash('sha256').update(b).digest();
+  return crypto.timingSafeEqual(ah, bh);
+}
+
 export function createAuthRouter({
   adminPassword,
   jwtSecret,
@@ -166,11 +182,14 @@ export function createAuthRouter({
     try {
       const { password } = LoginSchema.parse(req.body);
 
-      if (password !== adminPassword) {
+      if (!safeEqual(password, adminPassword)) {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
 
-      const token = jwt.sign({ role: 'admin' }, jwtSecret, { expiresIn: tokenExpiresIn });
+      const token = jwt.sign({ role: 'admin' }, jwtSecret, {
+        expiresIn: tokenExpiresIn,
+        algorithm: 'HS256',
+      });
       res.json({ token });
     } catch {
       res.status(400).json({ error: 'Invalid request' });
