@@ -132,11 +132,10 @@ Blocks). `BucketDetail` mounts the federated `BucketObjectBrowser`.
 - [`src/lib/api.ts`](../garage-admin-console/web/src/lib/api.ts) — axios `/api`
   client with JWT injection, 401/403 → `/login`, and a `proxyPath()` helper.
 - This package is the **MF Host**; see [Module Federation](#module-federation).
-- **No Metrics page by design.** Prometheus metrics are exposed as a raw,
-  browser-navigable pass-through at `GET /clusters/:clusterId/metrics` —
-  intentionally **unauthenticated** (a browser / Prometheus scraper can't carry
-  the console JWT), proxying the cluster's Garage `/metrics` with its stored
-  read-only metric token. See [`api/src/routes/metrics.ts`](../garage-admin-console/api/src/routes/metrics.ts).
+- **No Metrics page, and no dedicated metrics endpoint** — metrics aren't
+  surfaced in the UI or proxied as a feature right now. Clusters can still store
+  an optional read-only `metricToken` (see the schema below) for a future
+  integration; nothing reads it today.
 
 ## S3 Browser BFF
 
