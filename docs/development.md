@@ -100,6 +100,14 @@ update via Vite HMR directly.
 (or `pages/cluster/`), route in `App.tsx`, hooks in `src/hooks/`, types in
 `src/types/garage.ts`.
 
+**Garage Admin API types:** `src/types/garage.ts` holds hand-curated, app-shaped
+types; the upstream contract is the OpenAPI spec at
+`garage-admin-console/web/public/garage-admin-v2.json`. When bumping the Garage
+Admin API version, generate a reference from the spec and reconcile the curated
+types against it so they can't silently drift:
+`npx openapi-typescript garage-admin-console/web/public/garage-admin-v2.json -o /tmp/garage-api.gen.ts`,
+then diff the shapes you use and update `garage.ts`.
+
 **Add a view (S3 Browser):** component under `s3-browser/web/src/...`, wire it
 through `App.tsx`'s `<Routes>`.
 
