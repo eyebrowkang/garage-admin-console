@@ -42,20 +42,25 @@ pnpm -C s3-browser/web dev    # web on :5174 — exposes the Module Federation m
 
 1. Fork the repository and create a feature branch from `main`.
 2. Make your changes.
-3. Run the checks:
+3. Run the checks. This is exactly the gate [CI](./.github/workflows/ci.yml)
+   enforces — run all of it locally before opening a PR (every step is green on
+   `main`):
 
 ```bash
-pnpm lint                                              # Admin lint
-pnpm -C garage-admin-console/api typecheck             # Admin api types
-pnpm -C garage-admin-console/web build                 # Admin web types (compiled)
-pnpm test                                              # Admin vitest
+pnpm format:check   # Prettier (100-char, single quotes, …)
+pnpm lint           # ESLint, every workspace
+pnpm build          # shared packages + Admin api/web (CI also builds s3-browser;
+                    #   run `pnpm build:s3-browser` if you touched it)
+pnpm check:css      # @garage/ui CSS-cascade invariants
+pnpm typecheck      # tsc --noEmit across packages, both BFFs, and both web apps
+pnpm test           # the full offline Vitest suite
+```
 
-# If you touched any Bucket Backend API surface (admin or s3-browser):
-pnpm -C s3-browser/api typecheck
-pnpm -C packages/bucket-api-contract-tests test:run    # env-gated; see suite README
-
-# If you touched s3-browser/web:
-pnpm -C s3-browser/web build
+```bash
+# Live suites — need a real Garage / S3 backend, so they are env-gated and NOT in
+# CI (see docs/testing.md):
+pnpm -C packages/bucket-api-contract-tests test:run   # if you touched the Bucket Backend API
+pnpm e2e                                              # if you touched Admin Console flows
 ```
 
 4. Commit using [conventional commit](#commit-messages) format.
