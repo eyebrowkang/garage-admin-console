@@ -1,12 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import {
-  Activity,
-  BarChart3,
-  ExternalLink,
-  LayoutGrid,
-  Settings,
-  type LucideIcon,
-} from 'lucide-react';
+import { Activity, ExternalLink, LayoutGrid, Settings, type LucideIcon } from 'lucide-react';
 import { cn } from '@garage/ui';
 import { BlockIcon, BucketIcon, KeyIcon, NodeIcon, TokenIcon } from '@/lib/entity-icons';
 
@@ -31,7 +24,6 @@ const clusterNavItems: ClusterNavItem[] = [
   { to: 'tokens', icon: TokenIcon, label: 'Admin Tokens', shortLabel: 'Tokens' },
   { to: 'workers', icon: Settings, label: 'Workers', shortLabel: 'Workers' },
   { to: 'blocks', icon: BlockIcon, label: 'Blocks', shortLabel: 'Blocks' },
-  { to: 'metrics', icon: BarChart3, label: 'Metrics', shortLabel: 'Metrics', external: true },
 ];
 
 function NavItemLink({

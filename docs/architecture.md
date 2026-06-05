@@ -125,13 +125,17 @@ Key files: [`src/lib/garage-keys.ts`](../garage-admin-console/api/src/lib/garage
 React Router v7 (in [`src/App.tsx`](../garage-admin-console/web/src/App.tsx)):
 `/login`, `/` (Dashboard), `/clusters/:id/*` → `ClusterLayout` with a sidebar
 nav (Overview / Buckets / Keys / Layout / Nodes / Admin Tokens / Workers /
-Blocks / Metrics). `BucketDetail` mounts the federated `BucketObjectBrowser`.
+Blocks). `BucketDetail` mounts the federated `BucketObjectBrowser`.
 
 - UI primitives come from `@garage/ui` (not a local `components/ui/`); shared
   non-UI logic from `@garage/web-shared`. Path alias `@` → `src/`.
 - [`src/lib/api.ts`](../garage-admin-console/web/src/lib/api.ts) — axios `/api`
   client with JWT injection, 401/403 → `/login`, and a `proxyPath()` helper.
 - This package is the **MF Host**; see [Module Federation](#module-federation).
+- **No Metrics page by design.** Prometheus metrics are exposed only as a raw
+  pass-through at `GET /api/proxy/:clusterId/metrics` (using the cluster's
+  optional metric token) — intended for scrapers, not a rendered UI. See the
+  note in [`api/src/routes/proxy.ts`](../garage-admin-console/api/src/routes/proxy.ts).
 
 ## S3 Browser BFF
 

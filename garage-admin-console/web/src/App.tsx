@@ -1,10 +1,9 @@
-import React, { Suspense, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { readStoredToken } from '@/lib/api';
 import { MainLayout } from './layouts/MainLayout';
 import { ClusterLayout } from './layouts/ClusterLayout';
 import { Toaster } from '@garage/ui';
-import { PageLoadingState } from '@garage/ui';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 
@@ -45,10 +44,6 @@ const BlockManager = React.lazy(() =>
 const WorkerManager = React.lazy(() =>
   import('./pages/cluster/WorkerManager').then((m) => ({ default: m.WorkerManager })),
 );
-const MetricsPage = React.lazy(() =>
-  import('./pages/cluster/MetricsPage').then((m) => ({ default: m.MetricsPage })),
-);
-
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const token = readStoredToken();
   if (!token) return <Navigate to="/login" replace />;
@@ -65,10 +60,6 @@ function ScrollToTop() {
   return null;
 }
 
-function LazyFallback() {
-  return <PageLoadingState label="Loading..." />;
-}
-
 function App() {
   return (
     <>
@@ -76,16 +67,6 @@ function App() {
         <ScrollToTop />
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route
-            path="/clusters/:id/metrics"
-            element={
-              <ProtectedRoute>
-                <Suspense fallback={<LazyFallback />}>
-                  <MetricsPage />
-                </Suspense>
-              </ProtectedRoute>
-            }
-          />
           <Route
             path="/"
             element={

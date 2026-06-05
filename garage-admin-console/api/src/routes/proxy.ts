@@ -30,7 +30,11 @@ router.all('/:clusterId/*splat', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Cluster not found' });
     }
 
-    // Use metricToken for metrics endpoint if available, otherwise fall back to adminToken
+    // `/metrics` is intentionally a raw pass-through proxy only — there is no
+    // frontend Metrics page by design. The endpoint returns Prometheus text
+    // meant for scrapers / `curl`, not a rendered UI, so the raw output is
+    // forwarded as-is. It uses the dedicated metricToken when one is configured,
+    // falling back to the admin token.
     const token =
       pathPart === 'metrics' && cluster.metricToken
         ? decrypt(cluster.metricToken)
