@@ -273,6 +273,26 @@ export function createMultipartAwareJsonParser(): RequestHandler {
   });
 }
 
+/**
+ * Conservative security response headers for both BFFs (the JSON API and the
+ * SPA they serve). Deliberately omits a Content-Security-Policy and the
+ * cross-origin isolation headers (COEP/CORP): the Admin SPA loads the S3 Browser
+ * via Module Federation — often cross-origin — and those would block it. Revisit
+ * a real CSP once the all-in-one image serves the remote same-origin. HSTS is
+ * only honoured over HTTPS (ignored on plain HTTP), so it's safe to always set.
+ */
+export function createSecurityHeaders(): RequestHandler {
+  return (_req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('X-DNS-Prefetch-Control', 'off');
+    res.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
+    res.setHeader('Strict-Transport-Security', 'max-age=15552000; includeSubDomains');
+    next();
+  };
+}
+
 export interface CreateSqliteDbOptions {
   dataDir?: string;
   filename?: string;
