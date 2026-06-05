@@ -106,8 +106,14 @@ export function BucketView() {
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem className="min-w-0">
-              <BreadcrumbLink asChild className="max-w-[240px] truncate text-foreground hover:text-primary">
-                <Link to={`/connections/${id}`} title={`${connection.name} · ${connection.endpoint}`}>
+              <BreadcrumbLink
+                asChild
+                className="max-w-[240px] truncate text-foreground hover:text-primary"
+              >
+                <Link
+                  to={`/connections/${id}`}
+                  title={`${connection.name} · ${connection.endpoint}`}
+                >
                   {connection.name}
                 </Link>
               </BreadcrumbLink>

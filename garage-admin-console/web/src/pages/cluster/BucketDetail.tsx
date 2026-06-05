@@ -79,7 +79,9 @@ function UsageStat({
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className="text-lg font-semibold tabular-nums">
         {format(used)}
-        {max ? <span className="text-sm font-normal text-muted-foreground"> / {format(max)}</span> : null}
+        {max ? (
+          <span className="text-sm font-normal text-muted-foreground"> / {format(max)}</span>
+        ) : null}
       </div>
       {pct !== null && (
         <Meter
@@ -356,7 +358,10 @@ export function BucketDetail() {
       <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabHotkeys values={tabValues} onSelect={handleTabChange} />
         <TabsList>
-          <TabsTrigger value="overview" title={`Overview (press ${tabValues.indexOf('overview') + 1})`}>
+          <TabsTrigger
+            value="overview"
+            title={`Overview (press ${tabValues.indexOf('overview') + 1})`}
+          >
             Overview
           </TabsTrigger>
           {showFilesTab && (
@@ -591,9 +596,7 @@ export function BucketDetail() {
                 onClick={() => {
                   setMaxObjects(bucket.quotas.maxObjects?.toString() || '');
                   setMaxSize(
-                    bucket.quotas.maxSize
-                      ? (bucket.quotas.maxSize / 1_000_000_000).toString()
-                      : '',
+                    bucket.quotas.maxSize ? (bucket.quotas.maxSize / 1_000_000_000).toString() : '',
                   );
                   setQuotasDialogOpen(true);
                 }}
@@ -637,7 +640,9 @@ export function BucketDetail() {
                           <div className="min-w-0">
                             <div className="font-medium">{key.name || 'Unnamed key'}</div>
                             <div className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                              <span className="font-mono">{formatShortId(key.accessKeyId, 16)}</span>
+                              <span className="font-mono">
+                                {formatShortId(key.accessKeyId, 16)}
+                              </span>
                               <CopyButton value={key.accessKeyId} label="Access key ID" compact />
                             </div>
                           </div>
@@ -653,7 +658,9 @@ export function BucketDetail() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => navigate(`/clusters/${clusterId}/keys/${key.accessKeyId}`)}
+                            onClick={() =>
+                              navigate(`/clusters/${clusterId}/keys/${key.accessKeyId}`)
+                            }
                           >
                             <OpenActionIcon className="h-3.5 w-3.5" />
                             View
@@ -751,7 +758,11 @@ export function BucketDetail() {
                 Permanently delete incomplete multipart uploads older than a chosen age.
               </p>
             </div>
-            <Button variant="warning" className="shrink-0" onClick={() => setCleanupDialogOpen(true)}>
+            <Button
+              variant="warning"
+              className="shrink-0"
+              onClick={() => setCleanupDialogOpen(true)}
+            >
               Cleanup
             </Button>
           </div>
@@ -1019,7 +1030,9 @@ export function BucketDetail() {
           {inspectMutation.data ? (
             <JsonViewer data={inspectMutation.data} />
           ) : (
-            <p className="py-4 text-sm text-muted-foreground">No details returned for this object.</p>
+            <p className="py-4 text-sm text-muted-foreground">
+              No details returned for this object.
+            </p>
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setInspectDialogOpen(false)}>
@@ -1028,7 +1041,6 @@ export function BucketDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
     </div>
   );
 }

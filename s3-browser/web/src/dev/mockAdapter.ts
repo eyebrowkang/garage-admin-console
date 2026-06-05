@@ -4,7 +4,11 @@
  * component can be exercised — including mobile layouts — with no BFF, no
  * Garage cluster, and no credentials. Never imported by the production app.
  */
-import axios, { type AxiosAdapter, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
+import axios, {
+  type AxiosAdapter,
+  type AxiosResponse,
+  type InternalAxiosRequestConfig,
+} from 'axios';
 import {
   mockBuckets,
   mockConnections,
@@ -38,9 +42,7 @@ function reply(
 
 /** Read a request header case-insensitively from an axios config. */
 function header(config: InternalAxiosRequestConfig, name: string): string | undefined {
-  const h = config.headers as
-    | { get?: (n: string) => unknown; [k: string]: unknown }
-    | undefined;
+  const h = config.headers as { get?: (n: string) => unknown; [k: string]: unknown } | undefined;
   if (!h) return undefined;
   const raw = typeof h.get === 'function' ? h.get(name) : (h[name] ?? h[name.toLowerCase()]);
   return typeof raw === 'string' ? raw : undefined;
@@ -125,7 +127,8 @@ const mockAdapter: AxiosAdapter = async (config) => {
       // the object's *true* size in Content-Range so the text preview can tell
       // whether content was actually truncated (vs. a small file that fit).
       if (header(config, 'Range')) {
-        const total = mockGetObject(key).size || (body instanceof ArrayBuffer ? body.byteLength : 0);
+        const total =
+          mockGetObject(key).size || (body instanceof ArrayBuffer ? body.byteLength : 0);
         return reply(config, body, 206, {
           'content-range': `bytes 0-${Math.max(0, total - 1)}/${total}`,
         });

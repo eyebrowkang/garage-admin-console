@@ -63,8 +63,7 @@ export function AdminTokenFormFields({
   // click (a preset/Custom seeds neverExpires + date + hour + minute). Spreading
   // a stale `value` on each call would let every update but the last get clobbered
   // — update from `prev` so they all land.
-  const set = (patch: Partial<AdminTokenFormState>) =>
-    onChange((prev) => ({ ...prev, ...patch }));
+  const set = (patch: Partial<AdminTokenFormState>) => onChange((prev) => ({ ...prev, ...patch }));
   const scopeCount = parseScope(value).length;
   const warning = tokenFormScopeWarning(value);
   const expirationInvalid = tokenExpirationInvalid(value) && !value.neverExpires;

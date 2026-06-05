@@ -79,7 +79,10 @@ export function MobileToolbar() {
       {/* Sort */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button className={cn(pillButton, 'gap-1 px-3 text-[13px] font-medium')} aria-label="Sort">
+          <button
+            className={cn(pillButton, 'gap-1 px-3 text-[13px] font-medium')}
+            aria-label="Sort"
+          >
             <span>{SORT_LABELS[sortState.key]}</span>
             <DirIcon size={14} className="text-muted-foreground" />
           </button>
@@ -88,7 +91,9 @@ export function MobileToolbar() {
           {(['name', 'size', 'modified'] as SortKey[]).map((k) => (
             <DropdownMenuItem key={k} onClick={() => handleSort(k)}>
               {SORT_LABELS[k]}
-              {sortState.key === k && <DirIcon size={14} className="ml-auto text-muted-foreground" />}
+              {sortState.key === k && (
+                <DirIcon size={14} className="ml-auto text-muted-foreground" />
+              )}
             </DropdownMenuItem>
           ))}
         </DropdownMenuContent>
@@ -97,7 +102,10 @@ export function MobileToolbar() {
       {/* Kebab */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button className={cn(pillButton, 'w-10 text-muted-foreground')} aria-label="More options">
+          <button
+            className={cn(pillButton, 'w-10 text-muted-foreground')}
+            aria-label="More options"
+          >
             <MoreActionIcon size={17} />
           </button>
         </DropdownMenuTrigger>

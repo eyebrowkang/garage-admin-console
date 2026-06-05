@@ -213,7 +213,6 @@ export function BucketObjectBrowser({
             </div>
           )}
         </div>
-
       </CardHeader>
 
       <CardContent>

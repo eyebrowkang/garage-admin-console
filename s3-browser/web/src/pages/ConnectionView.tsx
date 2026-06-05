@@ -212,7 +212,11 @@ export function ConnectionView() {
               aria-label={sortDir === 'asc' ? 'Sort ascending' : 'Sort descending'}
               title={sortDir === 'asc' ? 'Ascending' : 'Descending'}
             >
-              {sortDir === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
+              {sortDir === 'asc' ? (
+                <ArrowUp className="h-4 w-4" />
+              ) : (
+                <ArrowDown className="h-4 w-4" />
+              )}
             </Button>
             <ViewToggle mode={viewMode} onChange={setViewMode} />
           </div>

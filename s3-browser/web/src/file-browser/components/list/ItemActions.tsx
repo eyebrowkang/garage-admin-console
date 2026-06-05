@@ -57,8 +57,17 @@ function ActionButton({
 }
 
 export function ItemActions({ item, itemKey, className, menuClassName }: ItemActionsProps) {
-  const { openDelete, openPresign, openRename, openMove, openCopy, showToast, http, bucket, isNarrow } =
-    useBrowser();
+  const {
+    openDelete,
+    openPresign,
+    openRename,
+    openMove,
+    openCopy,
+    showToast,
+    http,
+    bucket,
+    isNarrow,
+  } = useBrowser();
   const download = useDownload(http, (msg) => showToast('err', msg));
 
   const copyText = async (label: string, value: string) => {

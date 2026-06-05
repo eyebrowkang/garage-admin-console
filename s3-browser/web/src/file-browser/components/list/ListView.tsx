@@ -51,7 +51,8 @@ function SortButton({
 }
 
 export function ListView({ items }: ListViewProps) {
-  const { sortState, handleSort, multiSelectMode, selectedKeys, selectAll, isNarrow } = useBrowser();
+  const { sortState, handleSort, multiSelectMode, selectedKeys, selectAll, isNarrow } =
+    useBrowser();
   const parentRef = useRef<HTMLDivElement>(null);
   const ROW_HEIGHT = isNarrow ? 64 : 58;
   const visibleKeys = items.map((item) => (item.type === 'folder' ? item.prefix : item.key));

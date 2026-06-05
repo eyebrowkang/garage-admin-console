@@ -153,7 +153,8 @@ export function mockCopy(src: string, dst: string): void {
 export function mockUpload(keys: string[]): void {
   const now = new Date().toISOString();
   for (const key of keys) {
-    if (!OBJECTS.some((o) => o.key === key)) OBJECTS.push(obj(key, key.endsWith('.keep') ? 0 : 2048, now));
+    if (!OBJECTS.some((o) => o.key === key))
+      OBJECTS.push(obj(key, key.endsWith('.keep') ? 0 : 2048, now));
   }
 }
 

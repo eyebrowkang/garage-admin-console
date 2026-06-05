@@ -51,12 +51,12 @@ export function DetailPageHeader({ backTo, breadcrumbs, ...rest }: DetailPageHea
                     <Link to={crumb.to}>{crumb.label}</Link>
                   </BreadcrumbLink>
                 ) : (
-                  <BreadcrumbPage className="max-w-[55vw] sm:max-w-sm">{crumb.label}</BreadcrumbPage>
+                  <BreadcrumbPage className="max-w-[55vw] sm:max-w-sm">
+                    {crumb.label}
+                  </BreadcrumbPage>
                 )}
               </BreadcrumbItem>
-              {!isLast && (
-                <BreadcrumbSeparator />
-              )}
+              {!isLast && <BreadcrumbSeparator />}
             </Fragment>
           );
         })}

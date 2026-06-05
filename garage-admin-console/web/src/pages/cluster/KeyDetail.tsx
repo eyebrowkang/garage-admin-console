@@ -366,7 +366,9 @@ export function KeyDetail() {
       return next;
     });
   const toggleAllBuckets = () =>
-    setSelectedBucketIds(allBucketsSelected ? new Set() : new Set(assignedBuckets.map((b) => b.id)));
+    setSelectedBucketIds(
+      allBucketsSelected ? new Set() : new Set(assignedBuckets.map((b) => b.id)),
+    );
 
   // Grant Access dialog: multi-select over the buckets this key can still be added to.
   const allGrantSelected =
@@ -605,7 +607,11 @@ export function KeyDetail() {
                     >
                       Revoke
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => setSelectedBucketIds(new Set())}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedBucketIds(new Set())}
+                    >
                       Clear
                     </Button>
                   </div>
@@ -965,9 +971,7 @@ export function KeyDetail() {
             <Button
               onClick={handleGrantAccess}
               disabled={
-                grantBucketIds.size === 0 ||
-                (!grantRead && !grantWrite && !grantOwner) ||
-                grantBusy
+                grantBucketIds.size === 0 || (!grantRead && !grantWrite && !grantOwner) || grantBusy
               }
             >
               {grantBusy ? (

@@ -107,7 +107,9 @@ function ScopeField({
       {allowScopeSelection ? (
         <>
           <NodeSelector clusterId={clusterId} value={target} onChange={onChange} includeAll />
-          <p className="text-xs text-muted-foreground">Apply to all nodes, or pick a single node.</p>
+          <p className="text-xs text-muted-foreground">
+            Apply to all nodes, or pick a single node.
+          </p>
         </>
       ) : (
         <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm font-medium">
@@ -236,7 +238,11 @@ export function RepairDialog({
       });
       onOpenChange(false);
     } catch (err) {
-      toast({ title: 'Repair failed', description: getApiErrorMessage(err), variant: 'destructive' });
+      toast({
+        title: 'Repair failed',
+        description: getApiErrorMessage(err),
+        variant: 'destructive',
+      });
     }
   };
 
@@ -333,7 +339,15 @@ export function ConnectNodesDialog({
 
   // Parse one `node_id@address` per line; trim, drop blanks, and de-duplicate.
   const entries = useMemo(
-    () => Array.from(new Set(input.split(/\n+/).map((v) => v.trim()).filter(Boolean))),
+    () =>
+      Array.from(
+        new Set(
+          input
+            .split(/\n+/)
+            .map((v) => v.trim())
+            .filter(Boolean),
+        ),
+      ),
     [input],
   );
   const invalid = useMemo(() => entries.filter((v) => !/^[^@,\s]+@[^@,\s]+$/.test(v)), [entries]);

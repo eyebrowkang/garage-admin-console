@@ -72,9 +72,7 @@ export function tokenFormScopeWarning(state: AdminTokenFormState): boolean {
 
 function expirationDateValue(state: AdminTokenFormState): Date | null {
   if (!state.expirationDate) return null;
-  return new Date(
-    `${state.expirationDate}T${state.expirationHour}:${state.expirationMinute}:00`,
-  );
+  return new Date(`${state.expirationDate}T${state.expirationHour}:${state.expirationMinute}:00`);
 }
 
 export function tokenExpirationIso(state: AdminTokenFormState): string | null {

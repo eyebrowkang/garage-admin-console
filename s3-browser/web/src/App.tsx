@@ -12,7 +12,15 @@
  */
 import { LogOut } from 'lucide-react';
 import { lazy, Suspense, useState } from 'react';
-import { BrowserRouter, Navigate, Outlet, Route, Routes, Link, useNavigate } from 'react-router-dom';
+import {
+  BrowserRouter,
+  Navigate,
+  Outlet,
+  Route,
+  Routes,
+  Link,
+  useNavigate,
+} from 'react-router-dom';
 
 import {
   Button,

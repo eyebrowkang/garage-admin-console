@@ -18,7 +18,12 @@ import {
   DropdownMenuTrigger,
 } from '@garage/ui';
 import { MoreHorizontal } from 'lucide-react';
-import { formatBytes, formatRelativeSeconds, formatShortId, getApiErrorMessage } from '@garage/web-shared';
+import {
+  formatBytes,
+  formatRelativeSeconds,
+  formatShortId,
+  getApiErrorMessage,
+} from '@garage/web-shared';
 import { ModulePageHeader } from '@garage/ui';
 import { TableLoadingState } from '@/components/cluster/TableLoadingState';
 import {
@@ -41,7 +46,11 @@ function getStatusBadge(node: NodeResp) {
   if (node.draining) {
     return <Badge variant="warning">Draining</Badge>;
   }
-  return node.isUp ? <Badge variant="success">Up</Badge> : <Badge variant="destructive">Down</Badge>;
+  return node.isUp ? (
+    <Badge variant="success">Up</Badge>
+  ) : (
+    <Badge variant="destructive">Down</Badge>
+  );
 }
 
 /** Used fraction (0–100) of a storage partition, or null when unknown (sorts last). */

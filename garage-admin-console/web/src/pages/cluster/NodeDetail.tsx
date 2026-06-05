@@ -312,7 +312,11 @@ export function NodeDetail() {
 
           {/* Storage partitions */}
           <div className="grid gap-4 md:grid-cols-2">
-            <PartitionMeter title="Data Partition" icon={HardDrive} partition={node.dataPartition} />
+            <PartitionMeter
+              title="Data Partition"
+              icon={HardDrive}
+              partition={node.dataPartition}
+            />
             <PartitionMeter
               title="Metadata Partition"
               icon={Database}

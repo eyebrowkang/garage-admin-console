@@ -332,7 +332,8 @@ export function LayoutManager() {
   const stagedParams = layout?.stagedParameters ?? null;
   const hasStagedChanges = stagedChanges.length > 0 || Boolean(stagedParams);
   const stagedCount = stagedChanges.length + (stagedParams ? 1 : 0);
-  const nodeName = (id: string) => nodes.find((n) => n.id === id)?.hostname || formatShortId(id, 10);
+  const nodeName = (id: string) =>
+    nodes.find((n) => n.id === id)?.hostname || formatShortId(id, 10);
   const defaultSkipVersion =
     historyQuery.data?.currentVersion !== undefined
       ? String(historyQuery.data.currentVersion)
@@ -577,11 +578,19 @@ export function LayoutManager() {
   // Layout-node list: each cluster-reported node, enriched with its layout role
   // and any staged change. Mirrors the Nodes list (ResourceList) for consistency.
   const layoutStatusBadge = (hasRole: boolean) =>
-    hasRole ? <Badge variant="success">Assigned</Badge> : <Badge variant="secondary">Discovery</Badge>;
+    hasRole ? (
+      <Badge variant="success">Assigned</Badge>
+    ) : (
+      <Badge variant="secondary">Discovery</Badge>
+    );
   const stagedBadge = (change?: NodeRoleChange) => {
     if (!change) return null;
     const removed = 'remove' in change && change.remove;
-    return removed ? <Badge variant="destructive">Remove</Badge> : <Badge variant="warning">Update</Badge>;
+    return removed ? (
+      <Badge variant="destructive">Remove</Badge>
+    ) : (
+      <Badge variant="warning">Update</Badge>
+    );
   };
 
   const nodeColumns: ResourceListColumn<NodeResp>[] = [
@@ -916,7 +925,11 @@ export function LayoutManager() {
                 label: 'Status',
                 options: [
                   { value: 'assigned', label: 'Assigned', predicate: (n) => rolesById.has(n.id) },
-                  { value: 'discovery', label: 'Discovery', predicate: (n) => !rolesById.has(n.id) },
+                  {
+                    value: 'discovery',
+                    label: 'Discovery',
+                    predicate: (n) => !rolesById.has(n.id),
+                  },
                 ],
               },
             ]}
