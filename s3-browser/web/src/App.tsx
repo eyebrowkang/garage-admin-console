@@ -31,7 +31,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@garage/ui';
-import { readStoredToken, writeStoredToken } from '@/lib/api';
+import { useAuthToken, writeStoredToken } from '@/lib/api';
 import { LoginPage } from '@/pages/LoginPage';
 import { HomePage } from '@/pages/HomePage';
 import { ConnectionView } from '@/pages/ConnectionView';
@@ -85,8 +85,12 @@ function MainApp() {
 function ProtectedShell() {
   const navigate = useNavigate();
   const [confirmSignOut, setConfirmSignOut] = useState(false);
+  // Reactive: an expired session (a 401 that clears the token via
+  // onUnauthorized) re-renders this guard and routes to /login — no manual
+  // redirect, and embedded mode is unaffected (it never uses this shell).
+  const token = useAuthToken();
 
-  if (readStoredToken() === null) {
+  if (token === null) {
     return <Navigate to="/login" replace />;
   }
 

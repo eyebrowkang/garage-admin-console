@@ -19,6 +19,16 @@ export interface ApiClient {
   api: AxiosInstance;
   readStoredToken: () => string | null;
   writeStoredToken: (token: string | null) => void;
+  /**
+   * Subscribe to token changes made through writeStoredToken (login, logout, or
+   * an onUnauthorized clear); returns an unsubscribe fn. Pair with
+   * readStoredToken in a `useSyncExternalStore` hook so a standalone app can
+   * reactively flip to its login surface the moment the session dies — without a
+   * full page reload. Cross-tab `storage` events are intentionally NOT wired in
+   * (single-user, single-tab model); only writeStoredToken on this instance
+   * notifies.
+   */
+  subscribe: (listener: () => void) => () => void;
 }
 
 /**
@@ -27,6 +37,8 @@ export interface ApiClient {
  * every request and routes 401/403 responses to `onUnauthorized`.
  */
 export function createApiClient({ baseURL, tokenKey, onUnauthorized }: ApiClientOptions): ApiClient {
+  const listeners = new Set<() => void>();
+
   const readStoredToken = (): string | null => {
     if (typeof window === 'undefined') return null;
     try {
@@ -44,6 +56,16 @@ export function createApiClient({ baseURL, tokenKey, onUnauthorized }: ApiClient
     } catch {
       // ignore quota / sandbox errors
     }
+    // Notify after the write so reactive consumers (useSyncExternalStore) see
+    // the new value on their next readStoredToken().
+    for (const listener of listeners) listener();
+  };
+
+  const subscribe = (listener: () => void): (() => void) => {
+    listeners.add(listener);
+    return () => {
+      listeners.delete(listener);
+    };
   };
 
   const api = axios.create({ baseURL });
@@ -68,5 +90,5 @@ export function createApiClient({ baseURL, tokenKey, onUnauthorized }: ApiClient
     },
   );
 
-  return { api, readStoredToken, writeStoredToken };
+  return { api, readStoredToken, writeStoredToken, subscribe };
 }

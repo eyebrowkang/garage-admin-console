@@ -88,3 +88,40 @@ describe('response interceptor — 401/403 routing', () => {
     await expect(responseInterceptor(client.api).rejected(err)).rejects.toBe(err);
   });
 });
+
+describe('token change subscription (reactive standalone auth)', () => {
+  it('notifies subscribers when the token is written or cleared', () => {
+    const { writeStoredToken, subscribe } = createApiClient({ baseURL: '/api', tokenKey: TOKEN_KEY });
+    const listener = vi.fn();
+    subscribe(listener);
+    writeStoredToken('jwt-123');
+    writeStoredToken(null);
+    expect(listener).toHaveBeenCalledTimes(2);
+  });
+
+  it('stops notifying after unsubscribe', () => {
+    const { writeStoredToken, subscribe } = createApiClient({ baseURL: '/api', tokenKey: TOKEN_KEY });
+    const listener = vi.fn();
+    const unsubscribe = subscribe(listener);
+    writeStoredToken('a');
+    unsubscribe();
+    writeStoredToken('b');
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it('a 401 that clears the token notifies subscribers (the standalone redirect trigger)', async () => {
+    const { api, readStoredToken, writeStoredToken, subscribe } = createApiClient({
+      baseURL: '/api',
+      tokenKey: TOKEN_KEY,
+      onUnauthorized: () => writeStoredToken(null),
+    });
+    writeStoredToken('live-session');
+    const listener = vi.fn();
+    subscribe(listener);
+    await expect(
+      responseInterceptor(api).rejected({ response: { status: 401 } }),
+    ).rejects.toBeTruthy();
+    expect(readStoredToken()).toBeNull();
+    expect(listener).toHaveBeenCalled();
+  });
+});
