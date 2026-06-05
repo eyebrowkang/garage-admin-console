@@ -382,7 +382,7 @@ export function ResourceList<T>({
             const active = facetValues[facet.id] ?? null;
             const chipClass = (on: boolean) =>
               cn(
-                'inline-flex min-h-9 shrink-0 items-center rounded-full border px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                'inline-flex min-h-9 pointer-coarse:min-h-11 shrink-0 items-center rounded-full border px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 on
                   ? 'border-primary/40 bg-primary/10 text-primary'
                   : 'border-border text-muted-foreground hover:text-foreground',
@@ -622,7 +622,7 @@ export function ResourceList<T>({
                   onClick={() => toggleSort(col.id)}
                   aria-pressed={active}
                   className={cn(
-                    'inline-flex min-h-9 shrink-0 items-center gap-1 rounded-full border px-3 text-xs font-medium transition-colors',
+                    'inline-flex min-h-9 pointer-coarse:min-h-11 shrink-0 items-center gap-1 rounded-full border px-3 text-xs font-medium transition-colors',
                     active
                       ? 'border-primary/40 bg-primary/10 text-primary'
                       : 'border-border text-muted-foreground hover:text-foreground',

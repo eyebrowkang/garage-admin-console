@@ -55,7 +55,9 @@ export function CopyValue({
         className,
       )}
     >
-      <span className="truncate">{children ?? value}</span>
+      <span className="truncate" title={value ?? undefined}>
+        {children ?? value}
+      </span>
       {copied ? (
         <Check className="h-3.5 w-3.5 shrink-0 text-success pointer-coarse:h-4 pointer-coarse:w-4" />
       ) : (

@@ -103,7 +103,7 @@ export function ExpirationPicker({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        'inline-flex min-h-9 shrink-0 items-center rounded-full border px-3 text-xs font-medium transition-colors',
+        'inline-flex min-h-9 pointer-coarse:min-h-11 shrink-0 items-center rounded-full border px-3 text-xs font-medium transition-colors',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         active
           ? 'border-primary/40 bg-primary/10 text-primary'
@@ -119,7 +119,12 @@ export function ExpirationPicker({
       <div className="flex flex-wrap items-center gap-1.5">
         {allowDefault && chip(mode === 'default', 'Default', selectDefault)}
         {presetDays.map((days) =>
-          chip(mode === 'preset' && presetDay === days, `${days} days`, () => selectPreset(days), days),
+          chip(
+            mode === 'preset' && presetDay === days,
+            `${days} days`,
+            () => selectPreset(days),
+            days,
+          ),
         )}
         {chip(mode === 'custom', 'Custom', selectCustom)}
         {chip(mode === 'never', 'Never', selectNever)}

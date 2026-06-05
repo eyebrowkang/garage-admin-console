@@ -31,7 +31,7 @@ export function Meter({ value, tone = 'neutral', ariaLabel, className }: MeterPr
       aria-valuenow={Math.round(pct)}
       aria-valuemin={0}
       aria-valuemax={100}
-      aria-label={ariaLabel}
+      aria-label={ariaLabel ?? 'Progress'}
       className={cn('h-1.5 w-full overflow-hidden rounded-full bg-muted', className)}
     >
       <div
