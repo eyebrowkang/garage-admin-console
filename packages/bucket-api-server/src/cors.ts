@@ -21,6 +21,7 @@ import {
 } from '@aws-sdk/client-s3';
 
 import type { Logger } from './types.js';
+import { createTtlSweeper } from './ttl-sweep.js';
 
 const REQUIRED_METHODS: ReadonlyArray<'GET' | 'PUT' | 'HEAD' | 'POST'> = [
   'GET',
@@ -36,6 +37,13 @@ interface CacheEntry {
 }
 
 const cache = new Map<string, CacheEntry>();
+
+// Reclaim expired entries that are never re-checked (e.g. a bucket touched once)
+// so the cache can't grow without bound. Timer is unref'd and self-stops empty.
+const SWEEP_INTERVAL_MS = 60 * 1000;
+const sweeper = createTtlSweeper(cache, (entry, now) => entry.expiresAt <= now, {
+  intervalMs: SWEEP_INTERVAL_MS,
+});
 
 function ruleCoversMethods(rule: CORSRule): boolean {
   const allowed = (rule.AllowedMethods ?? []).map((m) => m.toUpperCase());
@@ -125,6 +133,7 @@ export async function ensureBucketCors({
 
     if (isCoveredByExistingRule(existing)) {
       cache.set(cacheKey, { expiresAt: Date.now() + TTL_MS });
+      sweeper.ensure();
       return;
     }
 
@@ -136,6 +145,7 @@ export async function ensureBucketCors({
       }),
     );
     cache.set(cacheKey, { expiresAt: Date.now() + TTL_MS });
+    sweeper.ensure();
   } catch (err) {
     logger.error({ err, bucket }, 'ensureBucketCors failed');
     // Do not cache failures — retry on next request.
@@ -145,4 +155,5 @@ export async function ensureBucketCors({
 /** Test helper: clear the in-memory cache. Not part of the public API. */
 export function _resetCorsCache(): void {
   cache.clear();
+  sweeper.stop();
 }
