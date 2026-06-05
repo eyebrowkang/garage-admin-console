@@ -83,6 +83,9 @@ API + standalone SPA/MF remote by default, or serves only static/MF assets when
 | `STATIC_DIR` | No | `/app/static` | Directory for frontend files |
 | `S3_BROWSER_MF_URL` | No | — | Browser-visible MF manifest URL |
 | `S3_BROWSER_MF_PROXY_TARGET` | No | — | Internal upstream for Admin's `/s3-browser/*` proxy |
+| `S3_BROWSER_STATIC_DIR` | No | — | Serve the bundled S3 Browser remote same-origin from this dir (baked into the `garage-admin-all` image; takes precedence over the proxy) |
+| `S3_CORS_ALLOWED_ORIGINS` | No | — | Comma-separated origins for the auto-managed bucket CORS rule (default: the requesting app's origin) |
+| `S3_MANAGE_CORS` | No | `true` | Set `false` to leave bucket CORS entirely to the operator |
 
 ## Production notes
 

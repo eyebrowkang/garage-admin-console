@@ -85,7 +85,8 @@ Types:
 | `docs` | Documentation only |
 | `refactor` | Code change that neither fixes a bug nor adds a feature |
 | `test` | Adding or updating tests |
-| `chore` | Maintenance tasks (dependencies, CI, build) |
+| `chore` | Maintenance tasks (dependencies, build) |
+| `ci` | CI / release workflow + config changes |
 
 For changes that span both products, scoping helps readers:
 
@@ -98,9 +99,12 @@ refactor(packages/ui): extract Skeleton primitive
 
 ## Versioning
 
-This project's **major version tracks the upstream [Garage Admin API](https://garagehq.deuxfleurs.fr/) version**. For example, when the project targets Garage Admin API v2, the major version is `2.x.x`. A major version bump only happens when migrating to a new Garage API version — it does **not** follow traditional semver where any breaking change triggers a major bump.
+Releases are managed by [Release Please](https://github.com/googleapis/release-please) in **manifest mode — each product is versioned independently**:
 
-Within a major version, minor and patch bumps follow the usual conventions:
+- **Garage Admin Console** (the root component, tagged `vX.Y.Z`): its **major version tracks the upstream [Garage Admin API](https://garagehq.deuxfleurs.fr/) version** — Admin API v2 → `2.x.x`. A major bump only happens when migrating to a new Garage API version; it does **not** follow traditional semver where any breaking change triggers a major bump.
+- **S3 Browser** (tagged `s3-browser-vX.Y.Z`): versioned on its own line — as a generic S3 browser it is not tied to the Garage API version.
+
+Commits are attributed by path: changes under `s3-browser/` bump the S3 Browser; everything else (including the shared `packages/`) bumps the Admin Console. Within a major, minor and patch bumps follow the usual conventions:
 
 - `fix:` commits → **patch** bump (e.g. `2.0.0` → `2.0.1`)
 - `feat:` / significant `refactor:` commits → **minor** bump (e.g. `2.0.1` → `2.1.0`)

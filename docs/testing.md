@@ -62,13 +62,18 @@ collide on a shared `data.db` even when CI sets one `DATA_DIR`.
 
 ## Offline vs. live
 
-`pnpm test` is fully offline and gates CI. Two suites need real infrastructure
-and are intentionally kept out of it:
+`pnpm test` is fully offline and gates every PR. The two suites that need real
+infrastructure stay off the per-PR critical path:
 
 - **Contract tests** self-skip unless their Garage/S3 env vars are set
   (`packages/bucket-api-contract-tests`), so the offline run stays green.
 - **E2E** boots `pnpm dev` and drives a browser against a configured Garage
-  cluster; run it locally or in a job that provisions a backend.
+  cluster; run it locally with a backend.
+
+Both also run automatically in
+[`.github/workflows/live-tests.yml`](../.github/workflows/live-tests.yml), which
+stands up an ephemeral Garage and runs the contract suite + E2E against it —
+post-merge on `main` and on demand, not on every PR.
 
 ## Coverage
 

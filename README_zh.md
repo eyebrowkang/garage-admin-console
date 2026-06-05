@@ -6,7 +6,7 @@
 
 > 兼容 Garage Admin API v2。
 >
-> **版本说明**：本项目的主版本号与 Garage Admin API 版本保持同步。v2.x 对应 Admin API v2。没有 v1.0 或 v0.x（本项目创建时 Admin API v1/v0 均已废弃）。
+> **版本说明**：Admin Console 的主版本号与 Garage Admin API 版本保持同步，v2.x 对应 Admin API v2（没有 v1.0 或 v0.x，本项目创建时 Admin API v1/v0 均已废弃）。S3 Browser 镜像按独立的版本线发布。
 
 ## 功能特性
 
@@ -27,7 +27,7 @@
 
 ## 快速开始（Docker）
 
-Admin Console 与 S3 Browser 以独立、可组合的镜像发布 —— 可单独运行 Admin、单独运行 S3 Browser，或两者合并部署（Admin 代理嵌入的浏览器，仅需发布 Admin 端口）。
+Admin Console 与 S3 Browser 以可组合的镜像发布 —— 可单独运行 Admin、单独运行 S3 Browser、两者合并部署（Admin 代理嵌入的浏览器，仅需发布 Admin 端口），或使用一体化的 `garage-admin-all` 单镜像（Admin 与嵌入式浏览器打包进一个容器，同源伺服）。
 
 ```bash
 git clone https://github.com/eyebrowkang/garage-admin-console.git
