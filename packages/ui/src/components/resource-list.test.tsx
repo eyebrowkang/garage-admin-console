@@ -1,5 +1,6 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { Inbox } from 'lucide-react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ResourceList, type ResourceListColumn } from './resource-list';
@@ -35,7 +36,7 @@ function renderList(props: Partial<React.ComponentProps<typeof ResourceList<Row>
       columns={COLUMNS}
       getRowId={(r) => r.id}
       renderTitle={(r) => r.name}
-      emptyState={{ icon: Badge as never, title: 'Nothing here', description: 'Add something.' }}
+      emptyState={{ icon: Inbox, title: 'Nothing here', description: 'Add something.' }}
       {...props}
     />,
   );

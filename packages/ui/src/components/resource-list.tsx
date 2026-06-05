@@ -1,6 +1,7 @@
 import {
   Fragment,
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -194,6 +195,18 @@ export function ResourceList<T>({
     for (const col of columns) map.set(col.id, col);
     return map;
   }, [columns]);
+
+  // Dev guard: a defaultSort.columnId that matches no column silently no-ops the
+  // initial sort (the key just isn't found). Surface it so a typo — or a column
+  // id renamed during a refactor — doesn't quietly drop the default order.
+  const defaultSortColumnId = defaultSort?.columnId;
+  useEffect(() => {
+    if (defaultSortColumnId && !columnById.has(defaultSortColumnId)) {
+      console.warn(
+        `ResourceList: defaultSort.columnId "${defaultSortColumnId}" matches no column id; the initial sort is ignored.`,
+      );
+    }
+  }, [columnById, defaultSortColumnId]);
 
   const normalizedQuery = query.trim().toLowerCase();
 
