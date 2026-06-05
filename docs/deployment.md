@@ -1,5 +1,7 @@
 # Deployment
 
+[English](./deployment.md) | [中文](./deployment_zh.md)
+
 Docker is the supported deployment path. The build is intentionally composable:
 
 - **Admin-only** — run the Admin Console image by itself. Bucket pages keep
@@ -86,6 +88,35 @@ API + standalone SPA/MF remote by default, or serves only static/MF assets when
 | `S3_BROWSER_STATIC_DIR` | No | — | Serve the bundled S3 Browser remote same-origin from this dir (baked into the `garage-admin-all` image; takes precedence over the proxy) |
 | `S3_CORS_ALLOWED_ORIGINS` | No | — | Comma-separated origins for the auto-managed bucket CORS rule (default: the requesting app's origin) |
 | `S3_MANAGE_CORS` | No | `true` | Set `false` to leave bucket CORS entirely to the operator |
+| `MORGAN_FORMAT` | No | off (prod) | HTTP access log format (`combined`, `common`, `dev`, etc.); `off` / `none` / `false` disables |
+
+## Production env vars (S3 Browser image)
+
+The S3 Browser image shares the same core env vars (`JWT_SECRET`, `ENCRYPTION_KEY`,
+`ADMIN_PASSWORD`, `PORT`, `LOG_LEVEL`, `DATA_DIR`, `STATIC_DIR`, `MORGAN_FORMAT`)
+as the Admin image. The following are specific to the S3 Browser:
+
+| Variable | Required | Default | Description |
+| --- | --- | --- | --- |
+| `S3_BROWSER_STATIC_ONLY` | No | `false` | `true` serves only static/MF assets (no BFF API); used in combined deployment |
+| `STATIC_CORS_ORIGIN` | No | — | Allowed CORS origin for static assets in `S3_BROWSER_STATIC_ONLY` mode |
+| `S3_CORS_ALLOWED_ORIGINS` | No | — | Comma-separated origins for the auto-managed bucket CORS rule |
+| `S3_MANAGE_CORS` | No | `true` | Set `false` to leave bucket CORS entirely to the operator |
+
+> The `S3_CORS_*` vars are read by both the Admin and S3 Browser BFFs.
+
+## Production env vars (all-in-one image)
+
+The `garage-admin-all` image bakes in the same env vars as the Admin image with
+two additional defaults pre-configured:
+
+| Variable | Baked default | Description |
+| --- | --- | --- |
+| `S3_BROWSER_STATIC_DIR` | `/app/s3-browser-static` | Serves the bundled S3 Browser remote same-origin (no proxy needed) |
+| `S3_BROWSER_MF_URL` | `/s3-browser/mf-manifest.json` | Browser-visible MF manifest path (same-origin, no separate URL needed) |
+
+Only the three core secrets (`JWT_SECRET`, `ENCRYPTION_KEY`, `ADMIN_PASSWORD`)
+are required — no S3 Browser container or proxy configuration.
 
 ## Production notes
 
