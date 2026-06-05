@@ -13,7 +13,10 @@
 const BYTE_UNITS = ['B', 'kB', 'MB', 'GB', 'TB', 'PB'];
 
 export function formatBytes(bytes?: number | null): string {
-  if (bytes === null || bytes === undefined || Number.isNaN(bytes)) return '—';
+  // Reject anything that isn't a finite, non-negative number — Infinity, NaN,
+  // and negative sizes are all "invalid" and render as the em dash per the
+  // module contract (a stray Infinity must never reach a capacity display).
+  if (bytes === null || bytes === undefined || !Number.isFinite(bytes) || bytes < 0) return '—';
   let value = bytes;
   let unitIndex = 0;
   while (value >= 1000 && unitIndex < BYTE_UNITS.length - 1) {

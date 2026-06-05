@@ -33,9 +33,12 @@ describe('formatBytes', () => {
     expect(formatBytes(5 * 1000 ** 5)).toBe('5.00 PB');
   });
 
-  it.each([[null], [undefined], [NaN]])('renders an em dash for %s', (input) => {
-    expect(formatBytes(input as number | null | undefined)).toBe('—');
-  });
+  it.each([[null], [undefined], [NaN], [Infinity], [-Infinity], [-1], [-500]])(
+    'renders an em dash for invalid input %s',
+    (input) => {
+      expect(formatBytes(input as number | null | undefined)).toBe('—');
+    },
+  );
 });
 
 describe('formatDate', () => {
