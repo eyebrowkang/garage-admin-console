@@ -15,13 +15,15 @@ interface PresignResponse {
 function clickDownloadAnchor(url: string, filename: string, sameOrigin: boolean) {
   const a = document.createElement('a');
   a.href = url;
-  // The `download` attribute is ignored cross-origin — we rely on the
-  // ResponseContentDisposition header attached to the presigned URL there.
+  // The `download` attribute is ignored cross-origin — for the presigned-S3 case
+  // we rely on the ResponseContentDisposition (attachment) header instead.
   if (sameOrigin) a.download = filename;
-  // Open in a new tab for cross-origin so the SPA stays mounted while S3
-  // handles the response; with Content-Disposition: attachment the tab
-  // never actually renders.
-  if (!sameOrigin) a.target = '_blank';
+  // Deliberately a SAME-TAB navigation (no target="_blank"). The cross-origin
+  // download fires after an awaited /presign call, and a new tab/window opened
+  // outside the original tap gesture is popup-blocked on mobile Safari/Chrome —
+  // so a >10 MB download silently did nothing. A top-level navigation is never
+  // popup-blocked, and the attachment header makes the browser download the file
+  // without navigating away from the SPA.
   a.rel = 'noopener';
   document.body.appendChild(a);
   a.click();

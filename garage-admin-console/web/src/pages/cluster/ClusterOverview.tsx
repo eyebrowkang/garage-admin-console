@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import {
   Activity,
   AlertTriangle,
   CheckCircle2,
+  Globe,
   LayoutGrid,
   Layers,
   ShieldCheck,
@@ -22,6 +24,14 @@ import {
   Meter,
   type MeterTone,
   TerminalOutput,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  Input,
+  Label,
 } from '@garage/ui';
 import { ModulePageHeader } from '@garage/ui';
 import { useClusterContext } from '@/contexts/ClusterContext';
@@ -47,6 +57,37 @@ function ratio(num?: number, den?: number): { pct: number; tone: MeterTone } {
 
 export function ClusterOverview() {
   const { clusterId } = useClusterContext();
+
+  // Domain check — Garage's `/check` special endpoint answers whether a
+  // website-enabled bucket in THIS cluster serves a given domain (200 = yes,
+  // 400 = no). It's a previously-missing convenience for verifying static-site
+  // routing without leaving the console.
+  const [checkOpen, setCheckOpen] = useState(false);
+  const [domain, setDomain] = useState('');
+  const [checking, setChecking] = useState(false);
+  const [checkResult, setCheckResult] = useState<
+    { kind: 'managed' } | { kind: 'unmanaged' } | { kind: 'error'; message: string } | null
+  >(null);
+
+  const runDomainCheck = async () => {
+    const value = domain.trim();
+    if (!value) return;
+    setChecking(true);
+    setCheckResult(null);
+    try {
+      const res = await api.get(proxyPath(clusterId, '/check'), {
+        params: { domain: value },
+        // 200 and 400 are both expected answers, not failures — read the status.
+        validateStatus: (s) => s === 200 || s === 400,
+      });
+      setCheckResult({ kind: res.status === 200 ? 'managed' : 'unmanaged' });
+    } catch (err) {
+      setCheckResult({ kind: 'error', message: getApiErrorMessage(err, 'Domain check failed.') });
+    } finally {
+      setChecking(false);
+    }
+  };
+
   const healthQuery = useQuery<GetClusterHealthResponse>({
     queryKey: ['clusterHealth', clusterId],
     queryFn: async () => {
@@ -205,6 +246,12 @@ export function ClusterOverview() {
       <ModulePageHeader
         title="Overview"
         description="Cluster-wide health, layout status, and statistics at a glance."
+        actions={
+          <Button variant="outline" onClick={() => setCheckOpen(true)}>
+            <Globe className="h-4 w-4" />
+            Check Domain
+          </Button>
+        }
       />
 
       {/* Block Errors Alert */}
@@ -381,6 +428,78 @@ export function ClusterOverview() {
           emptyLabel="No statistics available."
         />
       </div>
+
+      <Dialog
+        open={checkOpen}
+        onOpenChange={(open) => {
+          setCheckOpen(open);
+          if (!open) setCheckResult(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle>Check domain</DialogTitle>
+            <DialogDescription>
+              Check whether a website-enabled bucket in this cluster serves a given domain — useful
+              for verifying static-site routing before pointing DNS or a reverse proxy at it.
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void runDomainCheck();
+            }}
+          >
+            <div className="space-y-3 py-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="check-domain">Domain</Label>
+                <Input
+                  id="check-domain"
+                  placeholder="files.example.com"
+                  value={domain}
+                  onChange={(e) => setDomain(e.target.value)}
+                  autoComplete="off"
+                  autoFocus
+                />
+              </div>
+              {checkResult && (
+                <div
+                  className={
+                    checkResult.kind === 'managed'
+                      ? 'flex items-start gap-2 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-sm text-success'
+                      : checkResult.kind === 'error'
+                        ? 'flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive'
+                        : 'flex items-start gap-2 rounded-lg border border-border bg-muted px-3 py-2 text-sm text-muted-foreground'
+                  }
+                >
+                  {checkResult.kind === 'managed' ? (
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                  ) : checkResult.kind === 'error' ? (
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  ) : (
+                    <XCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  )}
+                  <span>
+                    {checkResult.kind === 'managed' &&
+                      'A website-enabled bucket in this cluster serves this domain.'}
+                    {checkResult.kind === 'unmanaged' &&
+                      'No website-enabled bucket in this cluster serves this domain.'}
+                    {checkResult.kind === 'error' && checkResult.message}
+                  </span>
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setCheckOpen(false)}>
+                Close
+              </Button>
+              <Button type="submit" disabled={!domain.trim() || checking}>
+                {checking ? 'Checking…' : 'Check'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

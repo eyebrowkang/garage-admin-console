@@ -4,6 +4,7 @@ import {
   Card,
   CardContent,
   Button,
+  Checkbox,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -17,8 +18,10 @@ import {
   AlertDescription,
   AlertTitle,
 } from '@garage/ui';
+import { ChevronRight } from 'lucide-react';
 import { AddActionIcon } from '@/lib/action-icons';
 import { api, proxyPath } from '@/lib/api';
+import { isMfExplicitlyConfigured } from '@/mf-init';
 import { getApiErrorMessage } from '@garage/web-shared';
 import { ConfirmDialog } from '@garage/ui';
 import { ClusterStatusMonitor } from '@/components/dashboard/ClusterStatusMonitor';
@@ -37,16 +40,18 @@ type ClusterFormState = {
   adminToken: string;
   metricToken: string;
   s3Endpoint: string;
+  s3Region: string;
+  s3ForcePathStyle: boolean;
 };
 
-// Update payload sent to the API. s3Endpoint accepts null to clear it, which
-// the form's all-string state can't express on its own.
 type ClusterUpdatePayload = {
   name?: string;
   endpoint?: string;
   adminToken?: string;
   metricToken?: string;
   s3Endpoint?: string | null;
+  s3Region?: string | null;
+  s3ForcePathStyle?: boolean | null;
 };
 
 const normalizeEndpoint = (value: string) => value.trim().replace(/\/+$/, '');
@@ -57,6 +62,8 @@ const emptyForm: ClusterFormState = {
   adminToken: '',
   metricToken: '',
   s3Endpoint: '',
+  s3Region: '',
+  s3ForcePathStyle: true,
 };
 
 export default function Dashboard() {
@@ -137,12 +144,15 @@ export default function Dashboard() {
       if (existing) {
         throw new Error(`Cluster with endpoint "${endpoint}" already exists as "${existing.name}"`);
       }
+      const s3Endpoint = data.s3Endpoint.trim() || undefined;
       const payload = {
         name: data.name.trim(),
         endpoint,
         adminToken: data.adminToken.trim(),
         metricToken: data.metricToken.trim() || undefined,
-        s3Endpoint: data.s3Endpoint.trim() || undefined,
+        s3Endpoint,
+        s3Region: data.s3Region.trim() || undefined,
+        s3ForcePathStyle: s3Endpoint ? data.s3ForcePathStyle : undefined,
       };
       await api.post('/clusters', payload);
     },
@@ -212,6 +222,8 @@ export default function Dashboard() {
       adminToken: '',
       metricToken: '',
       s3Endpoint: cluster.s3Endpoint ?? '',
+      s3Region: cluster.s3Region ?? '',
+      s3ForcePathStyle: cluster.s3ForcePathStyle !== 'false',
     });
     setEditError('');
     setIsEditDialogOpen(true);
@@ -252,6 +264,16 @@ export default function Dashboard() {
     const newS3Endpoint = editForm.s3Endpoint.trim() || null;
     if (newS3Endpoint !== (editCluster.s3Endpoint ?? null)) {
       payload.s3Endpoint = newS3Endpoint;
+    }
+
+    const newS3Region = editForm.s3Region.trim() || null;
+    if (newS3Region !== (editCluster.s3Region ?? null)) {
+      payload.s3Region = newS3Region;
+    }
+
+    const currentPathStyle = editCluster.s3ForcePathStyle !== 'false';
+    if (editForm.s3ForcePathStyle !== currentPathStyle) {
+      payload.s3ForcePathStyle = editForm.s3ForcePathStyle;
     }
 
     if (Object.keys(payload).length === 0) {
@@ -400,7 +422,6 @@ export default function Dashboard() {
   );
 }
 
-// Reusable form component
 function ClusterForm({
   form,
   setForm,
@@ -413,10 +434,10 @@ function ClusterForm({
   error: string;
 }) {
   const isEdit = mode === 'edit';
+  const hasAdvancedValues = !!(form.s3Endpoint || form.s3Region || !form.s3ForcePathStyle);
+  const [advancedOpen, setAdvancedOpen] = useState(isEdit && hasAdvancedValues);
+
   return (
-    // Scroll within the dialog on short viewports (mirrors the S3 ConnectionForm).
-    // px-1 -mx-1 keeps fields aligned while giving the focus ring room so the
-    // overflow box never clips its left edge.
     <div className="-mx-1 max-h-[min(70vh,560px)] overflow-y-auto px-1">
       <div className="grid gap-4 py-4">
         <div className="grid gap-2">
@@ -437,54 +458,106 @@ function ClusterForm({
             placeholder="http://10.0.0.1:3903"
           />
         </div>
-        <>
-          <div className="grid gap-2">
-            <Label htmlFor="token">Admin Token{isEdit ? ' (optional)' : ''}</Label>
-            <Input
-              id="token"
-              type="password"
-              value={form.adminToken}
-              onChange={(e) => setForm({ ...form, adminToken: e.target.value })}
-              placeholder={isEdit ? 'Leave blank to keep current token' : 'Garage Admin API Token'}
-            />
-            {isEdit && (
-              <p className="text-xs text-muted-foreground">
-                Leave blank to keep the existing admin token.
-              </p>
-            )}
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="metric-token">
-              Metric Token (optional){isEdit ? ' — keep if blank' : ''}
-            </Label>
-            <Input
-              id="metric-token"
-              type="password"
-              value={form.metricToken}
-              onChange={(e) => setForm({ ...form, metricToken: e.target.value })}
-              placeholder={
-                isEdit ? 'Leave blank to keep current metric token' : 'Token for /metrics endpoint'
-              }
-            />
-            <p className="text-xs text-muted-foreground">
-              {isEdit
-                ? 'Leave blank to keep the existing token. Falls back to admin token if not set.'
-                : 'Falls back to admin token if not set.'}
-            </p>
-          </div>
-        </>
         <div className="grid gap-2">
-          <Label htmlFor="s3-endpoint">S3 Endpoint (optional)</Label>
+          <Label htmlFor="token">Admin Token{isEdit ? ' (optional)' : ''}</Label>
           <Input
-            id="s3-endpoint"
-            value={form.s3Endpoint}
-            onChange={(e) => setForm({ ...form, s3Endpoint: e.target.value })}
-            placeholder="Auto: same host as Admin API, port 3900"
+            id="token"
+            type="password"
+            value={form.adminToken}
+            onChange={(e) => setForm({ ...form, adminToken: e.target.value })}
+            placeholder={isEdit ? 'Leave blank to keep current token' : 'Garage Admin API Token'}
           />
-          <p className="text-xs text-muted-foreground">
-            Leave blank to use the Garage default (admin hostname : 3900).
-          </p>
+          {isEdit && (
+            <p className="text-xs text-muted-foreground">
+              Leave blank to keep the existing admin token.
+            </p>
+          )}
         </div>
+
+        {/* Collapsible advanced section */}
+        <div>
+          <button
+            type="button"
+            onClick={() => setAdvancedOpen(!advancedOpen)}
+            className="flex w-full items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ChevronRight
+              className={`h-4 w-4 shrink-0 transition-transform ${advancedOpen ? 'rotate-90' : ''}`}
+            />
+            Advanced
+          </button>
+
+          {advancedOpen && (
+            <div className="mt-3 grid gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="metric-token">
+                  Metric Token{isEdit ? ' — leave blank to keep' : ''}
+                </Label>
+                <Input
+                  id="metric-token"
+                  type="password"
+                  value={form.metricToken}
+                  onChange={(e) => setForm({ ...form, metricToken: e.target.value })}
+                  placeholder={
+                    isEdit
+                      ? 'Leave blank to keep current metric token'
+                      : 'Token for /metrics endpoint'
+                  }
+                />
+                <p className="text-xs text-muted-foreground">
+                  Falls back to admin token if not set.
+                </p>
+              </div>
+
+              {isMfExplicitlyConfigured && (
+                <>
+                  <div className="flex items-center gap-2 pt-1">
+                    <div className="h-px flex-1 bg-border" />
+                    <span className="text-xs font-medium text-muted-foreground">
+                      S3 Object Storage
+                    </span>
+                    <div className="h-px flex-1 bg-border" />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="s3-endpoint">S3 Endpoint</Label>
+                    <Input
+                      id="s3-endpoint"
+                      value={form.s3Endpoint}
+                      onChange={(e) => setForm({ ...form, s3Endpoint: e.target.value })}
+                      placeholder="Auto: same host, port 3900"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Leave blank to derive from the admin endpoint.
+                    </p>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="s3-region">S3 Region</Label>
+                    <Input
+                      id="s3-region"
+                      value={form.s3Region}
+                      onChange={(e) => setForm({ ...form, s3Region: e.target.value })}
+                      placeholder="garage"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Garage ignores this but some S3 clients require it.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="s3-path-style"
+                      checked={form.s3ForcePathStyle}
+                      onCheckedChange={(checked) => setForm({ ...form, s3ForcePathStyle: checked })}
+                    />
+                    <Label htmlFor="s3-path-style" className="cursor-pointer font-normal">
+                      Force path-style access
+                    </Label>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
         {error && (
           <Alert variant="destructive">
             <AlertTitle>Error</AlertTitle>

@@ -26,6 +26,7 @@ export * from './components/fleet-list';
 export * from './components/fleet-summary-card';
 export * from './components/fleet-toolbar';
 export * from './components/fleet-view-transition';
+export * from './components/floating-action-bar';
 export * from './components/inline-loading-state';
 export * from './components/input';
 export * from './components/label';

@@ -9,9 +9,9 @@ beforeEach(() => window.localStorage.clear());
 afterEach(() => window.localStorage.clear());
 
 describe('useViewMode', () => {
-  it('defaults to list when nothing is stored (jsdom exposes no matchMedia)', () => {
+  it('defaults to the card grid when nothing is stored', () => {
     const { result } = renderHook(() => useViewMode(KEY));
-    expect(result.current[0]).toBe('list');
+    expect(result.current[0]).toBe('card');
   });
 
   it('honours a valid stored preference', () => {
@@ -23,7 +23,7 @@ describe('useViewMode', () => {
   it('ignores an invalid stored value', () => {
     window.localStorage.setItem(KEY, 'bogus');
     const { result } = renderHook(() => useViewMode(KEY));
-    expect(result.current[0]).toBe('list');
+    expect(result.current[0]).toBe('card');
   });
 
   it('update() flips the mode and persists it to localStorage', () => {

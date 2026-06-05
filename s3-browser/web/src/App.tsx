@@ -31,7 +31,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@garage/ui';
-import { readStoredToken, writeStoredToken } from '@/lib/api';
+import { useAuthToken, writeStoredToken } from '@/lib/api';
 import { LoginPage } from '@/pages/LoginPage';
 import { HomePage } from '@/pages/HomePage';
 import { ConnectionView } from '@/pages/ConnectionView';
@@ -85,8 +85,12 @@ function MainApp() {
 function ProtectedShell() {
   const navigate = useNavigate();
   const [confirmSignOut, setConfirmSignOut] = useState(false);
+  // Reactive: an expired session (a 401 that clears the token via
+  // onUnauthorized) re-renders this guard and routes to /login — no manual
+  // redirect, and embedded mode is unaffected (it never uses this shell).
+  const token = useAuthToken();
 
-  if (readStoredToken() === null) {
+  if (token === null) {
     return <Navigate to="/login" replace />;
   }
 
@@ -100,7 +104,7 @@ function ProtectedShell() {
     <>
       <div className="flex min-h-screen w-full flex-col bg-background/50">
         <header className="sticky top-0 z-50 border-b bg-card/80 backdrop-blur-xl">
-          <div className="max-w-full mx-auto px-4 lg:px-8 h-14 flex items-center justify-between">
+          <div className="max-w-full md:max-w-[80%] mx-auto px-4 lg:px-8 h-14 flex items-center justify-between">
             <Link to="/" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
               <img src="/s3-browser-logo.svg" alt="S3 Browser" className="h-7 w-7 sm:h-8 sm:w-8" />
               <span className="font-bold text-base sm:text-lg tracking-tight">S3 Browser</span>
@@ -136,12 +140,12 @@ function ProtectedShell() {
           </DialogContent>
         </Dialog>
 
-        <main className="w-full max-w-full mx-auto px-4 lg:px-8 py-5 sm:py-6 flex-1">
+        <main className="w-full max-w-full md:max-w-[80%] mx-auto px-4 lg:px-8 py-5 sm:py-6 flex-1">
           <Outlet />
         </main>
 
         <footer className="border-t mt-auto">
-          <div className="max-w-full mx-auto px-4 lg:px-8 py-4 flex items-center justify-center text-xs text-muted-foreground">
+          <div className="max-w-full md:max-w-[80%] mx-auto px-4 lg:px-8 py-4 flex items-center justify-center text-xs text-muted-foreground">
             <a
               href="https://github.com/eyebrowkang/garage-admin-console"
               target="_blank"

@@ -125,13 +125,17 @@ Key files: [`src/lib/garage-keys.ts`](../garage-admin-console/api/src/lib/garage
 React Router v7 (in [`src/App.tsx`](../garage-admin-console/web/src/App.tsx)):
 `/login`, `/` (Dashboard), `/clusters/:id/*` → `ClusterLayout` with a sidebar
 nav (Overview / Buckets / Keys / Layout / Nodes / Admin Tokens / Workers /
-Blocks / Metrics). `BucketDetail` mounts the federated `BucketObjectBrowser`.
+Blocks). `BucketDetail` mounts the federated `BucketObjectBrowser`.
 
 - UI primitives come from `@garage/ui` (not a local `components/ui/`); shared
   non-UI logic from `@garage/web-shared`. Path alias `@` → `src/`.
 - [`src/lib/api.ts`](../garage-admin-console/web/src/lib/api.ts) — axios `/api`
   client with JWT injection, 401/403 → `/login`, and a `proxyPath()` helper.
 - This package is the **MF Host**; see [Module Federation](#module-federation).
+- **No Metrics page, and no dedicated metrics endpoint** — metrics aren't
+  surfaced in the UI or proxied as a feature right now. Clusters can still store
+  an optional read-only `metricToken` (see the schema below) for a future
+  integration; nothing reads it today.
 
 ## S3 Browser BFF
 

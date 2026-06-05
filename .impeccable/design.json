@@ -1,0 +1,171 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-05T00:00:00Z",
+  "title": "Design System: Garage Admin Console",
+  "extensions": {
+    "colorMeta": {
+      "garage-orange": {
+        "role": "primary",
+        "displayName": "Garage Orange",
+        "canonical": "hsl(30, 100%, 58%)",
+        "tonalRamp": ["#4d2d0c", "#7a4813", "#a8621a", "#d57d21", "#ff9429", "#ffaa54", "#ffc07f", "#ffd6aa"]
+      },
+      "warm-ink": {
+        "role": "neutral",
+        "displayName": "Warm Ink",
+        "canonical": "hsl(24, 23%, 12%)",
+        "tonalRamp": ["#0f0c0a", "#1a1512", "#261d18", "#3d312a", "#54453c", "#6b594f", "#826d62", "#998176"]
+      },
+      "warm-paper": {
+        "role": "neutral",
+        "displayName": "Warm Paper",
+        "canonical": "hsl(36, 100%, 99%)",
+        "tonalRamp": ["#4d3d1f", "#7a6232", "#a88745", "#d5ac59", "#ffd16c", "#ffe49e", "#fff3d0", "#fffdfa"]
+      },
+      "warm-clay": {
+        "role": "neutral",
+        "displayName": "Warm Clay",
+        "canonical": "hsl(28, 22%, 88%)",
+        "tonalRamp": ["#3d352e", "#544a42", "#6b5f56", "#82746a", "#99897f", "#b09e94", "#c7b3a9", "#e7e0da"]
+      },
+      "warm-slate": {
+        "role": "neutral",
+        "displayName": "Warm Slate",
+        "canonical": "hsl(24, 10%, 40%)",
+        "tonalRamp": ["#1c1917", "#2e2926", "#403935", "#524944", "#645a53", "#70645c", "#8c8078", "#a89c94"]
+      },
+      "signal-red": {
+        "role": "semantic",
+        "displayName": "Signal Red",
+        "canonical": "hsl(0, 78%, 56%)",
+        "tonalRamp": ["#4d0f0f", "#7a1919", "#a82222", "#d52c2c", "#e63737", "#eb5f5f", "#f08888", "#f5b0b0"]
+      },
+      "signal-green": {
+        "role": "semantic",
+        "displayName": "Signal Green",
+        "canonical": "hsl(142, 72%, 29%)",
+        "tonalRamp": ["#082712", "#0d3f1e", "#12572a", "#157f3c", "#1a9748", "#28b05a", "#4dc97a", "#7ae2a0"]
+      },
+      "signal-purple": {
+        "role": "semantic",
+        "displayName": "Signal Purple",
+        "canonical": "hsl(263, 70%, 50%)",
+        "tonalRamp": ["#1f0a4d", "#31107a", "#4317a8", "#551dd5", "#6b26d9", "#8651e3", "#a17ced", "#bca7f7"]
+      }
+    },
+    "typographyMeta": {
+      "title": { "displayName": "Title", "purpose": "Page headings on list pages (ModulePageHeader)." },
+      "subtitle": { "displayName": "Detail Title", "purpose": "Detail page headings (DetailPageHeader), paired with breadcrumb." },
+      "body": { "displayName": "Body", "purpose": "Descriptions, table cells, form help text." },
+      "label": { "displayName": "Label", "purpose": "Column headers, field labels, badge text." }
+    },
+    "shadows": [
+      { "name": "card-rest", "value": "0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)", "purpose": "Default card elevation, subtle separation from background." },
+      { "name": "card-hover", "value": "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)", "purpose": "Interactive card hover lift." },
+      { "name": "input-rest", "value": "0 1px 2px 0 rgb(0 0 0 / 0.05)", "purpose": "Subtle depth on inputs against transparent background." }
+    ],
+    "motion": [
+      { "name": "fleet-view-in", "value": "200ms cubic-bezier(0.22, 1, 0.36, 1)", "purpose": "List/card view switch animation. Fade + translateY." },
+      { "name": "color-transition", "value": "transition-colors (Tailwind default, ~150ms)", "purpose": "Hover/focus color shifts on buttons and inputs." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Solid orange action button. Dark ink text for WCAG AA compliance.",
+      "html": "<button class=\"ds-btn-primary\">Create Bucket</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 8px 16px; background: #ff9429; color: #261d18; font-family: 'Manrope', sans-serif; font-size: 14px; font-weight: 500; line-height: 1; border: none; border-radius: 6px; box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1); cursor: pointer; transition: background 0.15s, box-shadow 0.15s; } .ds-btn-primary:hover { background: #e68525; } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 2px #fffdfa, 0 0 0 4px #ff9429; } .ds-btn-primary:disabled { background: #f7f3ee; color: #70645c; box-shadow: none; cursor: not-allowed; }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Bordered button for secondary actions.",
+      "html": "<button class=\"ds-btn-outline\">Cancel</button>",
+      "css": ".ds-btn-outline { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 8px 16px; background: #fffdfa; color: #261d18; font-family: 'Manrope', sans-serif; font-size: 14px; font-weight: 500; line-height: 1; border: 1px solid #e7e0da; border-radius: 6px; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); cursor: pointer; transition: background 0.15s, border-color 0.15s; } .ds-btn-outline:hover { background: #f4ebe1; } .ds-btn-outline:focus-visible { outline: none; box-shadow: 0 0 0 2px #fffdfa, 0 0 0 4px #ff9429; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Transparent button for tertiary actions, icon buttons, nav items.",
+      "html": "<button class=\"ds-btn-ghost\">View Details</button>",
+      "css": ".ds-btn-ghost { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 8px 16px; background: transparent; color: #261d18; font-family: 'Manrope', sans-serif; font-size: 14px; font-weight: 500; line-height: 1; border: none; border-radius: 6px; cursor: pointer; transition: background 0.15s; } .ds-btn-ghost:hover { background: #f4ebe1; } .ds-btn-ghost:focus-visible { outline: none; box-shadow: 0 0 0 2px #fffdfa, 0 0 0 4px #ff9429; }"
+    },
+    {
+      "name": "Destructive Button",
+      "kind": "button",
+      "refersTo": "button-destructive",
+      "description": "Red button for delete/remove actions.",
+      "html": "<button class=\"ds-btn-destructive\">Delete Bucket</button>",
+      "css": ".ds-btn-destructive { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 8px 16px; background: #e63737; color: #ffffff; font-family: 'Manrope', sans-serif; font-size: 14px; font-weight: 500; line-height: 1; border: none; border-radius: 6px; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); cursor: pointer; transition: background 0.15s; } .ds-btn-destructive:hover { background: #cf3131; } .ds-btn-destructive:focus-visible { outline: none; box-shadow: 0 0 0 2px #fffdfa, 0 0 0 4px #e63737; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input-default",
+      "description": "Standard text input with warm border and orange focus ring.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Enter bucket name\" />",
+      "css": ".ds-input { display: flex; height: 36px; width: 100%; padding: 4px 12px; background: transparent; color: #261d18; font-family: 'Manrope', sans-serif; font-size: 14px; line-height: 1.5; border: 1px solid #e7e0da; border-radius: 6px; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); transition: color 0.15s, box-shadow 0.15s, border-color 0.15s; } .ds-input::placeholder { color: #70645c; } .ds-input:focus { border-color: #ff9429; outline: none; box-shadow: 0 0 0 2px rgba(255, 148, 41, 0.7); } .ds-input:disabled { opacity: 0.5; cursor: not-allowed; }"
+    },
+    {
+      "name": "Status Card",
+      "kind": "card",
+      "refersTo": "card-default",
+      "description": "White card with optional full-border status tinting. No side stripes.",
+      "html": "<div class=\"ds-status-card\"><div class=\"ds-status-card-header\"><span class=\"ds-status-card-title\">garage-node-1</span><span class=\"ds-badge-success\">Healthy</span></div><p class=\"ds-status-card-desc\">3 partitions, 1.2 TB stored</p></div>",
+      "css": ".ds-status-card { background: #ffffff; border: 1px solid #e7e0da; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1); transition: box-shadow 0.15s; } .ds-status-card:hover { box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); } .ds-status-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; } .ds-status-card-title { font-family: 'Manrope', sans-serif; font-size: 14px; font-weight: 600; color: #261d18; } .ds-status-card-desc { font-family: 'Manrope', sans-serif; font-size: 12px; color: #70645c; margin: 0; } .ds-badge-success { display: inline-flex; align-items: center; padding: 2px 10px; background: rgba(21, 127, 60, 0.1); color: #157f3c; font-family: 'Manrope', sans-serif; font-size: 12px; font-weight: 600; border-radius: 9999px; }"
+    },
+    {
+      "name": "Navigation Item",
+      "kind": "nav",
+      "refersTo": "button-ghost",
+      "description": "Sidebar nav link with orange active indicator.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-item ds-nav-active\" href=\"#\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"3\" width=\"7\" height=\"7\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"7\"/><rect x=\"3\" y=\"14\" width=\"7\" height=\"7\"/><rect x=\"14\" y=\"14\" width=\"7\" height=\"7\"/></svg>Overview</a><a class=\"ds-nav-item\" href=\"#\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z\"/></svg>Buckets</a></nav>",
+      "css": ".ds-nav { display: flex; flex-direction: column; gap: 2px; } .ds-nav-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; color: #261d18; font-family: 'Manrope', sans-serif; font-size: 14px; font-weight: 500; text-decoration: none; border-radius: 6px; transition: background 0.15s; } .ds-nav-item:hover { background: #f4ebe1; } .ds-nav-active { background: rgba(255, 148, 41, 0.12); color: #261d18; font-weight: 600; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Workshop Bench",
+    "overview": "A craftsman's workbench: warm wood tones, honest materials, purposeful tools laid out where the hand expects them. The orange is the branded handle on every tool; the warm neutrals are the bench surface, worn smooth by use. Nothing decorative, everything functional, but the whole composition has the quiet beauty of a well-organized workspace.\n\nThis system rejects three things absolutely: the flashy SaaS dashboard (gradient heroes, vanity metrics, sales chrome), the bare-bones CLI wrapper (terminal output in HTML tables), and the over-designed dev tool (consumer-app ornament on infrastructure surfaces). The console earns trust through precision and restraint, not through visual spectacle.\n\nLight theme only. The operators work in well-lit contexts (server rooms, offices, home labs); dark mode is intentionally out of scope. The palette is a restrained four-color system: theme orange for actions and brand, red for errors, green for health, purple for warnings. Everything else is warm neutral.",
+    "keyCharacteristics": [
+      "Warm neutrals ground the interface; the orange accent is reserved for primary actions and selection state",
+      "Single typeface (Manrope) across all levels, hierarchy through weight and size only",
+      "Rounded but sturdy components (8px radius on cards, 6px on controls)",
+      "Density without clutter: tables with many rows, detail pages with all the fields, whitespace as structure",
+      "Responsive table-to-card pattern (ResourceList) so mobile loses no information"
+    ],
+    "rules": [
+      { "name": "The Four-Color Discipline", "body": "No color exists outside the four-signal system. If a new status needs a color, it maps to one of the four. No teal, no blue, no secondary accent. The palette's restraint is its identity.", "section": "colors" },
+      { "name": "The Dark-Ink-on-Orange Rule", "body": "White text on Garage Orange is prohibited (fails WCAG AA at 2.21:1). Every orange fill uses #261d18 as foreground.", "section": "colors" },
+      { "name": "The One-Family Rule", "body": "Manrope everywhere. No display font for heroes, no monospace for data (unless rendering actual code/terminal output via the TerminalOutput component). Hierarchy is weight and size, never typeface.", "section": "typography" },
+      { "name": "The Flat-First Rule", "body": "Shadows appear only as a response to state (hover, elevation from background) or to establish a popover/dropdown layer. No decorative shadows. No shadows on buttons, inputs, or inline elements at rest (inputs get shadow-sm as the single exception, for subtle depth on the transparent background).", "section": "elevation" }
+    ],
+    "dos": [
+      "Do use dark ink (#261d18) on every Garage Orange fill. Never white text on orange.",
+      "Do use 10%-opacity tints of semantic colors for badge/status backgrounds, with the full-strength color as text.",
+      "Do use the full-border status pattern on cards (StatusCard). A subtle tinted border around the whole card, not a thick side stripe.",
+      "Do keep the palette to exactly four chromatic signals (orange, red, green, purple). Map new statuses to existing colors.",
+      "Do use Manrope at every hierarchy level. Vary weight (400-800) and size, never typeface.",
+      "Do provide prefers-reduced-motion: reduce alternatives for every animation.",
+      "Do expand touch targets to 44px on pointer-coarse devices (pointer-coarse:min-h-11)."
+    ],
+    "donts": [
+      "Don't use gradient heroes, vanity metric cards, or sales-driven chrome. This is infrastructure tooling, not a growth product.",
+      "Don't ship a component that looks like terminal output in an HTML table. The console is deliberately designed; raw data gets formatting, hierarchy, and whitespace.",
+      "Don't add consumer-app ornament (decorative illustrations, playful micro-interactions, whimsical empty states). Components serve the task.",
+      "Don't use border-left or border-right greater than 1px as a colored accent stripe on cards, alerts, or callouts.",
+      "Don't introduce colors outside the four-signal system. No teal info banners, no blue links, no secondary accent hue.",
+      "Don't use a display or decorative font anywhere.",
+      "Don't apply shadows to buttons or inputs at rest (inputs get shadow-sm as the documented exception).",
+      "Don't animate layout properties or use choreographed page-load sequences. Motion is 150-250ms state feedback only."
+    ]
+  }
+}

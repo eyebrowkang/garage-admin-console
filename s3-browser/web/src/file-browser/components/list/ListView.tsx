@@ -105,7 +105,7 @@ export function ListView({ items }: ListViewProps) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col px-5 pb-5 pt-4">
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border border-border bg-card shadow-sm">
+      <div className="flex min-h-0 max-h-full flex-col overflow-hidden rounded-md border border-border bg-card shadow-sm">
         <div
           className={cn(
             'grid h-11 shrink-0 items-center gap-3 border-b border-border bg-muted/25 px-5',

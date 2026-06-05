@@ -30,11 +30,7 @@ router.all('/:clusterId/*splat', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Cluster not found' });
     }
 
-    // Use metricToken for metrics endpoint if available, otherwise fall back to adminToken
-    const token =
-      pathPart === 'metrics' && cluster.metricToken
-        ? decrypt(cluster.metricToken)
-        : decrypt(cluster.adminToken);
+    const token = decrypt(cluster.adminToken);
 
     const baseUrl = cluster.endpoint.replace(/\/+$/, '');
     const pathSuffix = pathPart ? `/${pathPart}` : '';

@@ -18,7 +18,7 @@ export const tokens = {
   popoverForeground: '24 23% 12%',
 
   primary: '30 100% 58%',
-  primaryForeground: '0 0% 100%',
+  primaryForeground: '24 23% 12%',
 
   secondary: '35 45% 95%',
   secondaryForeground: '24 20% 18%',

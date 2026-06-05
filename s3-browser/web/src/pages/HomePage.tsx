@@ -546,7 +546,6 @@ function ConnectionCard({
   const provider = connectionProvider(connection);
   const config = statusConfig[status.status];
   const StatusIcon = config.icon;
-  const bucketCount = status.buckets?.length ?? 0;
 
   return (
     <StatusCard accent={config.accent}>
@@ -590,14 +589,18 @@ function ConnectionCard({
 
         {/* Status line + addressing/updated */}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-          {status.status === 'unreachable' && <span>Could not reach endpoint.</span>}
-          {status.status === 'checking' && <span>Checking endpoint…</span>}
-          {status.status === 'healthy' && (
-            <span>
-              {bucketCount} bucket{bucketCount === 1 ? '' : 's'} accessible
-            </span>
+          {status.status === 'unreachable' && (
+            <>
+              <span>Could not reach endpoint.</span>
+              <span className="text-border">|</span>
+            </>
           )}
-          <span className="text-border">|</span>
+          {status.status === 'checking' && (
+            <>
+              <span>Checking endpoint…</span>
+              <span className="text-border">|</span>
+            </>
+          )}
           <span>
             {connection.forcePathStyle ? 'Path-style' : 'Virtual-host-style'} ·{' '}
             <span className="font-medium text-foreground">

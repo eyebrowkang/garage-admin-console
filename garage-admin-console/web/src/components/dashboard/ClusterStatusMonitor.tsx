@@ -93,16 +93,23 @@ function ratioTone(pct: number | null): MeterTone {
   return 'destructive';
 }
 
-function getPressurePercent(status?: GetClusterStatusResponse) {
-  const nodes = status?.nodes ?? [];
-  if (nodes.length === 0) return null;
+interface ZoneStat {
+  capacity: number;
+  dataUsed: number;
+  dataTotal: number;
+  metaUsed: number;
+  metaTotal: number;
+}
 
-  const zoneStats = new Map<
-    string,
-    { capacity: number; dataUsed: number; dataTotal: number; metaUsed: number; metaTotal: number }
-  >();
+// Garage replicates across zones, so a zone's capacity is the SUM of its nodes'
+// capacities and the cluster is bounded by its smallest zone. Group per zone
+// once; both the storage-pressure meter and the "min zone capacity" readout
+// derive from this. (Comparing raw per-node capacities would understate a zone
+// that spreads its capacity over several nodes.)
+function buildZoneStats(status?: GetClusterStatusResponse): Map<string, ZoneStat> {
+  const zoneStats = new Map<string, ZoneStat>();
 
-  for (const node of nodes) {
+  for (const node of status?.nodes ?? []) {
     const zone = node.role?.zone ?? 'unknown';
     const entry = zoneStats.get(zone) ?? {
       capacity: 0,
@@ -127,25 +134,28 @@ function getPressurePercent(status?: GetClusterStatusResponse) {
     zoneStats.set(zone, entry);
   }
 
-  const minZone = Array.from(zoneStats.values())
+  return zoneStats;
+}
+
+/** Zones that actually carry capacity, smallest-capacity first. */
+function zonesByCapacity(status?: GetClusterStatusResponse): ZoneStat[] {
+  return Array.from(buildZoneStats(status).values())
     .filter((entry) => entry.capacity > 0)
-    .sort((a, b) => a.capacity - b.capacity)[0];
+    .sort((a, b) => a.capacity - b.capacity);
+}
 
+/** Storage pressure (%) of the tightest zone — whichever of data/meta is fuller. */
+function pressureFromZone(minZone: ZoneStat | undefined): number | null {
   if (!minZone) return null;
-
   const dataRatio = minZone.dataTotal > 0 ? minZone.dataUsed / minZone.dataTotal : 0;
   const metaRatio = minZone.metaTotal > 0 ? minZone.metaUsed / minZone.metaTotal : 0;
-
   return Math.max(dataRatio, metaRatio) * 100;
 }
 
 function getStatusMessage(item: ClusterWithStatus) {
-  const nodes = item.status?.nodes ?? [];
-  const nodesUp = nodes.filter((node) => node.isUp).length;
-
-  if (item.healthStatus === 'healthy') {
-    return nodes.length > 0 ? `${nodesUp}/${nodes.length} nodes online` : 'All checks passing';
-  }
+  // Healthy shows no status text at all — the Nodes tile + capacity already say
+  // it; only non-healthy states get a message worth surfacing.
+  if (item.healthStatus === 'healthy') return '';
   if (item.healthStatus === 'unknown' || item.isLoading) return 'Checking cluster health...';
   if (item.healthStatus === 'unreachable') return 'Unable to reach health endpoint.';
   if (item.healthStatus === 'degraded') return 'Cluster degraded. Review details in cluster page.';
@@ -157,11 +167,12 @@ function deriveCluster(item: ClusterWithStatus) {
   const config = statusConfig[item.healthStatus];
   const nodes = item.status?.nodes ?? [];
   const up = nodes.filter((node) => node.isUp).length;
-  const pressure = getPressurePercent(item.status);
-  const capacityValues = nodes
-    .map((node) => node.role?.capacity)
-    .filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
-  const minCapacity = capacityValues.length > 0 ? Math.min(...capacityValues) : null;
+  // Capacity is compared per ZONE (nodes in the same zone are summed), since
+  // Garage's usable capacity is bounded by its smallest zone — not its smallest
+  // node. The pressure meter reads from that same tightest zone.
+  const minZone = zonesByCapacity(item.status)[0];
+  const pressure = pressureFromZone(minZone);
+  const minCapacity = minZone ? minZone.capacity : null;
   const nodesTotal = nodes.length;
   const partitionsOk = item.health?.partitionsAllOk ?? null;
   const partitionsTotal = item.health?.partitions ?? null;
@@ -347,6 +358,7 @@ function ClusterCard({
     partitionsLabel,
   } = deriveCluster(item);
   const StatusIcon = config.icon;
+  const statusMsg = getStatusMessage(item);
   const nodesPct = nodesTotal > 0 ? (up / nodesTotal) * 100 : null;
   const partitionsPct =
     partitionsTotal && partitionsTotal > 0 ? ((partitionsOk ?? 0) / partitionsTotal) * 100 : null;
@@ -395,19 +407,22 @@ function ClusterCard({
           <PressureTile pressure={pressure} />
         </div>
 
-        {/* Status line + capacity */}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-          <span>{getStatusMessage(item)}</span>
-          {nodes.length > 0 && minCapacity !== null && (
-            <>
-              <span className="text-border">|</span>
-              <span>
-                Min zone capacity:{' '}
-                <span className="font-medium text-foreground">{formatBytes(minCapacity)}</span>
-              </span>
-            </>
-          )}
-        </div>
+        {/* Status line + capacity — healthy clusters show only the capacity, no
+            status copy (the Nodes tile already conveys health). */}
+        {(statusMsg || (nodes.length > 0 && minCapacity !== null)) && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+            {statusMsg && <span>{statusMsg}</span>}
+            {nodes.length > 0 && minCapacity !== null && (
+              <>
+                {statusMsg && <span className="text-border">|</span>}
+                <span>
+                  Min zone capacity:{' '}
+                  <span className="font-medium text-foreground">{formatBytes(minCapacity)}</span>
+                </span>
+              </>
+            )}
+          </div>
+        )}
 
         {/* Primary action — Edit/Disconnect live in the overflow menu above */}
         <div className="pt-1">

@@ -21,3 +21,4 @@ designs/
 memory/
 .idea/
 .impeccable/
+!.impeccable/design.json
