@@ -27,10 +27,21 @@ export function formatBytes(bytes?: number | null): string {
   return `${value.toFixed(precision)} ${BYTE_UNITS[unitIndex]}`;
 }
 
+/**
+ * Parse a value for display. A bare `YYYY-MM-DD` parses as UTC midnight, which
+ * renders as the previous calendar day in negative-offset zones; parse those as
+ * LOCAL midnight instead. Full timestamps keep their explicit offset.
+ */
+function parseDisplayDate(value: string): Date {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return new Date(value);
+}
+
 /** Human en-US date only, e.g. "May 31, 2026". */
 export function formatDate(value?: string | null): string {
   if (!value) return '—';
-  const date = new Date(value);
+  const date = parseDisplayDate(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
@@ -38,7 +49,7 @@ export function formatDate(value?: string | null): string {
 /** Sortable local date + time, e.g. "2026-05-31 14:30" (ISO-style, 24-hour). */
 export function formatDateTime(value?: string | null): string {
   if (!value) return '—';
-  const date = new Date(value);
+  const date = parseDisplayDate(value);
   if (Number.isNaN(date.getTime())) return value;
   const pad = (n: number) => String(n).padStart(2, '0');
   return (
