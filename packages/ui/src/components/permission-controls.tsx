@@ -59,7 +59,7 @@ export function PermissionSegmented({
       onClick={() => onChange(option)}
       aria-pressed={value === option}
       className={cn(
-        'min-h-9 flex-1 rounded-md border px-3 text-sm font-medium transition-colors',
+        'min-h-9 pointer-coarse:min-h-11 flex-1 rounded-md border px-3 text-sm font-medium transition-colors',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         value === option
           ? 'border-primary/40 bg-primary/10 text-primary'

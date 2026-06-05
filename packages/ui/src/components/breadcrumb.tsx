@@ -12,33 +12,34 @@ import { cn } from '../lib/cn';
  * (e.g. react-router's `<Link>`) so the shared primitive never imports a
  * router. Mirrors the shadcn breadcrumb shape so it reads as familiar.
  */
-const Breadcrumb = React.forwardRef<
-  HTMLElement,
-  React.ComponentPropsWithoutRef<'nav'>
->(({ ...props }, ref) => <nav ref={ref} aria-label="Breadcrumb" {...props} />);
+const Breadcrumb = React.forwardRef<HTMLElement, React.ComponentPropsWithoutRef<'nav'>>(
+  ({ ...props }, ref) => <nav ref={ref} aria-label="Breadcrumb" {...props} />,
+);
 Breadcrumb.displayName = 'Breadcrumb';
 
-const BreadcrumbList = React.forwardRef<
-  HTMLOListElement,
-  React.ComponentPropsWithoutRef<'ol'>
->(({ className, ...props }, ref) => (
-  <ol
-    ref={ref}
-    className={cn(
-      'flex flex-wrap items-center gap-1 text-xs text-muted-foreground sm:gap-1.5 sm:text-sm',
-      className,
-    )}
-    {...props}
-  />
-));
+const BreadcrumbList = React.forwardRef<HTMLOListElement, React.ComponentPropsWithoutRef<'ol'>>(
+  ({ className, ...props }, ref) => (
+    <ol
+      ref={ref}
+      className={cn(
+        'flex flex-wrap items-center gap-1 text-xs text-muted-foreground sm:gap-1.5 sm:text-sm',
+        className,
+      )}
+      {...props}
+    />
+  ),
+);
 BreadcrumbList.displayName = 'BreadcrumbList';
 
-const BreadcrumbItem = React.forwardRef<
-  HTMLLIElement,
-  React.ComponentPropsWithoutRef<'li'>
->(({ className, ...props }, ref) => (
-  <li ref={ref} className={cn('inline-flex items-center gap-1 sm:gap-1.5', className)} {...props} />
-));
+const BreadcrumbItem = React.forwardRef<HTMLLIElement, React.ComponentPropsWithoutRef<'li'>>(
+  ({ className, ...props }, ref) => (
+    <li
+      ref={ref}
+      className={cn('inline-flex items-center gap-1 sm:gap-1.5', className)}
+      {...props}
+    />
+  ),
+);
 BreadcrumbItem.displayName = 'BreadcrumbItem';
 
 const BreadcrumbLink = React.forwardRef<
@@ -60,19 +61,16 @@ const BreadcrumbLink = React.forwardRef<
 BreadcrumbLink.displayName = 'BreadcrumbLink';
 
 /** The current page — non-interactive, announced as the current location. */
-const BreadcrumbPage = React.forwardRef<
-  HTMLSpanElement,
-  React.ComponentPropsWithoutRef<'span'>
->(({ className, ...props }, ref) => (
-  <span
-    ref={ref}
-    role="link"
-    aria-disabled="true"
-    aria-current="page"
-    className={cn('truncate font-medium text-foreground', className)}
-    {...props}
-  />
-));
+const BreadcrumbPage = React.forwardRef<HTMLSpanElement, React.ComponentPropsWithoutRef<'span'>>(
+  ({ className, ...props }, ref) => (
+    <span
+      ref={ref}
+      aria-current="page"
+      className={cn('truncate font-medium text-foreground', className)}
+      {...props}
+    />
+  ),
+);
 BreadcrumbPage.displayName = 'BreadcrumbPage';
 
 const BreadcrumbSeparator = ({
