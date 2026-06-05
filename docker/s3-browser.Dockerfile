@@ -51,5 +51,15 @@ ENV PORT=3002
 VOLUME /data
 EXPOSE 3002
 
+# Drop privileges: run as the unprivileged `node` user (uid 1000) from the base
+# image. A fresh named volume mounted at /data inherits this ownership, so the
+# SQLite database is writable without root.
+RUN mkdir -p /data && chown -R node:node /app /data
+USER node
+
+# Container-level health check, so `docker run` users get it too (not just Compose).
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget -qO- http://127.0.0.1:3002/api/health >/dev/null 2>&1 || exit 1
+
 ENTRYPOINT ["tini", "--"]
 CMD ["node", "dist/index.js"]
