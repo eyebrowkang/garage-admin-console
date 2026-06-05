@@ -46,14 +46,41 @@ function shapeObject(o: ShapeInput) {
   };
 }
 
+/** Extract the upstream S3/HTTP status code from an AWS SDK error, if present. */
+function httpStatusOf(err: unknown): number | undefined {
+  return (err as { $metadata?: { httpStatusCode?: number } })?.$metadata?.httpStatusCode;
+}
+
 function sendError(res: Response, err: unknown) {
   const message = err instanceof Error ? err.message : 'Unknown error';
   // Forward the upstream S3 status when it's a meaningful HTTP error (403, 404,
   // 400, …) so callers can react to it; fall back to 502 for network failures
   // and anything without a usable status code.
-  const upstream = (err as { $metadata?: { httpStatusCode?: number } })?.$metadata?.httpStatusCode;
+  const upstream = httpStatusOf(err);
   const status = typeof upstream === 'number' && upstream >= 400 && upstream <= 599 ? upstream : 502;
   res.status(status).json({ error: message });
+}
+
+/**
+ * Parse a request body against a Zod schema. On a validation failure, sends the
+ * uniform 400 `{ error: issues }` response and returns null so the caller can
+ * early-return with `if (!body) return;`. Non-Zod errors propagate — they signal
+ * a bug, not bad input.
+ */
+function parseBody<S extends z.ZodTypeAny>(
+  schema: S,
+  req: Request,
+  res: Response,
+): z.infer<S> | null {
+  try {
+    return schema.parse(req.body);
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: err.issues });
+      return null;
+    }
+    throw err;
+  }
 }
 
 const defaultLogger: Logger = {
@@ -176,7 +203,7 @@ export function createBucketRouter({
         }),
       );
     } catch (err) {
-      if ((err as { $metadata?: { httpStatusCode?: number } })?.$metadata?.httpStatusCode === 404) {
+      if (httpStatusOf(err) === 404) {
         res.status(404).json({ error: 'Object not found' });
         return;
       }
@@ -221,7 +248,7 @@ export function createBucketRouter({
       }
       (body as NodeJS.ReadableStream).pipe(res);
     } catch (err) {
-      if ((err as { $metadata?: { httpStatusCode?: number } })?.$metadata?.httpStatusCode === 404) {
+      if (httpStatusOf(err) === 404) {
         res.status(404).json({ error: 'Object not found' });
         return;
       }
@@ -246,16 +273,8 @@ export function createBucketRouter({
   });
 
   router.post('/presign', async (req, res) => {
-    let body: z.infer<typeof PresignSchema>;
-    try {
-      body = PresignSchema.parse(req.body);
-    } catch (err) {
-      if (err instanceof z.ZodError) {
-        res.status(400).json({ error: err.issues });
-        return;
-      }
-      throw err;
-    }
+    const body = parseBody(PresignSchema, req, res);
+    if (!body) return;
     const ctx = await withContext(req, res, resolveContext, logger);
     if (!ctx) return;
     try {
@@ -416,16 +435,8 @@ export function createBucketRouter({
   });
 
   router.post('/multipart/create', async (req, res) => {
-    let body: z.infer<typeof MultipartCreateSchema>;
-    try {
-      body = MultipartCreateSchema.parse(req.body);
-    } catch (err) {
-      if (err instanceof z.ZodError) {
-        res.status(400).json({ error: err.issues });
-        return;
-      }
-      throw err;
-    }
+    const body = parseBody(MultipartCreateSchema, req, res);
+    if (!body) return;
     const ctx = await withContext(req, res, resolveContext, logger);
     if (!ctx) return;
     try {
@@ -474,16 +485,8 @@ export function createBucketRouter({
   });
 
   router.post('/multipart/sign', async (req, res) => {
-    let body: z.infer<typeof MultipartSignSchema>;
-    try {
-      body = MultipartSignSchema.parse(req.body);
-    } catch (err) {
-      if (err instanceof z.ZodError) {
-        res.status(400).json({ error: err.issues });
-        return;
-      }
-      throw err;
-    }
+    const body = parseBody(MultipartSignSchema, req, res);
+    if (!body) return;
     const ctx = await withContext(req, res, resolveContext, logger);
     if (!ctx) return;
     try {
@@ -531,16 +534,8 @@ export function createBucketRouter({
   });
 
   router.post('/multipart/complete', async (req, res) => {
-    let body: z.infer<typeof MultipartCompleteSchema>;
-    try {
-      body = MultipartCompleteSchema.parse(req.body);
-    } catch (err) {
-      if (err instanceof z.ZodError) {
-        res.status(400).json({ error: err.issues });
-        return;
-      }
-      throw err;
-    }
+    const body = parseBody(MultipartCompleteSchema, req, res);
+    if (!body) return;
     const ctx = await withContext(req, res, resolveContext, logger);
     if (!ctx) return;
     try {
@@ -587,16 +582,8 @@ export function createBucketRouter({
   });
 
   router.post('/multipart/abort', async (req, res) => {
-    let body: z.infer<typeof MultipartAbortSchema>;
-    try {
-      body = MultipartAbortSchema.parse(req.body);
-    } catch (err) {
-      if (err instanceof z.ZodError) {
-        res.status(400).json({ error: err.issues });
-        return;
-      }
-      throw err;
-    }
+    const body = parseBody(MultipartAbortSchema, req, res);
+    if (!body) return;
     const ctx = await withContext(req, res, resolveContext, logger);
     if (!ctx) return;
     try {
@@ -626,16 +613,8 @@ export function createBucketRouter({
   });
 
   router.delete('/objects', async (req, res) => {
-    let body: z.infer<typeof DeleteSchema>;
-    try {
-      body = DeleteSchema.parse(req.body);
-    } catch (err) {
-      if (err instanceof z.ZodError) {
-        res.status(400).json({ error: err.issues });
-        return;
-      }
-      throw err;
-    }
+    const body = parseBody(DeleteSchema, req, res);
+    if (!body) return;
     const ctx = await withContext(req, res, resolveContext, logger);
     if (!ctx) return;
     try {
@@ -682,16 +661,8 @@ export function createBucketRouter({
   });
 
   router.post('/copy', async (req, res) => {
-    let body: z.infer<typeof CopySchema>;
-    try {
-      body = CopySchema.parse(req.body);
-    } catch (err) {
-      if (err instanceof z.ZodError) {
-        res.status(400).json({ error: err.issues });
-        return;
-      }
-      throw err;
-    }
+    const body = parseBody(CopySchema, req, res);
+    if (!body) return;
     const ctx = await withContext(req, res, resolveContext, logger);
     if (!ctx) return;
     try {
