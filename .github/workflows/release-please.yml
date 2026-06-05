@@ -14,36 +14,64 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
 
+    # Independent per-product versions (manifest mode):
+    #   - garage-admin-console is the ROOT component ('.'), so it keeps the
+    #     existing `vX.Y.Z` tag line and absorbs shared (packages/**) changes. Its
+    #     outputs are unprefixed (release_created / version / tag_name).
+    #   - s3-browser is its own component on the `s3-browser-vX.Y.Z` line; its
+    #     outputs are prefixed `s3-browser--*`.
     outputs:
-      release_created: ${{ steps.release.outputs.release_created }}
-      tag_name: ${{ steps.release.outputs.tag_name }}
+      admin_released: ${{ steps.release.outputs.release_created }}
+      admin_version: ${{ steps.release.outputs.version }}
+      s3_released: ${{ steps.release.outputs['s3-browser--release_created'] }}
+      s3_version: ${{ steps.release.outputs['s3-browser--version'] }}
 
     steps:
       - name: Run release-please
         id: release
         uses: googleapis/release-please-action@v5
         with:
+          # A PAT or GitHub App token makes the release PRs trigger CI — PRs
+          # opened by the default GITHUB_TOKEN do not. Set RELEASE_PLEASE_TOKEN
+          # in repo secrets (contents + pull-requests write) to enable that;
+          # without it we fall back to GITHUB_TOKEN and synthesize the required
+          # check below.
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
-      # Release PRs created by GITHUB_TOKEN don't trigger CI.
-      # Post a success status on the PR head commit to satisfy branch protection.
-      # This is safe because release PRs only modify CHANGELOG.md and the manifest.
-      - name: Set CI status on release PR
+      # Fallback only: when no PAT/App token is configured, release PRs are
+      # opened by GITHUB_TOKEN and don't trigger CI, so branch protection's
+      # required "check" never reports and the PR can't merge. Post a success
+      # status on each release PR head. Safe — release PRs only touch CHANGELOG
+      # files + the manifest. No-op once RELEASE_PLEASE_TOKEN is set (its PRs run
+      # real CI). Handles both component branches (separate-pull-requests).
+      - name: Synthesize CI status on release PRs (GITHUB_TOKEN fallback)
         if: ${{ steps.release.outputs.prs_created == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_PLEASE_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
         run: |
-          HEAD_SHA=$(gh api repos/${{ github.repository }}/git/ref/heads/release-please--branches--main --jq .object.sha)
-          gh api repos/${{ github.repository }}/statuses/$HEAD_SHA \
-            -f state=success \
-            -f context=check \
-            -f description="Skipped for release PR (no code changes)"
+          if [ -n "$RELEASE_PLEASE_TOKEN" ]; then
+            echo "RELEASE_PLEASE_TOKEN set; release PRs run real CI. Nothing to synthesize."
+            exit 0
+          fi
+          for branch in \
+            "release-please--branches--main--components--garage-admin-console" \
+            "release-please--branches--main--components--s3-browser"; do
+            sha=$(gh api "repos/${{ github.repository }}/git/ref/heads/$branch" --jq .object.sha 2>/dev/null) || continue
+            echo "Posting synthetic check status on $branch ($sha)"
+            gh api "repos/${{ github.repository }}/statuses/$sha" \
+              -f state=success \
+              -f context=check \
+              -f description="Skipped for release PR (no code changes)"
+          done
 
   release:
     needs: release-please
-    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    if: ${{ needs.release-please.outputs.admin_released == 'true' || needs.release-please.outputs.s3_released == 'true' }}
     uses: ./.github/workflows/release.yml
     with:
-      tag_name: ${{ needs.release-please.outputs.tag_name }}
+      admin_version: ${{ needs.release-please.outputs.admin_version }}
+      s3_version: ${{ needs.release-please.outputs.s3_version }}
     secrets: inherit

@@ -3,18 +3,22 @@ name: Release
 on:
   workflow_call:
     inputs:
-      tag_name:
-        description: 'Git tag name (e.g. v2.1.0). When set, publish semver tags; otherwise publish :dev.'
+      admin_version:
+        description: 'Released garage-admin-console semver (e.g. 2.1.4). Empty if not released this run.'
         required: false
         type: string
+        default: ''
+      s3_version:
+        description: 'Released s3-browser semver (e.g. 2.2.0). Empty if not released this run.'
+        required: false
+        type: string
+        default: ''
   workflow_dispatch:
     # Manually trigger from any branch to publish :dev images for end-to-end testing.
 
 jobs:
   check:
     uses: ./.github/workflows/ci.yml
-    with:
-      checkout_ref: ${{ inputs.tag_name || github.ref }}
 
   build-and-push:
     needs: check
@@ -23,28 +27,45 @@ jobs:
       contents: read
       packages: write
 
+    # One entry per image, each carrying its own released version. A semver
+    # release publishes only the image(s) whose component was released this run;
+    # a manual dispatch publishes both as :dev.
     strategy:
       fail-fast: false
       matrix:
         include:
           - image: garage-admin-console
             dockerfile: docker/garage-admin-console.Dockerfile
+            version: ${{ inputs.admin_version }}
           - image: s3-browser
             dockerfile: docker/s3-browser.Dockerfile
+            version: ${{ inputs.s3_version }}
 
     steps:
+      - name: Decide whether to publish this image
+        id: gate
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ -n "${{ matrix.version }}" ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=false (component not released this run)"
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout repository
+        if: ${{ steps.gate.outputs.build == 'true' }}
         uses: actions/checkout@v6
-        with:
-          ref: ${{ inputs.tag_name || github.ref }}
 
       - name: Set up QEMU
+        if: ${{ steps.gate.outputs.build == 'true' }}
         uses: docker/setup-qemu-action@v4
 
       - name: Set up Docker Buildx
+        if: ${{ steps.gate.outputs.build == 'true' }}
         uses: docker/setup-buildx-action@v4
 
       - name: Log in to GitHub Container Registry
+        if: ${{ steps.gate.outputs.build == 'true' }}
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
@@ -52,31 +73,33 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Log in to Docker Hub
+        if: ${{ steps.gate.outputs.build == 'true' }}
         uses: docker/login-action@v4
         with:
           username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Extract metadata (tags, labels)
+        if: ${{ steps.gate.outputs.build == 'true' }}
         id: meta
         uses: docker/metadata-action@v6
         with:
           images: |
             ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}
             ${{ vars.DOCKERHUB_USERNAME }}/${{ matrix.image }}
-          # When tag_name is set (release-please flow), publish semver tags +
-          # the implicit :latest. Otherwise (manual dispatch from a feature
-          # branch) publish :dev and :dev-<sha> only — never :latest.
+          # A released version publishes semver tags + the implicit :latest.
+          # A manual dispatch (no version) publishes :dev and :dev-<sha> only.
           flavor: |
-            latest=${{ inputs.tag_name != '' }}
+            latest=${{ matrix.version != '' }}
           tags: |
-            type=semver,pattern={{version}},value=${{ inputs.tag_name }},enable=${{ inputs.tag_name != '' }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ inputs.tag_name }},enable=${{ inputs.tag_name != '' }}
-            type=semver,pattern={{major}},value=${{ inputs.tag_name }},enable=${{ inputs.tag_name != '' }}
-            type=raw,value=dev,enable=${{ inputs.tag_name == '' }}
-            type=sha,prefix=dev-,enable=${{ inputs.tag_name == '' }}
+            type=semver,pattern={{version}},value=${{ matrix.version }},enable=${{ matrix.version != '' }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ matrix.version }},enable=${{ matrix.version != '' }}
+            type=semver,pattern={{major}},value=${{ matrix.version }},enable=${{ matrix.version != '' }}
+            type=raw,value=dev,enable=${{ matrix.version == '' }}
+            type=sha,prefix=dev-,enable=${{ matrix.version == '' }}
 
       - name: Build and push Docker image
+        if: ${{ steps.gate.outputs.build == 'true' }}
         uses: docker/build-push-action@v6
         with:
           context: .
