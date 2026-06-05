@@ -1,5 +1,34 @@
 # Changelog
 
+## [2.2.0](https://github.com/eyebrowkang/garage-admin-console/compare/v2.1.3...v2.2.0) (2026-06-05)
+
+
+### Features
+
+* add garage-admin-all single image (embedded S3 Browser, same-origin) ([09d1d38](https://github.com/eyebrowkang/garage-admin-console/commit/09d1d383ca035088628737e1f8e791712016c91b))
+* embed S3 Browser via MF + split into composable Docker images ([#17](https://github.com/eyebrowkang/garage-admin-console/issues/17)) ([e56df0f](https://github.com/eyebrowkang/garage-admin-console/commit/e56df0f1b595c9d21bbed3ba888cecea7e6cee59))
+* redesign and polish UI/UX and tidy docs ([1297151](https://github.com/eyebrowkang/garage-admin-console/commit/1297151f0597d221d60400481e51b16b0bab0f56))
+* scope auto-managed bucket CORS to the app origin, configurably ([07c66b3](https://github.com/eyebrowkang/garage-admin-console/commit/07c66b332cd449604540175f93ad42beda9fa8d0))
+* UI/UX improve and init design docs ([e584785](https://github.com/eyebrowkang/garage-admin-console/commit/e5847859e6f80169518ebd4b77a5d3ca01ad07c7))
+
+
+### Bug Fixes
+
+* **bucket-api:** don't destroy cached S3 clients that may still be streaming ([930b2e6](https://github.com/eyebrowkang/garage-admin-console/commit/930b2e6bc8db0aa4b3c3c2738d0ab3b295da80d3))
+* **docker:** run images as non-root and add container HEALTHCHECKs ([e43c877](https://github.com/eyebrowkang/garage-admin-console/commit/e43c87768fc5fa5e90b51c8d2c174a400e384997))
+* fix e2e test case ([f54548d](https://github.com/eyebrowkang/garage-admin-console/commit/f54548d52bf7743acf99e17edb606b84a8dade26))
+* fix live-tests workflow ([49549d1](https://github.com/eyebrowkang/garage-admin-console/commit/49549d10de580f6d25bbbfe857bb78176ee6d7e1))
+* **packages/bucket-api-server:** correct POST /upload multi-file oversize handling ([fd95370](https://github.com/eyebrowkang/garage-admin-console/commit/fd9537075e0d6b5c297ce7b034d29b42686bcfed))
+* **packages/bucket-api-server:** reclaim idle entries from the S3-client and CORS caches ([ac0ceaf](https://github.com/eyebrowkang/garage-admin-console/commit/ac0ceafdb0391303ebc763033418597a0437844c))
+* **packages/server-config:** harden BFF auth (pin JWT HS256, constant-time password check) ([5768e0d](https://github.com/eyebrowkang/garage-admin-console/commit/5768e0d98f8b435b23ff65b4ddfa2c963ce04554))
+* **packages/ui:** a11y polish for touch targets, breadcrumb, meter, copy-value ([6fbc052](https://github.com/eyebrowkang/garage-admin-console/commit/6fbc0521eff1507ce238c16157c1b830d53230d6))
+* **packages/ui:** warn when ResourceList defaultSort.columnId matches no column ([13d68ad](https://github.com/eyebrowkang/garage-admin-console/commit/13d68ade397666ebfbdf048e5854b591012af042))
+* **packages/web-shared:** parse bare YYYY-MM-DD as local, not UTC, for display ([1270d6f](https://github.com/eyebrowkang/garage-admin-console/commit/1270d6f7d3d7c99b86d909920cb7af37bb4c4d30))
+* **packages/web-shared:** render em dash for non-finite or negative byte sizes ([70c3ab9](https://github.com/eyebrowkang/garage-admin-console/commit/70c3ab960274e1355bd2db00e472a254b53cd188))
+* redact admin token from proxy error logs; document key rotation ([e9a0420](https://github.com/eyebrowkang/garage-admin-console/commit/e9a0420792950b09a5e1b0e40497d0b43d0f2484))
+* **server-config:** redact credentials from pino error logs ([c3de951](https://github.com/eyebrowkang/garage-admin-console/commit/c3de951bc75c46127c2d5632ce842fcb3d8c8fb5))
+* set security response headers on both BFFs ([80e41f4](https://github.com/eyebrowkang/garage-admin-console/commit/80e41f4256684a194ff091661489bb2c6bdd514e))
+
 ## [2.1.3](https://github.com/eyebrowkang/garage-admin-console/compare/v2.1.2...v2.1.3) (2026-03-03)
 
 
