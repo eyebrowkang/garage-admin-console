@@ -119,27 +119,42 @@ interface GarageBucketInfo {
 }
 
 /**
- * Strip secret-looking fields from an error's response.data before logging.
- * Prevents secretAccessKey from leaking into log sinks.
+ * Strip secret-looking fields from an error before logging. Covers both
+ * response.data (secretAccessKey from Garage) AND config.headers
+ * (Authorization bearer token from AxiosError). Defense-in-depth: the pino
+ * error serializer also redacts these, but call-site sanitization means even
+ * a misconfigured logger can't leak secrets.
  */
 function sanitizeForLog(err: unknown): unknown {
   if (!err || typeof err !== 'object') return err;
   const e = err as Record<string, unknown>;
-  if (!e.response || typeof e.response !== 'object') return err;
-  const r = e.response as Record<string, unknown>;
-  if (!r.data || typeof r.data !== 'object') return err;
-  const d = r.data as Record<string, unknown>;
-  return {
-    ...e,
-    response: {
-      ...r,
-      data: {
+  const patched: Record<string, unknown> = { ...e };
+
+  // Strip config.headers (AxiosError carries Authorization here).
+  if (e.config && typeof e.config === 'object') {
+    const c = e.config as Record<string, unknown>;
+    patched.config = { url: c.url, method: c.method, baseURL: c.baseURL, timeout: c.timeout };
+  }
+
+  // Redact response.data secret fields + strip response.config (duplicate).
+  if (e.response && typeof e.response === 'object') {
+    const r = e.response as Record<string, unknown>;
+    const cleaned: Record<string, unknown> = {
+      status: r.status,
+      statusText: r.statusText,
+    };
+    if (r.data && typeof r.data === 'object') {
+      const d = r.data as Record<string, unknown>;
+      cleaned.data = {
         ...d,
         secretAccessKey: '[REDACTED]',
         secretAccessKeyDuplicate: '[REDACTED]',
-      },
-    },
-  };
+      };
+    }
+    patched.response = cleaned;
+  }
+
+  return patched;
 }
 
 /**
