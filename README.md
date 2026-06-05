@@ -6,7 +6,7 @@ A modern web-based administration interface for managing [Garage](https://garage
 
 > Compatible with Garage Admin API v2.
 >
-> **Versioning**: the major version tracks the Garage Admin API version — v2.x corresponds to Admin API v2. There is no v1.0 or v0.x (those Admin API versions were already deprecated when this project was created).
+> **Versioning**: the Admin Console's major version tracks the Garage Admin API version — v2.x corresponds to Admin API v2. There is no v1.0 or v0.x (those Admin API versions were already deprecated when this project was created). The S3 Browser image is released on its own independent version line.
 
 ## Features
 
@@ -27,9 +27,10 @@ See all screenshots in **[screenshots/README.md](./screenshots/README.md)**.
 
 ## Quick start (Docker)
 
-The Admin Console and the S3 Browser ship as separate, composable images — run
-Admin alone, the S3 Browser alone, or both combined (Admin proxies the embedded
-browser so only its port is published).
+The Admin Console and the S3 Browser ship as composable images — run Admin alone,
+the S3 Browser alone, both combined (Admin proxies the embedded browser so only
+its port is published), or the all-in-one `garage-admin-all` image (Admin + the
+embedded browser bundled in one container, served same-origin).
 
 ```bash
 git clone https://github.com/eyebrowkang/garage-admin-console.git

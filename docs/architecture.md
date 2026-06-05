@@ -201,12 +201,15 @@ The Admin Console host owns federation via `@module-federation/runtime`:
 
 ### Remote URL & fallback
 
-The remote URL is `VITE_S3_BROWSER_MF_URL`; in development, if unset, the host
-derives the manifest URL from the current browser hostname on port `5174`. Set
-it at **build time** for production. If the remote is unreachable or the cluster
-has no `s3Endpoint`, `BucketObjectBrowser` shows a friendly panel instead of
-crashing the page. See [development.md](./development.md) for the 4-process
-embedded-MF dev workflow.
+The remote URL comes from `VITE_S3_BROWSER_MF_URL` (build time) or the
+`window.__GARAGE_RUNTIME_CONFIG__` the Admin BFF injects via `runtime-config.js`
+(runtime, so one image works across deployments). In development, if unset, the
+host derives the manifest URL from the current browser hostname on port `5174`.
+The `garage-admin-all` image serves the remote **same-origin** at `/s3-browser`
+(`S3_BROWSER_STATIC_DIR`), so no proxy is needed. If the remote is unreachable or
+the cluster has no `s3Endpoint`, `BucketObjectBrowser` shows a friendly panel
+instead of crashing the page. See [development.md](./development.md) for the
+4-process embedded-MF dev workflow.
 
 ## Shared packages
 
@@ -218,7 +221,7 @@ Each has its own README:
 | [`@garage/ui`](../packages/ui/) | shadcn/Radix primitives, `Toaster`/`useToast`, `LoginForm`, `cn` — built with tsup |
 | [`@garage/web-shared`](../packages/web-shared/) | `createApiClient` / `createAppQueryClient` factories, formatters, `getApiErrorMessage` |
 | [`@garage/crypto`](../packages/crypto/) | AES-256-GCM encrypt/decrypt, consumed by both BFFs' `encryption.ts` |
-| [`@garage/server-config`](../packages/server-config/) | Env loader, JWT auth router, SQLite/migration helpers shared by both BFFs |
+| [`@garage/server-config`](../packages/server-config/) | Env loader, JWT auth router, security response headers, SQLite/migration helpers shared by both BFFs |
 | [`@garage/bucket-api-server`](../packages/bucket-api-server/) | The `createBucketRouter(resolveContext)` factory — all S3/multipart logic for the Bucket Backend API |
 | [`@garage/bucket-api-contract-tests`](../packages/bucket-api-contract-tests/) | Regression suite that runs the contract against either BFF |
 

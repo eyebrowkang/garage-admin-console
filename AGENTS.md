@@ -65,7 +65,7 @@ workflow is in [docs/development.md](./docs/development.md#developing-the-embedd
 - **No `@aws-sdk/*` in any frontend.** The federated `FileBrowser` talks only to the Bucket Backend API and reads credentials from props, never from `localStorage`/`window`/env.
 - **UX/UI:** light theme only; **four colors only** — theme orange `rgb(255,148,41)` · red (errors) · green (health) · purple (warnings). List pages stay light, detail pages go deep.
 - **Git:** never commit directly to `main`; branch + PR. All commit messages / squash-merge PR titles follow [Conventional Commits](https://www.conventionalcommits.org/) (required by Release Please).
-- **Versioning:** the major version tracks the Garage Admin API version (v2 → `2.x.x`); within a major, `fix:` → patch, `feat:`/significant `refactor:` → minor.
+- **Versioning:** release-please manifest mode with **independent per-product versions** — the Admin Console (root component, `vX.Y.Z`) major tracks the Garage Admin API version (v2 → `2.x.x`); the S3 Browser (`s3-browser-vX.Y.Z`) is its own line. Within a major, `fix:` → patch, `feat:`/significant `refactor:` → minor.
 - **Code style:** Prettier (100-char, single quotes, trailing commas, semicolons, 2-space), ESLint 9 flat config, strict TypeScript, ES modules everywhere.
 
 ## Key Files

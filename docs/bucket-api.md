@@ -43,7 +43,7 @@ in two:
 | `GET /object` | `?key=` | `S3Object` (HEAD-equivalent metadata) |
 | `GET /download` | `?key=` | Binary stream — `Content-Disposition: attachment` |
 | `POST /presign` | `{ key, operation, expiresIn, responseContentDisposition? }` | `{ url, expiresAt }` |
-| `POST /upload` | `multipart/form-data` (one+ files, optional `prefix`); per-file ≤ 10 MiB | `{ uploaded: { key, etag, size }[] }` · 413 if oversized |
+| `POST /upload` | `multipart/form-data` (one+ files, optional `prefix`); per-file ≤ 10 MiB | `{ uploaded: { key, etag, size }[] }` · 413 `{ error, limit, uploaded }` if any file exceeds the limit (the files that fit are still stored + reported) |
 | `POST /multipart/create` | `{ key, contentType? }` | `{ uploadId, key, partSize, maxParts }` |
 | `POST /multipart/sign` | `{ key, uploadId, partNumbers: number[], expiresIn? }` | `{ urls: { partNumber, url }[], expiresAt }` |
 | `POST /multipart/complete` | `{ key, uploadId, parts: { partNumber, etag }[] }` | `{ key, etag, location }` |
