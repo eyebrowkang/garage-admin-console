@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { CopyActionIcon, DownloadActionIcon, DeleteActionIcon } from '@/lib/action-icons';
-import { Button, cn } from '@garage/ui';
+import { Button, FloatingActionBar, cn } from '@garage/ui';
 import { basename } from '@garage/web-shared';
 import { useBrowser } from '../../context';
 import { useDownload } from '../../hooks/useDownload';
@@ -34,8 +34,6 @@ export function BulkBar({ visibleKeys, totalLoaded }: BulkBarProps) {
   useEffect(() => {
     if (checkboxRef.current) checkboxRef.current.indeterminate = someSelected;
   }, [someSelected]);
-
-  if (!multiSelectMode) return null;
 
   const handleSelectAll = () => {
     if (allSelected || someSelected) clearSelection();
@@ -74,19 +72,22 @@ export function BulkBar({ visibleKeys, totalLoaded }: BulkBarProps) {
     });
 
   const handleDelete = () => openDelete(selectedItems());
-
   const handleExit = () => setMultiSelectMode(false);
 
   const hasSelection = selectedKeys.size > 0;
   const fileCount = Array.from(selectedKeys).filter((k) => !k.endsWith('/')).length;
 
+  // The bar floats over the viewport (shared FloatingActionBar) instead of
+  // sitting in-flow above the list, so entering/leaving multi-select never
+  // shifts the layout. It stays mounted and slides in/out with multiSelectMode.
+
   // Mobile: compact icon actions instead of labelled buttons, which would
-  // overflow the row at phone widths.
+  // overflow the pill at phone widths.
   if (isNarrow) {
     const iconBtn =
       'flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors active:bg-primary/10 disabled:opacity-35';
     return (
-      <div className="flex shrink-0 items-center gap-1 border-b border-primary/30 bg-primary/8 px-2 py-1.5">
+      <FloatingActionBar visible={multiSelectMode}>
         <label className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full active:bg-primary/10">
           <input
             ref={checkboxRef}
@@ -97,7 +98,7 @@ export function BulkBar({ visibleKeys, totalLoaded }: BulkBarProps) {
             aria-label={allSelected ? 'Deselect all' : 'Select all loaded'}
           />
         </label>
-        <span className="min-w-0 flex-1 truncate text-[14px] font-medium">
+        <span className="min-w-0 truncate text-[14px] font-medium">
           {hasSelection ? `${selectedKeys.size} selected` : 'Select items'}
         </span>
         <button
@@ -130,17 +131,13 @@ export function BulkBar({ visibleKeys, totalLoaded }: BulkBarProps) {
         >
           Done
         </button>
-      </div>
+      </FloatingActionBar>
     );
   }
 
   return (
-    <div
-      className={cn(
-        'flex shrink-0 items-center gap-2 border-b border-primary/30 bg-primary/8 px-5 py-2',
-      )}
-    >
-      <label className="flex h-8 w-8 cursor-pointer items-center justify-center rounded hover:bg-primary/10">
+    <FloatingActionBar visible={multiSelectMode}>
+      <label className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded hover:bg-primary/10">
         <input
           ref={checkboxRef}
           type="checkbox"
@@ -151,7 +148,7 @@ export function BulkBar({ visibleKeys, totalLoaded }: BulkBarProps) {
         />
       </label>
 
-      <span className="text-[13px]">
+      <span className="whitespace-nowrap pl-0.5 pr-1 text-[13px]">
         {hasSelection ? (
           <>
             <strong className="font-semibold text-foreground">{selectedKeys.size}</strong>
@@ -161,8 +158,6 @@ export function BulkBar({ visibleKeys, totalLoaded }: BulkBarProps) {
           <span className="text-muted-foreground">Select items to act on</span>
         )}
       </span>
-
-      <span className="flex-1" />
 
       <Button
         variant="outline"
@@ -205,6 +200,6 @@ export function BulkBar({ visibleKeys, totalLoaded }: BulkBarProps) {
       <Button variant="ghost" size="sm" className="h-8 px-3" onClick={handleExit}>
         Exit
       </Button>
-    </div>
+    </FloatingActionBar>
   );
 }
