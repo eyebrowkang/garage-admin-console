@@ -13,7 +13,15 @@ let snapshot: NodeJS.ProcessEnv;
 beforeEach(() => {
   snapshot = { ...process.env };
   // Start each test from a clean, known-good base so derivations are predictable.
-  for (const key of ['PORT', 'LOG_LEVEL', 'LOG_PRETTY', 'MORGAN_FORMAT', 'NODE_ENV']) {
+  for (const key of [
+    'PORT',
+    'LOG_LEVEL',
+    'LOG_PRETTY',
+    'MORGAN_FORMAT',
+    'NODE_ENV',
+    'ACCESS_TOKEN_TTL',
+    'REFRESH_TOKEN_TTL',
+  ]) {
     delete process.env[key];
   }
   Object.assign(process.env, VALID);
@@ -128,6 +136,27 @@ describe('loadEnv — logPretty / httpLogFormat derivation', () => {
   it('passes a custom MORGAN_FORMAT through', () => {
     process.env.MORGAN_FORMAT = 'combined';
     expect(loadEnv(3001).httpLogFormat).toBe('combined');
+  });
+});
+
+describe('loadEnv — token TTLs', () => {
+  it('defaults access=15m and refresh=14d', () => {
+    const env = loadEnv(3001);
+    expect(env.accessTokenTtl).toBe('15m');
+    expect(env.refreshTokenTtl).toBe('14d');
+  });
+
+  it('honours valid overrides', () => {
+    process.env.ACCESS_TOKEN_TTL = '30m';
+    process.env.REFRESH_TOKEN_TTL = '7d';
+    const env = loadEnv(3001);
+    expect(env.accessTokenTtl).toBe('30m');
+    expect(env.refreshTokenTtl).toBe('7d');
+  });
+
+  it.each(['ACCESS_TOKEN_TTL', 'REFRESH_TOKEN_TTL'])('rejects a malformed %s', (key) => {
+    process.env[key] = '15 minutes';
+    expect(() => loadEnv(3001)).toThrow(new RegExp(key));
   });
 });
 

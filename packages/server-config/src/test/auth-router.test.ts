@@ -41,13 +41,34 @@ describe('createAuthRouter', () => {
     });
   }
 
-  it('issues a verifiable HS256 token for the correct password', async () => {
+  function refresh(body: unknown) {
+    return fetch(`${baseUrl}/refresh`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  }
+
+  it('issues a verifiable HS256 access + refresh pair for the correct password', async () => {
     const res = await login({ password: PASSWORD });
     expect(res.status).toBe(200);
 
-    const { token } = (await res.json()) as { token: string };
-    const decoded = jwt.verify(token, SECRET, { algorithms: ['HS256'] }) as { role?: string };
-    expect(decoded.role).toBe('admin');
+    const { token, refreshToken } = (await res.json()) as {
+      token: string;
+      refreshToken: string;
+    };
+
+    const access = jwt.verify(token, SECRET, { algorithms: ['HS256'] }) as {
+      role?: string;
+      type?: string;
+    };
+    expect(access.role).toBe('admin');
+    expect(access.type).toBe('access');
+
+    const decodedRefresh = jwt.verify(refreshToken, SECRET, { algorithms: ['HS256'] }) as {
+      type?: string;
+    };
+    expect(decodedRefresh.type).toBe('refresh');
 
     // The signed token must declare HS256 in its header (pinned, not defaulted).
     const header = JSON.parse(Buffer.from(token.split('.')[0] ?? '', 'base64url').toString());
@@ -62,5 +83,37 @@ describe('createAuthRouter', () => {
   it('rejects a malformed body with 400', async () => {
     expect((await login({})).status).toBe(400);
     expect((await login({ password: 123 })).status).toBe(400);
+  });
+
+  it('exchanges a valid refresh token for a fresh access + refresh pair', async () => {
+    const { refreshToken } = (await (await login({ password: PASSWORD })).json()) as {
+      refreshToken: string;
+    };
+
+    const res = await refresh({ refreshToken });
+    expect(res.status).toBe(200);
+
+    const body = (await res.json()) as { token: string; refreshToken: string };
+    const access = jwt.verify(body.token, SECRET, { algorithms: ['HS256'] }) as { type?: string };
+    expect(access.type).toBe('access');
+    const next = jwt.verify(body.refreshToken, SECRET, { algorithms: ['HS256'] }) as {
+      type?: string;
+    };
+    expect(next.type).toBe('refresh');
+  });
+
+  it('rejects an access token presented at /refresh with 401', async () => {
+    const { token } = (await (await login({ password: PASSWORD })).json()) as { token: string };
+    expect((await refresh({ refreshToken: token })).status).toBe(401);
+  });
+
+  it('rejects a refresh token signed with a different secret with 401', async () => {
+    const forged = jwt.sign({ role: 'admin', type: 'refresh' }, 'wrong-secret');
+    expect((await refresh({ refreshToken: forged })).status).toBe(401);
+  });
+
+  it('rejects a malformed /refresh body with 400', async () => {
+    expect((await refresh({})).status).toBe(400);
+    expect((await refresh({ refreshToken: 123 })).status).toBe(400);
   });
 });

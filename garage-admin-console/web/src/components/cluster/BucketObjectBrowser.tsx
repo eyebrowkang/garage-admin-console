@@ -40,7 +40,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@garage/ui';
-import { api, readStoredToken } from '@/lib/api';
+import { api, useAuthToken } from '@/lib/api';
 import type { FileBrowserProps } from 's3Browser/FileBrowser';
 import { selectDefaultKey, type AuthorizedKey } from './bucket-key-selection';
 
@@ -94,7 +94,10 @@ export function BucketObjectBrowser({
     keyId: string;
   } | null>(null);
 
-  const token = readStoredToken() ?? '';
+  // Reactive: a background token refresh rotates the JWT and re-renders here, so
+  // the embedded FileBrowser's axios (keyed on backend.authToken) picks up the
+  // fresh token instead of 401ing once the short-lived access token expires.
+  const token = useAuthToken() ?? '';
   const baseUrl = `/api/clusters/${clusterId}/buckets/${encodeURIComponent(bucketAlias)}`;
   const selectionScope = `${clusterId}:${bucketAlias}`;
   const lsKey = useMemo(() => localStorageKey(clusterId, bucketAlias), [bucketAlias, clusterId]);

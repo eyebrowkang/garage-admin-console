@@ -1,4 +1,4 @@
-import type { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
+import axios, { type AxiosInstance, type InternalAxiosRequestConfig } from 'axios';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createApiClient } from '../api-client';
@@ -18,6 +18,7 @@ function responseInterceptor(api: AxiosInstance): InterceptorHandle<unknown> {
 }
 
 const TOKEN_KEY = 'garage-test-token';
+const REFRESH_KEY = 'garage-test-refresh';
 
 beforeEach(() => window.localStorage.clear());
 afterEach(() => window.localStorage.clear());
@@ -123,5 +124,131 @@ describe('token change subscription (reactive standalone auth)', () => {
     ).rejects.toBeTruthy();
     expect(readStoredToken()).toBeNull();
     expect(listener).toHaveBeenCalled();
+  });
+});
+
+describe('refresh token storage', () => {
+  it('reads/writes the refresh token under refreshTokenKey', () => {
+    const client = createApiClient({
+      baseURL: '/api',
+      tokenKey: TOKEN_KEY,
+      refreshTokenKey: REFRESH_KEY,
+    });
+    expect(client.readStoredRefreshToken()).toBeNull();
+    client.writeStoredRefreshToken('r-1');
+    expect(window.localStorage.getItem(REFRESH_KEY)).toBe('r-1');
+    expect(client.readStoredRefreshToken()).toBe('r-1');
+    client.writeStoredRefreshToken(null);
+    expect(client.readStoredRefreshToken()).toBeNull();
+  });
+
+  it('is a no-op when no refreshTokenKey is configured', () => {
+    const client = createApiClient({ baseURL: '/api', tokenKey: TOKEN_KEY });
+    client.writeStoredRefreshToken('r-1');
+    expect(client.readStoredRefreshToken()).toBeNull();
+  });
+});
+
+describe('automatic refresh on 401', () => {
+  it('refreshes the access token and replays the original request', async () => {
+    const postSpy = vi
+      .spyOn(axios, 'post')
+      .mockResolvedValue({ data: { token: 'new-access', refreshToken: 'new-refresh' } });
+    const client = createApiClient({
+      baseURL: '/api',
+      tokenKey: TOKEN_KEY,
+      refreshTokenKey: REFRESH_KEY,
+    });
+    client.writeStoredToken('old-access');
+    client.writeStoredRefreshToken('old-refresh');
+    // Stub the replay so it resolves without touching the network.
+    client.api.defaults.adapter = vi
+      .fn()
+      .mockResolvedValue({ data: 'ok', status: 200, statusText: 'OK', headers: {}, config: {} });
+
+    const original = { headers: {} as Record<string, string> };
+    const result = await responseInterceptor(client.api).rejected({
+      response: { status: 401 },
+      config: original,
+    });
+
+    expect(postSpy).toHaveBeenCalledWith('/api/auth/refresh', { refreshToken: 'old-refresh' });
+    expect(client.readStoredToken()).toBe('new-access');
+    expect(client.readStoredRefreshToken()).toBe('new-refresh');
+    expect((result as { data: string }).data).toBe('ok');
+    expect(original.headers.Authorization).toBe('Bearer new-access');
+    postSpy.mockRestore();
+  });
+
+  it('clears both tokens and calls onUnauthorized when refresh fails', async () => {
+    const postSpy = vi.spyOn(axios, 'post').mockRejectedValue(new Error('refresh failed'));
+    const onUnauthorized = vi.fn();
+    const client = createApiClient({
+      baseURL: '/api',
+      tokenKey: TOKEN_KEY,
+      refreshTokenKey: REFRESH_KEY,
+      onUnauthorized,
+    });
+    client.writeStoredToken('old-access');
+    client.writeStoredRefreshToken('old-refresh');
+
+    const err = { response: { status: 401 }, config: { headers: {} } };
+    await expect(responseInterceptor(client.api).rejected(err)).rejects.toBe(err);
+
+    expect(client.readStoredToken()).toBeNull();
+    expect(client.readStoredRefreshToken()).toBeNull();
+    expect(onUnauthorized).toHaveBeenCalledWith(err);
+    postSpy.mockRestore();
+  });
+
+  it('does not attempt a refresh without a stored refresh token', async () => {
+    const postSpy = vi.spyOn(axios, 'post');
+    const onUnauthorized = vi.fn();
+    const client = createApiClient({
+      baseURL: '/api',
+      tokenKey: TOKEN_KEY,
+      refreshTokenKey: REFRESH_KEY,
+      onUnauthorized,
+    });
+    client.writeStoredToken('old-access'); // no refresh token stored
+    const err = { response: { status: 401 }, config: { headers: {} } };
+    await expect(responseInterceptor(client.api).rejected(err)).rejects.toBe(err);
+    expect(postSpy).not.toHaveBeenCalled();
+    expect(onUnauthorized).toHaveBeenCalledWith(err);
+    postSpy.mockRestore();
+  });
+});
+
+describe('proactive refresh before expiry', () => {
+  function fakeJwt(expInSeconds: number): string {
+    const payload = btoa(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + expInSeconds }))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+    return `h.${payload}.s`;
+  }
+
+  it('refreshes shortly before the access token expires', async () => {
+    vi.useFakeTimers();
+    try {
+      const postSpy = vi
+        .spyOn(axios, 'post')
+        .mockResolvedValue({ data: { token: 'refreshed', refreshToken: 'r-2' } });
+      const client = createApiClient({
+        baseURL: '/api',
+        tokenKey: TOKEN_KEY,
+        refreshTokenKey: REFRESH_KEY,
+      });
+      client.writeStoredRefreshToken('r-1');
+      client.writeStoredToken(fakeJwt(120)); // expires in 120s → refresh ~60s in
+
+      await vi.advanceTimersByTimeAsync(61_000);
+
+      expect(postSpy).toHaveBeenCalledWith('/api/auth/refresh', { refreshToken: 'r-1' });
+      expect(client.readStoredToken()).toBe('refreshed');
+      postSpy.mockRestore();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

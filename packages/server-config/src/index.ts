@@ -31,6 +31,8 @@ export interface ServerEnv {
   logLevel: string;
   logPretty: boolean;
   httpLogFormat: string | null;
+  accessTokenTtl: string;
+  refreshTokenTtl: string;
 }
 
 /**
@@ -103,6 +105,23 @@ export function loadEnv(defaultPort: number): ServerEnv {
     httpLogFormat = nodeEnv === 'production' ? null : 'dev';
   }
 
+  // Token TTLs are optional knobs with safe defaults: a short-lived access
+  // token and a long-lived refresh token (the client transparently refreshes).
+  // Accept an ms-style duration ('15m', '14d', '1h'); reject typos at startup.
+  const ttlPattern = /^\d+(ms|s|m|h|d|w|y)$/i;
+  const parseTtl = (name: string, raw: string | undefined, fallback: string): string => {
+    const value = raw?.trim();
+    if (!value) return fallback;
+    if (!ttlPattern.test(value)) {
+      throw new Error(
+        `${name} must be a duration like '15m', '14d', '1h' (digits followed by ms|s|m|h|d|w|y).`,
+      );
+    }
+    return value;
+  };
+  const accessTokenTtl = parseTtl('ACCESS_TOKEN_TTL', process.env.ACCESS_TOKEN_TTL, '15m');
+  const refreshTokenTtl = parseTtl('REFRESH_TOKEN_TTL', process.env.REFRESH_TOKEN_TTL, '14d');
+
   return {
     nodeEnv,
     port,
@@ -112,6 +131,8 @@ export function loadEnv(defaultPort: number): ServerEnv {
     logLevel,
     logPretty,
     httpLogFormat,
+    accessTokenTtl,
+    refreshTokenTtl,
   };
 }
 
@@ -131,6 +152,26 @@ export function getParam(
 
 type AuthenticatedRequest = Request & { user?: string | JwtPayload | undefined };
 
+/**
+ * JWT `type` claim. `access` tokens authenticate protected routes; `refresh`
+ * tokens are only accepted at POST /auth/refresh (exchanged for a fresh pair)
+ * and are rejected everywhere else. Both are signed with the same JWT_SECRET
+ * and distinguished by this claim, so no second secret/env var is needed.
+ */
+export type AuthTokenType = 'access' | 'refresh';
+
+function signAuthToken(jwtSecret: string, type: AuthTokenType, expiresIn: string | number): string {
+  // `expiresIn` originates from env (a plain string like '15m'); cast to the
+  // jsonwebtoken option type (a stricter ms-style template) at the call site.
+  const options: SignOptions = {
+    // The value is a validated duration string/number; cast to jsonwebtoken's
+    // stricter ms-style type, stripping `undefined` (exactOptionalPropertyTypes).
+    expiresIn: expiresIn as NonNullable<SignOptions['expiresIn']>,
+    algorithm: 'HS256',
+  };
+  return jwt.sign({ role: 'admin', type }, jwtSecret, options);
+}
+
 export function createAuthenticateToken(jwtSecret: string) {
   return function authenticateToken(req: Request, res: Response, next: NextFunction) {
     const authHeader = req.headers.authorization;
@@ -142,7 +183,12 @@ export function createAuthenticateToken(jwtSecret: string) {
     // any non-HS256 `alg` in the token header closes the algorithm-confusion
     // class of attacks instead of trusting whatever the token claims.
     jwt.verify(token, jwtSecret, { algorithms: ['HS256'] }, (err, user) => {
-      if (err || !user) return res.sendStatus(401);
+      // Only a token explicitly minted as `type:'access'` authenticates — this
+      // rejects a refresh token replayed as a bearer token (and any legacy
+      // typeless token, which forces a one-time re-login after the upgrade).
+      if (err || !user || typeof user !== 'object' || (user as JwtPayload).type !== 'access') {
+        return res.sendStatus(401);
+      }
       (req as AuthenticatedRequest).user = user;
       next();
     });
@@ -153,10 +199,17 @@ const LoginSchema = z.object({
   password: z.string(),
 });
 
+const RefreshSchema = z.object({
+  refreshToken: z.string(),
+});
+
 export interface CreateAuthRouterOptions {
   adminPassword: string;
   jwtSecret: string;
-  tokenExpiresIn?: SignOptions['expiresIn'];
+  /** Short-lived access-token TTL (ms-style string like '15m', or seconds). Default '15m'. */
+  accessTokenExpiresIn?: string | number;
+  /** Long-lived refresh-token TTL. Default '14d'. */
+  refreshTokenExpiresIn?: string | number;
 }
 
 /**
@@ -174,9 +227,18 @@ function safeEqual(a: string, b: string): boolean {
 export function createAuthRouter({
   adminPassword,
   jwtSecret,
-  tokenExpiresIn = '1d',
+  accessTokenExpiresIn = '15m',
+  refreshTokenExpiresIn = '14d',
 }: CreateAuthRouterOptions): ExpressRouter {
   const router = Router();
+
+  // Mint a fresh access + refresh pair. Refresh is "sliding": each successful
+  // /refresh re-issues both, so a continuously-used (or kept-open) session
+  // never expires, while an idle one lapses after the refresh TTL.
+  const issueTokens = () => ({
+    token: signAuthToken(jwtSecret, 'access', accessTokenExpiresIn),
+    refreshToken: signAuthToken(jwtSecret, 'refresh', refreshTokenExpiresIn),
+  });
 
   router.post('/login', (req, res) => {
     try {
@@ -186,14 +248,34 @@ export function createAuthRouter({
         return res.status(401).json({ error: 'Invalid credentials' });
       }
 
-      const token = jwt.sign({ role: 'admin' }, jwtSecret, {
-        expiresIn: tokenExpiresIn,
-        algorithm: 'HS256',
-      });
-      res.json({ token });
+      res.json(issueTokens());
     } catch {
       res.status(400).json({ error: 'Invalid request' });
     }
+  });
+
+  // Stateless refresh: verify the refresh JWT (HS256 + type:'refresh') and hand
+  // back a new pair. There is no server-side token store, so a single token
+  // can't be revoked before it expires — global revocation = rotating JWT_SECRET.
+  router.post('/refresh', (req, res) => {
+    let refreshToken: string;
+    try {
+      refreshToken = RefreshSchema.parse(req.body).refreshToken;
+    } catch {
+      return res.status(400).json({ error: 'Invalid request' });
+    }
+
+    jwt.verify(refreshToken, jwtSecret, { algorithms: ['HS256'] }, (err, decoded) => {
+      if (
+        err ||
+        !decoded ||
+        typeof decoded !== 'object' ||
+        (decoded as JwtPayload).type !== 'refresh'
+      ) {
+        return res.status(401).json({ error: 'Invalid refresh token' });
+      }
+      res.json(issueTokens());
+    });
   });
 
   return router;

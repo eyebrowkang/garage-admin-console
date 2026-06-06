@@ -18,7 +18,9 @@ vi.mock('axios', () => {
 });
 
 function authHeader() {
-  const token = jwt.sign({ role: 'admin' }, process.env.JWT_SECRET as string, { expiresIn: '1d' });
+  const token = jwt.sign({ role: 'admin', type: 'access' }, process.env.JWT_SECRET as string, {
+    expiresIn: '1d',
+  });
   return { Authorization: `Bearer ${token}` };
 }
 

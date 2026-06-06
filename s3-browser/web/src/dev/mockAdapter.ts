@@ -85,7 +85,10 @@ const mockAdapter: AxiosAdapter = async (config) => {
   // FileBrowser's own requests are baseURL-relative ('list', 'object', …), so
   // they never collide with these 'connections/…' paths.
   if (method === 'POST' && path === 'auth/login') {
-    return reply(config, { token: 'mock-jwt-token' });
+    return reply(config, { token: 'mock-jwt-token', refreshToken: 'mock-refresh-token' });
+  }
+  if (method === 'POST' && path === 'auth/refresh') {
+    return reply(config, { token: 'mock-jwt-token', refreshToken: 'mock-refresh-token' });
   }
   if (method === 'GET' && path === 'connections') {
     return reply(config, mockConnections());

@@ -9,7 +9,7 @@ import db from '../db/index.js';
 import { clusters } from '../db/schema.js';
 
 const authHeader = () => {
-  const token = jwt.sign({ role: 'admin' }, process.env.JWT_SECRET as string, {
+  const token = jwt.sign({ role: 'admin', type: 'access' }, process.env.JWT_SECRET as string, {
     expiresIn: '1d',
   });
   return { Authorization: `Bearer ${token}` };
