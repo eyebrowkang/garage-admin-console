@@ -1,6 +1,13 @@
 import { useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { HardDrive, Activity, Database, type LucideIcon } from 'lucide-react';
+import {
+  HardDrive,
+  Activity,
+  Database,
+  RefreshCw,
+  AlertTriangle,
+  type LucideIcon,
+} from 'lucide-react';
 import {
   Button,
   Badge,
@@ -12,17 +19,30 @@ import {
   TabsTrigger,
   TabsContent,
   TabHotkeys,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
   CopyButton,
   InlineLoadingState,
   PageLoadingState,
   TerminalOutput,
+  cn,
 } from '@garage/ui';
 import { useClusterContext } from '@/contexts/ClusterContext';
 import { useNodes, useNodeInfo, useNodeStatistics } from '@/hooks/useNodes';
 import { DetailPageHeader } from '@/components/cluster/DetailPageHeader';
 import { SnapshotDialog, RepairDialog } from '@/components/cluster/NodeMaintenanceDialogs';
 import { RepairActionIcon, SnapshotActionIcon } from '@/lib/action-icons';
-import { formatBytes, formatRelativeSeconds, getApiErrorMessage } from '@garage/web-shared';
+import {
+  formatBytes,
+  formatNum,
+  formatRelativeSeconds,
+  getApiErrorMessage,
+} from '@garage/web-shared';
+import type { NodeBlockManagerStats, NodeTableStats } from '@/types/garage';
 
 /** A storage-partition usage panel: available / total and a used-% meter. */
 function PartitionMeter({
@@ -326,10 +346,21 @@ export function NodeDetail() {
         </TabsContent>
 
         {/* ---------------- Statistics ---------------- */}
-        <TabsContent value="statistics" className="space-y-3">
-          <div className="flex items-center gap-2 text-sm font-medium">
-            <Activity className="h-4 w-4 text-muted-foreground" />
-            Node Statistics
+        <TabsContent value="statistics" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Activity className="h-4 w-4 text-muted-foreground" />
+              Node Statistics
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => refetchStats()}
+              disabled={statsFetching}
+            >
+              <RefreshCw className={cn('h-3.5 w-3.5', statsFetching && 'animate-spin')} />
+              Refresh
+            </Button>
           </div>
           {statsError ? (
             <Alert variant="destructive">
@@ -341,6 +372,27 @@ export function NodeDetail() {
               <AlertTitle>Statistics unavailable</AlertTitle>
               <AlertDescription>{nodeStatsError}</AlertDescription>
             </Alert>
+          ) : statsLoading ? (
+            <InlineLoadingState label="Fetching node statistics..." />
+          ) : nodeStats?.blockManagerStats || nodeStats?.tableStats ? (
+            <>
+              <BlockManagerPanel stats={nodeStats.blockManagerStats} />
+              <TableStatsPanel tables={nodeStats.tableStats} />
+              {nodeStats.freeform && (
+                <details>
+                  <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground">
+                    Raw output
+                  </summary>
+                  <div className="mt-2">
+                    <TerminalOutput
+                      command="garage stats"
+                      content={nodeStats.freeform}
+                      maxHeightClass="max-h-[400px]"
+                    />
+                  </div>
+                </details>
+              )}
+            </>
           ) : (
             <TerminalOutput
               command="garage stats"
@@ -370,6 +422,103 @@ export function NodeDetail() {
         nodeId={nid}
         nodeLabel={node.hostname || 'this node'}
       />
+    </div>
+  );
+}
+
+function BlockManagerPanel({ stats }: { stats?: NodeBlockManagerStats | null }) {
+  if (!stats) return null;
+  const hasIssues = stats.resyncErrors > 0 || stats.resyncQueueLen > 0;
+  return (
+    <div className="space-y-3 rounded-lg border p-4">
+      <div className="flex items-center gap-2 text-sm font-medium">
+        <HardDrive className="h-4 w-4 text-muted-foreground" />
+        Block Manager
+      </div>
+      <div className="grid grid-cols-3 gap-px overflow-hidden rounded-lg border bg-border">
+        <div className="bg-card px-4 py-3">
+          <div className="text-xs text-muted-foreground">RC Entries</div>
+          <div className="text-lg font-semibold tabular-nums">{formatNum(stats.rcEntries)}</div>
+        </div>
+        <div className="bg-card px-4 py-3">
+          <div className="text-xs text-muted-foreground">Resync Queue</div>
+          <div
+            className={cn(
+              'text-lg font-semibold tabular-nums',
+              stats.resyncQueueLen > 0 && 'text-warning',
+            )}
+          >
+            {formatNum(stats.resyncQueueLen)}
+          </div>
+        </div>
+        <div className="bg-card px-4 py-3">
+          <div className="text-xs text-muted-foreground">Resync Errors</div>
+          <div
+            className={cn(
+              'text-lg font-semibold tabular-nums',
+              stats.resyncErrors > 0 && 'text-destructive',
+            )}
+          >
+            {formatNum(stats.resyncErrors)}
+          </div>
+        </div>
+      </div>
+      {hasIssues && (
+        <div className="flex items-center gap-2 text-xs text-warning">
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+          {stats.resyncErrors > 0
+            ? `${stats.resyncErrors} block(s) with resync errors`
+            : `${stats.resyncQueueLen} block(s) queued for resync`}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TableStatsPanel({ tables }: { tables?: NodeTableStats[] | null }) {
+  if (!tables || tables.length === 0) return null;
+  return (
+    <div className="space-y-3 rounded-lg border p-4">
+      <div className="flex items-center gap-2 text-sm font-medium">
+        <Database className="h-4 w-4 text-muted-foreground" />
+        Metadata Tables
+      </div>
+      <div className="overflow-hidden rounded-lg border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Table</TableHead>
+              <TableHead className="text-right">Items</TableHead>
+              <TableHead className="text-right">Merkle</TableHead>
+              <TableHead className="text-right">Merkle Q</TableHead>
+              <TableHead className="text-right">Insert Q</TableHead>
+              <TableHead className="text-right">GC Q</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {tables.map((t) => (
+              <TableRow key={t.tableName}>
+                <TableCell className="font-mono text-sm">{t.tableName}</TableCell>
+                <TableCell className="text-right tabular-nums">{formatNum(t.items)}</TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {formatNum(t.merkleItems)}
+                </TableCell>
+                <TableCell
+                  className={cn('text-right tabular-nums', t.merkleQueueLen > 0 && 'text-warning')}
+                >
+                  {formatNum(t.merkleQueueLen)}
+                </TableCell>
+                <TableCell
+                  className={cn('text-right tabular-nums', t.insertQueueLen > 0 && 'text-warning')}
+                >
+                  {formatNum(t.insertQueueLen)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">{formatNum(t.gcQueueLen)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }

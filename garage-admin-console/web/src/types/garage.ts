@@ -35,6 +35,57 @@ export interface BucketQuotas {
 export interface BucketWebsiteConfig {
   indexDocument: string;
   errorDocument?: string | null;
+  routingRules?: WebsiteRoutingRule[] | null;
+}
+
+// v2.3.0: bucket CORS rules
+export interface CorsRule {
+  ID?: string | null;
+  AllowedOrigin: string[];
+  AllowedMethod: string[];
+  AllowedHeader?: string[];
+  ExposeHeader?: string[];
+  MaxAgeSeconds?: number | null;
+}
+
+// v2.3.0: bucket lifecycle rules
+export interface LifecycleExpiration {
+  Date?: string | null;
+  Days?: number | null;
+}
+
+export interface LifecycleFilter {
+  Prefix?: string | null;
+  And?: LifecycleFilter | null;
+  ObjectSizeGreaterThan?: number | null;
+  ObjectSizeLessThan?: number | null;
+}
+
+export interface LifecycleRule {
+  ID?: string | null;
+  Status: string;
+  Filter?: LifecycleFilter | null;
+  Expiration?: LifecycleExpiration | null;
+  AbortIncompleteMultipartUpload?: { DaysAfterInitiation: number } | null;
+}
+
+// v2.3.0: website routing rules
+export interface WebsiteRoutingCondition {
+  HttpErrorCodeReturnedEquals?: number | null;
+  KeyPrefixEquals?: string | null;
+}
+
+export interface WebsiteRedirect {
+  HostName?: string | null;
+  HttpRedirectCode?: number | null;
+  Protocol?: string | null;
+  ReplaceKeyPrefixWith?: string | null;
+  ReplaceKeyWith?: string | null;
+}
+
+export interface WebsiteRoutingRule {
+  Condition?: WebsiteRoutingCondition | null;
+  Redirect: WebsiteRedirect;
 }
 
 export interface BucketKeyPerm {
@@ -62,6 +113,8 @@ export interface BucketInfo {
   unfinishedMultipartUploadParts: number;
   unfinishedMultipartUploadBytes: number;
   quotas: BucketQuotas;
+  corsRules?: CorsRule[] | null;
+  lifecycleRules?: LifecycleRule[] | null;
 }
 
 export interface UpdateBucketRequest {
@@ -69,8 +122,11 @@ export interface UpdateBucketRequest {
     enabled: boolean;
     indexDocument?: string | null;
     errorDocument?: string | null;
+    routingRules?: WebsiteRoutingRule[] | null;
   };
   quotas?: BucketQuotas;
+  corsRules?: CorsRule[] | null;
+  lifecycleRules?: LifecycleRule[] | null;
 }
 
 export interface CreateBucketLocalAlias {
@@ -217,6 +273,23 @@ export interface NodeInfoResponse {
   rustVersion: string;
   dbEngine: string;
   garageFeatures?: string[] | null;
+  hostname?: string | null;
+}
+
+// v2.3.0: structured node statistics
+export interface NodeBlockManagerStats {
+  rcEntries: number;
+  resyncQueueLen: number;
+  resyncErrors: number;
+}
+
+export interface NodeTableStats {
+  tableName: string;
+  items: number;
+  merkleItems: number;
+  merkleQueueLen: number;
+  insertQueueLen: number;
+  gcQueueLen: number;
 }
 
 export interface GetClusterStatusResponse {
@@ -237,9 +310,15 @@ export interface GetClusterHealthResponse {
 
 export interface GetClusterStatisticsResponse {
   freeform: string;
+  bucketCount?: number | null;
+  totalObjectCount?: number | null;
+  totalObjectBytes?: number | null;
+  dataAvail?: number | null;
+  metadataAvail?: number | null;
+  incompleteAvailInfo?: boolean | null;
 }
 
-export type ConnectClusterNodesRequest = string[]; // Format: node_id@address
+export type ConnectClusterNodesRequest = string[];
 
 export type ScrubCommand = 'start' | 'pause' | 'resume' | 'cancel';
 
@@ -271,6 +350,8 @@ export interface MultiNodeResponse<T> {
 
 export interface NodeStatisticsResponse {
   freeform: string;
+  blockManagerStats?: NodeBlockManagerStats | null;
+  tableStats?: NodeTableStats[] | null;
 }
 
 // Layout types
@@ -278,6 +359,39 @@ export type ZoneRedundancy = { atLeast: number } | 'maximum';
 
 export interface LayoutParameters {
   zoneRedundancy: ZoneRedundancy;
+}
+
+// v2.3.0: structured layout computation statistics
+export interface ComputationStatNode {
+  id: string;
+  tags: string[];
+  storedPartitions: number;
+  newPartitions: number;
+  totalCapacity: number;
+  usableCapacity: number;
+}
+
+export interface ComputationStatZone {
+  name: string;
+  nodes: ComputationStatNode[];
+  totalReplicatedPartitions: number;
+  uniquePartitions: number;
+  totalCapacity: number;
+  usableCapacity: number;
+}
+
+export interface ComputationStat {
+  replicationFactor: number;
+  effectiveZoneRedundancy: number;
+  partitionSize: number;
+  lowPartitionSize: boolean;
+  usableCapacity: number;
+  totalCapacity: number;
+  effectiveCapacity: number;
+  lowUsableCapacity: boolean;
+  zones: ComputationStatZone[];
+  previousPartitionSize?: number | null;
+  totalMovedPartitions?: number | null;
 }
 
 export interface LayoutNodeRole {
@@ -298,6 +412,7 @@ export interface GetClusterLayoutResponse {
   partitionSize: number;
   stagedParameters?: LayoutParameters | null;
   stagedRoleChanges: NodeRoleChange[];
+  statistics?: ComputationStat | null;
 }
 
 export interface ApplyClusterLayoutRequest {

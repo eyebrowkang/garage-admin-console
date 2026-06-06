@@ -37,7 +37,7 @@ import { ModulePageHeader } from '@garage/ui';
 import { useClusterContext } from '@/contexts/ClusterContext';
 import { useNodes } from '@/hooks/useNodes';
 import { api, proxyPath } from '@/lib/api';
-import { formatBytes, getApiErrorMessage } from '@garage/web-shared';
+import { formatBytes, formatNum, getApiErrorMessage } from '@garage/web-shared';
 import { NodeIcon } from '@/lib/entity-icons';
 import type {
   GetClusterHealthResponse,
@@ -411,22 +411,71 @@ export function ClusterOverview() {
         </CardContent>
       </Card>
 
-      {/* Cluster statistics — the freeform payload is literally a CLI command's
-          stdout, so it's presented as the terminal output it is. */}
-      <div>
-        <div className="mb-2 flex items-baseline justify-between gap-2">
+      {/* Cluster statistics — structured cards when v2.3.0 fields are present,
+          with the freeform CLI output always available underneath. */}
+      <div className="space-y-3">
+        <div className="flex items-baseline justify-between gap-2">
           <h2 className="text-sm font-semibold text-foreground">Cluster Statistics</h2>
-          <span className="text-xs text-muted-foreground">Raw output from the cluster</span>
+          <span className="text-xs text-muted-foreground">
+            {stats?.bucketCount != null ? 'Structured + raw output' : 'Raw output from the cluster'}
+          </span>
         </div>
-        <TerminalOutput
-          command="garage stats"
-          content={stats?.freeform ?? ''}
-          onRefresh={() => statsQuery.refetch()}
-          refreshing={statsQuery.isFetching}
-          loading={statsQuery.isLoading}
-          loadingLabel="Fetching cluster statistics…"
-          emptyLabel="No statistics available."
-        />
+
+        {stats?.bucketCount != null && (
+          <div className="grid gap-px overflow-hidden rounded-lg border bg-border sm:grid-cols-2 lg:grid-cols-5">
+            {(
+              [
+                { label: 'Buckets', value: formatNum(stats.bucketCount ?? 0) },
+                { label: 'Total Objects', value: formatNum(stats.totalObjectCount ?? 0) },
+                {
+                  label: 'Total Object Size',
+                  value: formatBytes(stats.totalObjectBytes ?? 0),
+                  hint: 'Before compression, dedup & replication',
+                },
+                { label: 'Data Space Available', value: formatBytes(stats.dataAvail ?? 0) },
+                { label: 'Metadata Space Available', value: formatBytes(stats.metadataAvail ?? 0) },
+              ] as { label: string; value: string; hint?: string }[]
+            ).map(({ label, value, hint }) => (
+              <div key={label} className="bg-card px-4 py-3">
+                <div className="text-xs text-muted-foreground">{label}</div>
+                <div className="text-lg font-semibold tabular-nums">{value}</div>
+                {hint && <div className="text-[11px] text-muted-foreground">{hint}</div>}
+              </div>
+            ))}
+            {stats.incompleteAvailInfo && (
+              <div className="col-span-full flex items-center gap-2 bg-card px-4 py-2 text-xs text-warning">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                Available space may be lower than reported — some nodes are disconnected.
+              </div>
+            )}
+          </div>
+        )}
+
+        {stats?.bucketCount != null ? (
+          <details className="group">
+            <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
+              Raw output
+            </summary>
+            <div className="mt-2">
+              <TerminalOutput
+                command="garage stats"
+                content={stats.freeform}
+                onRefresh={() => statsQuery.refetch()}
+                refreshing={statsQuery.isFetching}
+              />
+            </div>
+          </details>
+        ) : (
+          <TerminalOutput
+            command="garage stats"
+            content={stats?.freeform ?? ''}
+            onRefresh={() => statsQuery.refetch()}
+            refreshing={statsQuery.isFetching}
+            loading={statsQuery.isLoading}
+            loadingLabel="Fetching cluster statistics…"
+            emptyLabel="No statistics available."
+          />
+        )}
       </div>
 
       <Dialog
