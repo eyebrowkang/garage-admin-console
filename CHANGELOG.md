@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.3.0](https://github.com/eyebrowkang/garage-admin-console/compare/v2.2.0...v2.3.0) (2026-06-06)
+
+
+### Features
+
+* support Garage v2.3.0 API fields with backward compatibility ([#30](https://github.com/eyebrowkang/garage-admin-console/issues/30)) ([d3499a0](https://github.com/eyebrowkang/garage-admin-console/commit/d3499a008217944763500748ee7fcce63c3ae82c))
+
 ## [2.2.0](https://github.com/eyebrowkang/garage-admin-console/compare/v2.1.3...v2.2.0) (2026-06-05)
 
 
