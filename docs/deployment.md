@@ -90,12 +90,14 @@ API + standalone SPA/MF remote by default, or serves only static/MF assets when
 | `S3_CORS_ALLOWED_ORIGINS`    | No       | —             | Comma-separated origins for the auto-managed bucket CORS rule (default: the requesting app's origin)                                     |
 | `S3_MANAGE_CORS`             | No       | `true`        | Set `false` to leave bucket CORS entirely to the operator                                                                                |
 | `MORGAN_FORMAT`              | No       | off (prod)    | HTTP access log format (`combined`, `common`, `dev`, etc.); `off` / `none` / `false` disables                                            |
+| `ACCESS_TOKEN_TTL`           | No       | `15m`         | Access-token lifetime (digits + unit `ms`/`s`/`m`/`h`/`d`/`w`/`y`); the client auto-refreshes before it expires                          |
+| `REFRESH_TOKEN_TTL`          | No       | `14d`         | Refresh-token lifetime — how long an idle session stays signed in. Global sign-out = rotate `JWT_SECRET`                                 |
 
 ## Production env vars (S3 Browser image)
 
 The S3 Browser image shares the same core env vars (`JWT_SECRET`, `ENCRYPTION_KEY`,
-`ADMIN_PASSWORD`, `PORT`, `LOG_LEVEL`, `DATA_DIR`, `STATIC_DIR`, `MORGAN_FORMAT`)
-as the Admin image. The following are specific to the S3 Browser:
+`ADMIN_PASSWORD`, `PORT`, `LOG_LEVEL`, `DATA_DIR`, `STATIC_DIR`, `MORGAN_FORMAT`,
+`ACCESS_TOKEN_TTL`, `REFRESH_TOKEN_TTL`) as the Admin image. The following are specific to the S3 Browser:
 
 | Variable                  | Required | Default | Description                                                                   |
 | ------------------------- | -------- | ------- | ----------------------------------------------------------------------------- |
