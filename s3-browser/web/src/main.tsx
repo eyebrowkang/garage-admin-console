@@ -14,3 +14,12 @@ void (async () => {
   }
   await import('./bootstrap');
 })();
+
+// PWA service worker — standalone app only. This entry is never the module MF
+// exposes, so embedding the FileBrowser into the Admin host never registers a
+// second SW. Prod only, so the dev server's HMR isn't shadowed by a cache.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    void navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}

@@ -98,7 +98,49 @@ export default defineConfig(({ command }) => ({
         tag: 'link',
         attrs: {
           rel: 'apple-touch-icon',
-          href: '/apple-touch-icon.png',
+          href: '/apple-touch-icon-180.png',
+        },
+      },
+      {
+        tag: 'link',
+        attrs: {
+          rel: 'manifest',
+          href: '/manifest.webmanifest',
+        },
+      },
+      {
+        tag: 'meta',
+        attrs: {
+          name: 'theme-color',
+          content: '#ff9429',
+        },
+      },
+      {
+        tag: 'meta',
+        attrs: {
+          name: 'mobile-web-app-capable',
+          content: 'yes',
+        },
+      },
+      {
+        tag: 'meta',
+        attrs: {
+          name: 'apple-mobile-web-app-capable',
+          content: 'yes',
+        },
+      },
+      {
+        tag: 'meta',
+        attrs: {
+          name: 'apple-mobile-web-app-status-bar-style',
+          content: 'default',
+        },
+      },
+      {
+        tag: 'meta',
+        attrs: {
+          name: 'apple-mobile-web-app-title',
+          content: 'S3 Browser',
         },
       },
     ],

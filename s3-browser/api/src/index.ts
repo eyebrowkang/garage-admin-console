@@ -28,7 +28,13 @@ function mountStaticFrontend(app: Express) {
   // MF entry files keep stable names but their content changes every release.
   // Serving them with long-term immutable would let upgraded hosts keep
   // requesting chunks that no longer exist on the remote.
-  const noStoreFiles = new Set(['index.html', 'mf-manifest.json', 'remoteEntry.js']);
+  const noStoreFiles = new Set([
+    'index.html',
+    'mf-manifest.json',
+    'remoteEntry.js',
+    'sw.js',
+    'manifest.webmanifest',
+  ]);
 
   app.use(
     express.static(resolved, {
@@ -36,6 +42,10 @@ function mountStaticFrontend(app: Express) {
         if (staticCorsOrigin) {
           res.setHeader('Access-Control-Allow-Origin', staticCorsOrigin);
           res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+        }
+
+        if (path.basename(filePath) === 'manifest.webmanifest') {
+          res.setHeader('Content-Type', 'application/manifest+json');
         }
 
         if (noStoreFiles.has(path.basename(filePath))) {

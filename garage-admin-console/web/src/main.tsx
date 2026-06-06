@@ -22,3 +22,11 @@ createRoot(rootEl).render(
     </QueryClientProvider>
   </StrictMode>,
 );
+
+// PWA service worker. Prod only, so the dev server's HMR isn't shadowed by a
+// cache. The caching contract lives in public/sw.js.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    void navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
