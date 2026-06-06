@@ -251,4 +251,67 @@ describe('proactive refresh before expiry', () => {
       vi.useRealTimers();
     }
   });
+
+  it('clears the session and calls onUnauthorized on a terminal proactive failure', async () => {
+    vi.useFakeTimers();
+    try {
+      const onUnauthorized = vi.fn();
+      // An axios error with a 4xx response = the refresh token was rejected.
+      const rejected = Object.assign(new Error('refresh expired'), {
+        isAxiosError: true,
+        response: { status: 401 },
+      });
+      const postSpy = vi.spyOn(axios, 'post').mockRejectedValue(rejected);
+      const client = createApiClient({
+        baseURL: '/api',
+        tokenKey: TOKEN_KEY,
+        refreshTokenKey: REFRESH_KEY,
+        onUnauthorized,
+      });
+      client.writeStoredRefreshToken('r-1');
+      client.writeStoredToken(fakeJwt(120));
+
+      await vi.advanceTimersByTimeAsync(61_000);
+
+      expect(client.readStoredToken()).toBeNull();
+      expect(client.readStoredRefreshToken()).toBeNull();
+      expect(onUnauthorized).toHaveBeenCalledTimes(1);
+      postSpy.mockRestore();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('keeps tokens and retries on a transient proactive failure', async () => {
+    vi.useFakeTimers();
+    try {
+      const onUnauthorized = vi.fn();
+      // An axios error with no response = offline/timeout = transient.
+      const offline = Object.assign(new Error('offline'), { isAxiosError: true });
+      const postSpy = vi
+        .spyOn(axios, 'post')
+        .mockRejectedValueOnce(offline)
+        .mockResolvedValueOnce({ data: { token: 'recovered', refreshToken: 'r-2' } });
+      const client = createApiClient({
+        baseURL: '/api',
+        tokenKey: TOKEN_KEY,
+        refreshTokenKey: REFRESH_KEY,
+        onUnauthorized,
+      });
+      client.writeStoredRefreshToken('r-1');
+      client.writeStoredToken(fakeJwt(120));
+
+      await vi.advanceTimersByTimeAsync(61_000); // proactive fires → network fail
+      expect(onUnauthorized).not.toHaveBeenCalled();
+      expect(client.readStoredToken()).not.toBeNull(); // session kept
+      expect(client.readStoredRefreshToken()).toBe('r-1');
+
+      await vi.advanceTimersByTimeAsync(31_000); // scheduled retry fires → succeeds
+      expect(client.readStoredToken()).toBe('recovered');
+      expect(client.readStoredRefreshToken()).toBe('r-2');
+      postSpy.mockRestore();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

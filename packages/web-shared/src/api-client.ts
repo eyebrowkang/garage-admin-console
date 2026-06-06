@@ -51,6 +51,9 @@ export interface ApiClient {
 /** Seconds before access-token expiry at which the proactive refresh fires. */
 const PROACTIVE_REFRESH_SKEW_S = 60;
 
+/** Delay before retrying a refresh that failed transiently (offline / 5xx). */
+const REFRESH_RETRY_MS = 30_000;
+
 /**
  * Read a JWT's `exp` (epoch seconds) WITHOUT verifying the signature — used only
  * to schedule a proactive refresh, never for trust. Returns null if unreadable.
@@ -65,6 +68,24 @@ function readJwtExp(token: string): number | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Distinguish a transient refresh failure (offline, timeout, 5xx — keep the
+ * tokens and retry) from a terminal one (the refresh token was rejected — clear
+ * the session). Anything not clearly transient is treated as terminal.
+ */
+function isTransientRefreshError(error: unknown): boolean {
+  if (!axios.isAxiosError(error)) return false;
+  const status = error.response?.status;
+  return status === undefined || status >= 500;
+}
+
+/** Outcome of a refresh attempt: a new access token, or a classified failure. */
+interface RefreshOutcome {
+  token: string | null;
+  /** When token is null: true = session dead (tokens cleared); false = transient (retry scheduled). */
+  terminal: boolean;
 }
 
 /**
@@ -86,7 +107,7 @@ export function createApiClient({
   // A single in-flight refresh shared by every request that 401s and by the
   // proactive timer, so a burst of concurrent failures triggers exactly one
   // /refresh round-trip.
-  let refreshInFlight: Promise<string | null> | null = null;
+  let refreshInFlight: Promise<RefreshOutcome> | null = null;
   let proactiveTimer: ReturnType<typeof setTimeout> | null = null;
 
   const readStorage = (key: string): string | null => {
@@ -134,31 +155,73 @@ export function createApiClient({
     };
   };
 
-  // Exchange the stored refresh token for a fresh pair. Returns the new access
-  // token, or null if refresh is unavailable/failed. Declared as a hoisted
-  // function so writeStoredToken/scheduleProactiveRefresh can reference it.
-  function refreshAccessToken(): Promise<string | null> {
+  // Drop both tokens and notify subscribers (via writeStoredToken) so reactive
+  // route guards flip to login and the embedded surface stops using a dead token.
+  function clearTokens(): void {
+    writeStoredToken(null); // also cancels the proactive timer + notifies
+    writeStoredRefreshToken(null);
+  }
+
+  // Re-arm the timer to retry a refresh after a transient failure (offline, a
+  // server blip), so an installed PWA recovers on its own once it can reach the
+  // BFF again — without logging the user out in the meantime.
+  function scheduleRefreshRetry(): void {
+    if (typeof window === 'undefined' || !refreshTokenKey) return;
+    if (proactiveTimer) clearTimeout(proactiveTimer);
+    proactiveTimer = setTimeout(() => {
+      void runScheduledRefresh();
+    }, REFRESH_RETRY_MS);
+  }
+
+  // Exchange the stored refresh token for a fresh pair. The token-clearing /
+  // retry side effects live HERE so both callers — the 401 interceptor and the
+  // timer — recover consistently; the OUTCOME is returned so each caller can
+  // surface a terminal failure with the right error:
+  //   { token }                       → success (writeStoredToken reschedules)
+  //   { token: null, terminal: true }  → session dead (tokens already cleared)
+  //   { token: null, terminal: false } → transient (a retry is scheduled)
+  // Declared as a hoisted function so the helpers above and writeStoredToken/
+  // scheduleProactiveRefresh can reference it.
+  function refreshAccessToken(): Promise<RefreshOutcome> {
     if (refreshInFlight) return refreshInFlight;
     const refreshToken = readStoredRefreshToken();
-    if (!refreshToken) return Promise.resolve(null);
+    if (!refreshToken) return Promise.resolve({ token: null, terminal: true });
 
-    refreshInFlight = (async () => {
+    refreshInFlight = (async (): Promise<RefreshOutcome> => {
       try {
         // A bare axios call (not `api`) so it skips the auth interceptors and
         // can't recurse into refresh on its own response.
         const res = await axios.post(`${baseURL}${refreshPath}`, { refreshToken });
         const data = res.data as { token?: string; refreshToken?: string };
-        if (!data?.token) return null;
+        if (!data?.token) {
+          clearTokens(); // 2xx but unusable → treat as terminal
+          return { token: null, terminal: true };
+        }
         if (data.refreshToken) writeStoredRefreshToken(data.refreshToken);
         writeStoredToken(data.token); // reschedules the proactive timer + notifies
-        return data.token;
-      } catch {
-        return null;
+        return { token: data.token, terminal: false };
+      } catch (err) {
+        if (isTransientRefreshError(err)) {
+          scheduleRefreshRetry();
+          return { token: null, terminal: false };
+        }
+        clearTokens(); // refresh token rejected → session dead
+        return { token: null, terminal: true };
       } finally {
         refreshInFlight = null;
       }
     })();
     return refreshInFlight;
+  }
+
+  // Timer-driven refresh (proactive + retry). A terminal failure here is the one
+  // the 401 interceptor can't observe — tokens were already cleared inside
+  // refreshAccessToken; also fire onUnauthorized so the Admin host's hard
+  // redirect runs (its route guard reads the token non-reactively). There is no
+  // request error in this path, so onUnauthorized receives undefined.
+  async function runScheduledRefresh(): Promise<void> {
+    const outcome = await refreshAccessToken();
+    if (outcome.token === null && outcome.terminal) onUnauthorized?.(undefined);
   }
 
   function scheduleProactiveRefresh(token: string | null): void {
@@ -174,7 +237,7 @@ export function createApiClient({
     // setTimeout ceiling that some engines clamp/reject.
     const safeDelay = Math.max(0, Math.min(delayMs, 2_147_483_647));
     proactiveTimer = setTimeout(() => {
-      void refreshAccessToken();
+      void runScheduledRefresh();
     }, safeDelay);
   }
 
@@ -202,17 +265,17 @@ export function createApiClient({
       // which refreshing can't fix — route it straight to onUnauthorized.
       if (status === 401 && original && !original._retry && readStoredRefreshToken()) {
         original._retry = true;
-        const newToken = await refreshAccessToken();
-        if (newToken) {
+        const outcome = await refreshAccessToken();
+        if (outcome.token) {
           original.headers = original.headers ?? {};
-          (original.headers as Record<string, string>).Authorization = `Bearer ${newToken}`;
+          (original.headers as Record<string, string>).Authorization = `Bearer ${outcome.token}`;
           return api(original);
         }
-        // Refresh failed → the session is truly dead. Clear both tokens so the
-        // app's reactive guard / redirect fires, then defer to its policy.
-        writeStoredToken(null);
-        writeStoredRefreshToken(null);
-        onUnauthorized?.(error);
+        // refreshAccessToken already cleared the session (terminal) or scheduled
+        // a retry (transient). On a terminal failure, notify with the ORIGINAL
+        // request error so the app's proxy-skip policy still applies; on a
+        // transient one, just surface this request's failure (no wrongful logout).
+        if (outcome.terminal) onUnauthorized?.(error);
         return Promise.reject(error);
       }
 
