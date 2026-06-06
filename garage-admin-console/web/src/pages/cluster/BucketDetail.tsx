@@ -69,17 +69,8 @@ import { KeyIcon } from '@/lib/entity-icons';
 import { formatBytes, formatNum, formatShortId, getApiErrorMessage } from '@garage/web-shared';
 import { toast } from '@garage/ui';
 import { useNodes } from '@/hooks/useNodes';
-import type { CorsRule, LifecycleRule, WebsiteRoutingRule, NodeResp } from '@/types/garage';
-
-function clusterMinVersion(nodes: NodeResp[], target: string): boolean {
-  const parse = (v: string) => v.replace(/^v/, '').split('.').map(Number);
-  const [t0, t1, t2] = parse(target);
-  return nodes.some((n) => {
-    if (!n.garageVersion) return false;
-    const [a, b, c] = parse(n.garageVersion);
-    return a > t0 || (a === t0 && (b > t1 || (b === t1 && c >= t2)));
-  });
-}
+import type { CorsRule, LifecycleRule, WebsiteRoutingRule } from '@/types/garage';
+import { clusterMinVersion } from './cluster-version';
 
 /** A usage stat: the value, an optional `/ max`, and a quota meter when a limit
  *  is set (color-coded by how close usage is to the cap). */
@@ -379,7 +370,7 @@ export function BucketDetail() {
 
   const handleSaveCorsRules = async () => {
     try {
-      await updateBucketMutation.mutateAsync({ corsRules: corsRules.length > 0 ? corsRules : [] });
+      await updateBucketMutation.mutateAsync({ corsRules });
       toast({ title: 'CORS rules updated', variant: 'success' });
       setCorsDialogOpen(false);
     } catch (err) {
@@ -394,7 +385,7 @@ export function BucketDetail() {
   const handleSaveLifecycleRules = async () => {
     try {
       await updateBucketMutation.mutateAsync({
-        lifecycleRules: lifecycleRules.length > 0 ? lifecycleRules : [],
+        lifecycleRules,
       });
       toast({ title: 'Lifecycle rules updated', variant: 'success' });
       setLifecycleDialogOpen(false);
@@ -1339,6 +1330,29 @@ export function BucketDetail() {
                                 />
                               </div>
                               <div className="space-y-1.5">
+                                <Label className="text-xs">Replace Key With</Label>
+                                <Input
+                                  value={rule.Redirect.ReplaceKeyWith ?? ''}
+                                  onChange={(e) => {
+                                    const val = e.target.value || null;
+                                    setWebsiteRoutingRules((prev) =>
+                                      prev.map((r, j) =>
+                                        j === i
+                                          ? {
+                                              ...r,
+                                              Redirect: {
+                                                ...r.Redirect,
+                                                ReplaceKeyWith: val,
+                                              },
+                                            }
+                                          : r,
+                                      ),
+                                    );
+                                  }}
+                                  placeholder="exact-key.html"
+                                />
+                              </div>
+                              <div className="space-y-1.5">
                                 <Label className="text-xs">HTTP Redirect Code</Label>
                                 <Input
                                   type="number"
@@ -1693,7 +1707,11 @@ export function BucketDetail() {
                           j === i
                             ? {
                                 ...r,
-                                Filter: prefix ? { ...r.Filter, Prefix: prefix } : null,
+                                Filter: prefix
+                                  ? { ...r.Filter, Prefix: prefix }
+                                  : r.Filter
+                                    ? { ...r.Filter, Prefix: undefined }
+                                    : null,
                               }
                             : r,
                         ),

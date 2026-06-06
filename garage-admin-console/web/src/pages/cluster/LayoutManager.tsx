@@ -1340,7 +1340,7 @@ function LayoutComputationPanel({ stats }: { stats: ComputationStat }) {
   const capacityPct =
     stats.totalCapacity > 0
       ? ((stats.effectiveCapacity / stats.totalCapacity) * 100).toFixed(1)
-      : 0;
+      : '0';
 
   return (
     <div className="space-y-3 rounded-lg border p-4">
