@@ -35,6 +35,7 @@ export interface BucketQuotas {
 export interface BucketWebsiteConfig {
   indexDocument: string;
   errorDocument?: string | null;
+  routingRules?: WebsiteRoutingRule[] | null;
 }
 
 // v2.3.0: bucket CORS rules
@@ -114,7 +115,6 @@ export interface BucketInfo {
   quotas: BucketQuotas;
   corsRules?: CorsRule[] | null;
   lifecycleRules?: LifecycleRule[] | null;
-  routingRules?: WebsiteRoutingRule[] | null;
 }
 
 export interface UpdateBucketRequest {

@@ -8,7 +8,6 @@ import {
   AlertTriangle,
   Shield,
   Timer,
-  ArrowRightLeft,
   Plus,
   Trash2,
 } from 'lucide-react';
@@ -47,6 +46,7 @@ import {
   TabsContent,
   TabHotkeys,
   PermissionPill,
+  Switch,
 } from '@garage/ui';
 import { useClusterContext } from '@/contexts/ClusterContext';
 import {
@@ -166,8 +166,7 @@ export function BucketDetail() {
   const [corsRules, setCorsRules] = useState<CorsRule[]>([]);
   const [lifecycleDialogOpen, setLifecycleDialogOpen] = useState(false);
   const [lifecycleRules, setLifecycleRules] = useState<LifecycleRule[]>([]);
-  const [routingDialogOpen, setRoutingDialogOpen] = useState(false);
-  const [routingRules, setRoutingRules] = useState<WebsiteRoutingRule[]>([]);
+  const [websiteRoutingRules, setWebsiteRoutingRules] = useState<WebsiteRoutingRule[]>([]);
   const { data: bucket, isLoading, error } = useBucketInfo(clusterId, bid || '');
   const updateBucketMutation = useUpdateBucket(clusterId, bid || '');
   const cleanupMutation = useCleanupIncompleteUploads(clusterId, bid || '');
@@ -259,6 +258,7 @@ export function BucketDetail() {
           enabled: websiteEnabled,
           indexDocument: websiteEnabled && indexDocument ? indexDocument : null,
           errorDocument: websiteEnabled && errorDocument ? errorDocument : null,
+          routingRules: websiteEnabled ? websiteRoutingRules : [],
         },
       });
       toast({ title: 'Website access updated', variant: 'success' });
@@ -407,27 +407,6 @@ export function BucketDetail() {
     }
   };
 
-  const handleSaveRoutingRules = async () => {
-    try {
-      await updateBucketMutation.mutateAsync({
-        websiteAccess: {
-          enabled: bucket.websiteAccess,
-          indexDocument: bucket.websiteConfig?.indexDocument ?? null,
-          errorDocument: bucket.websiteConfig?.errorDocument ?? null,
-          routingRules: routingRules.length > 0 ? routingRules : [],
-        },
-      });
-      toast({ title: 'Routing rules updated', variant: 'success' });
-      setRoutingDialogOpen(false);
-    } catch (err) {
-      toast({
-        title: 'Failed to update routing rules',
-        description: getApiErrorMessage(err),
-        variant: 'destructive',
-      });
-    }
-  };
-
   const openCorsEditor = () => {
     setCorsRules(bucket.corsRules?.map((r) => ({ ...r })) ?? []);
     setCorsDialogOpen(true);
@@ -438,13 +417,6 @@ export function BucketDetail() {
       bucket.lifecycleRules?.map((r) => JSON.parse(JSON.stringify(r)) as LifecycleRule) ?? [],
     );
     setLifecycleDialogOpen(true);
-  };
-
-  const openRoutingEditor = () => {
-    setRoutingRules(
-      bucket.routingRules?.map((r) => JSON.parse(JSON.stringify(r)) as WebsiteRoutingRule) ?? [],
-    );
-    setRoutingDialogOpen(true);
   };
 
   return (
@@ -663,6 +635,14 @@ export function BucketDetail() {
                           </span>
                         </span>
                       )}
+                      {(bucket.websiteConfig?.routingRules ?? []).length > 0 && (
+                        <span className="text-muted-foreground">
+                          routing rules:{' '}
+                          <span className="font-mono text-foreground">
+                            {bucket.websiteConfig!.routingRules!.length}
+                          </span>
+                        </span>
+                      )}
                     </>
                   )}
                 </div>
@@ -675,6 +655,11 @@ export function BucketDetail() {
                   setWebsiteEnabled(bucket.websiteAccess);
                   setWebsiteIndex(bucket.websiteConfig?.indexDocument || '');
                   setWebsiteError(bucket.websiteConfig?.errorDocument || '');
+                  setWebsiteRoutingRules(
+                    bucket.websiteConfig?.routingRules?.map(
+                      (r) => JSON.parse(JSON.stringify(r)) as WebsiteRoutingRule,
+                    ) ?? [],
+                  );
                   setWebsiteDialogOpen(true);
                 }}
               >
@@ -816,78 +801,6 @@ export function BucketDetail() {
                   size="sm"
                   className="shrink-0"
                   onClick={openLifecycleEditor}
-                >
-                  Edit
-                </Button>
-              </div>
-            )}
-
-            {/* v2.3.0: Website routing rules */}
-            {supportsV230 && (
-              <div className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0 space-y-1">
-                  <div className="flex items-center gap-2 text-sm font-medium">
-                    <ArrowRightLeft className="h-4 w-4 text-muted-foreground" />
-                    Routing Rules
-                    <Badge variant="secondary">{(bucket.routingRules ?? []).length}</Badge>
-                  </div>
-                  {(bucket.routingRules ?? []).length > 0 ? (
-                    <div className="space-y-1.5 pt-1">
-                      {(bucket.routingRules ?? []).map((rule, i) => (
-                        <div key={i} className="rounded-md border bg-muted/20 px-3 py-2 text-sm">
-                          <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
-                            {rule.Condition?.KeyPrefixEquals && (
-                              <span>
-                                Prefix:{' '}
-                                <span className="font-mono text-foreground">
-                                  {rule.Condition.KeyPrefixEquals}
-                                </span>
-                              </span>
-                            )}
-                            {rule.Condition?.HttpErrorCodeReturnedEquals != null && (
-                              <span>HTTP {rule.Condition.HttpErrorCodeReturnedEquals}</span>
-                            )}
-                            {rule.Redirect.HostName && (
-                              <span>
-                                Redirect to{' '}
-                                <span className="font-mono text-foreground">
-                                  {rule.Redirect.Protocol ? `${rule.Redirect.Protocol}://` : ''}
-                                  {rule.Redirect.HostName}
-                                </span>
-                              </span>
-                            )}
-                            {rule.Redirect.ReplaceKeyPrefixWith && (
-                              <span>
-                                Replace prefix with{' '}
-                                <span className="font-mono text-foreground">
-                                  {rule.Redirect.ReplaceKeyPrefixWith}
-                                </span>
-                              </span>
-                            )}
-                            {rule.Redirect.ReplaceKeyWith && (
-                              <span>
-                                Replace key with{' '}
-                                <span className="font-mono text-foreground">
-                                  {rule.Redirect.ReplaceKeyWith}
-                                </span>
-                              </span>
-                            )}
-                            {rule.Redirect.HttpRedirectCode != null && (
-                              <span>HTTP {rule.Redirect.HttpRedirectCode}</span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-sm text-muted-foreground">No routing rules configured</div>
-                  )}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="shrink-0"
-                  onClick={openRoutingEditor}
                 >
                   Edit
                 </Button>
@@ -1201,7 +1114,7 @@ export function BucketDetail() {
 
       {/* Website Access Dialog */}
       <Dialog open={websiteDialogOpen} onOpenChange={setWebsiteDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Website Access</DialogTitle>
             <DialogDescription>Configure static website hosting for this bucket</DialogDescription>
@@ -1234,6 +1147,232 @@ export function BucketDetail() {
               endpoint — the index document for directory roots, the error document for 4xx
               responses.
             </p>
+
+            {supportsV230 && websiteEnabled && (
+              <div className="space-y-3 border-t pt-4">
+                <div className="flex items-center justify-between">
+                  <Label>Routing Rules</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setWebsiteRoutingRules((prev) => [...prev, { Redirect: {} }])}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Add Rule
+                  </Button>
+                </div>
+                {websiteRoutingRules.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    No routing rules. Add rules to redirect or rewrite requests based on conditions.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {websiteRoutingRules.map((rule, i) => (
+                      <details
+                        key={i}
+                        className="group rounded-lg border"
+                        open={websiteRoutingRules.length <= 3}
+                      >
+                        <summary className="flex cursor-pointer items-center justify-between px-3 py-2.5">
+                          <span className="text-sm font-medium">
+                            Rule {i + 1}
+                            {rule.Condition?.KeyPrefixEquals && (
+                              <span className="ml-2 font-mono text-xs text-muted-foreground">
+                                {rule.Condition.KeyPrefixEquals}
+                              </span>
+                            )}
+                            {rule.Condition?.HttpErrorCodeReturnedEquals != null && (
+                              <span className="ml-2 text-xs text-muted-foreground">
+                                HTTP {rule.Condition.HttpErrorCodeReturnedEquals}
+                              </span>
+                            )}
+                          </span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setWebsiteRoutingRules((prev) => prev.filter((_, j) => j !== i));
+                            }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </summary>
+                        <div className="space-y-3 border-t px-3 pb-3 pt-3">
+                          <div className="space-y-1.5">
+                            <span className="text-xs font-medium text-muted-foreground">
+                              Condition
+                            </span>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              <div className="space-y-1.5">
+                                <Label className="text-xs">Key Prefix</Label>
+                                <Input
+                                  value={rule.Condition?.KeyPrefixEquals ?? ''}
+                                  onChange={(e) => {
+                                    const val = e.target.value || null;
+                                    setWebsiteRoutingRules((prev) =>
+                                      prev.map((r, j) =>
+                                        j === i
+                                          ? {
+                                              ...r,
+                                              Condition:
+                                                val || r.Condition?.HttpErrorCodeReturnedEquals
+                                                  ? { ...r.Condition, KeyPrefixEquals: val }
+                                                  : undefined,
+                                            }
+                                          : r,
+                                      ),
+                                    );
+                                  }}
+                                  placeholder="docs/"
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label className="text-xs">HTTP Error Code</Label>
+                                <Input
+                                  type="number"
+                                  value={rule.Condition?.HttpErrorCodeReturnedEquals ?? ''}
+                                  onChange={(e) => {
+                                    const val = e.target.value
+                                      ? parseInt(e.target.value, 10)
+                                      : null;
+                                    setWebsiteRoutingRules((prev) =>
+                                      prev.map((r, j) =>
+                                        j === i
+                                          ? {
+                                              ...r,
+                                              Condition:
+                                                val != null || r.Condition?.KeyPrefixEquals
+                                                  ? {
+                                                      ...r.Condition,
+                                                      HttpErrorCodeReturnedEquals: val,
+                                                    }
+                                                  : undefined,
+                                            }
+                                          : r,
+                                      ),
+                                    );
+                                  }}
+                                  placeholder="404"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                          <div className="space-y-1.5">
+                            <span className="text-xs font-medium text-muted-foreground">
+                              Redirect
+                            </span>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              <div className="space-y-1.5">
+                                <Label className="text-xs">Host Name</Label>
+                                <Input
+                                  value={rule.Redirect.HostName ?? ''}
+                                  onChange={(e) => {
+                                    const val = e.target.value || null;
+                                    setWebsiteRoutingRules((prev) =>
+                                      prev.map((r, j) =>
+                                        j === i
+                                          ? {
+                                              ...r,
+                                              Redirect: { ...r.Redirect, HostName: val },
+                                            }
+                                          : r,
+                                      ),
+                                    );
+                                  }}
+                                  placeholder="example.com"
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label className="text-xs">Protocol</Label>
+                                <Select
+                                  value={rule.Redirect.Protocol ?? ''}
+                                  onValueChange={(val) =>
+                                    setWebsiteRoutingRules((prev) =>
+                                      prev.map((r, j) =>
+                                        j === i
+                                          ? {
+                                              ...r,
+                                              Redirect: {
+                                                ...r.Redirect,
+                                                Protocol: val || null,
+                                              },
+                                            }
+                                          : r,
+                                      ),
+                                    )
+                                  }
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="(unchanged)" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="https">https</SelectItem>
+                                    <SelectItem value="http">http</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label className="text-xs">Replace Key Prefix With</Label>
+                                <Input
+                                  value={rule.Redirect.ReplaceKeyPrefixWith ?? ''}
+                                  onChange={(e) => {
+                                    const val = e.target.value || null;
+                                    setWebsiteRoutingRules((prev) =>
+                                      prev.map((r, j) =>
+                                        j === i
+                                          ? {
+                                              ...r,
+                                              Redirect: {
+                                                ...r.Redirect,
+                                                ReplaceKeyPrefixWith: val,
+                                              },
+                                            }
+                                          : r,
+                                      ),
+                                    );
+                                  }}
+                                  placeholder="new-prefix/"
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label className="text-xs">HTTP Redirect Code</Label>
+                                <Input
+                                  type="number"
+                                  value={rule.Redirect.HttpRedirectCode ?? ''}
+                                  onChange={(e) => {
+                                    const val = e.target.value
+                                      ? parseInt(e.target.value, 10)
+                                      : null;
+                                    setWebsiteRoutingRules((prev) =>
+                                      prev.map((r, j) =>
+                                        j === i
+                                          ? {
+                                              ...r,
+                                              Redirect: {
+                                                ...r.Redirect,
+                                                HttpRedirectCode: val,
+                                              },
+                                            }
+                                          : r,
+                                      ),
+                                    );
+                                  }}
+                                  placeholder="301"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </details>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setWebsiteDialogOpen(false)}>
@@ -1529,24 +1668,18 @@ export function BucketDetail() {
                       placeholder="my-rule-id"
                     />
                   </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Status</Label>
-                    <Select
-                      value={rule.Status}
-                      onValueChange={(val) =>
+                  <div className="flex items-end gap-2 pb-1">
+                    <Label className="text-xs">Enabled</Label>
+                    <Switch
+                      checked={rule.Status === 'Enabled'}
+                      onCheckedChange={(checked) =>
                         setLifecycleRules((prev) =>
-                          prev.map((r, j) => (j === i ? { ...r, Status: val } : r)),
+                          prev.map((r, j) =>
+                            j === i ? { ...r, Status: checked ? 'Enabled' : 'Disabled' } : r,
+                          ),
                         )
                       }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Enabled">Enabled</SelectItem>
-                        <SelectItem value="Disabled">Disabled</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    />
                   </div>
                 </div>
                 <div className="space-y-1.5">
@@ -1639,184 +1772,6 @@ export function BucketDetail() {
               Cancel
             </Button>
             <Button onClick={handleSaveLifecycleRules} disabled={updateBucketMutation.isPending}>
-              {updateBucketMutation.isPending ? 'Saving...' : 'Save'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Routing Rules Editor */}
-      <Dialog open={routingDialogOpen} onOpenChange={setRoutingDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Edit Routing Rules</DialogTitle>
-            <DialogDescription>
-              Configure website redirect and rewrite rules. These are saved as part of the website
-              access configuration.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            {routingRules.map((rule, i) => (
-              <div key={i} className="space-y-3 rounded-lg border p-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Rule {i + 1}</span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                    onClick={() => setRoutingRules((prev) => prev.filter((_, j) => j !== i))}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-                <div className="space-y-1.5">
-                  <span className="text-xs font-medium text-muted-foreground">Condition</span>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Key Prefix</Label>
-                      <Input
-                        value={rule.Condition?.KeyPrefixEquals ?? ''}
-                        onChange={(e) => {
-                          const val = e.target.value || null;
-                          setRoutingRules((prev) =>
-                            prev.map((r, j) =>
-                              j === i
-                                ? {
-                                    ...r,
-                                    Condition:
-                                      val || r.Condition?.HttpErrorCodeReturnedEquals
-                                        ? { ...r.Condition, KeyPrefixEquals: val }
-                                        : undefined,
-                                  }
-                                : r,
-                            ),
-                          );
-                        }}
-                        placeholder="docs/"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">HTTP Error Code</Label>
-                      <Input
-                        type="number"
-                        value={rule.Condition?.HttpErrorCodeReturnedEquals ?? ''}
-                        onChange={(e) => {
-                          const val = e.target.value ? parseInt(e.target.value, 10) : null;
-                          setRoutingRules((prev) =>
-                            prev.map((r, j) =>
-                              j === i
-                                ? {
-                                    ...r,
-                                    Condition:
-                                      val != null || r.Condition?.KeyPrefixEquals
-                                        ? { ...r.Condition, HttpErrorCodeReturnedEquals: val }
-                                        : undefined,
-                                  }
-                                : r,
-                            ),
-                          );
-                        }}
-                        placeholder="404"
-                      />
-                    </div>
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <span className="text-xs font-medium text-muted-foreground">Redirect</span>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Host Name</Label>
-                      <Input
-                        value={rule.Redirect.HostName ?? ''}
-                        onChange={(e) => {
-                          const val = e.target.value || null;
-                          setRoutingRules((prev) =>
-                            prev.map((r, j) =>
-                              j === i ? { ...r, Redirect: { ...r.Redirect, HostName: val } } : r,
-                            ),
-                          );
-                        }}
-                        placeholder="example.com"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Protocol</Label>
-                      <Select
-                        value={rule.Redirect.Protocol ?? ''}
-                        onValueChange={(val) =>
-                          setRoutingRules((prev) =>
-                            prev.map((r, j) =>
-                              j === i
-                                ? { ...r, Redirect: { ...r.Redirect, Protocol: val || null } }
-                                : r,
-                            ),
-                          )
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="(unchanged)" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="https">https</SelectItem>
-                          <SelectItem value="http">http</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Replace Key Prefix With</Label>
-                      <Input
-                        value={rule.Redirect.ReplaceKeyPrefixWith ?? ''}
-                        onChange={(e) => {
-                          const val = e.target.value || null;
-                          setRoutingRules((prev) =>
-                            prev.map((r, j) =>
-                              j === i
-                                ? { ...r, Redirect: { ...r.Redirect, ReplaceKeyPrefixWith: val } }
-                                : r,
-                            ),
-                          );
-                        }}
-                        placeholder="new-prefix/"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">HTTP Redirect Code</Label>
-                      <Input
-                        type="number"
-                        value={rule.Redirect.HttpRedirectCode ?? ''}
-                        onChange={(e) => {
-                          const val = e.target.value ? parseInt(e.target.value, 10) : null;
-                          setRoutingRules((prev) =>
-                            prev.map((r, j) =>
-                              j === i
-                                ? { ...r, Redirect: { ...r.Redirect, HttpRedirectCode: val } }
-                                : r,
-                            ),
-                          );
-                        }}
-                        placeholder="301"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setRoutingRules((prev) => [...prev, { Redirect: {} }])}
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Add Rule
-            </Button>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRoutingDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSaveRoutingRules} disabled={updateBucketMutation.isPending}>
               {updateBucketMutation.isPending ? 'Saving...' : 'Save'}
             </Button>
           </DialogFooter>
