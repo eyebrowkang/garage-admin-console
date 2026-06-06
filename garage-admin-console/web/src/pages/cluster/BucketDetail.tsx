@@ -68,7 +68,18 @@ import { AddActionIcon, DeleteActionIcon, OpenActionIcon } from '@/lib/action-ic
 import { KeyIcon } from '@/lib/entity-icons';
 import { formatBytes, formatNum, formatShortId, getApiErrorMessage } from '@garage/web-shared';
 import { toast } from '@garage/ui';
-import type { CorsRule, LifecycleRule, WebsiteRoutingRule } from '@/types/garage';
+import { useNodes } from '@/hooks/useNodes';
+import type { CorsRule, LifecycleRule, WebsiteRoutingRule, NodeResp } from '@/types/garage';
+
+function clusterMinVersion(nodes: NodeResp[], target: string): boolean {
+  const parse = (v: string) => v.replace(/^v/, '').split('.').map(Number);
+  const [t0, t1, t2] = parse(target);
+  return nodes.some((n) => {
+    if (!n.garageVersion) return false;
+    const [a, b, c] = parse(n.garageVersion);
+    return a > t0 || (a === t0 && (b > t1 || (b === t1 && c >= t2)));
+  });
+}
 
 /** A usage stat: the value, an optional `/ max`, and a quota meter when a limit
  *  is set (color-coded by how close usage is to the cap). */
@@ -163,6 +174,8 @@ export function BucketDetail() {
   const addAliasMutation = useAddBucketAlias(clusterId);
   const removeAliasMutation = useRemoveBucketAlias(clusterId);
   const inspectMutation = useInspectObject(clusterId, bid || '');
+  const nodesQuery = useNodes(clusterId);
+  const supportsV230 = clusterMinVersion(nodesQuery.data?.nodes ?? [], '2.3.0');
 
   if (!bid) {
     return (
@@ -693,18 +706,18 @@ export function BucketDetail() {
               </Button>
             </div>
 
-            {/* v2.3.0: CORS rules */}
-            {bucket.corsRules != null && (
+            {/* v2.3.0: CORS rules — gated on cluster version, not response field */}
+            {supportsV230 && (
               <div className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0 space-y-1">
                   <div className="flex items-center gap-2 text-sm font-medium">
                     <Shield className="h-4 w-4 text-muted-foreground" />
                     CORS Rules
-                    <Badge variant="secondary">{bucket.corsRules.length}</Badge>
+                    <Badge variant="secondary">{(bucket.corsRules ?? []).length}</Badge>
                   </div>
-                  {bucket.corsRules.length > 0 ? (
+                  {(bucket.corsRules ?? []).length > 0 ? (
                     <div className="space-y-1.5 pt-1">
-                      {bucket.corsRules.map((rule, i) => (
+                      {(bucket.corsRules ?? []).map((rule, i) => (
                         <div
                           key={rule.ID ?? i}
                           className="rounded-md border bg-muted/20 px-3 py-2 text-sm"
@@ -742,17 +755,17 @@ export function BucketDetail() {
             )}
 
             {/* v2.3.0: Lifecycle rules */}
-            {bucket.lifecycleRules != null && (
+            {supportsV230 && (
               <div className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0 space-y-1">
                   <div className="flex items-center gap-2 text-sm font-medium">
                     <Timer className="h-4 w-4 text-muted-foreground" />
                     Lifecycle Rules
-                    <Badge variant="secondary">{bucket.lifecycleRules.length}</Badge>
+                    <Badge variant="secondary">{(bucket.lifecycleRules ?? []).length}</Badge>
                   </div>
-                  {bucket.lifecycleRules.length > 0 ? (
+                  {(bucket.lifecycleRules ?? []).length > 0 ? (
                     <div className="space-y-1.5 pt-1">
-                      {bucket.lifecycleRules.map((rule, i) => (
+                      {(bucket.lifecycleRules ?? []).map((rule, i) => (
                         <div
                           key={rule.ID ?? i}
                           className="rounded-md border bg-muted/20 px-3 py-2 text-sm"
@@ -810,17 +823,17 @@ export function BucketDetail() {
             )}
 
             {/* v2.3.0: Website routing rules */}
-            {bucket.routingRules != null && (
+            {supportsV230 && (
               <div className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0 space-y-1">
                   <div className="flex items-center gap-2 text-sm font-medium">
                     <ArrowRightLeft className="h-4 w-4 text-muted-foreground" />
                     Routing Rules
-                    <Badge variant="secondary">{bucket.routingRules.length}</Badge>
+                    <Badge variant="secondary">{(bucket.routingRules ?? []).length}</Badge>
                   </div>
-                  {bucket.routingRules.length > 0 ? (
+                  {(bucket.routingRules ?? []).length > 0 ? (
                     <div className="space-y-1.5 pt-1">
-                      {bucket.routingRules.map((rule, i) => (
+                      {(bucket.routingRules ?? []).map((rule, i) => (
                         <div key={i} className="rounded-md border bg-muted/20 px-3 py-2 text-sm">
                           <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
                             {rule.Condition?.KeyPrefixEquals && (
@@ -1329,106 +1342,133 @@ export function BucketDetail() {
           </DialogHeader>
           <div className="space-y-3 py-2">
             {corsRules.map((rule, i) => (
-              <div key={i} className="space-y-3 rounded-lg border p-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Rule {i + 1}</span>
+              <details key={i} className="group rounded-lg border" open={corsRules.length <= 3}>
+                <summary className="flex cursor-pointer items-center justify-between px-3 py-2.5">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <span>Rule {i + 1}</span>
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {rule.AllowedOrigin.join(', ')} / {rule.AllowedMethod.join(', ')}
+                    </span>
+                  </div>
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                    onClick={() => setCorsRules((prev) => prev.filter((_, j) => j !== i))}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setCorsRules((prev) => prev.filter((_, j) => j !== i));
+                    }}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
+                </summary>
+                <div className="space-y-3 border-t px-3 pb-3 pt-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">
+                      Allowed Origins (comma-separated) <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      value={rule.AllowedOrigin.join(', ')}
+                      onChange={(e) => {
+                        const origins = e.target.value
+                          .split(',')
+                          .map((s) => s.trim())
+                          .filter(Boolean);
+                        setCorsRules((prev) =>
+                          prev.map((r, j) => (j === i ? { ...r, AllowedOrigin: origins } : r)),
+                        );
+                      }}
+                      placeholder="* or https://example.com"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">
+                      Allowed Methods (comma-separated) <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      value={rule.AllowedMethod.join(', ')}
+                      onChange={(e) => {
+                        const methods = e.target.value
+                          .split(',')
+                          .map((s) => s.trim().toUpperCase())
+                          .filter(Boolean);
+                        setCorsRules((prev) =>
+                          prev.map((r, j) => (j === i ? { ...r, AllowedMethod: methods } : r)),
+                        );
+                      }}
+                      placeholder="GET, PUT, POST, DELETE, HEAD"
+                    />
+                  </div>
+                  <details className="rounded-md border border-dashed px-3 pb-3 pt-2">
+                    <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
+                      Optional fields
+                    </summary>
+                    <div className="mt-3 space-y-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Allowed Headers (comma-separated)</Label>
+                        <Input
+                          value={(rule.AllowedHeader ?? []).join(', ')}
+                          onChange={(e) => {
+                            const headers = e.target.value
+                              .split(',')
+                              .map((s) => s.trim())
+                              .filter(Boolean);
+                            setCorsRules((prev) =>
+                              prev.map((r, j) =>
+                                j === i
+                                  ? {
+                                      ...r,
+                                      AllowedHeader: headers.length > 0 ? headers : undefined,
+                                    }
+                                  : r,
+                              ),
+                            );
+                          }}
+                          placeholder="*"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Expose Headers (comma-separated)</Label>
+                        <Input
+                          value={(rule.ExposeHeader ?? []).join(', ')}
+                          onChange={(e) => {
+                            const headers = e.target.value
+                              .split(',')
+                              .map((s) => s.trim())
+                              .filter(Boolean);
+                            setCorsRules((prev) =>
+                              prev.map((r, j) =>
+                                j === i
+                                  ? {
+                                      ...r,
+                                      ExposeHeader: headers.length > 0 ? headers : undefined,
+                                    }
+                                  : r,
+                              ),
+                            );
+                          }}
+                          placeholder="ETag, x-amz-request-id"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Max Age (seconds)</Label>
+                        <Input
+                          type="number"
+                          value={rule.MaxAgeSeconds ?? ''}
+                          onChange={(e) => {
+                            const val = e.target.value ? parseInt(e.target.value, 10) : null;
+                            setCorsRules((prev) =>
+                              prev.map((r, j) => (j === i ? { ...r, MaxAgeSeconds: val } : r)),
+                            );
+                          }}
+                          placeholder="3600"
+                        />
+                      </div>
+                    </div>
+                  </details>
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Allowed Origins (comma-separated)</Label>
-                  <Input
-                    value={rule.AllowedOrigin.join(', ')}
-                    onChange={(e) => {
-                      const origins = e.target.value
-                        .split(',')
-                        .map((s) => s.trim())
-                        .filter(Boolean);
-                      setCorsRules((prev) =>
-                        prev.map((r, j) => (j === i ? { ...r, AllowedOrigin: origins } : r)),
-                      );
-                    }}
-                    placeholder="* or https://example.com"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Allowed Methods (comma-separated)</Label>
-                  <Input
-                    value={rule.AllowedMethod.join(', ')}
-                    onChange={(e) => {
-                      const methods = e.target.value
-                        .split(',')
-                        .map((s) => s.trim().toUpperCase())
-                        .filter(Boolean);
-                      setCorsRules((prev) =>
-                        prev.map((r, j) => (j === i ? { ...r, AllowedMethod: methods } : r)),
-                      );
-                    }}
-                    placeholder="GET, PUT, POST, DELETE, HEAD"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Allowed Headers (comma-separated, optional)</Label>
-                  <Input
-                    value={(rule.AllowedHeader ?? []).join(', ')}
-                    onChange={(e) => {
-                      const headers = e.target.value
-                        .split(',')
-                        .map((s) => s.trim())
-                        .filter(Boolean);
-                      setCorsRules((prev) =>
-                        prev.map((r, j) =>
-                          j === i
-                            ? { ...r, AllowedHeader: headers.length > 0 ? headers : undefined }
-                            : r,
-                        ),
-                      );
-                    }}
-                    placeholder="*"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Expose Headers (comma-separated, optional)</Label>
-                  <Input
-                    value={(rule.ExposeHeader ?? []).join(', ')}
-                    onChange={(e) => {
-                      const headers = e.target.value
-                        .split(',')
-                        .map((s) => s.trim())
-                        .filter(Boolean);
-                      setCorsRules((prev) =>
-                        prev.map((r, j) =>
-                          j === i
-                            ? { ...r, ExposeHeader: headers.length > 0 ? headers : undefined }
-                            : r,
-                        ),
-                      );
-                    }}
-                    placeholder="ETag, x-amz-request-id"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Max Age (seconds, optional)</Label>
-                  <Input
-                    type="number"
-                    value={rule.MaxAgeSeconds ?? ''}
-                    onChange={(e) => {
-                      const val = e.target.value ? parseInt(e.target.value, 10) : null;
-                      setCorsRules((prev) =>
-                        prev.map((r, j) => (j === i ? { ...r, MaxAgeSeconds: val } : r)),
-                      );
-                    }}
-                    placeholder="3600"
-                  />
-                </div>
-              </div>
+              </details>
             ))}
             <Button
               type="button"

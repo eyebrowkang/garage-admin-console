@@ -451,15 +451,31 @@ export function ClusterOverview() {
           </div>
         )}
 
-        <TerminalOutput
-          command="garage stats"
-          content={stats?.freeform ?? ''}
-          onRefresh={() => statsQuery.refetch()}
-          refreshing={statsQuery.isFetching}
-          loading={statsQuery.isLoading}
-          loadingLabel="Fetching cluster statistics…"
-          emptyLabel="No statistics available."
-        />
+        {stats?.bucketCount != null ? (
+          <details className="group">
+            <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
+              Raw output
+            </summary>
+            <div className="mt-2">
+              <TerminalOutput
+                command="garage stats"
+                content={stats.freeform}
+                onRefresh={() => statsQuery.refetch()}
+                refreshing={statsQuery.isFetching}
+              />
+            </div>
+          </details>
+        ) : (
+          <TerminalOutput
+            command="garage stats"
+            content={stats?.freeform ?? ''}
+            onRefresh={() => statsQuery.refetch()}
+            refreshing={statsQuery.isFetching}
+            loading={statsQuery.isLoading}
+            loadingLabel="Fetching cluster statistics…"
+            emptyLabel="No statistics available."
+          />
+        )}
       </div>
 
       <Dialog
