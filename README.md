@@ -21,9 +21,9 @@ A modern web-based administration interface for managing [Garage](https://garage
 
 ## Screenshots
 
-| Cluster Overview | S3 File Browser |
-| --- | --- |
-| ![Cluster Overview](./screenshots/ClusterOverview.png) | ![S3 File Browser](./screenshots/S3FileBrowser.png) |
+| Cluster Overview                                                    | S3 File Browser                                                  |
+| ------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| ![Cluster Overview](./screenshots/ClusterOverview.png)              | ![S3 File Browser](./screenshots/S3FileBrowser.png)              |
 | ![Cluster Overview Mobile](./screenshots/ClusterOverviewMobile.png) | ![S3 File Browser Mobile](./screenshots/S3FileBrowserMobile.png) |
 
 See all screenshots in **[screenshots/README.md](./screenshots/README.md)**.
@@ -31,9 +31,15 @@ See all screenshots in **[screenshots/README.md](./screenshots/README.md)**.
 ## Quick start (Docker)
 
 The Admin Console and the S3 Browser ship as composable images — run Admin alone,
-the S3 Browser alone, both combined (Admin proxies the embedded browser so only
-its port is published), or the all-in-one `garage-admin-all` image (Admin + the
-embedded browser bundled in one container, served same-origin).
+the standalone S3 Browser alone, both combined (Admin proxies the embedded browser
+so only its port is published), or the all-in-one `garage-admin-all` image (Admin
+and the embedded browser bundled in one container, served same-origin).
+
+> **All-in-one note:** `garage-admin-all` is for the Admin Console flow. Open the
+> Admin Console, add a Garage cluster, then use the embedded object browser from a
+> bucket detail page. The `/s3-browser` path in that image serves the federated
+> remote for Admin; it is not the standalone S3 Browser app and does not expose
+> standalone `/api/connections` endpoints.
 
 ```bash
 git clone https://github.com/eyebrowkang/garage-admin-console.git
@@ -75,15 +81,15 @@ are in **[docs/development.md](./docs/development.md)**.
 
 ## Documentation
 
-| Doc | What's in it |
-| --- | --- |
+| Doc                                            | What's in it                                                          |
+| ---------------------------------------------- | --------------------------------------------------------------------- |
 | [docs/architecture.md](./docs/architecture.md) | System design, the two products + BFFs, Module Federation, DB schemas |
-| [docs/development.md](./docs/development.md) | Local setup, env, dev servers, common tasks, troubleshooting |
-| [docs/bucket-api.md](./docs/bucket-api.md) | The shared Bucket Backend API contract + conformance suite |
-| [docs/testing.md](./docs/testing.md) | Test strategy, coverage, offline vs. live |
-| [docs/deployment.md](./docs/deployment.md) | Docker images, production env vars, Compose |
-| [CONTRIBUTING.md](./CONTRIBUTING.md) | Branching, Conventional Commits, versioning, code style |
-| [AGENTS.md](./AGENTS.md) | Agent-oriented map of the repo |
+| [docs/development.md](./docs/development.md)   | Local setup, env, dev servers, common tasks, troubleshooting          |
+| [docs/bucket-api.md](./docs/bucket-api.md)     | The shared Bucket Backend API contract + conformance suite            |
+| [docs/testing.md](./docs/testing.md)           | Test strategy, coverage, offline vs. live                             |
+| [docs/deployment.md](./docs/deployment.md)     | Docker images, production env vars, Compose                           |
+| [CONTRIBUTING.md](./CONTRIBUTING.md)           | Branching, Conventional Commits, versioning, code style               |
+| [AGENTS.md](./AGENTS.md)                       | Agent-oriented map of the repo                                        |
 
 ## Security notes
 
