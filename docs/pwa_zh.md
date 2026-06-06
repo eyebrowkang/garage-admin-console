@@ -48,7 +48,9 @@ BFF 以 `Cache-Control: no-store` 提供 `sw.js` 和 `manifest.webmanifest`（ma
 
 ## 重新生成图标
 
-图标是从各应用 `logo.svg` 渲染一次并提交的静态资源。如需重新生成（例如更换 logo 后），将 logo 渲染到不透明 `#fffdfa` 方形背景上，尺寸为 192 / 512 / 512-maskable（logo 约占 66% 以留出安全区）/ 180（apple-touch），例如用 `sharp`，并覆盖 `web/public/` 中的文件。
+母版是各应用的 1024×1024 透明 `web/source/<app>-logo.svg`，提交的图标都由它渲染而来。每个应用的规范集为：公开的 `*-logo.svg`（source 的副本——既作 UI logo 也作 SVG favicon）、`favicon.ico`（不透明，16/32/48）、`apple-touch-icon-180.png`、`pwa-192.png` / `pwa-512.png`（purpose `any`）、`pwa-maskable-512.png`（purpose `maskable`）。
+
+更换 logo 后如需重新生成：将 source 渲染到不透明 `#fffdfa` 方形背景上（品牌 logo 含深色元素，透明栅格在深色表面会消失）——方形图标 logo 占比 `~0.82`，maskable 安全区占比 `~0.62`——例如用 `sharp`（`.ico` 用 `png-to-ico`），再覆盖 `web/public/`。
 
 ## 验证
 

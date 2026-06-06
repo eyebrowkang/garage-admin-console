@@ -73,10 +73,17 @@ rejected.
 
 ## Regenerating icons
 
-Icons are static assets rendered once from each app's `logo.svg` and committed.
-To regenerate (e.g. after a logo change), render onto an opaque `#fffdfa` square
-at 192 / 512 / 512-maskable (~66% logo for the safe zone) / 180 (apple-touch),
-e.g. with `sharp`, and overwrite the files in `web/public/`.
+The master is each app's 1024×1024 transparent `web/source/<app>-logo.svg`; the
+committed icons are rendered from it. The canonical set per app is: the public
+`*-logo.svg` (a copy of the source — the UI logo and the SVG favicon),
+`favicon.ico` (opaque, 16/32/48), `apple-touch-icon-180.png`, `pwa-192.png` /
+`pwa-512.png` (purpose `any`), and `pwa-maskable-512.png` (purpose `maskable`).
+
+To regenerate after a logo change, render the source onto an opaque `#fffdfa`
+square (the brand logos have dark elements, so transparent rasters would vanish
+on dark surfaces) — `~0.82` logo fraction for the square icons, `~0.62` for the
+maskable safe zone — e.g. with `sharp` (plus `png-to-ico` for the `.ico`), then
+overwrite `web/public/`.
 
 ## Verifying
 
