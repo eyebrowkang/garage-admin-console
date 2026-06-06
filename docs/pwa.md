@@ -1,5 +1,7 @@
 # Progressive Web App (PWA)
 
+[English](./pwa.md) | [中文](./pwa_zh.md)
+
 Both web apps — the **Admin Console** (Vite host) and the **S3 Browser**
 (Rsbuild remote) — ship as installable PWAs: a Web App Manifest, a service
 worker, and maskable icons. Installed, each runs standalone (home-screen icon,
