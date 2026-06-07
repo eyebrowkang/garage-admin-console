@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.4.0](https://github.com/eyebrowkang/garage-admin-console/compare/v2.3.0...v2.4.0) (2026-06-07)
+
+
+### Features
+
+* installable PWAs with transparent JWT token refresh ([#32](https://github.com/eyebrowkang/garage-admin-console/issues/32)) ([e23b279](https://github.com/eyebrowkang/garage-admin-console/commit/e23b279ef4b70e0402dbc2cd7e5cf01c3770a5b0))
+* Phase 2 — harden /download streaming + &gt;5 GiB multipart copy (Bucket API) ([#36](https://github.com/eyebrowkang/garage-admin-console/issues/36)) ([4724d44](https://github.com/eyebrowkang/garage-admin-console/commit/4724d44c05f17529dcde1ee7c42d327603efe29a))
+* Phase 3 — adaptive multipart part size + S3_MULTIPART_* config ([#37](https://github.com/eyebrowkang/garage-admin-console/issues/37)) ([a1c61ba](https://github.com/eyebrowkang/garage-admin-console/commit/a1c61bade9bf4f0f3492b402f1d22cb481b0919b))
+* Phase 5 (final) — resumable uploads + CORS diagnostics ([#39](https://github.com/eyebrowkang/garage-admin-console/issues/39)) ([9301dd3](https://github.com/eyebrowkang/garage-admin-console/commit/9301dd3117bb8d8caa1c53e177cb285d64949b34))
+
+
+### Bug Fixes
+
+* **bucket-api:** scope auto-CORS to a concrete origin, never a wildcard ([#43](https://github.com/eyebrowkang/garage-admin-console/issues/43)) ([9421f49](https://github.com/eyebrowkang/garage-admin-console/commit/9421f49e5228e8251e96208e97222911e96dfeb9))
+
+
+### Performance Improvements
+
+* **bucket-api:** spool small proxy uploads in memory, disk only as fallback ([#44](https://github.com/eyebrowkang/garage-admin-console/issues/44)) ([91b7f7a](https://github.com/eyebrowkang/garage-admin-console/commit/91b7f7af117586dabd769cbb3b03b50d4b013946))
+
 ## [2.3.0](https://github.com/eyebrowkang/garage-admin-console/compare/v2.2.0...v2.3.0) (2026-06-06)
 
 
