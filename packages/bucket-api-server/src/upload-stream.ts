@@ -1,10 +1,13 @@
-import { createReadStream, createWriteStream } from 'node:fs';
+import { createReadStream, createWriteStream, type WriteStream } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
+import { once } from 'node:events';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { Transform } from 'node:stream';
+import { Writable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { PutObjectCommand, type PutObjectCommandOutput, type S3Client } from '@aws-sdk/client-s3';
+
+import { UPLOAD_MEMORY_SPOOL_MAX_BYTES } from './constants.js';
 
 interface UploadStreamToS3Input {
   client: S3Client;
@@ -18,6 +21,12 @@ interface UploadStreamToS3Input {
    * this, the truncated bytes spooled so far would still be PutObject'd.
    */
   signal?: AbortSignal | undefined;
+  /**
+   * Spool the body in memory up to this many bytes before falling back to a
+   * temp file. Defaults to {@link UPLOAD_MEMORY_SPOOL_MAX_BYTES}. The common
+   * small-file proxy upload stays entirely in memory (no disk round-trip).
+   */
+  memorySpoolMaxBytes?: number | undefined;
 }
 
 interface UploadStreamToS3Output {
@@ -30,12 +39,107 @@ function normalizeEtag(etag: PutObjectCommandOutput['ETag']): string {
 }
 
 /**
+ * Writable sink that counts bytes and keeps the body in memory, spilling to a
+ * temp file only once it exceeds `cap`. This avoids the 2× disk I/O of always
+ * spooling to disk for the common small-file case while still bounding memory
+ * for unusually large proxy uploads.
+ */
+class SpoolSink extends Writable {
+  size = 0;
+  /** Set once the body has spilled to disk; used by the caller to clean up. */
+  tempDir: string | undefined;
+
+  private readonly cap: number;
+  private chunks: Buffer[] = [];
+  private buffered = 0;
+  private file: WriteStream | undefined;
+  private tempPath: string | undefined;
+  /** First temp-file write error (e.g. disk full), surfaced to fail the upload. */
+  private fileError: Error | undefined;
+
+  constructor(cap: number) {
+    super();
+    this.cap = cap;
+  }
+
+  /** Where the body ended up — an in-memory buffer, or a temp file path. */
+  result(): { buffer: Buffer } | { path: string } {
+    return this.tempPath !== undefined
+      ? { path: this.tempPath }
+      : { buffer: Buffer.concat(this.chunks) };
+  }
+
+  private async spillToDisk(): Promise<void> {
+    this.tempDir = await mkdtemp(join(tmpdir(), 'garage-s3-upload-'));
+    this.tempPath = join(this.tempDir, 'body');
+    this.file = createWriteStream(this.tempPath);
+    // Capture the first write error the moment the stream exists. A write that
+    // doesn't need backpressure returns synchronously, so a later async failure
+    // (disk full, permissions) would otherwise be an unhandled 'error' event
+    // (process crash) — _write/_final attach their listeners too late.
+    this.file.on('error', (err: Error) => {
+      this.fileError ??= err;
+    });
+    for (const chunk of this.chunks) await this.writeToFile(chunk);
+    // Drop the in-memory copy now that it lives on disk.
+    this.chunks = [];
+    this.buffered = 0;
+  }
+
+  private async writeToFile(buf: Buffer): Promise<void> {
+    if (this.fileError) throw this.fileError;
+    // once() also rejects if 'error' fires before 'drain', so a backpressured
+    // write fails cleanly too.
+    if (!this.file!.write(buf)) await once(this.file!, 'drain');
+    if (this.fileError) throw this.fileError;
+  }
+
+  override _write(
+    chunk: Buffer | string,
+    enc: BufferEncoding,
+    cb: (err?: Error | null) => void,
+  ): void {
+    const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, enc);
+    this.size += buf.length;
+    const handle = async (): Promise<void> => {
+      if (this.file) {
+        await this.writeToFile(buf);
+        return;
+      }
+      if (this.buffered + buf.length <= this.cap) {
+        this.chunks.push(buf);
+        this.buffered += buf.length;
+        return;
+      }
+      await this.spillToDisk();
+      await this.writeToFile(buf);
+    };
+    handle().then(() => cb(), cb);
+  }
+
+  override _final(cb: (err?: Error | null) => void): void {
+    if (!this.file) {
+      cb();
+      return;
+    }
+    if (this.fileError) {
+      cb(this.fileError);
+      return;
+    }
+    this.file.end();
+    this.file.once('finish', () => cb());
+    this.file.once('error', cb);
+  }
+}
+
+/**
  * AWS S3 rejects plain HTTP/1.1 chunked PutObject requests with:
  * `NotImplemented: Header Transfer-Encoding`.
  *
  * Busboy exposes each multipart part as a stream without a per-file content
- * length, so spool once to a temp file, count bytes, then send a normal
- * PutObject request with Content-Length set.
+ * length, so spool the body to learn its size, then send a normal PutObject
+ * with Content-Length set. Small bodies (the common case) are spooled in memory;
+ * only bodies larger than `memorySpoolMaxBytes` fall back to a temp file.
  */
 export async function uploadStreamToS3({
   client,
@@ -44,20 +148,12 @@ export async function uploadStreamToS3({
   body,
   contentType,
   signal,
+  memorySpoolMaxBytes = UPLOAD_MEMORY_SPOOL_MAX_BYTES,
 }: UploadStreamToS3Input): Promise<UploadStreamToS3Output> {
-  const tempDir = await mkdtemp(join(tmpdir(), 'garage-s3-upload-'));
-  const tempPath = join(tempDir, 'body');
-  let size = 0;
+  const sink = new SpoolSink(memorySpoolMaxBytes);
 
   try {
-    const counter = new Transform({
-      transform(chunk: Buffer | string, _enc, cb) {
-        size += Buffer.isBuffer(chunk) ? chunk.length : Buffer.byteLength(chunk);
-        cb(null, chunk);
-      },
-    });
-
-    await pipeline(body, counter, createWriteStream(tempPath));
+    await pipeline(body, sink);
 
     // The stream is fully spooled by now. If it was aborted mid-flight (e.g.
     // the file exceeded the proxy limit and got truncated), bail before
@@ -66,21 +162,24 @@ export async function uploadStreamToS3({
       throw new Error('Upload aborted before send');
     }
 
+    const spooled = sink.result();
     const out = await client.send(
       new PutObjectCommand({
         Bucket: bucket,
         Key: key,
-        Body: createReadStream(tempPath),
-        ContentLength: size,
+        Body: 'buffer' in spooled ? spooled.buffer : createReadStream(spooled.path),
+        ContentLength: sink.size,
         ContentType: contentType,
       }),
     );
 
     return {
       etag: normalizeEtag(out.ETag),
-      size,
+      size: sink.size,
     };
   } finally {
-    await rm(tempDir, { recursive: true, force: true }).catch(() => undefined);
+    if (sink.tempDir !== undefined) {
+      await rm(sink.tempDir, { recursive: true, force: true }).catch(() => undefined);
+    }
   }
 }

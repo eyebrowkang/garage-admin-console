@@ -21,6 +21,15 @@ export const MULTIPART_PART_SIZE_BYTES = 8 * 1024 * 1024;
 export const MULTIPART_MAX_PARTS = 10_000;
 
 /**
+ * Proxy uploads (POST /upload) spool the request body in memory up to this size
+ * before falling back to a temp file. Spilling to disk costs 2× I/O (write then
+ * read), so the common small-file case — bounded by the proxy size limit
+ * (LARGE_FILE_THRESHOLD_BYTES) — stays entirely in memory. Raising the proxy
+ * limit above this value lets larger bodies spill to disk to bound memory.
+ */
+export const UPLOAD_MEMORY_SPOOL_MAX_BYTES = LARGE_FILE_THRESHOLD_BYTES;
+
+/**
  * S3 caps a single CopyObject (server-side copy) at 5 GiB. A larger source must
  * be copied via multipart copy: CreateMultipartUpload + UploadPartCopy (ranged) +
  * CompleteMultipartUpload. POST /copy branches on the source size at this limit.

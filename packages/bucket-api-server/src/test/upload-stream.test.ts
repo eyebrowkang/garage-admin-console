@@ -1,10 +1,21 @@
-import { Readable } from 'node:stream';
+import { Readable, Writable } from 'node:stream';
+import { createWriteStream } from 'node:fs';
 import { PutObjectCommand, type S3Client } from '@aws-sdk/client-s3';
 import { describe, expect, it, vi } from 'vitest';
 
 import { uploadStreamToS3 } from '../upload-stream.js';
 
+// Real fs by default (the disk-spill tests write actual temp files); individual
+// tests override createWriteStream to simulate a temp-file write failure.
+vi.mock('node:fs', async (orig) => {
+  const actual = await orig<typeof import('node:fs')>();
+  return { ...actual, createWriteStream: vi.fn(actual.createWriteStream) };
+});
+
 async function readBody(body: unknown): Promise<Buffer> {
+  // The in-memory path sends a Buffer directly; the disk path sends a read stream.
+  if (Buffer.isBuffer(body)) return body;
+
   const chunks: Buffer[] = [];
 
   for await (const chunk of body as AsyncIterable<Buffer | string>) {
@@ -66,6 +77,95 @@ describe('uploadStreamToS3', () => {
       body: Readable.from(['data']),
     });
     expect(result.etag).toBe('abc123');
+  });
+});
+
+describe('uploadStreamToS3 — spooling', () => {
+  it('keeps a small body in memory (Body is a Buffer, no temp file)', async () => {
+    let sentBody: unknown;
+    const send = vi.fn(async (command: PutObjectCommand) => {
+      sentBody = command.input.Body;
+      return { ETag: '"mem"' };
+    });
+
+    const result = await uploadStreamToS3({
+      client: { send } as unknown as S3Client,
+      bucket: 'b',
+      key: 'k',
+      body: Readable.from(['small body']),
+    });
+
+    expect(Buffer.isBuffer(sentBody)).toBe(true);
+    expect(result.size).toBe(10);
+  });
+
+  it('spills to a temp file once the body exceeds the memory cap', async () => {
+    const big = Buffer.alloc(20, 7);
+    let sentBody: unknown;
+    const send = vi.fn(async (command: PutObjectCommand) => {
+      sentBody = command.input.Body;
+      expect(command.input.ContentLength).toBe(20);
+      await expect(readBody(command.input.Body)).resolves.toEqual(big);
+      return { ETag: '"disk"' };
+    });
+
+    const result = await uploadStreamToS3({
+      client: { send } as unknown as S3Client,
+      bucket: 'b',
+      key: 'k',
+      body: Readable.from([big.subarray(0, 8), big.subarray(8, 16), big.subarray(16)]),
+      memorySpoolMaxBytes: 10, // force a spill after 10 bytes
+    });
+
+    expect(result).toEqual({ etag: 'disk', size: 20 });
+    // The body came off disk: a read stream, not an in-memory Buffer.
+    expect(Buffer.isBuffer(sentBody)).toBe(false);
+  });
+
+  it('reassembles spilled bytes in order across the memory→disk boundary', async () => {
+    const head = Buffer.from('AAAAAAAA'); // 8 bytes — fits in the 10-byte cap
+    const tail = Buffer.from('BBBBBBBB'); // 8 bytes — forces the spill
+    const send = vi.fn(async (command: PutObjectCommand) => {
+      await expect(readBody(command.input.Body)).resolves.toEqual(Buffer.concat([head, tail]));
+      return { ETag: '"ordered"' };
+    });
+
+    const result = await uploadStreamToS3({
+      client: { send } as unknown as S3Client,
+      bucket: 'b',
+      key: 'k',
+      body: Readable.from([head, tail]),
+      memorySpoolMaxBytes: 10,
+    });
+
+    expect(result.size).toBe(16);
+  });
+
+  it('fails the upload cleanly (no crash, no PutObject) when the temp-file write errors', async () => {
+    // Simulate a disk failure (e.g. ENOSPC). highWaterMark 1 forces write() to
+    // return false so the error surfaces through the drain wait deterministically.
+    const failing = new Writable({
+      highWaterMark: 1,
+      write(_chunk, _enc, cb) {
+        cb(new Error('ENOSPC: no space left on device'));
+      },
+    });
+    vi.mocked(createWriteStream).mockReturnValueOnce(
+      failing as unknown as ReturnType<typeof createWriteStream>,
+    );
+    const send = vi.fn();
+
+    await expect(
+      uploadStreamToS3({
+        client: { send } as unknown as S3Client,
+        bucket: 'b',
+        key: 'k',
+        body: Readable.from([Buffer.alloc(20, 1)]),
+        memorySpoolMaxBytes: 5, // force a spill so the temp-file path runs
+      }),
+    ).rejects.toThrow(/ENOSPC|no space/i);
+
+    expect(send).not.toHaveBeenCalled(); // a failed spool must never be PutObject'd
   });
 });
 
