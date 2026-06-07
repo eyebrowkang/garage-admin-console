@@ -195,6 +195,28 @@ export interface UploadProgress {
   total: number;
 }
 
+/**
+ * Abort reason that marks a PAUSE rather than a cancel. A paused large upload
+ * keeps its multipart upload AND its resumable session alive (so resume() can
+ * continue via ListParts); a cancel/failure tears both down. Pass it to
+ * `AbortController.abort(UPLOAD_PAUSED)`.
+ */
+export const UPLOAD_PAUSED = Symbol('upload-paused');
+
+function isPausedSignal(signal: AbortSignal | undefined): boolean {
+  return !!signal && signal.aborted && (signal as { reason?: unknown }).reason === UPLOAD_PAUSED;
+}
+
+/** Aggregate per-part status for a multipart upload, surfaced to the UI. */
+export interface PartSummary {
+  /** Total parts the file will be split into. */
+  total: number;
+  /** Parts confirmed on the server (uploaded this run or skipped on resume). */
+  completed: number;
+  /** Parts currently being PUT. */
+  active: number;
+}
+
 export interface UploadJobOptions {
   http: AxiosInstance;
   files: File[];
@@ -478,6 +500,7 @@ async function uploadOneLarge(
   tick: (delta: number) => void,
   cfg: ResolvedReliability,
   resume?: ResumeContext,
+  onPart?: (parts: PartSummary) => void,
 ): Promise<UploadedItem> {
   const key = buildKey(prefix, file.name);
   const namespace = http.defaults?.baseURL ?? '';
@@ -540,6 +563,14 @@ async function uploadOneLarge(
     );
   }
 
+  // Per-part status, surfaced to the UI as an aggregate — a thousand-part upload
+  // can't render per-part rows, so the panel shows completed/total + in-flight.
+  let completedParts = 0;
+  let activeParts = 0;
+  const emitParts = () =>
+    onPart?.({ total: numParts, completed: completedParts, active: activeParts });
+  emitParts();
+
   // Cleanup helper. Called on unrecoverable failure so S3 doesn't keep the
   // orphaned parts. Best-effort and not subject to the user's abort signal so it
   // still runs on cancel.
@@ -582,9 +613,19 @@ async function uploadOneLarge(
           // Already on the server (resume) — skip the PUT, count its bytes.
           etags[idx] = already.etag;
           tick(end - start);
+          completedParts += 1;
+          emitParts();
           continue;
         }
-        etags[idx] = await uploadPart(file, partSize, idx, signer, merged, tick, cfg);
+        activeParts += 1;
+        emitParts();
+        try {
+          etags[idx] = await uploadPart(file, partSize, idx, signer, merged, tick, cfg);
+          completedParts += 1;
+        } finally {
+          activeParts -= 1;
+          emitParts();
+        }
       }
     };
 
@@ -613,10 +654,14 @@ async function uploadOneLarge(
     return { key: completeRes.data.key, etag: completeRes.data.etag, size: file.size };
   } catch (err) {
     fileCtrl.abort(); // stop this file's other parts
-    await abortUpload();
-    // The upload is aborted server-side, so its session is dead — drop it. Only a
-    // crash/reload (which never reaches here) leaves a session behind to resume.
-    clearSession();
+    // A PAUSE keeps the multipart upload AND its session alive so resume() can
+    // continue via ListParts. A cancel/failure tears both down: abort server-side
+    // so S3 doesn't keep orphaned parts, and drop the (now-dead) session. Only a
+    // crash/reload leaves a session behind without reaching here.
+    if (!isPausedSignal(signal)) {
+      await abortUpload();
+      clearSession();
+    }
     throw err;
   }
 }
@@ -666,6 +711,8 @@ function resolveReliability(reliability?: ReliabilityOptions): ResolvedReliabili
 export interface UploadOneFileOptions {
   signal?: AbortSignal;
   onProgress?: (p: UploadProgress) => void;
+  /** Per-part status for multipart files (not emitted for small proxy uploads). */
+  onPart?: (parts: PartSummary) => void;
   /** Files at or above this size go direct-to-S3 via multipart. */
   threshold?: number;
   partConcurrency?: number;
@@ -708,6 +755,7 @@ export async function uploadOneFile(
       tick,
       resolveReliability(opts.reliability),
       opts.resume,
+      opts.onPart,
     );
   }
   const [item] = await uploadSmallBatch(http, [file], prefix, signal, tick);

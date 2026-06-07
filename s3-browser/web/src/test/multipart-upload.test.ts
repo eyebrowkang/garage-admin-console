@@ -1,7 +1,13 @@
 import type { AxiosInstance } from 'axios';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { runUploadJob, uploadOneFile, UploadJobError } from '../lib/multipart-upload';
+import {
+  runUploadJob,
+  uploadOneFile,
+  UploadJobError,
+  UPLOAD_PAUSED,
+  type PartSummary,
+} from '../lib/multipart-upload';
 import {
   fingerprintFile,
   type UploadSession,
@@ -111,6 +117,9 @@ afterEach(() => {
 // Disable backoff sleeps and the (real-timer) stall watchdog by default so the
 // suite runs fast; individual tests re-enable what they exercise.
 const FAST = { baseDelayMs: 0, maxDelayMs: 0, stallTimeoutMs: 0 } as const;
+
+// Yield a macrotask so in-flight async work (create/sign + the part PUTs) settles.
+const flush = () => new Promise((r) => setTimeout(r, 0));
 
 // --- Fake axios instance -----------------------------------------------------
 type Responder = unknown | ((body: Record<string, unknown>) => unknown);
@@ -740,5 +749,84 @@ describe('uploadOneFile — resume', () => {
     // fresh multipart upload is created.
     expect(store.get('', fingerprintFile(file))?.uploadId).toBe('up-keep');
     expect(http.post.mock.calls.some(([u]) => u === '/multipart/create')).toBe(false);
+  });
+});
+
+describe('uploadOneFile — pause vs cancel', () => {
+  it('pause (UPLOAD_PAUSED) keeps the multipart upload + session alive for resume', async () => {
+    const key = 'pause.bin';
+    const file = makeFile(key, 12); // partSize 5 → 3 parts
+    const store = memStore();
+    const http = mockHttp({
+      '/multipart/create': { data: { uploadId: 'up-pause', key, partSize: 5, maxParts: 1000 } },
+      '/multipart/sign': signResponder,
+      '/multipart/abort': { data: { ok: true } },
+      '/multipart/complete': { data: { key, etag: 'final' } },
+    });
+    FakeXHR.fallback = { hang: true }; // parts never settle → upload is in-flight
+
+    const ctrl = new AbortController();
+    const p = uploadOneFile(http, file, '', {
+      threshold: 10,
+      reliability: FAST,
+      resume: { store },
+      signal: ctrl.signal,
+    });
+    await flush(); // let create + session-put happen and the part PUTs start (hang)
+
+    ctrl.abort(UPLOAD_PAUSED); // PAUSE, not cancel
+    await expect(p).rejects.toBeTruthy();
+
+    // Session preserved and NO server-side abort — resume can continue later.
+    expect(store.get('', fingerprintFile(file))?.uploadId).toBe('up-pause');
+    expect(http.post.mock.calls.some(([u]) => u === '/multipart/abort')).toBe(false);
+  });
+
+  it('cancel (plain abort) tears down the upload server-side and drops the session', async () => {
+    const key = 'cancel.bin';
+    const file = makeFile(key, 12);
+    const store = memStore();
+    const http = mockHttp({
+      '/multipart/create': { data: { uploadId: 'up-cancel', key, partSize: 5, maxParts: 1000 } },
+      '/multipart/sign': signResponder,
+      '/multipart/abort': { data: { ok: true } },
+    });
+    FakeXHR.fallback = { hang: true };
+
+    const ctrl = new AbortController();
+    const p = uploadOneFile(http, file, '', {
+      threshold: 10,
+      reliability: FAST,
+      resume: { store },
+      signal: ctrl.signal,
+    });
+    await flush();
+
+    ctrl.abort(); // plain cancel (no reason)
+    await expect(p).rejects.toBeTruthy();
+
+    expect(http.post.mock.calls.some(([u]) => u === '/multipart/abort')).toBe(true);
+    expect(store.get('', fingerprintFile(file))).toBeNull();
+  });
+
+  it('emits aggregate per-part status (total / completed / active)', async () => {
+    const key = 'parts.bin';
+    const file = makeFile(key, 12); // partSize 5 → 3 parts
+    const http = mockHttp({
+      '/multipart/create': { data: { uploadId: 'up', key, partSize: 5, maxParts: 1000 } },
+      '/multipart/sign': signResponder,
+      '/multipart/complete': { data: { key, etag: 'final' } },
+    });
+
+    const seen: PartSummary[] = [];
+    await uploadOneFile(http, file, '', {
+      threshold: 10,
+      reliability: FAST,
+      onPart: (s) => seen.push({ ...s }),
+    });
+
+    expect(seen[0]?.total).toBe(3);
+    expect(seen.at(-1)).toEqual({ total: 3, completed: 3, active: 0 });
+    expect(Math.max(...seen.map((s) => s.active))).toBeGreaterThan(0); // parts ran concurrently
   });
 });
