@@ -75,14 +75,14 @@ Cluster auto-creation is not supported (the suite never creates/deletes cluster 
 ## What the suite covers
 
 - `GET /list` envelope shape on empty + populated prefixes
-- `POST /upload` single + batched multipart
+- `POST /upload` single + batched multipart; `413` when a file exceeds the proxy size cap
 - `GET /object` HEAD-equivalent metadata + 404
 - `GET /download` full body + ranged request (`206` + `Content-Range`)
 - `POST /presign` getObject + putObject roundtrip via `fetch`
 - `POST /multipart/*` create→sign→PUT→complete roundtrip; adaptive `partSize` scales with `fileSize`; `/multipart/parts` lists uploaded parts (resume) + `404` on an unknown upload
 - `POST /copy` ETag + size verification
 - `GET /cors-status` diagnostic shape
-- `DELETE /objects` single + batched payloads
+- `DELETE /objects` single + batched payloads; mixed-batch `deleted[]`/`errors[]` partitioning
 - `?continuationToken` pagination
 
 Side-effects are scoped under `contract-test/<runId>/...` and reaped in `afterAll`, so it's safe to point the suite at a shared dev bucket. If the suite created a connection on the fly, it's deleted too.

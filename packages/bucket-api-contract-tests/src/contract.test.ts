@@ -71,6 +71,21 @@ describe.skipIf(config === null)('Bucket Backend API regression', () => {
     expect(sizes).toEqual([1, 2, 3]);
   });
 
+  it('POST /upload rejects a file over the proxy size cap with 413', async () => {
+    // The proxy upload path (POST /upload, multipart/form-data) caps each file at
+    // proxyUploadMaxBytes — the documented 10 MiB default (LARGE_FILE_THRESHOLD_BYTES);
+    // neither BFF overrides it. A file past the cap must come back 413 — with the limit
+    // echoed and nothing stored — so the client falls back to the multipart upload flow.
+    const overLimit = 10 * 1024 * 1024 + 1024; // 10 MiB + 1 KiB
+    const body = Buffer.alloc(overLimit, 0x61);
+    await expect(client.upload([{ name: 'over-limit.bin', body }], prefix)).rejects.toMatchObject({
+      response: {
+        status: 413,
+        data: { limit: expect.any(Number), uploaded: [] },
+      },
+    });
+  });
+
   it('GET /list?prefix returns the just-uploaded objects', async () => {
     const res = await client.list({ prefix: `${prefix}/`, delimiter: '/' });
     const keys = res.objects.map((o) => o.key).sort();
@@ -294,6 +309,36 @@ describe.skipIf(config === null)('Bucket Backend API regression', () => {
     expect(new Set(res.deleted)).toEqual(
       new Set([`${prefix}/doomed-1.txt`, `${prefix}/doomed-2.txt`]),
     );
+  });
+
+  it('DELETE /objects partitions a mixed batch across deleted[] and errors[]', async () => {
+    // Mixed batch: one real key + one key that never existed. The contract under
+    // test is the BFF's { deleted, errors } envelope partitioning the batch result
+    // — NOT a particular backend's missing-key semantics, which vary:
+    //   - Garage (this repo's backend) reports a per-key error → the key lands in
+    //     errors[], exercising the partial-failure mapping;
+    //   - AWS-S3-compatible endpoints treat a missing-key delete as an idempotent
+    //     success → the key lands in deleted[].
+    // Either way every requested key is accounted for exactly once, and whenever a
+    // backend DID report a per-key failure the BFF must surface a non-empty message.
+    // A 2-key payload also forces the batch DeleteObjects path — the single-key
+    // shortcut always returns errors: [].
+    await client.upload([{ name: 'partial-ok.txt', body: 'bye' }], prefix);
+    const okKey = `${prefix}/partial-ok.txt`;
+    const missingKey = `${prefix}/partial-missing.txt`; // never uploaded → absent
+
+    const res = await client.deleteObjects([okKey, missingKey]);
+    expect(res.deleted).toContain(okKey); // a real key always deletes
+
+    // The missing key must be accounted for in exactly one of the two arrays.
+    const missInDeleted = res.deleted.includes(missingKey);
+    const missErr = res.errors.find((e) => e.key === missingKey);
+    expect(missInDeleted !== (missErr !== undefined)).toBe(true); // XOR: never dropped, never double-counted
+    if (missErr) {
+      // When the backend reported a failure, the mapped error carries a message.
+      expect(missErr.message).toBeTypeOf('string');
+      expect(missErr.message.length).toBeGreaterThan(0);
+    }
   });
 
   it('pagination: continuationToken round-trips when needed', async () => {
