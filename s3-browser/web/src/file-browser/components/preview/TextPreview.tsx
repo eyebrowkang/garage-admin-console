@@ -34,6 +34,7 @@ export function TextPreview({ fileKey, http, forceText }: TextPreviewProps) {
         responseType: 'arraybuffer',
         headers: expanded ? undefined : { Range: `bytes=0-${RENDER_MAX_BYTES - 1}` },
         validateStatus: (s) => s < 400,
+        timeout: 0, // streamed body; opt out of the client's control-plane deadline
       })
       .then((res) => {
         if (cancelled) return;

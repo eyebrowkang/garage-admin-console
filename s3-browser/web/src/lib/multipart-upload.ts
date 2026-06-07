@@ -402,10 +402,10 @@ type PartSigner = ReturnType<typeof createPartSigner>;
 
 /**
  * Upload a single part with the full reliability loop: JIT-signed URL, global
- * concurrency permit, retry with backoff on transient failures, one re-sign on an
- * expired-URL response (403 or 400 — see below). Byte progress already counted
- * for the part is rolled back before each retry so the job progress total is
- * never double-counted.
+ * concurrency permit, retry with backoff on transient failures, and bounded
+ * re-signs on an expired-URL response (403 or 400 — see below). Byte progress
+ * already counted for the part is rolled back before each retry so the job
+ * progress total is never double-counted.
  */
 async function uploadPart(
   file: File,
@@ -434,7 +434,7 @@ async function uploadPart(
   };
 
   let attempt = 0;
-  let resignedForUrl = false;
+  let resignCount = 0;
 
   for (;;) {
     if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
@@ -448,15 +448,17 @@ async function uploadPart(
       if (isAbortError(err)) throw err;
       // An expired/invalid presigned URL surfaces differently per backend: AWS S3
       // and MinIO return 403 ("Request has expired"); Garage returns 400 ("Date is
-      // too old", confirmed against a live cluster). Either way, re-sign this one
-      // part and retry ONCE before treating it as fatal (does not consume a retry
-      // attempt) — at worst one wasted PUT on a genuinely malformed 400.
+      // too old", confirmed against a live cluster). Re-sign this one part and
+      // retry WITHOUT consuming a transient-retry attempt. A long part queued
+      // behind the global concurrency limit can age past TWO signing windows, so
+      // allow re-signs to RECUR — bounded by maxAttempts so a backend that always
+      // reports "expired" (or a genuinely malformed 400) can't spin forever.
       if (
         err instanceof PartHttpError &&
         (err.status === 403 || err.status === 400) &&
-        !resignedForUrl
+        resignCount < cfg.maxAttempts
       ) {
-        resignedForUrl = true;
+        resignCount += 1;
         await signer.resign(partNumber);
         continue;
       }
@@ -589,18 +591,23 @@ async function uploadOneLarge(
     const lanes = Math.max(1, Math.min(partConcurrency, numParts));
     await Promise.all(Array.from({ length: lanes }, () => worker()));
 
-    // Complete. Deliberately UNTIMED: CompleteMultipartUpload stitches every part
+    // Complete. Deliberately UNTIMED (timeout: 0 overrides the client's default
+    // control-plane deadline): CompleteMultipartUpload stitches every part
     // server-side and AWS documents it as potentially taking several minutes. A
     // short client timeout here would reject AFTER all parts uploaded, then trip
     // the catch → /multipart/abort and destroy (or race) an upload the backend is
     // still finalizing. The BFF's own handling and the socket timeout are the
     // backstops; we also don't pass the user signal, since cancelling mid-finalize
     // would race the same way.
-    const completeRes = await http.post<CompleteResponse>('/multipart/complete', {
-      key,
-      uploadId,
-      parts: etags.map((etag, i) => ({ partNumber: i + 1, etag })),
-    });
+    const completeRes = await http.post<CompleteResponse>(
+      '/multipart/complete',
+      {
+        key,
+        uploadId,
+        parts: etags.map((etag, i) => ({ partNumber: i + 1, etag })),
+      },
+      { timeout: 0 },
+    );
 
     clearSession();
     return { key: completeRes.data.key, etag: completeRes.data.etag, size: file.size };
@@ -629,6 +636,9 @@ async function uploadSmallBatch(
   let lastLoaded = 0;
   const res = await http.post<{ uploaded: UploadedItem[] }>('/upload', form, {
     signal,
+    // Proxy upload streams the whole body; opt out of the client's control-plane
+    // deadline so a slow-but-progressing upload isn't killed at 30s.
+    timeout: 0,
     onUploadProgress: (e) => {
       const total = e.total ?? files.reduce((s, f) => s + f.size, 0);
       const loaded = Math.min(e.loaded, total);

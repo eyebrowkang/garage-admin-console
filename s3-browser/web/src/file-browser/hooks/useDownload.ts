@@ -55,8 +55,9 @@ export async function downloadObject(
     return;
   }
 
-  // Small file: proxy through BFF, no credentials leak.
-  const res = await http.get('/download', { params: { key }, responseType: 'blob' });
+  // Small file: proxy through BFF, no credentials leak. timeout: 0 — streamed
+  // body, opt out of the client's control-plane deadline.
+  const res = await http.get('/download', { params: { key }, responseType: 'blob', timeout: 0 });
   const url = URL.createObjectURL(res.data as Blob);
   try {
     clickDownloadAnchor(url, filename, true);
