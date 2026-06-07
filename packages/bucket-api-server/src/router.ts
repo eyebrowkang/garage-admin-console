@@ -35,6 +35,7 @@ import {
   MULTIPART_MAX_PARTS,
   MULTIPART_PART_SIZE_BYTES,
   MULTIPART_TARGET_PARTS,
+  UPLOAD_MEMORY_SPOOL_MAX_BYTES,
 } from './constants.js';
 import { computeMultipartPartSize } from './multipart-policy.js';
 import { classifyBucketCors, ensureBucketCors, recommendedCorsRule } from './cors.js';
@@ -261,6 +262,13 @@ export interface CreateBucketRouterOptions {
    */
   proxyUploadMaxBytes?: number;
   /**
+   * Bytes a POST /upload body is spooled in memory before falling back to a temp
+   * file. Default UPLOAD_MEMORY_SPOOL_MAX_BYTES (10 MiB) keeps the common
+   * small-file case off disk; lower it to bound memory when proxyUploadMaxBytes
+   * is raised.
+   */
+  uploadMemorySpoolMaxBytes?: number;
+  /**
    * Ladder floor for POST /multipart/create — also the exact part size returned
    * when the caller passes no `fileSize`. Default MULTIPART_PART_SIZE_BYTES
    * (8 MiB). Must be >= 5 MiB per S3 rules.
@@ -292,6 +300,7 @@ export function createBucketRouter({
   resolveContext,
   logger = defaultLogger,
   proxyUploadMaxBytes = LARGE_FILE_THRESHOLD_BYTES,
+  uploadMemorySpoolMaxBytes = UPLOAD_MEMORY_SPOOL_MAX_BYTES,
   multipartPartSize = MULTIPART_PART_SIZE_BYTES,
   multipartTargetParts = MULTIPART_TARGET_PARTS,
   multipartMaxPartSize = MULTIPART_DEFAULT_MAX_PART_SIZE_BYTES,
@@ -555,6 +564,7 @@ export function createBucketRouter({
             body: fileStream,
             contentType: info.mimeType,
             signal: fileAbort.signal,
+            memorySpoolMaxBytes: uploadMemorySpoolMaxBytes,
           })
             .then(({ etag, size }) => {
               if (fileOversized) return; // truncated — never recorded
