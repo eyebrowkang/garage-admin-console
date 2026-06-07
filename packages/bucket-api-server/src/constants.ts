@@ -34,3 +34,21 @@ export const COPY_SINGLE_MAX_BYTES = 5 * 1024 * 1024 * 1024;
  * if a source is so large that 1 GiB parts would exceed MULTIPART_MAX_PARTS.
  */
 export const MULTIPART_COPY_PART_SIZE_BYTES = 1024 * 1024 * 1024;
+
+/**
+ * Adaptive upload part-size policy (POST /multipart/create, when the client
+ * passes `fileSize`). The part size climbs a doubling ladder from
+ * MULTIPART_PART_SIZE_BYTES so the part count stays bounded as files grow:
+ *   - MULTIPART_MIN_PART_SIZE_BYTES — S3's 5 MiB floor for non-last parts.
+ *   - MULTIPART_TARGET_PARTS — soft goal; the ladder climbs until at/below it.
+ *   - MULTIPART_DEFAULT_MAX_PART_SIZE_BYTES — default ladder top (1 GiB): reaches
+ *     a 5 TiB object in ~5120 parts while keeping each PUT independently
+ *     retryable. Operator-tunable via S3_MULTIPART_MAX_PART_SIZE.
+ *   - MULTIPART_MAX_PART_SIZE_BYTES — S3's absolute 5 GiB per-part ceiling; only
+ *     the hard part-count guarantee ever climbs this high.
+ * See computeMultipartPartSize in ./multipart-policy.ts.
+ */
+export const MULTIPART_MIN_PART_SIZE_BYTES = 5 * 1024 * 1024;
+export const MULTIPART_TARGET_PARTS = 2000;
+export const MULTIPART_DEFAULT_MAX_PART_SIZE_BYTES = 1024 * 1024 * 1024;
+export const MULTIPART_MAX_PART_SIZE_BYTES = 5 * 1024 * 1024 * 1024;

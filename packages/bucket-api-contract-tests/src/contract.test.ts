@@ -202,6 +202,18 @@ describe.skipIf(config === null)('Bucket Backend API regression', () => {
     expect(meta.size).toBe(total);
   });
 
+  it('POST /multipart/create scales the part size up with the fileSize hint', async () => {
+    const base = await client.multipartCreate({ key: `${prefix}/create-base.bin` });
+    await client.multipartAbort({ key: `${prefix}/create-base.bin`, uploadId: base.uploadId });
+    expect(base.partSize).toBeGreaterThanOrEqual(5 * 1024 * 1024); // S3 floor
+
+    const fileSize = 200 * 1024 * 1024 * 1024; // 200 GiB
+    const big = await client.multipartCreate({ key: `${prefix}/create-big.bin`, fileSize });
+    await client.multipartAbort({ key: `${prefix}/create-big.bin`, uploadId: big.uploadId });
+    expect(big.partSize).toBeGreaterThan(base.partSize); // adaptive: scaled up
+    expect(Math.ceil(fileSize / big.partSize)).toBeLessThanOrEqual(big.maxParts);
+  });
+
   it('POST /multipart/abort cleans up an in-progress upload', async () => {
     const key = `${prefix}/multipart-abort.bin`;
     const created = await client.multipartCreate({ key });

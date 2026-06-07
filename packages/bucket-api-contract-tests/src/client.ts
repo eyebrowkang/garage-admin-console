@@ -107,7 +107,7 @@ export class BucketApiClient {
     return res.data as { url: string; expiresAt: string };
   }
 
-  async multipartCreate(body: { key: string; contentType?: string }) {
+  async multipartCreate(body: { key: string; contentType?: string; fileSize?: number }) {
     const res = await this.bff.post(this.path('/multipart/create'), body);
     return res.data as { uploadId: string; key: string; partSize: number; maxParts: number };
   }

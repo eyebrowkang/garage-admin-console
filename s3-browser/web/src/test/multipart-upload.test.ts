@@ -227,6 +227,8 @@ describe('runUploadJob — large files (direct multipart)', () => {
     });
     const createCall = http.post.mock.calls.find(([u]) => u === '/multipart/create');
     expect((createCall?.[1] as { key: string }).key).toBe('docs/big.txt');
+    // The file size is sent so the server can pick an adaptive part size.
+    expect((createCall?.[1] as { fileSize?: number }).fileSize).toBe(50);
   });
 
   it('aborts the upload and rejects on a non-retryable part failure', async () => {

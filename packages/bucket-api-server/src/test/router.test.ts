@@ -254,3 +254,37 @@ describe('POST /copy — size-aware', () => {
     });
   });
 });
+
+describe('POST /multipart/create — adaptive part size', () => {
+  const create = (base: string, key: string, fileSize?: number) =>
+    fetch(`${base}/multipart/create`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(fileSize !== undefined ? { key, fileSize } : { key }),
+    });
+
+  it('returns the default 8 MiB part size when no fileSize is given', async () => {
+    const { client } = makeClient({ CreateMultipartUploadCommand: () => ({ UploadId: 'u' }) });
+    await withServer(client, async (base) => {
+      const json = (await (await create(base, 'k')).json()) as {
+        partSize: number;
+        maxParts: number;
+      };
+      expect(json.partSize).toBe(8 * 1024 * 1024);
+      expect(json.maxParts).toBe(10000);
+    });
+  });
+
+  it('scales the part size up for a large fileSize and keeps parts under the cap', async () => {
+    const { client } = makeClient({ CreateMultipartUploadCommand: () => ({ UploadId: 'u' }) });
+    await withServer(client, async (base) => {
+      const fileSize = 200 * GiB;
+      const json = (await (await create(base, 'k', fileSize)).json()) as {
+        partSize: number;
+        maxParts: number;
+      };
+      expect(json.partSize).toBeGreaterThan(8 * 1024 * 1024);
+      expect(Math.ceil(fileSize / json.partSize)).toBeLessThanOrEqual(json.maxParts);
+    });
+  });
+});

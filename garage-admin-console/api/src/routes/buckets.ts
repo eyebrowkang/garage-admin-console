@@ -2,6 +2,7 @@ import express, { type Router } from 'express';
 import {
   createBucketCorsCacheKey,
   createBucketRouter,
+  readMultipartPolicyEnv,
   BucketAccessError,
 } from '@garage/bucket-api-server';
 import { getParam } from '@garage/server-config';
@@ -19,6 +20,10 @@ const corsAllowedOrigins =
   process.env.S3_CORS_ALLOWED_ORIGINS?.split(',')
     .map((s) => s.trim())
     .filter(Boolean) ?? [];
+
+// Adaptive multipart part-size policy (tunable via S3_MULTIPART_*). Validated at
+// startup; throws on bad config.
+const multipartPolicy = readMultipartPolicyEnv();
 
 // ---------------------------------------------------------------------------
 // GET /keys — list keys authorized on this bucket.
@@ -87,6 +92,7 @@ router.use(
     },
     manageCors,
     corsAllowedOrigins,
+    ...multipartPolicy,
     logger,
   }),
 );
