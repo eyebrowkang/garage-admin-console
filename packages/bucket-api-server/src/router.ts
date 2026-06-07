@@ -1,6 +1,8 @@
 import { Router, type Router as ExpressRouter, type Request, type Response } from 'express';
 import Busboy from 'busboy';
 import { z } from 'zod';
+import { pipeline } from 'node:stream/promises';
+import type { Readable } from 'node:stream';
 import {
   AbortMultipartUploadCommand,
   CompleteMultipartUploadCommand,
@@ -9,10 +11,13 @@ import {
   DeleteObjectCommand,
   DeleteObjectsCommand,
   GetObjectCommand,
+  type GetObjectCommandOutput,
   HeadObjectCommand,
+  type HeadObjectCommandOutput,
   ListObjectsV2Command,
   PutObjectCommand,
   UploadPartCommand,
+  UploadPartCopyCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
@@ -20,7 +25,9 @@ import type { ResolveContextFn, BucketContext, Logger } from './types.js';
 import { BucketAccessError } from './types.js';
 import { uploadStreamToS3 } from './upload-stream.js';
 import {
+  COPY_SINGLE_MAX_BYTES,
   LARGE_FILE_THRESHOLD_BYTES,
+  MULTIPART_COPY_PART_SIZE_BYTES,
   MULTIPART_MAX_PARTS,
   MULTIPART_PART_SIZE_BYTES,
 } from './constants.js';
@@ -49,6 +56,88 @@ function shapeObject(o: ShapeInput) {
 /** Extract the upstream S3/HTTP status code from an AWS SDK error, if present. */
 function httpStatusOf(err: unknown): number | undefined {
   return (err as { $metadata?: { httpStatusCode?: number } })?.$metadata?.httpStatusCode;
+}
+
+/**
+ * True when a streaming pipeline rejected because the CLIENT went away mid-
+ * download (the response closed before it finished). That's a normal disconnect,
+ * not a server error — don't log it or try to write to the dead socket.
+ */
+function isClientDisconnect(err: unknown): boolean {
+  return (err as { code?: string })?.code === 'ERR_STREAM_PREMATURE_CLOSE';
+}
+
+/**
+ * Copy an object larger than S3's 5 GiB single-CopyObject limit using a server-
+ * side multipart copy: CreateMultipartUpload + ranged UploadPartCopy per part +
+ * CompleteMultipartUpload. The source object's content metadata is carried over
+ * (single CopyObject would copy it automatically). On any failure the partial
+ * upload is aborted so S3 doesn't keep the orphaned parts. Returns the final
+ * (unquoted) ETag.
+ *
+ * CopySourceRange is INCLUSIVE on both ends (unlike a JS slice) — the last part
+ * is clamped to `size - 1`, so an off-by-one here would silently corrupt the copy.
+ */
+async function copyObjectViaMultipart(
+  client: BucketContext['client'],
+  bucket: string,
+  src: string,
+  dst: string,
+  head: HeadObjectCommandOutput,
+): Promise<string> {
+  const size = head.ContentLength ?? 0;
+  // Bump the part size up if 1 GiB parts would blow past the 10k-part cap.
+  const partSize = Math.max(MULTIPART_COPY_PART_SIZE_BYTES, Math.ceil(size / MULTIPART_MAX_PARTS));
+  const copySource = encodeURIComponent(`${bucket}/${src}`);
+
+  const created = await client.send(
+    new CreateMultipartUploadCommand({
+      Bucket: bucket,
+      Key: dst,
+      ContentType: head.ContentType,
+      ContentEncoding: head.ContentEncoding,
+      ContentDisposition: head.ContentDisposition,
+      ContentLanguage: head.ContentLanguage,
+      CacheControl: head.CacheControl,
+      Metadata: head.Metadata,
+    }),
+  );
+  const uploadId = created.UploadId;
+  if (!uploadId) throw new Error('S3 did not return an upload id for the copy');
+
+  try {
+    const numParts = Math.max(1, Math.ceil(size / partSize));
+    const parts: { PartNumber: number; ETag: string | undefined }[] = [];
+    for (let i = 0; i < numParts; i++) {
+      const start = i * partSize;
+      const end = Math.min(start + partSize, size) - 1; // inclusive; last clamps to size-1
+      const out = await client.send(
+        new UploadPartCopyCommand({
+          Bucket: bucket,
+          Key: dst,
+          UploadId: uploadId,
+          PartNumber: i + 1,
+          CopySource: copySource,
+          CopySourceRange: `bytes=${start}-${end}`,
+        }),
+      );
+      parts.push({ PartNumber: i + 1, ETag: out.CopyPartResult?.ETag });
+    }
+    const completed = await client.send(
+      new CompleteMultipartUploadCommand({
+        Bucket: bucket,
+        Key: dst,
+        UploadId: uploadId,
+        MultipartUpload: { Parts: parts },
+      }),
+    );
+    return (completed.ETag ?? '').replace(/^"|"$/g, '');
+  } catch (err) {
+    await client
+      .send(new AbortMultipartUploadCommand({ Bucket: bucket, Key: dst, UploadId: uploadId }))
+      .catch(() => undefined);
+    throw err;
+  }
 }
 
 function sendError(res: Response, err: unknown) {
@@ -282,36 +371,62 @@ export function createBucketRouter({
     }
     const ctx = await withContext(req, res, resolveContext, logger);
     if (!ctx) return;
+
+    // Phase A — fetch the object. Failures here (404, auth, network) happen before
+    // any bytes or headers are sent, so we can still return a clean JSON error.
+    let out: GetObjectCommandOutput;
     try {
       const range = req.header('range') ?? undefined;
-      const out = await ctx.client.send(
+      out = await ctx.client.send(
         new GetObjectCommand({ Bucket: ctx.bucketName, Key: key, Range: range }),
       );
-      const filename = key.includes('/') ? key.split('/').pop()! : key;
-      if (out.ContentRange) {
-        res.status(206);
-        res.setHeader('Content-Range', out.ContentRange);
-        res.setHeader('Accept-Ranges', 'bytes');
-      }
-      res.setHeader(
-        'Content-Disposition',
-        `attachment; filename="${encodeURIComponent(filename)}"`,
-      );
-      if (out.ContentType) res.setHeader('Content-Type', out.ContentType);
-      if (out.ContentLength) res.setHeader('Content-Length', String(out.ContentLength));
-      const body = out.Body;
-      if (!body || typeof (body as { pipe?: unknown }).pipe !== 'function') {
-        res.status(502).json({ error: 'No body returned from S3' });
-        return;
-      }
-      (body as NodeJS.ReadableStream).pipe(res);
     } catch (err) {
       if (httpStatusOf(err) === 404) {
         res.status(404).json({ error: 'Object not found' });
         return;
       }
       logger.error({ err, bucket: ctx.bucketName, key }, 'download failed');
-      if (!res.headersSent) sendError(res, err);
+      sendError(res, err);
+      return;
+    }
+
+    const body = out.Body;
+    if (!body || typeof (body as { pipe?: unknown }).pipe !== 'function') {
+      res.status(502).json({ error: 'No body returned from S3' });
+      return;
+    }
+
+    const filename = key.includes('/') ? key.split('/').pop()! : key;
+    if (out.ContentRange) {
+      res.status(206);
+      res.setHeader('Content-Range', out.ContentRange);
+      res.setHeader('Accept-Ranges', 'bytes');
+    }
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+    if (out.ContentType) res.setHeader('Content-Type', out.ContentType);
+    if (out.ContentLength) res.setHeader('Content-Length', String(out.ContentLength));
+
+    // Phase B — stream. `pipeline` (not a bare `.pipe`) tears BOTH streams down on
+    // a mid-stream upstream error or a client disconnect, so we never leak the S3
+    // socket or leave a half-written response. If the client goes away, stop
+    // pulling from upstream right away.
+    const source = body as Readable;
+    const onClose = () => {
+      if (!res.writableFinished) source.destroy();
+    };
+    res.on('close', onClose);
+    try {
+      await pipeline(source, res);
+    } catch (err) {
+      if (!isClientDisconnect(err)) {
+        logger.error({ err, bucket: ctx.bucketName, key }, 'download stream failed');
+        // Content-Length and headers are already committed, so we can't switch to
+        // a JSON error; destroy the socket so the client sees a truncated transfer
+        // instead of reading a short body as a complete file.
+        if (!res.destroyed) res.destroy(err instanceof Error ? err : new Error('download failed'));
+      }
+    } finally {
+      res.removeListener('close', onClose);
     }
   });
 
@@ -716,18 +831,40 @@ export function createBucketRouter({
     const ctx = await withContext(req, res, resolveContext, logger);
     if (!ctx) return;
     try {
-      const out = await ctx.client.send(
-        new CopyObjectCommand({
-          Bucket: ctx.bucketName,
-          // CopySource MUST be URL-encoded for keys containing reserved chars.
-          CopySource: encodeURIComponent(`${ctx.bucketName}/${body.src}`),
-          Key: body.dst,
-        }),
+      // HeadObject first: a single CopyObject caps at 5 GiB, so we need the source
+      // size to decide between it and the multipart-copy fallback. It also gives a
+      // clean 404 when the source is missing.
+      const head = await ctx.client.send(
+        new HeadObjectCommand({ Bucket: ctx.bucketName, Key: body.src }),
       );
-      res.json({
-        etag: (out.CopyObjectResult?.ETag ?? '').replace(/^"|"$/g, ''),
-      });
+      const size = head.ContentLength ?? 0;
+
+      if (size <= COPY_SINGLE_MAX_BYTES) {
+        const out = await ctx.client.send(
+          new CopyObjectCommand({
+            Bucket: ctx.bucketName,
+            // CopySource MUST be URL-encoded for keys containing reserved chars.
+            CopySource: encodeURIComponent(`${ctx.bucketName}/${body.src}`),
+            Key: body.dst,
+          }),
+        );
+        res.json({ etag: (out.CopyObjectResult?.ETag ?? '').replace(/^"|"$/g, '') });
+        return;
+      }
+
+      const etag = await copyObjectViaMultipart(
+        ctx.client,
+        ctx.bucketName,
+        body.src,
+        body.dst,
+        head,
+      );
+      res.json({ etag });
     } catch (err) {
+      if (httpStatusOf(err) === 404) {
+        res.status(404).json({ error: 'Source object not found' });
+        return;
+      }
       logger.error({ err, bucket: ctx.bucketName, src: body.src, dst: body.dst }, 'copy failed');
       sendError(res, err);
     }

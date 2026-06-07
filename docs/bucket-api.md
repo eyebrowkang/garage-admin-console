@@ -30,26 +30,26 @@ in two:
   On the first such request per `(endpoint, bucket)`, the BFF idempotently
   appends a CORS rule (`AllowedMethods:['GET','PUT','HEAD','POST']`,
   `AllowedHeaders:['*']`, `ExposeHeaders:['ETag']`, `MaxAgeSeconds:3000`) without
-  disturbing pre-existing rules — and, if it can't *read* the existing rules, it
+  disturbing pre-existing rules — and, if it can't _read_ the existing rules, it
   skips the update rather than clobber them. `AllowedOrigins` defaults to the
   requesting app's origin; set `S3_CORS_ALLOWED_ORIGINS` (comma-separated) to pin
   explicit origins, or `S3_MANAGE_CORS=false` to leave bucket CORS to the operator.
 
 ## Routes (relative to the bucket scope)
 
-| Method + path | Body / query | Response |
-| --- | --- | --- |
-| `GET /list` | `?prefix=&delimiter=/&continuationToken=&maxKeys=` | `{ objects: S3Object[]; prefixes: string[]; nextContinuationToken? }` |
-| `GET /object` | `?key=` | `S3Object` (HEAD-equivalent metadata) |
-| `GET /download` | `?key=` | Binary stream — `Content-Disposition: attachment` |
-| `POST /presign` | `{ key, operation, expiresIn, responseContentDisposition? }` | `{ url, expiresAt }` |
-| `POST /upload` | `multipart/form-data` (one+ files, optional `prefix`); per-file ≤ 10 MiB | `{ uploaded: { key, etag, size }[] }` · 413 `{ error, limit, uploaded }` if any file exceeds the limit (the files that fit are still stored + reported) |
-| `POST /multipart/create` | `{ key, contentType? }` | `{ uploadId, key, partSize, maxParts }` |
-| `POST /multipart/sign` | `{ key, uploadId, partNumbers: number[], expiresIn? }` | `{ urls: { partNumber, url }[], expiresAt }` |
-| `POST /multipart/complete` | `{ key, uploadId, parts: { partNumber, etag }[] }` | `{ key, etag, location }` |
-| `POST /multipart/abort` | `{ key, uploadId }` | `{ ok: true }` |
-| `DELETE /objects` | `{ keys: string[] }` | `{ deleted: string[]; errors: { key, message }[] }` |
-| `POST /copy` | `{ src, dst }` | `{ etag }` |
+| Method + path              | Body / query                                                             | Response                                                                                                                                                                                                                                                                                                                     |
+| -------------------------- | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /list`                | `?prefix=&delimiter=/&continuationToken=&maxKeys=`                       | `{ objects: S3Object[]; prefixes: string[]; nextContinuationToken? }`                                                                                                                                                                                                                                                        |
+| `GET /object`              | `?key=`                                                                  | `S3Object` (HEAD-equivalent metadata)                                                                                                                                                                                                                                                                                        |
+| `GET /download`            | `?key=` (optional `Range` header)                                        | Binary stream — `Content-Disposition: attachment`. Honours `Range` (→ `206` + `Content-Range` + `Accept-Ranges`). Streamed via `stream.pipeline`, so a mid-stream upstream error destroys the response (truncated, never a short body read as complete) and a client disconnect tears the S3 read down instead of leaking it |
+| `POST /presign`            | `{ key, operation, expiresIn, responseContentDisposition? }`             | `{ url, expiresAt }`                                                                                                                                                                                                                                                                                                         |
+| `POST /upload`             | `multipart/form-data` (one+ files, optional `prefix`); per-file ≤ 10 MiB | `{ uploaded: { key, etag, size }[] }` · 413 `{ error, limit, uploaded }` if any file exceeds the limit (the files that fit are still stored + reported)                                                                                                                                                                      |
+| `POST /multipart/create`   | `{ key, contentType? }`                                                  | `{ uploadId, key, partSize, maxParts }`                                                                                                                                                                                                                                                                                      |
+| `POST /multipart/sign`     | `{ key, uploadId, partNumbers: number[], expiresIn? }`                   | `{ urls: { partNumber, url }[], expiresAt }`                                                                                                                                                                                                                                                                                 |
+| `POST /multipart/complete` | `{ key, uploadId, parts: { partNumber, etag }[] }`                       | `{ key, etag, location }`                                                                                                                                                                                                                                                                                                    |
+| `POST /multipart/abort`    | `{ key, uploadId }`                                                      | `{ ok: true }`                                                                                                                                                                                                                                                                                                               |
+| `DELETE /objects`          | `{ keys: string[] }`                                                     | `{ deleted: string[]; errors: { key, message }[] }`                                                                                                                                                                                                                                                                          |
+| `POST /copy`               | `{ src, dst }`                                                           | `{ etag }` · `404` if `src` is missing. Sources ≤ 5 GiB use a single `CopyObject`; larger sources fall back to a server-side multipart copy (`CreateMultipartUpload` + ranged `UploadPartCopy` + `CompleteMultipartUpload`, source content metadata carried over), so copy/move/rename work past the 5 GiB single-copy limit |
 
 ## Extending the API
 

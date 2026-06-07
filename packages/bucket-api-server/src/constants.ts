@@ -19,3 +19,18 @@
 export const LARGE_FILE_THRESHOLD_BYTES = 10 * 1024 * 1024;
 export const MULTIPART_PART_SIZE_BYTES = 8 * 1024 * 1024;
 export const MULTIPART_MAX_PARTS = 10_000;
+
+/**
+ * S3 caps a single CopyObject (server-side copy) at 5 GiB. A larger source must
+ * be copied via multipart copy: CreateMultipartUpload + UploadPartCopy (ranged) +
+ * CompleteMultipartUpload. POST /copy branches on the source size at this limit.
+ */
+export const COPY_SINGLE_MAX_BYTES = 5 * 1024 * 1024 * 1024;
+
+/**
+ * Part size for the multipart-copy fallback. 1 GiB keeps the part count well
+ * under MULTIPART_MAX_PARTS even for multi-TiB objects (5 TiB → ~5120 parts) and
+ * stays under the 5 GiB per-UploadPartCopy limit. POST /copy bumps it up further
+ * if a source is so large that 1 GiB parts would exceed MULTIPART_MAX_PARTS.
+ */
+export const MULTIPART_COPY_PART_SIZE_BYTES = 1024 * 1024 * 1024;
