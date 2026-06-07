@@ -389,9 +389,10 @@ type PartSigner = ReturnType<typeof createPartSigner>;
 
 /**
  * Upload a single part with the full reliability loop: JIT-signed URL, global
- * concurrency permit, retry with backoff on transient failures, one re-sign on a
- * 403 (expired URL). Byte progress already counted for the part is rolled back
- * before each retry so the job progress total is never double-counted.
+ * concurrency permit, retry with backoff on transient failures, one re-sign on an
+ * expired-URL response (403 or 400 — see below). Byte progress already counted
+ * for the part is rolled back before each retry so the job progress total is
+ * never double-counted.
  */
 async function uploadPart(
   file: File,
@@ -420,7 +421,7 @@ async function uploadPart(
   };
 
   let attempt = 0;
-  let resignedFor403 = false;
+  let resignedForUrl = false;
 
   for (;;) {
     if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
@@ -432,10 +433,17 @@ async function uploadPart(
     } catch (err) {
       rollback();
       if (isAbortError(err)) throw err;
-      // Expired/invalid presigned URL — refresh this one part and retry once
-      // before treating it as fatal (does not consume a retry attempt).
-      if (err instanceof PartHttpError && err.status === 403 && !resignedFor403) {
-        resignedFor403 = true;
+      // An expired/invalid presigned URL surfaces differently per backend: AWS S3
+      // and MinIO return 403 ("Request has expired"); Garage returns 400 ("Date is
+      // too old", confirmed against a live cluster). Either way, re-sign this one
+      // part and retry ONCE before treating it as fatal (does not consume a retry
+      // attempt) — at worst one wasted PUT on a genuinely malformed 400.
+      if (
+        err instanceof PartHttpError &&
+        (err.status === 403 || err.status === 400) &&
+        !resignedForUrl
+      ) {
+        resignedForUrl = true;
         await signer.resign(partNumber);
         continue;
       }

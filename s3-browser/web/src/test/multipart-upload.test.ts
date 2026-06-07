@@ -230,7 +230,8 @@ describe('runUploadJob — large files (direct multipart)', () => {
   });
 
   it('aborts the upload and rejects on a non-retryable part failure', async () => {
-    FakeXHR.fallback = { status: 400 }; // client error → not retryable
+    // 404 is neither retryable nor an expired-URL signal (403/400) → fatal at once.
+    FakeXHR.fallback = { status: 404 };
     const http = mockHttp({
       '/multipart/create': {
         data: { uploadId: 'up1', key: 'big.txt', partSize: 5, maxParts: 1000 },
@@ -247,7 +248,7 @@ describe('runUploadJob — large files (direct multipart)', () => {
         threshold: 10,
         reliability: FAST,
       }),
-    ).rejects.toThrow(/400/);
+    ).rejects.toThrow(/404/);
     expect(http.post.mock.calls.some(([u]) => u === '/multipart/abort')).toBe(true);
   });
 
@@ -325,6 +326,30 @@ describe('runUploadJob — part-level retry', () => {
     expect((resign?.[1] as { partNumbers: number[] }).partNumbers).toEqual([1]);
   });
 
+  it('re-signs the part on a 400 (Garage expired URL) then succeeds', async () => {
+    const http = mockHttp({
+      '/multipart/create': {
+        data: { uploadId: 'up1', key: 'g.txt', partSize: 100, maxParts: 1000 },
+      },
+      '/multipart/sign': signResponder,
+      '/multipart/complete': { data: { key: 'g.txt', etag: 'e' } },
+    });
+    // Garage returns 400 "Date is too old" (not 403) for an expired presigned URL.
+    FakeXHR.plans.set(partUrl('g.txt', 1), [{ status: 400 }, { status: 200 }]);
+
+    const out = await runUploadJob({
+      http,
+      files: [makeFile('g.txt', 10)],
+      prefix: '',
+      threshold: 5,
+      reliability: FAST,
+    });
+
+    expect(out).toHaveLength(1);
+    expect(signCalls(http)).toHaveLength(2); // window sign + single-part re-sign
+    expect((signCalls(http)[1]?.[1] as { partNumbers: number[] }).partNumbers).toEqual([1]);
+  });
+
   it('gives up after maxAttempts is exhausted and aborts', async () => {
     const http = mockHttp({
       '/multipart/create': {
@@ -381,7 +406,7 @@ describe('runUploadJob — failure isolation & progress', () => {
       '/multipart/complete': (body) => ({ data: { key: body.key, etag: `etag-${body.key}` } }),
       '/multipart/abort': { data: { ok: true } },
     });
-    FakeXHR.plans.set(partUrl('a.txt', 1), [{ status: 400 }]); // a.txt fails fatally
+    FakeXHR.plans.set(partUrl('a.txt', 1), [{ status: 404 }]); // a.txt fails fatally (no re-sign)
     // b.txt uses the default 200 fallback.
 
     const err = await runUploadJob({
@@ -502,7 +527,7 @@ describe('runUploadJob — user cancel', () => {
       '/multipart/abort': { data: { ok: true } },
     });
     FakeXHR.plans.set(partUrl('hang.txt', 1), [{ hang: true }]); // cancelled
-    FakeXHR.plans.set(partUrl('bad.txt', 1), [{ status: 400 }]); // real error, settles first
+    FakeXHR.plans.set(partUrl('bad.txt', 1), [{ status: 404 }]); // real fatal error, settles first
 
     const p = runUploadJob({
       http,
