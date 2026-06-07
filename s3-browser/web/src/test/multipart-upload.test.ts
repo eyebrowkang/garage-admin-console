@@ -250,6 +250,29 @@ describe('runUploadJob — large files (direct multipart)', () => {
     ).rejects.toThrow(/400/);
     expect(http.post.mock.calls.some(([u]) => u === '/multipart/abort')).toBe(true);
   });
+
+  it('leaves /multipart/complete untimed (it can take minutes) while timing quick control calls', async () => {
+    const http = mockHttp({
+      '/multipart/create': {
+        data: { uploadId: 'up1', key: 'big.txt', partSize: 100, maxParts: 1000 },
+      },
+      '/multipart/sign': signResponder,
+      '/multipart/complete': { data: { key: 'big.txt', etag: 'e' } },
+    });
+    await runUploadJob({
+      http,
+      files: [makeFile('big.txt', 50)],
+      prefix: '',
+      threshold: 10,
+      reliability: FAST,
+    });
+    const cfgOf = (u: string) =>
+      http.post.mock.calls.find(([url]) => url === u)?.[2] as { timeout?: number } | undefined;
+    // complete must not carry a short deadline; the quick metadata calls do.
+    expect(cfgOf('/multipart/complete')?.timeout).toBeUndefined();
+    expect(cfgOf('/multipart/create')?.timeout).toBe(30_000);
+    expect(cfgOf('/multipart/sign')?.timeout).toBe(30_000);
+  });
 });
 
 describe('runUploadJob — part-level retry', () => {

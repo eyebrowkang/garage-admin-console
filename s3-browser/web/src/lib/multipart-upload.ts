@@ -46,7 +46,7 @@ const DEFAULT_BASE_DELAY_MS = 500;
 const DEFAULT_MAX_DELAY_MS = 8_000;
 const DEFAULT_STALL_TIMEOUT_MS = 30_000; // abort a part with no progress for this long
 const DEFAULT_SIGN_WINDOW = 100; // parts presigned per /multipart/sign round-trip
-const CONTROL_TIMEOUT_MS = 30_000; // create/sign/complete/abort control-plane calls
+const CONTROL_TIMEOUT_MS = 30_000; // quick control-plane calls: create/sign/abort (NOT complete)
 const SIGN_EXPIRY_SKEW_MS = 5 * 60 * 1000; // re-sign a URL with < 5 min of life left
 
 /** HTTP statuses worth retrying (transient server/throttle conditions). */
@@ -513,12 +513,18 @@ async function uploadOneLarge(
     const lanes = Math.max(1, Math.min(partConcurrency, numParts));
     await Promise.all(Array.from({ length: lanes }, () => worker()));
 
-    // Complete.
-    const completeRes = await http.post<CompleteResponse>(
-      '/multipart/complete',
-      { key, uploadId, parts: etags.map((etag, i) => ({ partNumber: i + 1, etag })) },
-      { timeout: CONTROL_TIMEOUT_MS },
-    );
+    // Complete. Deliberately UNTIMED: CompleteMultipartUpload stitches every part
+    // server-side and AWS documents it as potentially taking several minutes. A
+    // short client timeout here would reject AFTER all parts uploaded, then trip
+    // the catch → /multipart/abort and destroy (or race) an upload the backend is
+    // still finalizing. The BFF's own handling and the socket timeout are the
+    // backstops; we also don't pass the user signal, since cancelling mid-finalize
+    // would race the same way.
+    const completeRes = await http.post<CompleteResponse>('/multipart/complete', {
+      key,
+      uploadId,
+      parts: etags.map((etag, i) => ({ partNumber: i + 1, etag })),
+    });
 
     return { key: completeRes.data.key, etag: completeRes.data.etag, size: file.size };
   } catch (err) {
