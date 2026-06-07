@@ -13,7 +13,7 @@ import {
 import { formatBytes } from '@garage/web-shared';
 import { UploadActionIcon } from '@/lib/action-icons';
 import { useBrowser } from '../../context';
-import { LARGE_FILE_THRESHOLD_BYTES, runUploadJob } from '@/lib/multipart-upload';
+import { LARGE_FILE_THRESHOLD_BYTES, runUploadJob, UploadJobError } from '@/lib/multipart-upload';
 
 export function UploadDialog() {
   const { dialogs, closeUpload, currentPrefix, refresh } = useBrowser();
@@ -46,7 +46,7 @@ function UploadDialogBody({
   onClose: () => void;
   onComplete: () => void;
 }) {
-  const { http } = useBrowser();
+  const { http, refresh } = useBrowser();
   const [picked, setPicked] = useState<File[]>(initialFiles);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState<{ loaded: number; total: number }>({
@@ -91,9 +91,15 @@ function UploadDialogBody({
     } catch (err) {
       if ((err as { name?: string }).name === 'AbortError') {
         setError('Upload cancelled');
+      } else if (err instanceof UploadJobError && err.uploaded.length > 0) {
+        const n = err.uploaded.length;
+        setError(`${n} file${n !== 1 ? 's' : ''} uploaded; the rest failed — ${err.message}`);
       } else {
         setError((err as Error).message || 'Upload failed');
       }
+      // Reflect any files that DID store before the failure/cancel so the
+      // listing isn't left stale (the success path refreshes via onComplete).
+      refresh(prefix);
     } finally {
       abortRef.current = null;
       setUploading(false);

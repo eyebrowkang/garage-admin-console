@@ -5,26 +5,183 @@
  * Wire flow per file:
  *   1. POST /multipart/create   → uploadId + partSize from the BFF
  *   2. Slice the File into N = ceil(size/partSize) blobs
- *   3. POST /multipart/sign     → presigned URLs for every part (batched 1000 at a time)
- *   4. PUT each blob to its URL via XHR (concurrent, with progress + abort)
+ *   3. POST /multipart/sign     → presigned URLs, signed JUST IN TIME in a sliding
+ *                                 window (not all up front) so they can't expire
+ *                                 while waiting in the upload queue
+ *   4. PUT each blob to its URL via XHR, with bounded GLOBAL concurrency, a
+ *      per-part retry/backoff loop, an inactivity watchdog, and an expired-URL
+ *      (403) re-sign-and-retry path
  *   5. POST /multipart/complete → server stitches the parts
- * On abort/error after step 1 we POST /multipart/abort so S3 reclaims storage.
+ * On unrecoverable failure after step 1 we POST /multipart/abort so S3 reclaims
+ * storage. A single file failing no longer aborts its siblings in the job.
  *
  * Below the threshold, files are batched together and sent through the
  * existing POST /upload proxy — the BFF still holds the credentials.
+ *
+ * This module lives in the federated remote, so the Admin Console embed inherits
+ * every reliability fix here without any host change.
  */
 import type { AxiosInstance } from 'axios';
 import { LARGE_FILE_THRESHOLD_BYTES } from '@garage/bucket-api-server/constants';
+import { Semaphore } from './semaphore';
 
 // Re-exported so file-browser components keep importing the threshold from
 // here; the BFF enforces the same value server-side (413 on oversized proxy
 // uploads), so it must stay a single source of truth.
 export { LARGE_FILE_THRESHOLD_BYTES };
 
-interface UploadedItem {
+// --- Reliability tuning ------------------------------------------------------
+
+/**
+ * Hard ceiling on concurrent browser→S3 part PUTs across the WHOLE app, shared
+ * by every file and every upload job. 6 matches the browser per-origin HTTP/1.1
+ * connection cap, so going higher only head-of-line stalls and ages signed URLs.
+ * Module-level so it survives a dialog unmount and bounds two jobs at once.
+ */
+const GLOBAL_PUT_CONCURRENCY = 6;
+const putLimiter = new Semaphore(GLOBAL_PUT_CONCURRENCY);
+
+const DEFAULT_MAX_ATTEMPTS = 4; // 1 try + 3 retries
+const DEFAULT_BASE_DELAY_MS = 500;
+const DEFAULT_MAX_DELAY_MS = 8_000;
+const DEFAULT_STALL_TIMEOUT_MS = 30_000; // abort a part with no progress for this long
+const DEFAULT_SIGN_WINDOW = 100; // parts presigned per /multipart/sign round-trip
+const CONTROL_TIMEOUT_MS = 30_000; // quick control-plane calls: create/sign/abort (NOT complete)
+const SIGN_EXPIRY_SKEW_MS = 5 * 60 * 1000; // re-sign a URL with < 5 min of life left
+
+/** HTTP statuses worth retrying (transient server/throttle conditions). */
+const RETRYABLE_HTTP = new Set([408, 429, 500, 502, 503, 504]);
+
+interface ReliabilityOptions {
+  maxAttempts?: number;
+  baseDelayMs?: number;
+  maxDelayMs?: number;
+  /**
+   * Abort + retry a part that reports no progress for this long. The watchdog is
+   * mandatory — it's the only thing that frees a globally-shared upload permit
+   * held by a half-open socket — so a value <= 0 falls back to the default rather
+   * than disabling it. (Residual: a connection that trickles bytes slower than
+   * this window re-arms it; a throughput cap is a follow-up once Phase 3 grows
+   * part sizes.)
+   */
+  stallTimeoutMs?: number;
+  /** How many part URLs to presign per round-trip. */
+  signWindow?: number;
+}
+
+interface ResolvedReliability {
+  maxAttempts: number;
+  baseDelayMs: number;
+  maxDelayMs: number;
+  stallTimeoutMs: number;
+  signWindow: number;
+}
+
+// --- Typed part-PUT errors (drive the retry-vs-fatal decision) ---------------
+
+class PartHttpError extends Error {
+  readonly status: number;
+  constructor(status: number) {
+    super(`Part PUT failed: ${status}`);
+    this.name = 'PartHttpError';
+    this.status = status;
+  }
+}
+
+class PartNetworkError extends Error {
+  constructor() {
+    super('Network error during part PUT');
+    this.name = 'PartNetworkError';
+  }
+}
+
+class PartTimeoutError extends Error {
+  constructor() {
+    super('Part PUT stalled (no progress) and was retried');
+    this.name = 'PartTimeoutError';
+  }
+}
+
+class PartEtagMissingError extends Error {
+  constructor() {
+    super('S3 PUT succeeded but no ETag header was returned. Check bucket CORS exposes ETag.');
+    this.name = 'PartEtagMissingError';
+  }
+}
+
+function isAbortError(err: unknown): boolean {
+  return err instanceof Error && err.name === 'AbortError';
+}
+
+function isRetryable(err: unknown): boolean {
+  if (err instanceof PartNetworkError || err instanceof PartTimeoutError) return true;
+  if (err instanceof PartHttpError) return RETRYABLE_HTTP.has(err.status);
+  return false;
+}
+
+/** Full-jitter exponential backoff: random(0, min(cap, base * 2^(attempt-1))). */
+function backoffDelay(attempt: number, base: number, cap: number): number {
+  const exp = Math.min(cap, base * 2 ** (attempt - 1));
+  return Math.random() * exp;
+}
+
+/** Abort-aware sleep. Rejects with AbortError if the signal fires while waiting. */
+function delay(ms: number, signal: AbortSignal | undefined): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new DOMException('Aborted', 'AbortError'));
+      return;
+    }
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(new DOMException('Aborted', 'AbortError'));
+    };
+    const timer = setTimeout(
+      () => {
+        signal?.removeEventListener('abort', onAbort);
+        resolve();
+      },
+      Math.max(0, ms),
+    );
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
+/** Returns a signal that aborts when EITHER input aborts. */
+function mergeSignals(a: AbortSignal | undefined, b: AbortSignal): AbortSignal {
+  if (!a) return b;
+  if (a.aborted) return a;
+  if (b.aborted) return b;
+  const ctrl = new AbortController();
+  const onAbort = () => ctrl.abort();
+  a.addEventListener('abort', onAbort, { once: true });
+  b.addEventListener('abort', onAbort, { once: true });
+  return ctrl.signal;
+}
+
+export interface UploadedItem {
   key: string;
   etag: string;
   size: number;
+}
+
+/**
+ * Thrown when a job finishes with at least one failed file. Carries the files
+ * that DID store (so the caller can still surface them — e.g. refresh the
+ * listing) instead of the failure swallowing a partial success. `message` is the
+ * first underlying failure's message. A user cancel rejects with a plain
+ * AbortError, not this, so callers can distinguish the two.
+ */
+export class UploadJobError extends Error {
+  readonly uploaded: UploadedItem[];
+  readonly failures: unknown[];
+  constructor(uploaded: UploadedItem[], failures: unknown[]) {
+    const first = failures[0];
+    super(first instanceof Error ? first.message : 'Upload failed');
+    this.name = 'UploadJobError';
+    this.uploaded = uploaded;
+    this.failures = failures;
+  }
 }
 
 export interface UploadProgress {
@@ -40,10 +197,12 @@ export interface UploadJobOptions {
   prefix: string;
   /** Files at or above this size go direct-to-S3 via multipart. */
   threshold?: number;
-  /** Concurrent UploadPart PUTs per file. */
+  /** Soft per-file fairness hint for part lanes; the hard cap is global. */
   partConcurrency?: number;
   signal?: AbortSignal;
   onProgress?: (p: UploadProgress) => void;
+  /** Retry/backoff/signing knobs — defaults are production-tuned; tests override. */
+  reliability?: ReliabilityOptions;
 }
 
 interface CreateResponse {
@@ -68,52 +227,77 @@ function buildKey(prefix: string, name: string): string {
   return clean ? `${clean}/${name}` : name;
 }
 
+/**
+ * PUT one part blob to a presigned URL via XHR, reporting byte deltas through
+ * `onLoaded`. Rejects with a TYPED error so the caller can decide retry vs fatal:
+ * PartHttpError(status), PartNetworkError, PartTimeoutError (inactivity
+ * watchdog), PartEtagMissingError, or a DOMException('AbortError').
+ */
 function putPartWithProgress(
   url: string,
   body: Blob,
   signal: AbortSignal | undefined,
   onLoaded: (delta: number) => void,
+  stallMs: number,
 ): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     let lastLoaded = 0;
+    let timedOut = false;
+    let watchdog: ReturnType<typeof setTimeout> | undefined;
     let onAbort: (() => void) | undefined;
-    const removeAbortListener = () => {
+
+    const cleanup = () => {
+      if (watchdog !== undefined) {
+        clearTimeout(watchdog);
+        watchdog = undefined;
+      }
       if (signal && onAbort) signal.removeEventListener('abort', onAbort);
     };
+
+    // (Re)arm the inactivity watchdog — fired only when a part makes NO progress
+    // for stallMs, which recovers a half-open TCP connection that would
+    // otherwise freeze the upload forever with no error.
+    const arm = () => {
+      if (stallMs > 0) {
+        if (watchdog !== undefined) clearTimeout(watchdog);
+        watchdog = setTimeout(() => {
+          timedOut = true;
+          xhr.abort();
+        }, stallMs);
+      }
+    };
+
     xhr.upload.onprogress = (evt) => {
       if (!evt.lengthComputable) return;
       const delta = evt.loaded - lastLoaded;
       lastLoaded = evt.loaded;
       if (delta > 0) onLoaded(delta);
+      arm();
     };
     xhr.onload = () => {
-      removeAbortListener();
+      cleanup();
       if (xhr.status >= 200 && xhr.status < 300) {
-        // Make up the rest of the progress in case onprogress didn't reach 100%.
+        // Top up in case onprogress didn't reach 100%.
         const remaining = body.size - lastLoaded;
         if (remaining > 0) onLoaded(remaining);
         const etag = xhr.getResponseHeader('ETag') ?? xhr.getResponseHeader('etag') ?? '';
         if (!etag) {
-          reject(
-            new Error(
-              'S3 PUT succeeded but no ETag header was returned. Check bucket CORS exposes ETag.',
-            ),
-          );
+          reject(new PartEtagMissingError());
           return;
         }
         resolve(etag);
       } else {
-        reject(new Error(`Part PUT failed: ${xhr.status} ${xhr.statusText}`));
+        reject(new PartHttpError(xhr.status));
       }
     };
     xhr.onerror = () => {
-      removeAbortListener();
-      reject(new Error('Network error during part PUT'));
+      cleanup();
+      reject(new PartNetworkError());
     };
     xhr.onabort = () => {
-      removeAbortListener();
-      reject(new DOMException('Aborted', 'AbortError'));
+      cleanup();
+      reject(timedOut ? new PartTimeoutError() : new DOMException('Aborted', 'AbortError'));
     };
 
     if (signal) {
@@ -127,7 +311,139 @@ function putPartWithProgress(
 
     xhr.open('PUT', url);
     xhr.send(body);
+    arm();
   });
+}
+
+interface SignedUrl {
+  url: string;
+  expMs: number;
+}
+
+/**
+ * Lazily presigns UploadPart URLs in sliding windows instead of all up front.
+ * `get(n)` returns a URL with comfortable life left, signing the covering window
+ * on demand and de-duping concurrent requests for the same window. `resign(n)`
+ * forces a fresh single-part URL — used when a PUT gets a 403 (expired URL).
+ */
+function createPartSigner(opts: {
+  http: AxiosInstance;
+  key: string;
+  uploadId: string;
+  numParts: number;
+  signal: AbortSignal;
+  window: number;
+}) {
+  const { http, key, uploadId, numParts, signal, window } = opts;
+  const cache = new Map<number, SignedUrl>();
+  const windowInFlight = new Map<number, Promise<void>>();
+
+  const isFresh = (n: number): SignedUrl | undefined => {
+    const c = cache.get(n);
+    return c && c.expMs - Date.now() > SIGN_EXPIRY_SKEW_MS ? c : undefined;
+  };
+
+  const signNumbers = async (partNumbers: number[]): Promise<void> => {
+    if (partNumbers.length === 0) return;
+    const res = await http.post<SignResponse>(
+      '/multipart/sign',
+      { key, uploadId, partNumbers },
+      { signal, timeout: CONTROL_TIMEOUT_MS },
+    );
+    const parsed = Date.parse(res.data.expiresAt);
+    const expMs = Number.isFinite(parsed) ? parsed : Date.now() + 3600 * 1000;
+    for (const u of res.data.urls) cache.set(u.partNumber, { url: u.url, expMs });
+  };
+
+  const ensureWindow = (winIdx: number): Promise<void> => {
+    const inflight = windowInFlight.get(winIdx);
+    if (inflight) return inflight;
+    const startN = winIdx * window + 1;
+    const endN = Math.min(startN + window - 1, numParts);
+    const nums: number[] = [];
+    for (let n = startN; n <= endN; n++) if (!isFresh(n)) nums.push(n);
+    const p = signNumbers(nums).finally(() => windowInFlight.delete(winIdx));
+    windowInFlight.set(winIdx, p);
+    return p;
+  };
+
+  return {
+    async get(partNumber: number): Promise<string> {
+      const cached = isFresh(partNumber);
+      if (cached) return cached.url;
+      await ensureWindow(Math.floor((partNumber - 1) / window));
+      const got = cache.get(partNumber);
+      if (!got) throw new Error(`Failed to presign part ${partNumber}`);
+      return got.url;
+    },
+    async resign(partNumber: number): Promise<string> {
+      await signNumbers([partNumber]);
+      const got = cache.get(partNumber);
+      if (!got) throw new Error(`Failed to presign part ${partNumber}`);
+      return got.url;
+    },
+  };
+}
+
+type PartSigner = ReturnType<typeof createPartSigner>;
+
+/**
+ * Upload a single part with the full reliability loop: JIT-signed URL, global
+ * concurrency permit, retry with backoff on transient failures, one re-sign on a
+ * 403 (expired URL). Byte progress already counted for the part is rolled back
+ * before each retry so the job progress total is never double-counted.
+ */
+async function uploadPart(
+  file: File,
+  partSize: number,
+  idx: number,
+  signer: PartSigner,
+  signal: AbortSignal,
+  tick: (delta: number) => void,
+  cfg: ResolvedReliability,
+): Promise<string> {
+  const partNumber = idx + 1;
+  const start = idx * partSize;
+  const end = Math.min(start + partSize, file.size);
+  const blob = file.slice(start, end);
+
+  let partCounted = 0;
+  const onLoaded = (delta: number) => {
+    partCounted += delta;
+    tick(delta);
+  };
+  const rollback = () => {
+    if (partCounted !== 0) {
+      tick(-partCounted);
+      partCounted = 0;
+    }
+  };
+
+  let attempt = 0;
+  let resignedFor403 = false;
+
+  for (;;) {
+    if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
+    const url = await signer.get(partNumber);
+    try {
+      return await putLimiter.run(() =>
+        putPartWithProgress(url, blob, signal, onLoaded, cfg.stallTimeoutMs),
+      );
+    } catch (err) {
+      rollback();
+      if (isAbortError(err)) throw err;
+      // Expired/invalid presigned URL — refresh this one part and retry once
+      // before treating it as fatal (does not consume a retry attempt).
+      if (err instanceof PartHttpError && err.status === 403 && !resignedFor403) {
+        resignedFor403 = true;
+        await signer.resign(partNumber);
+        continue;
+      }
+      attempt += 1;
+      if (attempt >= cfg.maxAttempts || !isRetryable(err)) throw err;
+      await delay(backoffDelay(attempt, cfg.baseDelayMs, cfg.maxDelayMs), signal);
+    }
+  }
 }
 
 async function uploadOneLarge(
@@ -136,7 +452,8 @@ async function uploadOneLarge(
   prefix: string,
   partConcurrency: number,
   signal: AbortSignal | undefined,
-  onLoaded: (delta: number) => void,
+  tick: (delta: number) => void,
+  cfg: ResolvedReliability,
 ): Promise<UploadedItem> {
   const key = buildKey(prefix, file.name);
 
@@ -144,7 +461,7 @@ async function uploadOneLarge(
   const createRes = await http.post<CreateResponse>(
     '/multipart/create',
     { key, contentType: file.type || undefined },
-    { signal },
+    { signal, timeout: CONTROL_TIMEOUT_MS },
   );
   const { uploadId, partSize, maxParts } = createRes.data;
 
@@ -155,67 +472,63 @@ async function uploadOneLarge(
     );
   }
 
-  // Cleanup helper. Called on any failure so S3 doesn't keep the orphaned parts.
+  // Cleanup helper. Called on unrecoverable failure so S3 doesn't keep the
+  // orphaned parts. Best-effort and not subject to the user's abort signal so it
+  // still runs on cancel.
   const abortUpload = async () => {
     try {
-      await http.post('/multipart/abort', { key, uploadId });
+      await http.post('/multipart/abort', { key, uploadId }, { timeout: CONTROL_TIMEOUT_MS });
     } catch {
       /* best-effort */
     }
   };
 
-  try {
-    // 2. Presign all part URLs (batched at 1000 per call so we stay under
-    //    the server-side schema cap).
-    const partNumbers = Array.from({ length: numParts }, (_, i) => i + 1);
-    const signed: { partNumber: number; url: string }[] = [];
-    for (let i = 0; i < partNumbers.length; i += 1000) {
-      const batch = partNumbers.slice(i, i + 1000);
-      const signRes = await http.post<SignResponse>(
-        '/multipart/sign',
-        { key, uploadId, partNumbers: batch },
-        { signal },
-      );
-      signed.push(...signRes.data.urls);
-    }
-    signed.sort((a, b) => a.partNumber - b.partNumber);
+  // A file-local controller lets the FIRST fatal part error stop this file's
+  // OTHER in-flight parts immediately, without touching sibling files.
+  const fileCtrl = new AbortController();
+  const merged = mergeSignals(signal, fileCtrl.signal);
 
-    // 3. PUT parts with bounded concurrency.
+  const signer = createPartSigner({
+    http,
+    key,
+    uploadId,
+    numParts,
+    signal: merged,
+    window: cfg.signWindow,
+  });
+
+  try {
     const etags = new Array<string>(numParts);
     let next = 0;
 
     const worker = async (): Promise<void> => {
-      while (true) {
+      for (;;) {
         const idx = next++;
         if (idx >= numParts) return;
-        if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-        const start = idx * partSize;
-        const end = Math.min(start + partSize, file.size);
-        const blob = file.slice(start, end);
-        const url = signed[idx]!.url;
-        const etag = await putPartWithProgress(url, blob, signal, onLoaded);
-        etags[idx] = etag;
+        if (merged.aborted) throw new DOMException('Aborted', 'AbortError');
+        etags[idx] = await uploadPart(file, partSize, idx, signer, merged, tick, cfg);
       }
     };
 
-    const workers: Promise<void>[] = [];
     const lanes = Math.max(1, Math.min(partConcurrency, numParts));
-    for (let i = 0; i < lanes; i++) workers.push(worker());
-    await Promise.all(workers);
+    await Promise.all(Array.from({ length: lanes }, () => worker()));
 
-    // 4. Complete.
+    // Complete. Deliberately UNTIMED: CompleteMultipartUpload stitches every part
+    // server-side and AWS documents it as potentially taking several minutes. A
+    // short client timeout here would reject AFTER all parts uploaded, then trip
+    // the catch → /multipart/abort and destroy (or race) an upload the backend is
+    // still finalizing. The BFF's own handling and the socket timeout are the
+    // backstops; we also don't pass the user signal, since cancelling mid-finalize
+    // would race the same way.
     const completeRes = await http.post<CompleteResponse>('/multipart/complete', {
       key,
       uploadId,
       parts: etags.map((etag, i) => ({ partNumber: i + 1, etag })),
     });
 
-    return {
-      key: completeRes.data.key,
-      etag: completeRes.data.etag,
-      size: file.size,
-    };
+    return { key: completeRes.data.key, etag: completeRes.data.etag, size: file.size };
   } catch (err) {
+    fileCtrl.abort(); // stop this file's other parts
     await abortUpload();
     throw err;
   }
@@ -256,7 +569,19 @@ export async function runUploadJob(opts: UploadJobOptions): Promise<UploadedItem
     partConcurrency = 4,
     signal,
     onProgress,
+    reliability,
   } = opts;
+
+  const stall = reliability?.stallTimeoutMs;
+  const cfg: ResolvedReliability = {
+    maxAttempts: reliability?.maxAttempts ?? DEFAULT_MAX_ATTEMPTS,
+    baseDelayMs: reliability?.baseDelayMs ?? DEFAULT_BASE_DELAY_MS,
+    maxDelayMs: reliability?.maxDelayMs ?? DEFAULT_MAX_DELAY_MS,
+    // The stall watchdog can't be switched off (it's what frees a shared permit
+    // from a hung socket); a non-positive value falls back to the default.
+    stallTimeoutMs: stall !== undefined && stall > 0 ? stall : DEFAULT_STALL_TIMEOUT_MS,
+    signWindow: reliability?.signWindow ?? DEFAULT_SIGN_WINDOW,
+  };
 
   const small = files.filter((f) => f.size < threshold);
   const large = files.filter((f) => f.size >= threshold);
@@ -266,24 +591,34 @@ export async function runUploadJob(opts: UploadJobOptions): Promise<UploadedItem
   const tick = (delta: number) => {
     loaded += delta;
     if (loaded > total) loaded = total;
+    if (loaded < 0) loaded = 0;
     onProgress?.({ loaded, total });
   };
 
   onProgress?.({ loaded: 0, total });
 
-  // Run the small batch and each large file concurrently — they're
-  // independent and the user perceives total throughput, not order.
+  // Run the small batch and each large file concurrently. Crucially settle them
+  // all even if one fails — a single file's failure must NOT abandon siblings
+  // that are already storing bytes. Failures are surfaced after all settle.
   const tasks: Promise<UploadedItem[]>[] = [];
-
   if (small.length > 0) {
     tasks.push(uploadSmallBatch(http, small, prefix, signal, tick));
   }
   for (const file of large) {
     tasks.push(
-      uploadOneLarge(http, file, prefix, partConcurrency, signal, tick).then((item) => [item]),
+      uploadOneLarge(http, file, prefix, partConcurrency, signal, tick, cfg).then((item) => [item]),
     );
   }
 
-  const results = await Promise.all(tasks);
-  return results.flat();
+  const settled = await Promise.allSettled(tasks);
+  const uploaded = settled.flatMap((r) => (r.status === 'fulfilled' ? r.value : []));
+  const failures = settled.flatMap((r) => (r.status === 'rejected' ? [r.reason] : []));
+
+  if (failures.length > 0) {
+    // A user cancel should read as a cancel even if a real error also surfaced.
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+    // Carry the files that DID store so the caller can still reflect them.
+    throw new UploadJobError(uploaded, failures);
+  }
+  return uploaded;
 }
