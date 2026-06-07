@@ -288,3 +288,109 @@ describe('POST /multipart/create — adaptive part size', () => {
     });
   });
 });
+
+describe('POST /multipart/parts — resume', () => {
+  const parts = (base: string, key: string, uploadId: string) =>
+    fetch(`${base}/multipart/parts`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ key, uploadId }),
+    });
+
+  it('lists uploaded parts, paginating and normalizing etags', async () => {
+    const { client, calls } = makeClient({
+      ListPartsCommand: (input) => {
+        if (!input.PartNumberMarker) {
+          return {
+            Parts: [{ PartNumber: 1, ETag: '"a"', Size: 5 }],
+            IsTruncated: true,
+            NextPartNumberMarker: '1',
+          };
+        }
+        return { Parts: [{ PartNumber: 2, ETag: '"b"', Size: 6 }], IsTruncated: false };
+      },
+    });
+    await withServer(client, async (base) => {
+      const res = await parts(base, 'k', 'up-1');
+      expect(res.status).toBe(200);
+      expect((await res.json()).parts).toEqual([
+        { partNumber: 1, etag: 'a', size: 5 },
+        { partNumber: 2, etag: 'b', size: 6 },
+      ]);
+    });
+    expect(calls.filter((c) => c.name === 'ListPartsCommand')).toHaveLength(2); // paginated
+  });
+
+  it('returns 404 when the upload is unknown (stale session)', async () => {
+    const { client } = makeClient({
+      ListPartsCommand: () => {
+        throw Object.assign(new Error('NoSuchUpload'), { $metadata: { httpStatusCode: 404 } });
+      },
+    });
+    await withServer(client, async (base) => {
+      const res = await parts(base, 'k', 'gone');
+      expect(res.status).toBe(404);
+    });
+  });
+});
+
+describe('GET /cors-status — diagnostic', () => {
+  const sufficientRule = {
+    AllowedOrigins: ['*'],
+    AllowedMethods: ['GET', 'PUT', 'HEAD', 'POST'],
+    AllowedHeaders: ['*'],
+    ExposeHeaders: ['ETag'],
+  };
+
+  it('reports ok when a sufficient rule exists', async () => {
+    const { client } = makeClient({
+      GetBucketCorsCommand: () => ({ CORSRules: [sufficientRule] }),
+    });
+    await withServer(client, async (base) => {
+      const res = await fetch(`${base}/cors-status`);
+      const json = await res.json();
+      expect(json.sufficient).toBe(true);
+      expect(json.reason).toBe('ok');
+      expect(json.status.exposesEtag).toBe(true);
+    });
+  });
+
+  it('reports insufficient (with a recommended rule) when rules fall short', async () => {
+    const { client } = makeClient({
+      GetBucketCorsCommand: () => ({
+        CORSRules: [{ AllowedOrigins: ['*'], AllowedMethods: ['GET'] }],
+      }),
+    });
+    await withServer(client, async (base) => {
+      const json = await (await fetch(`${base}/cors-status`)).json();
+      expect(json.sufficient).toBe(false);
+      expect(json.reason).toBe('insufficient');
+      expect(json.recommendedRule.ExposeHeaders).toEqual(['ETag']);
+    });
+  });
+
+  it('reports no-config when the bucket has no CORS configuration', async () => {
+    const { client } = makeClient({
+      GetBucketCorsCommand: () => {
+        throw Object.assign(new Error('none'), { name: 'NoSuchCORSConfiguration' });
+      },
+    });
+    await withServer(client, async (base) => {
+      const json = await (await fetch(`${base}/cors-status`)).json();
+      expect(json.reason).toBe('no-config');
+      expect(json.sufficient).toBe(false);
+    });
+  });
+
+  it('reports unreadable when GetBucketCors is denied/unsupported', async () => {
+    const { client } = makeClient({
+      GetBucketCorsCommand: () => {
+        throw Object.assign(new Error('denied'), { name: 'AccessDenied' });
+      },
+    });
+    await withServer(client, async (base) => {
+      const json = await (await fetch(`${base}/cors-status`)).json();
+      expect(json.reason).toBe('unreadable');
+    });
+  });
+});

@@ -1,7 +1,12 @@
 import type { AxiosInstance } from 'axios';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { runUploadJob, UploadJobError } from '../lib/multipart-upload';
+import { runUploadJob, uploadOneFile, UploadJobError } from '../lib/multipart-upload';
+import {
+  fingerprintFile,
+  type UploadSession,
+  type UploadSessionStore,
+} from '../lib/upload-sessions';
 
 // --- Fake XMLHttpRequest -----------------------------------------------------
 // Part PUTs go through XHR (putPartWithProgress). This fake models per-attempt
@@ -568,5 +573,137 @@ describe('runUploadJob — mixed batch routing', () => {
     expect(out.map((i) => i.key).sort()).toEqual(['big.txt', 'small.txt']);
     expect(http.post.mock.calls.some(([u]) => u === '/upload')).toBe(true);
     expect(http.post.mock.calls.some(([u]) => u === '/multipart/create')).toBe(true);
+  });
+});
+
+function memStore(): UploadSessionStore {
+  const map = new Map<string, UploadSession>();
+  const k = (ns: string, fp: string) => `${ns}|${fp}`;
+  return {
+    get: (ns, fp) => map.get(k(ns, fp)) ?? null,
+    put: (ns, fp, s) => void map.set(k(ns, fp), s),
+    remove: (ns, fp) => void map.delete(k(ns, fp)),
+  };
+}
+
+describe('uploadOneFile — resume', () => {
+  it('resumes a large file, skipping parts already on the server', async () => {
+    const key = 'big.bin';
+    const file = makeFile(key, 12); // partSize 5 → 3 parts (5, 5, 2)
+    const store = memStore();
+    // Seed a session as if a prior attempt created the upload (namespace '' since
+    // the mock http has no defaults.baseURL).
+    store.put('', fingerprintFile(file), {
+      key,
+      uploadId: 'up-resumed',
+      partSize: 5,
+      createdAt: Date.now(),
+    });
+
+    const http = mockHttp({
+      // Part 1 already on the server; create must NOT be called.
+      '/multipart/parts': { data: { parts: [{ partNumber: 1, etag: 'r1', size: 5 }] } },
+      '/multipart/sign': signResponder,
+      '/multipart/complete': { data: { key, etag: 'final' } },
+    });
+
+    const item = await uploadOneFile(http, file, '', {
+      threshold: 10,
+      reliability: FAST,
+      resume: { store },
+    });
+
+    expect(item).toEqual({ key, etag: 'final', size: 12 });
+    // Only the missing parts (2, 3) are PUT; part 1 is skipped.
+    expect(FakeXHR.sent.map((s) => s.url).sort()).toEqual([partUrl(key, 2), partUrl(key, 3)]);
+    // A fresh create is NOT issued when resuming.
+    expect(http.post.mock.calls.some(([u]) => u === '/multipart/create')).toBe(false);
+    // Complete stitches all three parts (1 from the server + 2 uploaded).
+    const complete = http.post.mock.calls.find(([u]) => u === '/multipart/complete');
+    expect((complete?.[1] as { parts: unknown[] }).parts).toHaveLength(3);
+    // Session is cleared once the upload completes.
+    expect(store.get('', fingerprintFile(file))).toBeNull();
+  });
+
+  it('starts fresh and persists a session when none exists', async () => {
+    const key = 'fresh.bin';
+    const file = makeFile(key, 12);
+    const store = memStore();
+    const http = mockHttp({
+      '/multipart/create': { data: { uploadId: 'up-new', key, partSize: 5, maxParts: 1000 } },
+      '/multipart/sign': signResponder,
+      '/multipart/complete': { data: { key, etag: 'final' } },
+    });
+
+    await uploadOneFile(http, file, '', { threshold: 10, reliability: FAST, resume: { store } });
+
+    // No saved session → it created one (no /multipart/parts call), then cleared it on success.
+    expect(http.post.mock.calls.some(([u]) => u === '/multipart/parts')).toBe(false);
+    expect(http.post.mock.calls.some(([u]) => u === '/multipart/create')).toBe(true);
+    expect(store.get('', fingerprintFile(file))).toBeNull();
+  });
+
+  it('discards a stale session (parts 404) and starts fresh', async () => {
+    const key = 'stale.bin';
+    const file = makeFile(key, 12);
+    const store = memStore();
+    store.put('', fingerprintFile(file), {
+      key,
+      uploadId: 'dead',
+      partSize: 5,
+      createdAt: Date.now(),
+    });
+
+    const notFound = Object.assign(new Error('NoSuchUpload'), {
+      response: { status: 404 },
+    });
+    const http = mockHttp({
+      '/multipart/parts': notFound, // stale → rejected
+      '/multipart/create': { data: { uploadId: 'up-new', key, partSize: 5, maxParts: 1000 } },
+      '/multipart/sign': signResponder,
+      '/multipart/complete': { data: { key, etag: 'final' } },
+    });
+
+    const item = await uploadOneFile(http, file, '', {
+      threshold: 10,
+      reliability: FAST,
+      resume: { store },
+    });
+
+    expect(item.etag).toBe('final');
+    // Fell back to a fresh create after the stale-session probe failed.
+    expect(http.post.mock.calls.some(([u]) => u === '/multipart/create')).toBe(true);
+    expect(FakeXHR.sent).toHaveLength(3); // all 3 parts uploaded fresh
+  });
+
+  it('keeps the session and propagates a transient probe error (no fresh upload)', async () => {
+    const key = 'flaky.bin';
+    const file = makeFile(key, 12);
+    const store = memStore();
+    store.put('', fingerprintFile(file), {
+      key,
+      uploadId: 'up-keep',
+      partSize: 5,
+      createdAt: Date.now(),
+    });
+
+    const transient = Object.assign(new Error('Service Unavailable'), {
+      response: { status: 503 },
+    });
+    const http = mockHttp({
+      '/multipart/parts': transient, // transient, NOT a 404
+      '/multipart/create': {
+        data: { uploadId: 'must-not-be-used', key, partSize: 5, maxParts: 1000 },
+      },
+    });
+
+    await expect(
+      uploadOneFile(http, file, '', { threshold: 10, reliability: FAST, resume: { store } }),
+    ).rejects.toThrow();
+
+    // Parts are still valid → the session is preserved for a later resume, and no
+    // fresh multipart upload is created.
+    expect(store.get('', fingerprintFile(file))?.uploadId).toBe('up-keep');
+    expect(http.post.mock.calls.some(([u]) => u === '/multipart/create')).toBe(false);
   });
 });

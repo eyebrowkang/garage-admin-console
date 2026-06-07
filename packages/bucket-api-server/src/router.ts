@@ -7,14 +7,17 @@ import {
   AbortMultipartUploadCommand,
   CompleteMultipartUploadCommand,
   CopyObjectCommand,
+  type CORSRule,
   CreateMultipartUploadCommand,
   DeleteObjectCommand,
   DeleteObjectsCommand,
+  GetBucketCorsCommand,
   GetObjectCommand,
   type GetObjectCommandOutput,
   HeadObjectCommand,
   type HeadObjectCommandOutput,
   ListObjectsV2Command,
+  ListPartsCommand,
   PutObjectCommand,
   UploadPartCommand,
   UploadPartCopyCommand,
@@ -34,7 +37,7 @@ import {
   MULTIPART_TARGET_PARTS,
 } from './constants.js';
 import { computeMultipartPartSize } from './multipart-policy.js';
-import { ensureBucketCors } from './cors.js';
+import { classifyBucketCors, ensureBucketCors, recommendedCorsRule } from './cors.js';
 
 interface ShapeInput {
   Key?: string | undefined;
@@ -798,6 +801,63 @@ export function createBucketRouter({
   });
 
   // ---------------------------------------------------------------------------
+  // POST /multipart/parts
+  //
+  // Lists the parts already uploaded for an in-progress multipart upload (S3
+  // ListParts, paginated — up to MULTIPART_MAX_PARTS at 1000/page). The client
+  // uses this to RESUME: re-selecting a file whose upload was interrupted skips
+  // the parts already on the server and uploads only the missing ones. A 404
+  // (NoSuchUpload) tells the client its saved session is stale.
+  // ---------------------------------------------------------------------------
+
+  const MultipartPartsSchema = z.object({
+    key: z.string().min(1),
+    uploadId: z.string().min(1),
+  });
+
+  router.post('/multipart/parts', async (req, res) => {
+    const body = parseBody(MultipartPartsSchema, req, res);
+    if (!body) return;
+    const ctx = await withContext(req, res, resolveContext, logger);
+    if (!ctx) return;
+    try {
+      const parts: { partNumber: number; etag: string; size: number }[] = [];
+      let marker: string | undefined;
+      do {
+        const out = await ctx.client.send(
+          new ListPartsCommand({
+            Bucket: ctx.bucketName,
+            Key: body.key,
+            UploadId: body.uploadId,
+            PartNumberMarker: marker,
+          }),
+        );
+        for (const p of out.Parts ?? []) {
+          if (p.PartNumber != null) {
+            parts.push({
+              partNumber: p.PartNumber,
+              etag: (p.ETag ?? '').replace(/^"|"$/g, ''),
+              size: p.Size ?? 0,
+            });
+          }
+        }
+        marker = out.IsTruncated ? (out.NextPartNumberMarker ?? undefined) : undefined;
+      } while (marker);
+      res.json({ parts });
+    } catch (err) {
+      if (httpStatusOf(err) === 404) {
+        res.status(404).json({ error: 'Upload not found' });
+        return;
+      }
+      logger.error(
+        { err, bucket: ctx.bucketName, key: body.key, uploadId: body.uploadId },
+        'multipart parts failed',
+      );
+      sendError(res, err);
+    }
+  });
+
+  // ---------------------------------------------------------------------------
   // DELETE /objects
   // ---------------------------------------------------------------------------
 
@@ -894,6 +954,69 @@ export function createBucketRouter({
         return;
       }
       logger.error({ err, bucket: ctx.bucketName, src: body.src, dst: body.dst }, 'copy failed');
+      sendError(res, err);
+    }
+  });
+
+  // ---------------------------------------------------------------------------
+  // GET /cors-status
+  //
+  // Read-only CORS diagnostic for browser-direct transfers. The client calls
+  // this after a direct PUT fails so it can tell the user WHETHER the bucket's
+  // CORS is the cause and HOW to fix it — instead of an opaque "upload failed".
+  // Never writes; safe to call on demand. `reason`: ok | no-config | insufficient
+  // | unreadable (GetBucketCors denied/unsupported — the endpoint may still honour
+  // CORS at runtime, e.g. Wasabi/global-CORS MinIO, so this is a "may still work"
+  // hint, not a hard failure).
+  // ---------------------------------------------------------------------------
+
+  router.get('/cors-status', async (req, res) => {
+    const ctx = await withContext(req, res, resolveContext, logger);
+    if (!ctx) return;
+    const checkedOrigins = corsOriginsFor(req, corsAllowedOrigins);
+    const recommendedRule = recommendedCorsRule(checkedOrigins);
+    try {
+      let rules: CORSRule[];
+      try {
+        const out = await ctx.client.send(new GetBucketCorsCommand({ Bucket: ctx.bucketName }));
+        rules = out.CORSRules ?? [];
+      } catch (err) {
+        const code =
+          (err as { name?: string; Code?: string }).name ?? (err as { Code?: string }).Code;
+        if (code === 'NoSuchCORSConfiguration' || code === 'NoSuchCORSConfigurationError') {
+          res.json({
+            managed: manageCors,
+            sufficient: false,
+            reason: 'no-config',
+            checkedOrigins,
+            recommendedRule,
+            status: null,
+          });
+          return;
+        }
+        // Couldn't READ the rules (permission / unsupported). The endpoint might
+        // still honour CORS at runtime, so report it as a soft "unreadable".
+        res.json({
+          managed: manageCors,
+          sufficient: false,
+          reason: 'unreadable',
+          checkedOrigins,
+          recommendedRule,
+          status: null,
+        });
+        return;
+      }
+      const status = classifyBucketCors(rules, checkedOrigins);
+      res.json({
+        managed: manageCors,
+        sufficient: status.sufficient,
+        reason: status.sufficient ? 'ok' : 'insufficient',
+        checkedOrigins,
+        recommendedRule,
+        status,
+      });
+    } catch (err) {
+      logger.error({ err, bucket: ctx.bucketName }, 'cors-status failed');
       sendError(res, err);
     }
   });

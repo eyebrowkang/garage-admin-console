@@ -100,14 +100,14 @@ Each workspace has its own README with deeper, package-specific notes.
 
 Routes (registered in [`src/app.ts`](../garage-admin-console/api/src/app.ts)):
 
-| Endpoint | Method | Auth | Description |
-| --- | --- | --- | --- |
-| `/api/auth/login` | POST | No | Authenticate and receive JWT |
-| `/api/health` | GET | No | Health check |
-| `/api/clusters` | GET / POST | JWT | List / add clusters (tokens excluded from list) |
-| `/api/clusters/:id` | PUT / DELETE | JWT | Update / remove a cluster |
-| `/api/proxy/:clusterId/*splat` | ALL | JWT | Pass-through to the Garage Admin API |
-| `/api/clusters/:clusterId/buckets/:bucket/*` | various | JWT | [Bucket Backend API](./bucket-api.md) |
+| Endpoint                                     | Method       | Auth | Description                                     |
+| -------------------------------------------- | ------------ | ---- | ----------------------------------------------- |
+| `/api/auth/login`                            | POST         | No   | Authenticate and receive JWT                    |
+| `/api/health`                                | GET          | No   | Health check                                    |
+| `/api/clusters`                              | GET / POST   | JWT  | List / add clusters (tokens excluded from list) |
+| `/api/clusters/:id`                          | PUT / DELETE | JWT  | Update / remove a cluster                       |
+| `/api/proxy/:clusterId/*splat`               | ALL          | JWT  | Pass-through to the Garage Admin API            |
+| `/api/clusters/:clusterId/buckets/:bucket/*` | various      | JWT  | [Bucket Backend API](./bucket-api.md)           |
 
 - The JSON body parser skips `multipart/form-data` so busboy can stream uploads.
 - Bucket-API requests mint or reuse a cached per-(cluster, bucket) S3 keypair
@@ -141,14 +141,14 @@ Blocks). `BucketDetail` mounts the federated `BucketObjectBrowser`.
 
 Routes (registered in [`src/app.ts`](../s3-browser/api/src/app.ts)):
 
-| Endpoint | Method | Auth | Description |
-| --- | --- | --- | --- |
-| `/api/auth/login` | POST | No | Authenticate and receive JWT |
-| `/api/health` | GET | No | Health check |
-| `/api/connections[/:id]` | GET/POST/PUT/DELETE | JWT | CRUD S3 connections (creds excluded from list) |
-| `/api/connections/test` | POST | JWT | Test credentials without saving — `{ ok, buckets?, error? }` |
-| `/api/connections/:connId/buckets` | GET | JWT | S3 `ListBuckets` (helper) |
-| `/api/connections/:connId/buckets/:bucket/*` | various | JWT | [Bucket Backend API](./bucket-api.md) |
+| Endpoint                                     | Method              | Auth | Description                                                  |
+| -------------------------------------------- | ------------------- | ---- | ------------------------------------------------------------ |
+| `/api/auth/login`                            | POST                | No   | Authenticate and receive JWT                                 |
+| `/api/health`                                | GET                 | No   | Health check                                                 |
+| `/api/connections[/:id]`                     | GET/POST/PUT/DELETE | JWT  | CRUD S3 connections (creds excluded from list)               |
+| `/api/connections/test`                      | POST                | JWT  | Test credentials without saving — `{ ok, buckets?, error? }` |
+| `/api/connections/:connId/buckets`           | GET                 | JWT  | S3 `ListBuckets` (helper)                                    |
+| `/api/connections/:connId/buckets/:bucket/*` | various             | JWT  | [Bucket Backend API](./bucket-api.md)                        |
 
 Database (`Connection`, `AppSettings`) — see [Database schemas](#database-schemas).
 Key files: [`src/lib/s3-client.ts`](../s3-browser/api/src/lib/s3-client.ts)
@@ -175,6 +175,26 @@ kept **router-free** so embedders don't have to pull in react-router.
 - MF Remote config in [`rsbuild.config.ts`](../s3-browser/web/rsbuild.config.ts):
   exposes `./FileBrowser` (plain React) and `./export-app` (`createBridgeComponent`),
   shares `react`/`react-dom` as singletons, build-time `dts`, dev server on `:5174`.
+
+### Large-file upload reliability
+
+Lives in the federated remote (so the Admin embed inherits it via MF) and talks
+only to the [Bucket Backend API](./bucket-api.md):
+
+- [`lib/multipart-upload.ts`](../s3-browser/web/src/lib/multipart-upload.ts) — the
+  direct-to-S3 runtime: per-part retry with full-jitter backoff (re-signing on an
+  expired-URL 400/403), a module-level `Semaphore` capping concurrent part PUTs
+  globally, just-in-time windowed presigning, an inactivity watchdog, and
+  per-file failure isolation. Large objects resume via `POST /multipart/parts`.
+- [`lib/upload-sessions.ts`](../s3-browser/web/src/lib/upload-sessions.ts) — a
+  localStorage session store (keyed by backend baseUrl + file fingerprint) so an
+  interrupted upload resumes when the same file is re-selected.
+- [`lib/upload-manager.ts`](../s3-browser/web/src/lib/upload-manager.ts) — a
+  `useSyncExternalStore` queue (one per backend, at `BrowserProvider` level) that
+  survives the dialog closing; drives the non-blocking
+  [`components/upload/`](../s3-browser/web/src/file-browser/components/upload/)
+  panel (per-file progress/cancel/retry + an on-failure `GET /cors-status`
+  diagnostic).
 
 ## Module Federation
 
@@ -219,15 +239,15 @@ instead of crashing the page. See [development.md](./development.md) for the
 
 Each has its own README:
 
-| Package | Role |
-| --- | --- |
-| [`@garage/tokens`](../packages/tokens/) | Framework-agnostic design tokens (CSS variables + TS palette) |
-| [`@garage/ui`](../packages/ui/) | shadcn/Radix primitives, `Toaster`/`useToast`, `LoginForm`, `cn` — built with tsup |
-| [`@garage/web-shared`](../packages/web-shared/) | `createApiClient` / `createAppQueryClient` factories, formatters, `getApiErrorMessage` |
-| [`@garage/crypto`](../packages/crypto/) | AES-256-GCM encrypt/decrypt, consumed by both BFFs' `encryption.ts` |
-| [`@garage/server-config`](../packages/server-config/) | Env loader, JWT auth router, security response headers, SQLite/migration helpers shared by both BFFs |
-| [`@garage/bucket-api-server`](../packages/bucket-api-server/) | The `createBucketRouter(resolveContext)` factory — all S3/multipart logic for the Bucket Backend API |
-| [`@garage/bucket-api-contract-tests`](../packages/bucket-api-contract-tests/) | Regression suite that runs the contract against either BFF |
+| Package                                                                       | Role                                                                                                 |
+| ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| [`@garage/tokens`](../packages/tokens/)                                       | Framework-agnostic design tokens (CSS variables + TS palette)                                        |
+| [`@garage/ui`](../packages/ui/)                                               | shadcn/Radix primitives, `Toaster`/`useToast`, `LoginForm`, `cn` — built with tsup                   |
+| [`@garage/web-shared`](../packages/web-shared/)                               | `createApiClient` / `createAppQueryClient` factories, formatters, `getApiErrorMessage`               |
+| [`@garage/crypto`](../packages/crypto/)                                       | AES-256-GCM encrypt/decrypt, consumed by both BFFs' `encryption.ts`                                  |
+| [`@garage/server-config`](../packages/server-config/)                         | Env loader, JWT auth router, security response headers, SQLite/migration helpers shared by both BFFs |
+| [`@garage/bucket-api-server`](../packages/bucket-api-server/)                 | The `createBucketRouter(resolveContext)` factory — all S3/multipart logic for the Bucket Backend API |
+| [`@garage/bucket-api-contract-tests`](../packages/bucket-api-contract-tests/) | Regression suite that runs the contract against either BFF                                           |
 
 > **Keep both web apps aligned — don't fork them.** New shared UI goes in
 > `@garage/ui`, new shared non-UI logic in `@garage/web-shared`; never copy a
@@ -253,10 +273,10 @@ for the schema workflow.
 
 - **Admin** ([`schema.ts`](../garage-admin-console/api/src/db/schema.ts)) —
   `Cluster` (`id, name, endpoint, adminToken (enc), metricToken (enc, opt),
-  s3Endpoint (opt), s3Region (opt), s3ForcePathStyle (opt), createdAt,
-  updatedAt`) + `AppSettings`. The `s3*` columns are nullable; clusters without
+s3Endpoint (opt), s3Region (opt), s3ForcePathStyle (opt), createdAt,
+updatedAt`) + `AppSettings`. The `s3*` columns are nullable; clusters without
   them work everywhere except the embedded browser, which shows a "configure
   s3Endpoint" panel.
 - **S3 Browser** ([`schema.ts`](../s3-browser/api/src/db/schema.ts)) —
   `Connection` (`id, name, endpoint, region, forcePathStyle, accessKeyId (enc),
-  secretAccessKey (enc), bucket (opt), createdAt, updatedAt`) + `AppSettings`.
+secretAccessKey (enc), bucket (opt), createdAt, updatedAt`) + `AppSettings`.

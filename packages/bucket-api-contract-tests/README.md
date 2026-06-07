@@ -77,8 +77,11 @@ Cluster auto-creation is not supported (the suite never creates/deletes cluster 
 - `GET /list` envelope shape on empty + populated prefixes
 - `POST /upload` single + batched multipart
 - `GET /object` HEAD-equivalent metadata + 404
+- `GET /download` full body + ranged request (`206` + `Content-Range`)
 - `POST /presign` getObject + putObject roundtrip via `fetch`
+- `POST /multipart/*` create→sign→PUT→complete roundtrip; adaptive `partSize` scales with `fileSize`; `/multipart/parts` lists uploaded parts (resume) + `404` on an unknown upload
 - `POST /copy` ETag + size verification
+- `GET /cors-status` diagnostic shape
 - `DELETE /objects` single + batched payloads
 - `?continuationToken` pagination
 

@@ -6,7 +6,13 @@ import {
 } from '@aws-sdk/client-s3';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { _resetCorsCache, createBucketCorsCacheKey, ensureBucketCors } from '../cors.js';
+import {
+  _resetCorsCache,
+  classifyBucketCors,
+  createBucketCorsCacheKey,
+  ensureBucketCors,
+  recommendedCorsRule,
+} from '../cors.js';
 
 const logger = { error: vi.fn() };
 
@@ -56,6 +62,37 @@ describe('createBucketCorsCacheKey', () => {
     expect(createBucketCorsCacheKey('conn:1', 'http://s3.local:3900', true, 'bucket/name')).toBe(
       'conn%3A1:http%3A%2F%2Fs3.local%3A3900:true:bucket%2Fname',
     );
+  });
+});
+
+describe('classifyBucketCors', () => {
+  it('marks a wildcard rule that exposes ETag as sufficient', () => {
+    const status = classifyBucketCors([WILDCARD_RULE], ['https://app.example']);
+    expect(status.sufficient).toBe(true);
+    expect(status).toMatchObject({ coversOrigins: true, coversMethods: true, exposesEtag: true });
+  });
+
+  it('is insufficient and pinpoints the gap when ETag is not exposed', () => {
+    const noEtag: CORSRule = {
+      AllowedOrigins: ['*'],
+      AllowedMethods: ['GET', 'PUT', 'HEAD', 'POST'],
+      AllowedHeaders: ['*'],
+    };
+    const status = classifyBucketCors([noEtag], ['https://app.example']);
+    expect(status.sufficient).toBe(false);
+    expect(status.exposesEtag).toBe(false);
+    expect(status.coversMethods).toBe(true);
+  });
+
+  it('is insufficient for an empty rule set', () => {
+    expect(classifyBucketCors([], ['https://app.example']).sufficient).toBe(false);
+  });
+
+  it('recommendedCorsRule covers the four required methods and exposes ETag', () => {
+    const rule = recommendedCorsRule(['https://app.example']);
+    expect(rule.AllowedMethods).toEqual(['GET', 'PUT', 'HEAD', 'POST']);
+    expect(rule.ExposeHeaders).toEqual(['ETag']);
+    expect(rule.AllowedOrigins).toEqual(['https://app.example']);
   });
 });
 

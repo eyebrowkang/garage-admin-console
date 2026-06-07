@@ -57,36 +57,44 @@ Admin 镜像采用多阶段构建（`node:24-alpine`）：先编译 `@garage/tok
 
 ## 生产环境变量（Admin 镜像）
 
-| 变量                         | 必填 | 默认值        | 说明                                                                               |
-| ---------------------------- | ---- | ------------- | ---------------------------------------------------------------------------------- |
-| `JWT_SECRET`                 | 是   | —             | JWT 签名密钥                                                                       |
-| `ENCRYPTION_KEY`             | 是   | —             | AES-256 密钥（恰好 32 个 ASCII 字符）                                              |
-| `ADMIN_PASSWORD`             | 是   | —             | 控制台登录密码                                                                     |
-| `PORT`                       | 否   | `3001`        | 服务端口                                                                           |
-| `LOG_LEVEL`                  | 否   | `info`        | 日志级别                                                                           |
-| `DATA_DIR`                   | 否   | `/data`       | SQLite 数据库目录                                                                  |
-| `STATIC_DIR`                 | 否   | `/app/static` | 前端文件目录                                                                       |
-| `S3_BROWSER_MF_URL`          | 否   | —             | 浏览器可见的 MF manifest URL                                                       |
-| `S3_BROWSER_MF_PROXY_TARGET` | 否   | —             | Admin `/s3-browser/*` 代理的内部上游地址                                           |
-| `S3_BROWSER_STATIC_DIR`      | 否   | —             | 同源伺服内嵌 S3 Browser 远端的目录（`garage-admin-all` 镜像内置；优先级高于代理）  |
-| `S3_CORS_ALLOWED_ORIGINS`    | 否   | —             | 逗号分隔的自动管理桶 CORS 规则允许的源（默认为请求方应用的 origin）                |
-| `S3_MANAGE_CORS`             | 否   | `true`        | 设为 `false` 则完全由运维人员自行管理桶 CORS                                       |
-| `MORGAN_FORMAT`              | 否   | off（生产）   | HTTP 访问日志格式（`combined`、`common`、`dev` 等）；`off` / `none` / `false` 禁用 |
-| `ACCESS_TOKEN_TTL`           | 否   | `15m`         | 访问令牌有效期（数字 + 单位 `ms`/`s`/`m`/`h`/`d`/`w`/`y`）；客户端会在过期前自动刷新 |
-| `REFRESH_TOKEN_TTL`          | 否   | `14d`         | 刷新令牌有效期——空闲会话保持登录的时长。全局登出 = 轮换 `JWT_SECRET`              |
+| 变量                          | 必填 | 默认值                | 说明                                                                                                                                       |
+| ----------------------------- | ---- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `JWT_SECRET`                  | 是   | —                     | JWT 签名密钥                                                                                                                               |
+| `ENCRYPTION_KEY`              | 是   | —                     | AES-256 密钥（恰好 32 个 ASCII 字符）                                                                                                      |
+| `ADMIN_PASSWORD`              | 是   | —                     | 控制台登录密码                                                                                                                             |
+| `PORT`                        | 否   | `3001`                | 服务端口                                                                                                                                   |
+| `LOG_LEVEL`                   | 否   | `info`                | 日志级别                                                                                                                                   |
+| `DATA_DIR`                    | 否   | `/data`               | SQLite 数据库目录                                                                                                                          |
+| `STATIC_DIR`                  | 否   | `/app/static`         | 前端文件目录                                                                                                                               |
+| `S3_BROWSER_MF_URL`           | 否   | —                     | 浏览器可见的 MF manifest URL                                                                                                               |
+| `S3_BROWSER_MF_PROXY_TARGET`  | 否   | —                     | Admin `/s3-browser/*` 代理的内部上游地址                                                                                                   |
+| `S3_BROWSER_STATIC_DIR`       | 否   | —                     | 同源伺服内嵌 S3 Browser 远端的目录（`garage-admin-all` 镜像内置；优先级高于代理）                                                          |
+| `S3_CORS_ALLOWED_ORIGINS`     | 否   | —                     | 逗号分隔的自动管理桶 CORS 规则允许的源（默认为请求方应用的 origin）                                                                        |
+| `S3_MANAGE_CORS`              | 否   | `true`                | 设为 `false` 则完全由运维人员自行管理桶 CORS                                                                                               |
+| `S3_MULTIPART_BASE_PART_SIZE` | 否   | `8388608`（8 MiB）    | 自适应分片梯度的基准（也是客户端不传 `fileSize` 时返回的分片大小）。字节，≥ 5 MiB。见 [bucket-api.md](./bucket-api.md#the-threshold-split) |
+| `S3_MULTIPART_TARGET_PARTS`   | 否   | `2000`                | 自适应梯度趋近的软目标分片数（1–10000）                                                                                                    |
+| `S3_MULTIPART_MAX_PART_SIZE`  | 否   | `1073741824`（1 GiB） | 自适应分片梯度的上限。字节，≤ 5 GiB                                                                                                        |
+| `S3_CHECKSUM_MODE`            | 否   | `when_required`       | S3 校验和行为。`when_required` 对所有 S3 兼容端点（含 Garage）安全；`when_supported` 为完全支持校验和的端点开启 CRC32                      |
+| `MORGAN_FORMAT`               | 否   | off（生产）           | HTTP 访问日志格式（`combined`、`common`、`dev` 等）；`off` / `none` / `false` 禁用                                                         |
+| `ACCESS_TOKEN_TTL`            | 否   | `15m`                 | 访问令牌有效期（数字 + 单位 `ms`/`s`/`m`/`h`/`d`/`w`/`y`）；客户端会在过期前自动刷新                                                       |
+| `REFRESH_TOKEN_TTL`           | 否   | `14d`                 | 刷新令牌有效期——空闲会话保持登录的时长。全局登出 = 轮换 `JWT_SECRET`                                                                       |
 
 ## 生产环境变量（S3 Browser 镜像）
 
 S3 Browser 镜像与 Admin 镜像共享相同的核心环境变量（`JWT_SECRET`、`ENCRYPTION_KEY`、`ADMIN_PASSWORD`、`PORT`、`LOG_LEVEL`、`DATA_DIR`、`STATIC_DIR`、`MORGAN_FORMAT`、`ACCESS_TOKEN_TTL`、`REFRESH_TOKEN_TTL`）。以下为 S3 Browser 特有变量：
 
-| 变量                      | 必填 | 默认值  | 说明                                                        |
-| ------------------------- | ---- | ------- | ----------------------------------------------------------- |
-| `S3_BROWSER_STATIC_ONLY`  | 否   | `false` | `true` 仅提供静态 / MF 资源（不启动 BFF API）；用于组合部署 |
-| `STATIC_CORS_ORIGIN`      | 否   | —       | `S3_BROWSER_STATIC_ONLY` 模式下静态资源允许的 CORS origin   |
-| `S3_CORS_ALLOWED_ORIGINS` | 否   | —       | 逗号分隔的自动管理桶 CORS 规则允许的源                      |
-| `S3_MANAGE_CORS`          | 否   | `true`  | 设为 `false` 则完全由运维人员自行管理桶 CORS                |
+| 变量                          | 必填 | 默认值          | 说明                                                        |
+| ----------------------------- | ---- | --------------- | ----------------------------------------------------------- |
+| `S3_BROWSER_STATIC_ONLY`      | 否   | `false`         | `true` 仅提供静态 / MF 资源（不启动 BFF API）；用于组合部署 |
+| `STATIC_CORS_ORIGIN`          | 否   | —               | `S3_BROWSER_STATIC_ONLY` 模式下静态资源允许的 CORS origin   |
+| `S3_CORS_ALLOWED_ORIGINS`     | 否   | —               | 逗号分隔的自动管理桶 CORS 规则允许的源                      |
+| `S3_MANAGE_CORS`              | 否   | `true`          | 设为 `false` 则完全由运维人员自行管理桶 CORS                |
+| `S3_MULTIPART_BASE_PART_SIZE` | 否   | `8388608`       | 自适应分片梯度基准（字节，≥ 5 MiB）                         |
+| `S3_MULTIPART_TARGET_PARTS`   | 否   | `2000`          | 梯度趋近的软目标分片数（1–10000）                           |
+| `S3_MULTIPART_MAX_PART_SIZE`  | 否   | `1073741824`    | 自适应分片梯度上限（字节，≤ 5 GiB）                         |
+| `S3_CHECKSUM_MODE`            | 否   | `when_required` | `when_required`（含 Garage 全部安全）或 `when_supported`    |
 
-> `S3_CORS_*` 变量同时被 Admin 和 S3 Browser 两个 BFF 读取。
+> `S3_CORS_*`、`S3_MULTIPART_*` 和 `S3_CHECKSUM_MODE` 变量同时被 Admin 和 S3 Browser 两个 BFF 读取。
 
 ## 生产环境变量（一体化镜像）
 

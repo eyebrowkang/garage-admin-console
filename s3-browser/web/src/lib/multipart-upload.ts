@@ -22,8 +22,12 @@
  * every reliability fix here without any host change.
  */
 import type { AxiosInstance } from 'axios';
-import { LARGE_FILE_THRESHOLD_BYTES } from '@garage/bucket-api-server/constants';
+import {
+  LARGE_FILE_THRESHOLD_BYTES,
+  MULTIPART_MAX_PARTS,
+} from '@garage/bucket-api-server/constants';
 import { Semaphore } from './semaphore';
+import { fingerprintFile, type UploadSessionStore } from './upload-sessions';
 
 // Re-exported so file-browser components keep importing the threshold from
 // here; the BFF enforces the same value server-side (413 on oversized proxy
@@ -220,6 +224,15 @@ interface SignResponse {
 interface CompleteResponse {
   key: string;
   etag: string;
+}
+
+interface MultipartPartsResponse {
+  parts: { partNumber: number; etag: string; size: number }[];
+}
+
+/** Enables resumable uploads: large files persist a session and resume via ListParts. */
+interface ResumeContext {
+  store: UploadSessionStore;
 }
 
 function buildKey(prefix: string, name: string): string {
@@ -462,21 +475,64 @@ async function uploadOneLarge(
   signal: AbortSignal | undefined,
   tick: (delta: number) => void,
   cfg: ResolvedReliability,
+  resume?: ResumeContext,
 ): Promise<UploadedItem> {
   const key = buildKey(prefix, file.name);
+  const namespace = http.defaults?.baseURL ?? '';
+  const fingerprint = fingerprintFile(file);
+  const clearSession = () => resume?.store.remove(namespace, fingerprint);
 
-  // 1. Create.
-  const createRes = await http.post<CreateResponse>(
-    '/multipart/create',
-    // fileSize lets the server pick an adaptive part size (bounded part count for
-    // large files); it still returns the part size we must slice to.
-    { key, contentType: file.type || undefined, fileSize: file.size },
-    { signal, timeout: CONTROL_TIMEOUT_MS },
-  );
-  const { uploadId, partSize, maxParts } = createRes.data;
+  // Parts already on the server (by partNumber), used to skip re-uploading on resume.
+  const completed = new Map<number, { etag: string; size: number }>();
+  let uploadId!: string;
+  let partSize!: number;
+  let maxParts!: number;
+
+  // 1. Resume a saved session if THIS file's upload was interrupted earlier.
+  const saved = resume?.store.get(namespace, fingerprint);
+  let resumed = false;
+  if (saved && saved.key === key) {
+    try {
+      const partsRes = await http.post<MultipartPartsResponse>(
+        '/multipart/parts',
+        { key, uploadId: saved.uploadId },
+        { signal, timeout: CONTROL_TIMEOUT_MS },
+      );
+      uploadId = saved.uploadId;
+      partSize = saved.partSize;
+      maxParts = MULTIPART_MAX_PARTS;
+      for (const p of partsRes.data.parts)
+        completed.set(p.partNumber, { etag: p.etag, size: p.size });
+      resumed = true;
+    } catch (err) {
+      // Only a 404 (NoSuchUpload) means the saved upload is truly gone — discard
+      // the session and start fresh. A transient failure (timeout / 5xx / network
+      // drop) or a user abort leaves the already-uploaded parts valid, so DON'T
+      // drop the session: propagate the error and let a retry resume from it.
+      if ((err as { response?: { status?: number } }).response?.status !== 404) throw err;
+      clearSession();
+    }
+  }
+
+  // 2. Otherwise create a fresh multipart upload and persist the session so an
+  //    interruption (reload/crash/drop) can resume when the file is re-selected.
+  if (!resumed) {
+    const createRes = await http.post<CreateResponse>(
+      '/multipart/create',
+      // fileSize lets the server pick an adaptive part size (bounded part count
+      // for large files); it still returns the part size we must slice to.
+      { key, contentType: file.type || undefined, fileSize: file.size },
+      { signal, timeout: CONTROL_TIMEOUT_MS },
+    );
+    uploadId = createRes.data.uploadId;
+    partSize = createRes.data.partSize;
+    maxParts = createRes.data.maxParts;
+    resume?.store.put(namespace, fingerprint, { key, uploadId, partSize, createdAt: Date.now() });
+  }
 
   const numParts = Math.max(1, Math.ceil(file.size / partSize));
   if (numParts > maxParts) {
+    clearSession();
     throw new Error(
       `File too large for the configured part size: would need ${numParts} parts (max ${maxParts})`,
     );
@@ -516,6 +572,16 @@ async function uploadOneLarge(
         const idx = next++;
         if (idx >= numParts) return;
         if (merged.aborted) throw new DOMException('Aborted', 'AbortError');
+        const partNumber = idx + 1;
+        const start = idx * partSize;
+        const end = Math.min(start + partSize, file.size);
+        const already = completed.get(partNumber);
+        if (already && already.size === end - start) {
+          // Already on the server (resume) — skip the PUT, count its bytes.
+          etags[idx] = already.etag;
+          tick(end - start);
+          continue;
+        }
         etags[idx] = await uploadPart(file, partSize, idx, signer, merged, tick, cfg);
       }
     };
@@ -536,10 +602,14 @@ async function uploadOneLarge(
       parts: etags.map((etag, i) => ({ partNumber: i + 1, etag })),
     });
 
+    clearSession();
     return { key: completeRes.data.key, etag: completeRes.data.etag, size: file.size };
   } catch (err) {
     fileCtrl.abort(); // stop this file's other parts
     await abortUpload();
+    // The upload is aborted server-side, so its session is dead — drop it. Only a
+    // crash/reload (which never reaches here) leaves a session behind to resume.
+    clearSession();
     throw err;
   }
 }
@@ -590,6 +660,8 @@ export interface UploadOneFileOptions {
   threshold?: number;
   partConcurrency?: number;
   reliability?: ReliabilityOptions;
+  /** When set, large files persist a resumable session and resume via ListParts. */
+  resume?: ResumeContext;
 }
 
 /**
@@ -625,6 +697,7 @@ export async function uploadOneFile(
       signal,
       tick,
       resolveReliability(opts.reliability),
+      opts.resume,
     );
   }
   const [item] = await uploadSmallBatch(http, [file], prefix, signal, tick);
