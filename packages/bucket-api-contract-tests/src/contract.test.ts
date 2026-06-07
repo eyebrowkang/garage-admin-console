@@ -311,25 +311,34 @@ describe.skipIf(config === null)('Bucket Backend API regression', () => {
     );
   });
 
-  it('DELETE /objects surfaces partial failures in errors[] alongside deleted[]', async () => {
-    // Mixed batch: one real key (deletes cleanly) + one key that never existed.
-    // Garage reports a per-key error for the missing key in a batch DeleteObjects
-    // (unlike AWS S3, which treats a missing-key delete as an idempotent success),
-    // so this proves the partial-success contract: deleted[] and errors[] are both
-    // populated and partitioned by key. A 2-key payload also forces the batch
-    // DeleteObjects path — the single-key shortcut always returns errors: [].
+  it('DELETE /objects partitions a mixed batch across deleted[] and errors[]', async () => {
+    // Mixed batch: one real key + one key that never existed. The contract under
+    // test is the BFF's { deleted, errors } envelope partitioning the batch result
+    // — NOT a particular backend's missing-key semantics, which vary:
+    //   - Garage (this repo's backend) reports a per-key error → the key lands in
+    //     errors[], exercising the partial-failure mapping;
+    //   - AWS-S3-compatible endpoints treat a missing-key delete as an idempotent
+    //     success → the key lands in deleted[].
+    // Either way every requested key is accounted for exactly once, and whenever a
+    // backend DID report a per-key failure the BFF must surface a non-empty message.
+    // A 2-key payload also forces the batch DeleteObjects path — the single-key
+    // shortcut always returns errors: [].
     await client.upload([{ name: 'partial-ok.txt', body: 'bye' }], prefix);
     const okKey = `${prefix}/partial-ok.txt`;
     const missingKey = `${prefix}/partial-missing.txt`; // never uploaded → absent
 
     const res = await client.deleteObjects([okKey, missingKey]);
-    expect(res.deleted).toContain(okKey);
-    expect(res.deleted).not.toContain(missingKey);
-    expect(res.errors.length).toBeGreaterThanOrEqual(1);
+    expect(res.deleted).toContain(okKey); // a real key always deletes
+
+    // The missing key must be accounted for in exactly one of the two arrays.
+    const missInDeleted = res.deleted.includes(missingKey);
     const missErr = res.errors.find((e) => e.key === missingKey);
-    expect(missErr).toBeDefined();
-    expect(missErr!.message).toBeTypeOf('string');
-    expect(missErr!.message.length).toBeGreaterThan(0);
+    expect(missInDeleted !== (missErr !== undefined)).toBe(true); // XOR: never dropped, never double-counted
+    if (missErr) {
+      // When the backend reported a failure, the mapped error carries a message.
+      expect(missErr.message).toBeTypeOf('string');
+      expect(missErr.message.length).toBeGreaterThan(0);
+    }
   });
 
   it('pagination: continuationToken round-trips when needed', async () => {

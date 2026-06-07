@@ -82,7 +82,7 @@ Cluster auto-creation is not supported (the suite never creates/deletes cluster 
 - `POST /multipart/*` create→sign→PUT→complete roundtrip; adaptive `partSize` scales with `fileSize`; `/multipart/parts` lists uploaded parts (resume) + `404` on an unknown upload
 - `POST /copy` ETag + size verification
 - `GET /cors-status` diagnostic shape
-- `DELETE /objects` single + batched payloads; partial-failure batch (`deleted[]` + `errors[]`)
+- `DELETE /objects` single + batched payloads; mixed-batch `deleted[]`/`errors[]` partitioning
 - `?continuationToken` pagination
 
 Side-effects are scoped under `contract-test/<runId>/...` and reaped in `afterAll`, so it's safe to point the suite at a shared dev bucket. If the suite created a connection on the fly, it's deleted too.
