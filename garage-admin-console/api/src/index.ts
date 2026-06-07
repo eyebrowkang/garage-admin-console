@@ -142,12 +142,18 @@ if (staticDir) {
     res.send(`window.__GARAGE_RUNTIME_CONFIG__ = ${serialized};\n`);
   });
 
-  // index.html must never be cached so new deploys roll out immediately; every
-  // other file is content-hashed by Vite and safe to cache immutably.
+  // index.html, the service worker, and the web manifest must never be cached so
+  // new deploys (and SW updates) roll out immediately; every other file is
+  // content-hashed by Vite and safe to cache immutably.
+  const noStore = new Set(['index.html', 'sw.js', 'manifest.webmanifest']);
   app.use(
     express.static(resolved, {
       setHeaders: (res, filePath) => {
-        if (path.basename(filePath) === 'index.html') {
+        const base = path.basename(filePath);
+        if (base === 'manifest.webmanifest') {
+          res.setHeader('Content-Type', 'application/manifest+json');
+        }
+        if (noStore.has(base)) {
           res.setHeader('Cache-Control', 'no-store');
         } else {
           res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');

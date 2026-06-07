@@ -28,7 +28,7 @@ import {
   InlineLoadingState,
 } from '@garage/ui';
 
-import { api, buildBucketBackend } from '@/lib/api';
+import { api, buildBucketBackend, useAuthToken } from '@/lib/api';
 import { readPersistedString, writePersistedString } from '@/lib/persistence';
 import type { Connection } from '@/lib/types';
 import { FileBrowser, type FileBrowserViewMode } from '@/file-browser/FileBrowser';
@@ -67,6 +67,10 @@ export function BucketView() {
   useEffect(() => {
     writePersistedString('s3-browser.fb.viewMode', viewMode);
   }, [viewMode]);
+
+  // Reactive access token: a background refresh rotates it and re-renders here,
+  // so the FileBrowser (its axios is keyed on backend.authToken) stays current.
+  const authToken = useAuthToken() ?? '';
 
   if (!connectionsQ.isLoading && !connection) {
     return (
@@ -125,7 +129,7 @@ export function BucketView() {
       <div className="min-h-0 flex-1 overflow-hidden">
         <FileBrowser
           key={`${connection.id}/${bucketName}`}
-          backend={buildBucketBackend(connection.id, bucketName)}
+          backend={buildBucketBackend(connection.id, bucketName, authToken)}
           bucket={bucketName}
           path={path}
           onPathChange={onPathChange}

@@ -72,10 +72,12 @@ Admin 镜像采用多阶段构建（`node:24-alpine`）：先编译 `@garage/tok
 | `S3_CORS_ALLOWED_ORIGINS`    | 否   | —             | 逗号分隔的自动管理桶 CORS 规则允许的源（默认为请求方应用的 origin）                |
 | `S3_MANAGE_CORS`             | 否   | `true`        | 设为 `false` 则完全由运维人员自行管理桶 CORS                                       |
 | `MORGAN_FORMAT`              | 否   | off（生产）   | HTTP 访问日志格式（`combined`、`common`、`dev` 等）；`off` / `none` / `false` 禁用 |
+| `ACCESS_TOKEN_TTL`           | 否   | `15m`         | 访问令牌有效期（数字 + 单位 `ms`/`s`/`m`/`h`/`d`/`w`/`y`）；客户端会在过期前自动刷新 |
+| `REFRESH_TOKEN_TTL`          | 否   | `14d`         | 刷新令牌有效期——空闲会话保持登录的时长。全局登出 = 轮换 `JWT_SECRET`              |
 
 ## 生产环境变量（S3 Browser 镜像）
 
-S3 Browser 镜像与 Admin 镜像共享相同的核心环境变量（`JWT_SECRET`、`ENCRYPTION_KEY`、`ADMIN_PASSWORD`、`PORT`、`LOG_LEVEL`、`DATA_DIR`、`STATIC_DIR`、`MORGAN_FORMAT`）。以下为 S3 Browser 特有变量：
+S3 Browser 镜像与 Admin 镜像共享相同的核心环境变量（`JWT_SECRET`、`ENCRYPTION_KEY`、`ADMIN_PASSWORD`、`PORT`、`LOG_LEVEL`、`DATA_DIR`、`STATIC_DIR`、`MORGAN_FORMAT`、`ACCESS_TOKEN_TTL`、`REFRESH_TOKEN_TTL`）。以下为 S3 Browser 特有变量：
 
 | 变量                      | 必填 | 默认值  | 说明                                                        |
 | ------------------------- | ---- | ------- | ----------------------------------------------------------- |

@@ -14,8 +14,8 @@ function harness(authorization?: string) {
 }
 
 describe('createAuthenticateToken', () => {
-  it('calls next() and attaches the decoded user for a valid Bearer token', () => {
-    const token = jwt.sign({ role: 'admin' }, SECRET);
+  it('calls next() and attaches the decoded user for a valid access Bearer token', () => {
+    const token = jwt.sign({ role: 'admin', type: 'access' }, SECRET);
     const { req, res, next, sendStatus } = harness(`Bearer ${token}`);
 
     createAuthenticateToken(SECRET)(req, res, next);
@@ -49,6 +49,22 @@ describe('createAuthenticateToken', () => {
 
   it('401s when the token is not a valid JWT', () => {
     const { req, res, next, sendStatus } = harness('Bearer not-a-jwt');
+    createAuthenticateToken(SECRET)(req, res, next);
+    expect(sendStatus).toHaveBeenCalledWith(401);
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it('401s when the token is a refresh token (type !== access)', () => {
+    const token = jwt.sign({ role: 'admin', type: 'refresh' }, SECRET);
+    const { req, res, next, sendStatus } = harness(`Bearer ${token}`);
+    createAuthenticateToken(SECRET)(req, res, next);
+    expect(sendStatus).toHaveBeenCalledWith(401);
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it('401s when the token carries no type claim (legacy token after the upgrade)', () => {
+    const token = jwt.sign({ role: 'admin' }, SECRET);
+    const { req, res, next, sendStatus } = harness(`Bearer ${token}`);
     createAuthenticateToken(SECRET)(req, res, next);
     expect(sendStatus).toHaveBeenCalledWith(401);
     expect(next).not.toHaveBeenCalled();

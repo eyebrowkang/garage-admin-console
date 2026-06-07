@@ -37,6 +37,7 @@ garage-admin-console/                     # monorepo root
 | The shared Bucket Backend API contract + conformance suite | [docs/bucket-api.md](./docs/bucket-api.md) |
 | Test strategy, conventions, coverage, offline vs. live | [docs/testing.md](./docs/testing.md) |
 | Docker images, production env vars | [docs/deployment.md](./docs/deployment.md) |
+| PWA: manifests, service-worker caching contract, icons | [docs/pwa.md](./docs/pwa.md) |
 | Branching, Conventional Commits, versioning, code style | [CONTRIBUTING.md](./CONTRIBUTING.md) |
 
 ## Commands

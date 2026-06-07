@@ -2,7 +2,7 @@ import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useState } from 'react';
 import { LogOut } from 'lucide-react';
 import { Button } from '@garage/ui';
-import { writeStoredToken } from '@/lib/api';
+import { writeStoredToken, writeStoredRefreshToken } from '@/lib/api';
 import { ConfirmDialog } from '@garage/ui';
 import { ClusterMobileNav } from '@/components/cluster/ClusterMobileNav';
 
@@ -17,6 +17,7 @@ export function MainLayout() {
 
   const handleLogout = () => {
     writeStoredToken(null);
+    writeStoredRefreshToken(null);
     setConfirmOpen(false);
     navigate('/login');
   };

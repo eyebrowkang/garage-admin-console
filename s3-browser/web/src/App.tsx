@@ -31,7 +31,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@garage/ui';
-import { useAuthToken, writeStoredToken } from '@/lib/api';
+import { useAuthToken, writeStoredToken, writeStoredRefreshToken } from '@/lib/api';
 import { LoginPage } from '@/pages/LoginPage';
 import { HomePage } from '@/pages/HomePage';
 import { ConnectionView } from '@/pages/ConnectionView';
@@ -96,6 +96,7 @@ function ProtectedShell() {
 
   const handleSignOut = () => {
     writeStoredToken(null);
+    writeStoredRefreshToken(null);
     setConfirmSignOut(false);
     navigate('/login', { replace: true });
   };

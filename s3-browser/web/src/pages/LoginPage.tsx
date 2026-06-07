@@ -8,7 +8,7 @@
  */
 import { useNavigate } from 'react-router-dom';
 import { LoginForm } from '@garage/ui';
-import { api, writeStoredToken } from '@/lib/api';
+import { api, writeStoredToken, writeStoredRefreshToken } from '@/lib/api';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -19,8 +19,11 @@ export function LoginPage() {
       title="S3 Browser"
       description="Sign in to manage your S3-compatible connections."
       onSubmit={async (password) => {
-        const res = await api.post<{ token: string }>('/auth/login', { password });
+        const res = await api.post<{ token: string; refreshToken: string }>('/auth/login', {
+          password,
+        });
         writeStoredToken(res.data.token);
+        writeStoredRefreshToken(res.data.refreshToken);
         navigate('/', { replace: true });
       }}
     />

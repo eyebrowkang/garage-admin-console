@@ -4,4 +4,6 @@ import { env } from '../config/env.js';
 export default createAuthRouter({
   adminPassword: env.adminPassword,
   jwtSecret: env.jwtSecret,
+  accessTokenExpiresIn: env.accessTokenTtl,
+  refreshTokenExpiresIn: env.refreshTokenTtl,
 });
