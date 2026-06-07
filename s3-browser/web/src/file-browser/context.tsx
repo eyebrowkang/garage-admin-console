@@ -9,11 +9,12 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from 'react';
-import axios, { type AxiosInstance } from 'axios';
+import { type AxiosInstance } from 'axios';
 import { useQueryClient } from '@tanstack/react-query';
 import type { FileItem, FilterKind, ListItem, SortKey, SortState, ViewMode } from './types';
 import { useMediaQuery } from './hooks/useMediaQuery';
 import type { FileBrowserProps } from './FileBrowser';
+import { createBackendHttp } from '@/lib/backend-http';
 import { readPersistedBool, writePersistedBool } from '@/lib/persistence';
 import { UploadManager, type UploadTask } from '@/lib/upload-manager';
 import { EMPTY_DIALOGS, reducer, type DialogsState } from './state';
@@ -110,16 +111,7 @@ export function BrowserProvider({
 
   const backendHeadersKey = JSON.stringify(backend.headers);
   const http = useMemo<AxiosInstance>(
-    () =>
-      axios.create({
-        baseURL: backend.baseUrl,
-        headers: {
-          Authorization: `Bearer ${backend.authToken}`,
-          ...(backend.headers ?? {}),
-        },
-        maxBodyLength: Infinity,
-        maxContentLength: Infinity,
-      }),
+    () => createBackendHttp(backend),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [backend.baseUrl, backend.authToken, backendHeadersKey],
   );

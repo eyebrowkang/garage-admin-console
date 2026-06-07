@@ -172,6 +172,11 @@ describe('runUploadJob — small files (proxy /upload)', () => {
     expect(out).toHaveLength(2);
     expect(http.post.mock.calls.filter(([u]) => u === '/upload')).toHaveLength(1);
     expect(http.post.mock.calls.some(([u]) => String(u).startsWith('/multipart'))).toBe(false);
+    // The proxy body streams; it opts out of the client's control-plane deadline.
+    const uploadCfg = http.post.mock.calls.find(([u]) => u === '/upload')?.[2] as
+      | { timeout?: number }
+      | undefined;
+    expect(uploadCfg?.timeout).toBe(0);
   });
 
   it('emits an initial 0/total progress event', async () => {
@@ -276,8 +281,10 @@ describe('runUploadJob — large files (direct multipart)', () => {
     });
     const cfgOf = (u: string) =>
       http.post.mock.calls.find(([url]) => url === u)?.[2] as { timeout?: number } | undefined;
-    // complete must not carry a short deadline; the quick metadata calls do.
-    expect(cfgOf('/multipart/complete')?.timeout).toBeUndefined();
+    // complete opts OUT of the client's control-plane deadline (timeout: 0 = no
+    // limit, since the shared client now defaults to a 30s timeout); the quick
+    // metadata calls keep their short deadline.
+    expect(cfgOf('/multipart/complete')?.timeout).toBe(0);
     expect(cfgOf('/multipart/create')?.timeout).toBe(30_000);
     expect(cfgOf('/multipart/sign')?.timeout).toBe(30_000);
   });
@@ -355,6 +362,34 @@ describe('runUploadJob — part-level retry', () => {
     expect(out).toHaveLength(1);
     expect(signCalls(http)).toHaveLength(2); // window sign + single-part re-sign
     expect((signCalls(http)[1]?.[1] as { partNumbers: number[] }).partNumbers).toEqual([1]);
+  });
+
+  it('re-signs again on a SECOND expiry (a queued part can outlive two windows)', async () => {
+    const http = mockHttp({
+      '/multipart/create': {
+        data: { uploadId: 'up1', key: 'y.txt', partSize: 100, maxParts: 1000 },
+      },
+      '/multipart/sign': signResponder,
+      '/multipart/complete': { data: { key: 'y.txt', etag: 'e' } },
+    });
+    // Two consecutive expiries before the part finally lands. The old one-shot
+    // re-sign would have made the SECOND 403 fatal; bounded re-signs recover.
+    FakeXHR.plans.set(partUrl('y.txt', 1), [{ status: 403 }, { status: 403 }, { status: 200 }]);
+
+    const out = await runUploadJob({
+      http,
+      files: [makeFile('y.txt', 10)],
+      prefix: '',
+      threshold: 5,
+      reliability: FAST,
+    });
+
+    expect(out).toHaveLength(1);
+    expect(FakeXHR.sent.filter((s) => s.url === partUrl('y.txt', 1))).toHaveLength(3);
+    // One window sign + one re-sign per expiry.
+    expect(signCalls(http)).toHaveLength(3);
+    expect((signCalls(http)[1]?.[1] as { partNumbers: number[] }).partNumbers).toEqual([1]);
+    expect((signCalls(http)[2]?.[1] as { partNumbers: number[] }).partNumbers).toEqual([1]);
   });
 
   it('gives up after maxAttempts is exhausted and aborts', async () => {

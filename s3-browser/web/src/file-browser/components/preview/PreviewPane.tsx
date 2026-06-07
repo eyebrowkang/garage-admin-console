@@ -291,7 +291,8 @@ function ImagePreview({ fileKey, http }: { fileKey: string; http: AxiosInstance 
     let objectUrl: string | null = null;
 
     http
-      .get('/download', { params: { key: fileKey }, responseType: 'blob' })
+      // timeout: 0 — streamed body, opt out of the client's control-plane deadline.
+      .get('/download', { params: { key: fileKey }, responseType: 'blob', timeout: 0 })
       .then((r) => {
         if (cancelled) return;
         objectUrl = URL.createObjectURL(r.data as Blob);
