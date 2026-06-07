@@ -15,6 +15,7 @@
  */
 import type { AxiosInstance } from 'axios';
 import { uploadOneFile } from './multipart-upload';
+import { createUploadSessionStore, type UploadSessionStore } from './upload-sessions';
 
 export type UploadTaskStatus = 'queued' | 'uploading' | 'done' | 'error' | 'canceled';
 
@@ -75,11 +76,14 @@ function isAbortError(err: unknown): boolean {
 export interface UploadManagerOptions {
   /** How many files upload at once (the global part-PUT cap bounds bytes underneath). */
   fileConcurrency?: number;
+  /** Override the resumable-upload session store (defaults to a localStorage one). */
+  sessionStore?: UploadSessionStore;
 }
 
 export class UploadManager {
   private readonly http: AxiosInstance;
   private readonly fileConcurrency: number;
+  private readonly sessionStore: UploadSessionStore;
   private tasks: InternalTask[] = [];
   private readonly listeners = new Set<() => void>();
   private snapshot: UploadTask[] = [];
@@ -88,6 +92,8 @@ export class UploadManager {
   constructor(http: AxiosInstance, opts: UploadManagerOptions = {}) {
     this.http = http;
     this.fileConcurrency = Math.max(1, opts.fileConcurrency ?? 3);
+    // Prunes stale sessions on construct; enables resumable large-file uploads.
+    this.sessionStore = opts.sessionStore ?? createUploadSessionStore();
   }
 
   subscribe = (listener: () => void): (() => void) => {
@@ -147,6 +153,7 @@ export class UploadManager {
           task.loaded = loaded;
           this.emit();
         },
+        resume: { store: this.sessionStore },
       });
       task.status = 'done';
       task.loaded = task.size;

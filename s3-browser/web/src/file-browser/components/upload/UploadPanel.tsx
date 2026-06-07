@@ -14,6 +14,7 @@ import { AlertCircle, Check, ChevronDown, ChevronUp, Loader2, RotateCcw, X } fro
 import { cn } from '@garage/ui';
 import { formatBytes } from '@garage/web-shared';
 import { useBrowser, useUploadTasks } from '../../context';
+import { CorsDiagnostic } from './CorsDiagnostic';
 import type { UploadTask } from '@/lib/upload-manager';
 
 const ACTIVE = new Set(['queued', 'uploading']);
@@ -28,6 +29,7 @@ export function UploadPanel() {
   const active = tasks.filter((t) => ACTIVE.has(t.status));
   const errorCount = tasks.filter((t) => t.status === 'error').length;
   const hasFinished = tasks.some((t) => !ACTIVE.has(t.status));
+  const hasError = errorCount > 0;
 
   // Overall progress excludes cancelled tasks (their bytes aren't going anywhere).
   const tracked = tasks.filter((t) => t.status !== 'canceled');
@@ -92,6 +94,9 @@ export function UploadPanel() {
             ))}
           </ul>
         )}
+
+        {/* CORS diagnostic — only when something failed (the usual opaque cause). */}
+        {!minimized && hasError && <CorsDiagnostic />}
       </div>
     </div>
   );

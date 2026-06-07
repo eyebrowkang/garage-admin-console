@@ -159,6 +159,23 @@ const mockAdapter: AxiosAdapter = async (config) => {
       mockUpload(keys);
       return reply(config, { uploaded: keys.map((key) => ({ key, etag: '"mock"', size: 0 })) });
     }
+    case 'GET cors-status':
+      // Dev fixture: report an insufficient config so the upload panel's CORS
+      // diagnostic (shown after a failed direct upload) can be exercised.
+      return reply(config, {
+        managed: true,
+        sufficient: false,
+        reason: 'insufficient',
+        checkedOrigins: [window.location.origin],
+        recommendedRule: {
+          AllowedOrigins: [window.location.origin],
+          AllowedMethods: ['GET', 'PUT', 'HEAD', 'POST'],
+          AllowedHeaders: ['*'],
+          ExposeHeaders: ['ETag'],
+          MaxAgeSeconds: 3000,
+        },
+        status: { sufficient: false, exposesEtag: false, coversMethods: true, coversOrigins: true },
+      });
     default:
       return reply(config, {}, 200);
   }
