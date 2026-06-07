@@ -56,7 +56,15 @@ async function withServer(
       corsAllowedOrigins: opts?.corsAllowedOrigins,
     }),
   );
-  const server = app.listen(0);
+  // Bind the IPv4 loopback the client actually dials (127.0.0.1), NOT the default
+  // `listen(0)` — with no host Node binds the IPv6 dual-stack wildcard `::`, whose
+  // ephemeral-port allocator is blind to IPv4-specific `127.0.0.1:*` listeners held
+  // by other local processes (IDEs, language servers, …). Under heavy parallel load
+  // it can hand us a port one of them already owns; our IPv4 `fetch` then routes to
+  // that more-specific foreign listener and reads ITS response (a stray 403/404/405)
+  // instead of ours, flaking the suite. Binding 127.0.0.1 keeps the port in the same
+  // namespace the client uses, so it is exclusively this server's.
+  const server = app.listen(0, '127.0.0.1');
   servers.push(server);
   await new Promise<void>((resolve) => server.once('listening', () => resolve()));
   const { port } = server.address() as AddressInfo;
