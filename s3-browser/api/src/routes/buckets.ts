@@ -1,6 +1,7 @@
 import {
   createBucketCorsCacheKey,
   createBucketRouter,
+  readMultipartPolicyEnv,
   BucketAccessError,
 } from '@garage/bucket-api-server';
 import { getParam } from '@garage/server-config';
@@ -15,6 +16,10 @@ const corsAllowedOrigins =
   process.env.S3_CORS_ALLOWED_ORIGINS?.split(',')
     .map((s) => s.trim())
     .filter(Boolean) ?? [];
+
+// Adaptive multipart part-size policy (tunable via S3_MULTIPART_*). Validated at
+// startup; throws on bad config.
+const multipartPolicy = readMultipartPolicyEnv();
 
 export default createBucketRouter({
   async resolveContext(req) {
@@ -41,5 +46,6 @@ export default createBucketRouter({
   },
   manageCors,
   corsAllowedOrigins,
+  ...multipartPolicy,
   logger,
 });

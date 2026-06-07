@@ -468,7 +468,9 @@ async function uploadOneLarge(
   // 1. Create.
   const createRes = await http.post<CreateResponse>(
     '/multipart/create',
-    { key, contentType: file.type || undefined },
+    // fileSize lets the server pick an adaptive part size (bounded part count for
+    // large files); it still returns the part size we must slice to.
+    { key, contentType: file.type || undefined, fileSize: file.size },
     { signal, timeout: CONTROL_TIMEOUT_MS },
   );
   const { uploadId, partSize, maxParts } = createRes.data;
