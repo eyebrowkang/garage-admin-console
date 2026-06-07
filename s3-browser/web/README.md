@@ -63,3 +63,17 @@ export interface FileBrowserProps {
   onError?: (err: Error) => void;
 }
 ```
+
+## Large-file uploads
+
+The upload runtime lives in `src/lib/` and the panel in
+`src/file-browser/components/upload/`, talking only to the
+[Bucket Backend API](../../docs/bucket-api.md):
+
+- `multipart-upload.ts` — direct-to-S3 multipart with per-part retry/backoff, a
+  global concurrency cap, just-in-time presigning, an inactivity watchdog, and
+  **resume** (`/multipart/parts`) for interrupted uploads.
+- `upload-sessions.ts` — localStorage session store enabling resume.
+- `upload-manager.ts` — a background queue (per-file progress/cancel/retry) that
+  survives the dialog closing; `components/upload/` renders the non-blocking panel
+  - an on-failure CORS diagnostic (`/cors-status`).

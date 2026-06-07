@@ -32,28 +32,47 @@ without them.
 
 ### Admin BFF (`garage-admin-console/api/.env`)
 
-| Variable | Required | Description |
-| --- | --- | --- |
-| `JWT_SECRET` | Yes | Secret for JWT signing (random 32+ char string) |
-| `ENCRYPTION_KEY` | Yes | AES-256 key (exactly 32 bytes) |
-| `ADMIN_PASSWORD` | Yes | Console login password |
-| `PORT` | No | API port (default `3001`) |
-| `LOG_LEVEL` | No | `fatal`/`error`/`warn`/`info`/`debug`/`trace`/`silent` (default `info`) |
-| `MORGAN_FORMAT` | No | HTTP log format for morgan, or `off` to disable |
-| `DATA_DIR` | No | Directory for the SQLite DB (default: cwd in dev, `/data` in Docker) |
+| Variable         | Required | Description                                                             |
+| ---------------- | -------- | ----------------------------------------------------------------------- |
+| `JWT_SECRET`     | Yes      | Secret for JWT signing (random 32+ char string)                         |
+| `ENCRYPTION_KEY` | Yes      | AES-256 key (exactly 32 bytes)                                          |
+| `ADMIN_PASSWORD` | Yes      | Console login password                                                  |
+| `PORT`           | No       | API port (default `3001`)                                               |
+| `LOG_LEVEL`      | No       | `fatal`/`error`/`warn`/`info`/`debug`/`trace`/`silent` (default `info`) |
+| `MORGAN_FORMAT`  | No       | HTTP log format for morgan, or `off` to disable                         |
+| `DATA_DIR`       | No       | Directory for the SQLite DB (default: cwd in dev, `/data` in Docker)    |
 
 Validation lives in [`src/config/env.ts`](../garage-admin-console/api/src/config/env.ts).
 
 ### Admin web (`garage-admin-console/web/.env`)
 
-| Variable | Required | Description |
-| --- | --- | --- |
-| `VITE_S3_BROWSER_MF_URL` | No | URL of the s3-browser/web MF manifest. In dev, defaults to the current hostname on port `5174`; set it at build time for production. Unset/unreachable → the embedded browser shows a friendly fallback. |
+| Variable                 | Required | Description                                                                                                                                                                                              |
+| ------------------------ | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `VITE_S3_BROWSER_MF_URL` | No       | URL of the s3-browser/web MF manifest. In dev, defaults to the current hostname on port `5174`; set it at build time for production. Unset/unreachable → the embedded browser shows a friendly fallback. |
 
 ### S3 Browser BFF (`s3-browser/api/.env`)
 
 Same shape as the Admin BFF — `JWT_SECRET`, `ENCRYPTION_KEY`, `ADMIN_PASSWORD`
 required; `PORT` defaults to `3002`. The two BFFs do not share secrets by default.
+
+### Bucket Backend API tuning (both BFFs)
+
+Optional knobs for browser-direct (large-file) transfers, read by **both** BFFs.
+All have safe defaults — leave them unset unless you need to tune.
+
+| Variable                      | Default               | Description                                                                                                                  |
+| ----------------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `S3_MANAGE_CORS`              | `true`                | Auto-manage the bucket CORS rule browser-direct upload/download needs; `false` leaves bucket CORS to the operator            |
+| `S3_CORS_ALLOWED_ORIGINS`     | requesting app origin | Comma-separated origins to pin in the auto-managed CORS rule                                                                 |
+| `S3_MULTIPART_BASE_PART_SIZE` | `8388608` (8 MiB)     | Adaptive part-size ladder base / the size returned when no `fileSize` is sent (bytes, ≥ 5 MiB)                               |
+| `S3_MULTIPART_TARGET_PARTS`   | `2000`                | Soft target part count the ladder climbs toward (1–10000)                                                                    |
+| `S3_MULTIPART_MAX_PART_SIZE`  | `1073741824` (1 GiB)  | Adaptive part-size ladder top (bytes, ≤ 5 GiB)                                                                               |
+| `S3_CHECKSUM_MODE`            | `when_required`       | `when_required` is safe for every endpoint incl. Garage; `when_supported` opts CRC32 in for fully checksum-capable endpoints |
+
+See [bucket-api.md](./bucket-api.md#the-threshold-split) for how adaptive part size
+and CORS management work. CORS parsing lives in each BFF's `routes/buckets.ts`;
+multipart/checksum parsing is shared (`readMultipartPolicyEnv` / `readChecksumMode`
+in [`@garage/bucket-api-server`](../packages/bucket-api-server/)).
 
 ## Dev servers
 
@@ -70,7 +89,7 @@ Vite (Admin) and Rsbuild (S3 Browser) proxy `/api/*` to their respective BFFs.
 
 ## Developing the embedded FileBrowser
 
-To work on the federated `FileBrowser` *inside* the Admin Console bucket detail
+To work on the federated `FileBrowser` _inside_ the Admin Console bucket detail
 page, run all four processes — three terminals, or `pnpm dev:all` to launch them
 in parallel from one:
 

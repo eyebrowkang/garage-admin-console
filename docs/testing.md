@@ -28,19 +28,19 @@ collide on a shared `data.db` even when CI sets one `DATA_DIR`.
 
 ## What lives where
 
-| Layer | Workspace | Focus |
-| --- | --- | --- |
-| **Unit** | `packages/crypto` | AES-256-GCM round-trip, tamper/auth-tag rejection, key-length & empty-sentinel contract |
-| | `packages/server-config` | `loadEnv` validation matrix, `getParam`, `createAuthenticateToken` |
-| | `packages/web-shared` | formatters (bytes/date/relative/fileKind…), `getApiErrorMessage`, api-client interceptors, query-client retry |
-| | `packages/bucket-api-server` | CORS rule reconciliation + caching, S3-client hash cache + TTL, stream upload + abort |
-| | `s3-browser/web` (logic) | FileBrowser `reducer`, `runUploadJob` multipart orchestration, persistence, `connectionProvider`, `classifyError` |
-| **Integration** | `garage-admin-console/api` | supertest over clusters CRUD, proxy, bucket-key resolution + log sanitization, auth login |
-| | `s3-browser/api` | supertest over connections CRUD, credential probe, bucket listing (aws-sdk mocked) |
-| | `packages/ui` | RTL — `LoginForm` (error mapping/disabled), `useToast` reducer, `useViewMode`, `cn` |
-| | `s3-browser/web` (flow) | `FileBrowser` smoke — mounts against a mocked `/list`, renders, navigates, opens a dialog |
-| **Contract** | `packages/bucket-api-contract-tests` | the shared Bucket Backend API exercised against **either** BFF — env-gated, skips offline |
-| **E2E** | `e2e/` | login, cluster navigation, create bucket, create access key — Playwright against a live stack |
+| Layer           | Workspace                            | Focus                                                                                                                                                                                                                                                                                                                       |
+| --------------- | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Unit**        | `packages/crypto`                    | AES-256-GCM round-trip, tamper/auth-tag rejection, key-length & empty-sentinel contract                                                                                                                                                                                                                                     |
+|                 | `packages/server-config`             | `loadEnv` validation matrix, `getParam`, `createAuthenticateToken`                                                                                                                                                                                                                                                          |
+|                 | `packages/web-shared`                | formatters (bytes/date/relative/fileKind…), `getApiErrorMessage`, api-client interceptors, query-client retry                                                                                                                                                                                                               |
+|                 | `packages/bucket-api-server`         | CORS reconciliation/caching + `classifyBucketCors`, S3-client hash cache + TTL + `readChecksumMode`, stream upload + abort, adaptive part-size policy (`computeMultipartPartSize`/`readMultipartPolicyEnv`), router routes (download stream/range/abort, size-aware copy, multipart create/parts, `/cors-status`)           |
+|                 | `s3-browser/web` (logic)             | FileBrowser `reducer`; multipart `runUploadJob`/`uploadOneFile` — per-part retry/backoff, global concurrency `Semaphore`, JIT signing, inactivity watchdog, file decoupling, **resume** (skip server-confirmed parts); `UploadManager` queue (per-file cancel/retry); `upload-sessions` store; persistence, `classifyError` |
+| **Integration** | `garage-admin-console/api`           | supertest over clusters CRUD, proxy, bucket-key resolution + log sanitization, auth login                                                                                                                                                                                                                                   |
+|                 | `s3-browser/api`                     | supertest over connections CRUD, credential probe, bucket listing (aws-sdk mocked)                                                                                                                                                                                                                                          |
+|                 | `packages/ui`                        | RTL — `LoginForm` (error mapping/disabled), `useToast` reducer, `useViewMode`, `cn`                                                                                                                                                                                                                                         |
+|                 | `s3-browser/web` (flow)              | `FileBrowser` smoke — mounts against a mocked `/list`, renders, navigates, opens a dialog                                                                                                                                                                                                                                   |
+| **Contract**    | `packages/bucket-api-contract-tests` | the shared Bucket Backend API against **either** BFF — list/object/presign, upload (incl. 413), download (full + ranged 206), multipart round-trip + adaptive `partSize`, `/multipart/parts` (resume; 404 on unknown), copy, delete, `/cors-status`. Env-gated, skips offline                                               |
+| **E2E**         | `e2e/`                               | login, cluster navigation, create bucket, create access key — Playwright against a live stack                                                                                                                                                                                                                               |
 
 ## Conventions
 
@@ -141,12 +141,12 @@ target cluster and do not clean them up — point them at a disposable dev clust
 Each layer carries its own environment; anything stateful that can't be shared
 is isolated explicitly so concurrent runs never collide.
 
-| Layer | Env source | Isolation of writable state |
-| --- | --- | --- |
-| Unit | none (pure); `vi.spyOn(Date)` for clocks; `TZ=UTC` in web-shared | stateless |
+| Layer             | Env source                                                              | Isolation of writable state                                                                          |
+| ----------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Unit              | none (pure); `vi.spyOn(Date)` for clocks; `TZ=UTC` in web-shared        | stateless                                                                                            |
 | Integration (BFF) | `api/src/test/setup.ts` (JWT / admin / encryption); upstream I/O mocked | **each BFF mints its own throwaway `DATA_DIR` via `mkdtempSync`** so the two never share a `data.db` |
-| Contract | gitignored `.env.contract.local`; needs a running BFF | run each flavor's BFF on its own port + `DATA_DIR` |
-| E2E | gitignored `.env.contract.local` (`ADMIN_PASSWORD`, `TEST_GARAGE_*`) | run Playwright's `pnpm dev` with a fresh, empty `DATA_DIR` so the admin DB is deterministic |
+| Contract          | gitignored `.env.contract.local`; needs a running BFF                   | run each flavor's BFF on its own port + `DATA_DIR`                                                   |
+| E2E               | gitignored `.env.contract.local` (`ADMIN_PASSWORD`, `TEST_GARAGE_*`)    | run Playwright's `pnpm dev` with a fresh, empty `DATA_DIR` so the admin DB is deterministic          |
 
 Rules of thumb:
 

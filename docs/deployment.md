@@ -75,23 +75,27 @@ API + standalone SPA/MF remote by default, or serves only static/MF assets when
 
 ## Production env vars (Admin image)
 
-| Variable                     | Required | Default       | Description                                                                                                                              |
-| ---------------------------- | -------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `JWT_SECRET`                 | Yes      | —             | Secret for JWT signing                                                                                                                   |
-| `ENCRYPTION_KEY`             | Yes      | —             | AES-256 key (exactly 32 characters)                                                                                                      |
-| `ADMIN_PASSWORD`             | Yes      | —             | Console login password                                                                                                                   |
-| `PORT`                       | No       | `3001`        | Server port                                                                                                                              |
-| `LOG_LEVEL`                  | No       | `info`        | Log level                                                                                                                                |
-| `DATA_DIR`                   | No       | `/data`       | Directory for the SQLite database                                                                                                        |
-| `STATIC_DIR`                 | No       | `/app/static` | Directory for frontend files                                                                                                             |
-| `S3_BROWSER_MF_URL`          | No       | —             | Browser-visible MF manifest URL                                                                                                          |
-| `S3_BROWSER_MF_PROXY_TARGET` | No       | —             | Internal upstream for Admin's `/s3-browser/*` proxy                                                                                      |
-| `S3_BROWSER_STATIC_DIR`      | No       | —             | Serve the bundled S3 Browser remote same-origin from this dir (baked into the `garage-admin-all` image; takes precedence over the proxy) |
-| `S3_CORS_ALLOWED_ORIGINS`    | No       | —             | Comma-separated origins for the auto-managed bucket CORS rule (default: the requesting app's origin)                                     |
-| `S3_MANAGE_CORS`             | No       | `true`        | Set `false` to leave bucket CORS entirely to the operator                                                                                |
-| `MORGAN_FORMAT`              | No       | off (prod)    | HTTP access log format (`combined`, `common`, `dev`, etc.); `off` / `none` / `false` disables                                            |
-| `ACCESS_TOKEN_TTL`           | No       | `15m`         | Access-token lifetime (digits + unit `ms`/`s`/`m`/`h`/`d`/`w`/`y`); the client auto-refreshes before it expires                          |
-| `REFRESH_TOKEN_TTL`          | No       | `14d`         | Refresh-token lifetime — how long an idle session stays signed in. Global sign-out = rotate `JWT_SECRET`                                 |
+| Variable                      | Required | Default              | Description                                                                                                                                                             |
+| ----------------------------- | -------- | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `JWT_SECRET`                  | Yes      | —                    | Secret for JWT signing                                                                                                                                                  |
+| `ENCRYPTION_KEY`              | Yes      | —                    | AES-256 key (exactly 32 characters)                                                                                                                                     |
+| `ADMIN_PASSWORD`              | Yes      | —                    | Console login password                                                                                                                                                  |
+| `PORT`                        | No       | `3001`               | Server port                                                                                                                                                             |
+| `LOG_LEVEL`                   | No       | `info`               | Log level                                                                                                                                                               |
+| `DATA_DIR`                    | No       | `/data`              | Directory for the SQLite database                                                                                                                                       |
+| `STATIC_DIR`                  | No       | `/app/static`        | Directory for frontend files                                                                                                                                            |
+| `S3_BROWSER_MF_URL`           | No       | —                    | Browser-visible MF manifest URL                                                                                                                                         |
+| `S3_BROWSER_MF_PROXY_TARGET`  | No       | —                    | Internal upstream for Admin's `/s3-browser/*` proxy                                                                                                                     |
+| `S3_BROWSER_STATIC_DIR`       | No       | —                    | Serve the bundled S3 Browser remote same-origin from this dir (baked into the `garage-admin-all` image; takes precedence over the proxy)                                |
+| `S3_CORS_ALLOWED_ORIGINS`     | No       | —                    | Comma-separated origins for the auto-managed bucket CORS rule (default: the requesting app's origin)                                                                    |
+| `S3_MANAGE_CORS`              | No       | `true`               | Set `false` to leave bucket CORS entirely to the operator                                                                                                               |
+| `S3_MULTIPART_BASE_PART_SIZE` | No       | `8388608` (8 MiB)    | Adaptive multipart ladder base; also the part size returned when a client sends no `fileSize`. Bytes, ≥ 5 MiB. See [bucket-api.md](./bucket-api.md#the-threshold-split) |
+| `S3_MULTIPART_TARGET_PARTS`   | No       | `2000`               | Soft target part count the adaptive ladder climbs toward (1–10000)                                                                                                      |
+| `S3_MULTIPART_MAX_PART_SIZE`  | No       | `1073741824` (1 GiB) | Adaptive multipart ladder top. Bytes, ≤ 5 GiB                                                                                                                           |
+| `S3_CHECKSUM_MODE`            | No       | `when_required`      | S3 checksum behavior. `when_required` is safe for every S3-compatible endpoint incl. Garage; `when_supported` opts CRC32 in for fully checksum-capable endpoints        |
+| `MORGAN_FORMAT`               | No       | off (prod)           | HTTP access log format (`combined`, `common`, `dev`, etc.); `off` / `none` / `false` disables                                                                           |
+| `ACCESS_TOKEN_TTL`            | No       | `15m`                | Access-token lifetime (digits + unit `ms`/`s`/`m`/`h`/`d`/`w`/`y`); the client auto-refreshes before it expires                                                         |
+| `REFRESH_TOKEN_TTL`           | No       | `14d`                | Refresh-token lifetime — how long an idle session stays signed in. Global sign-out = rotate `JWT_SECRET`                                                                |
 
 ## Production env vars (S3 Browser image)
 
@@ -99,14 +103,18 @@ The S3 Browser image shares the same core env vars (`JWT_SECRET`, `ENCRYPTION_KE
 `ADMIN_PASSWORD`, `PORT`, `LOG_LEVEL`, `DATA_DIR`, `STATIC_DIR`, `MORGAN_FORMAT`,
 `ACCESS_TOKEN_TTL`, `REFRESH_TOKEN_TTL`) as the Admin image. The following are specific to the S3 Browser:
 
-| Variable                  | Required | Default | Description                                                                   |
-| ------------------------- | -------- | ------- | ----------------------------------------------------------------------------- |
-| `S3_BROWSER_STATIC_ONLY`  | No       | `false` | `true` serves only static/MF assets (no BFF API); used in combined deployment |
-| `STATIC_CORS_ORIGIN`      | No       | —       | Allowed CORS origin for static assets in `S3_BROWSER_STATIC_ONLY` mode        |
-| `S3_CORS_ALLOWED_ORIGINS` | No       | —       | Comma-separated origins for the auto-managed bucket CORS rule                 |
-| `S3_MANAGE_CORS`          | No       | `true`  | Set `false` to leave bucket CORS entirely to the operator                     |
+| Variable                      | Required | Default         | Description                                                                   |
+| ----------------------------- | -------- | --------------- | ----------------------------------------------------------------------------- |
+| `S3_BROWSER_STATIC_ONLY`      | No       | `false`         | `true` serves only static/MF assets (no BFF API); used in combined deployment |
+| `STATIC_CORS_ORIGIN`          | No       | —               | Allowed CORS origin for static assets in `S3_BROWSER_STATIC_ONLY` mode        |
+| `S3_CORS_ALLOWED_ORIGINS`     | No       | —               | Comma-separated origins for the auto-managed bucket CORS rule                 |
+| `S3_MANAGE_CORS`              | No       | `true`          | Set `false` to leave bucket CORS entirely to the operator                     |
+| `S3_MULTIPART_BASE_PART_SIZE` | No       | `8388608`       | Adaptive multipart ladder base (bytes, ≥ 5 MiB)                               |
+| `S3_MULTIPART_TARGET_PARTS`   | No       | `2000`          | Soft target part count the ladder climbs toward (1–10000)                     |
+| `S3_MULTIPART_MAX_PART_SIZE`  | No       | `1073741824`    | Adaptive multipart ladder top (bytes, ≤ 5 GiB)                                |
+| `S3_CHECKSUM_MODE`            | No       | `when_required` | `when_required` (safe everywhere incl. Garage) or `when_supported`            |
 
-> The `S3_CORS_*` vars are read by both the Admin and S3 Browser BFFs.
+> The `S3_CORS_*`, `S3_MULTIPART_*`, and `S3_CHECKSUM_MODE` vars are read by both the Admin and S3 Browser BFFs.
 
 ## Production env vars (all-in-one image)
 
