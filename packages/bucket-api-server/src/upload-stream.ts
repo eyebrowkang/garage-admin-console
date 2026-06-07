@@ -54,6 +54,8 @@ class SpoolSink extends Writable {
   private buffered = 0;
   private file: WriteStream | undefined;
   private tempPath: string | undefined;
+  /** First temp-file write error (e.g. disk full), surfaced to fail the upload. */
+  private fileError: Error | undefined;
 
   constructor(cap: number) {
     super();
@@ -71,6 +73,13 @@ class SpoolSink extends Writable {
     this.tempDir = await mkdtemp(join(tmpdir(), 'garage-s3-upload-'));
     this.tempPath = join(this.tempDir, 'body');
     this.file = createWriteStream(this.tempPath);
+    // Capture the first write error the moment the stream exists. A write that
+    // doesn't need backpressure returns synchronously, so a later async failure
+    // (disk full, permissions) would otherwise be an unhandled 'error' event
+    // (process crash) — _write/_final attach their listeners too late.
+    this.file.on('error', (err: Error) => {
+      this.fileError ??= err;
+    });
     for (const chunk of this.chunks) await this.writeToFile(chunk);
     // Drop the in-memory copy now that it lives on disk.
     this.chunks = [];
@@ -78,7 +87,11 @@ class SpoolSink extends Writable {
   }
 
   private async writeToFile(buf: Buffer): Promise<void> {
+    if (this.fileError) throw this.fileError;
+    // once() also rejects if 'error' fires before 'drain', so a backpressured
+    // write fails cleanly too.
     if (!this.file!.write(buf)) await once(this.file!, 'drain');
+    if (this.fileError) throw this.fileError;
   }
 
   override _write(
@@ -107,6 +120,10 @@ class SpoolSink extends Writable {
   override _final(cb: (err?: Error | null) => void): void {
     if (!this.file) {
       cb();
+      return;
+    }
+    if (this.fileError) {
+      cb(this.fileError);
       return;
     }
     this.file.end();

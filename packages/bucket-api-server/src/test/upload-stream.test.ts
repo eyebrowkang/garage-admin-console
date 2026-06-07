@@ -1,8 +1,16 @@
-import { Readable } from 'node:stream';
+import { Readable, Writable } from 'node:stream';
+import { createWriteStream } from 'node:fs';
 import { PutObjectCommand, type S3Client } from '@aws-sdk/client-s3';
 import { describe, expect, it, vi } from 'vitest';
 
 import { uploadStreamToS3 } from '../upload-stream.js';
+
+// Real fs by default (the disk-spill tests write actual temp files); individual
+// tests override createWriteStream to simulate a temp-file write failure.
+vi.mock('node:fs', async (orig) => {
+  const actual = await orig<typeof import('node:fs')>();
+  return { ...actual, createWriteStream: vi.fn(actual.createWriteStream) };
+});
 
 async function readBody(body: unknown): Promise<Buffer> {
   // The in-memory path sends a Buffer directly; the disk path sends a read stream.
@@ -131,6 +139,33 @@ describe('uploadStreamToS3 — spooling', () => {
     });
 
     expect(result.size).toBe(16);
+  });
+
+  it('fails the upload cleanly (no crash, no PutObject) when the temp-file write errors', async () => {
+    // Simulate a disk failure (e.g. ENOSPC). highWaterMark 1 forces write() to
+    // return false so the error surfaces through the drain wait deterministically.
+    const failing = new Writable({
+      highWaterMark: 1,
+      write(_chunk, _enc, cb) {
+        cb(new Error('ENOSPC: no space left on device'));
+      },
+    });
+    vi.mocked(createWriteStream).mockReturnValueOnce(
+      failing as unknown as ReturnType<typeof createWriteStream>,
+    );
+    const send = vi.fn();
+
+    await expect(
+      uploadStreamToS3({
+        client: { send } as unknown as S3Client,
+        bucket: 'b',
+        key: 'k',
+        body: Readable.from([Buffer.alloc(20, 1)]),
+        memorySpoolMaxBytes: 5, // force a spill so the temp-file path runs
+      }),
+    ).rejects.toThrow(/ENOSPC|no space/i);
+
+    expect(send).not.toHaveBeenCalled(); // a failed spool must never be PutObject'd
   });
 });
 
