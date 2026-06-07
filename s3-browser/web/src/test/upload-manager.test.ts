@@ -147,21 +147,29 @@ describe('UploadManager', () => {
     expect(mockUpload).toHaveBeenCalledTimes(1); // only 'a' ever started
   });
 
-  it('cancelling a paused upload clears its resumable session', async () => {
+  it('cancelling a paused upload aborts it server-side, then clears its session', async () => {
     const removed: Array<[string, string]> = [];
+    const session = { key: 'p/a', uploadId: 'up-9', partSize: 8, createdAt: 0 };
     const sessionStore = {
-      get: () => null,
+      get: () => session,
       put: () => undefined,
       remove: (ns: string, fp: string) => void removed.push([ns, fp]),
     };
-    const m = new UploadManager(http, { fileConcurrency: 1, sessionStore });
+    const post = vi.fn().mockResolvedValue({ data: {} });
+    const m = new UploadManager({ post } as unknown as AxiosInstance, {
+      fileConcurrency: 1,
+      sessionStore,
+    });
     m.enqueue([file('a', 10)], 'p');
     const aId = byName(m.getSnapshot(), 'a')!.id;
     m.pause(aId);
     await flush();
     m.cancel(aId);
     expect(byName(m.getSnapshot(), 'a')?.status).toBe('canceled');
-    expect(removed).toHaveLength(1); // session dropped so it won't silently resume
+    // Abort the still-live multipart upload via the saved session, THEN drop it —
+    // no orphaned parts, no silent resume.
+    expect(post).toHaveBeenCalledWith('/multipart/abort', { key: 'p/a', uploadId: 'up-9' });
+    expect(removed).toHaveLength(1);
   });
 
   it('surfaces per-part status from the uploader into the snapshot', async () => {

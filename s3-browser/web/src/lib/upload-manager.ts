@@ -218,9 +218,10 @@ export class UploadManager {
     this.pump();
   }
 
-  /** Cancel one task. Queued/paused are dropped; an in-flight one is aborted (the
-   * uploader then tears down its multipart upload server-side). A paused task has
-   * a live upload + session, so drop the local session too — no silent resume. */
+  /** Cancel one task. Queued is dropped; an in-flight one is aborted (the uploader
+   * then tears down its multipart upload server-side); a paused one is aborted
+   * server-side via its saved session, then dropped — no orphaned parts, no silent
+   * resume. */
   cancel(id: string): void {
     const task = this.tasks.find((t) => t.id === id);
     if (!task) return;
@@ -228,7 +229,7 @@ export class UploadManager {
       task.status = 'canceled';
       this.emit();
     } else if (task.status === 'paused') {
-      this.clearSessionFor(task);
+      this.abortAndClearSession(task);
       task.status = 'canceled';
       this.emit();
     } else if (task.status === 'uploading') {
@@ -240,19 +241,31 @@ export class UploadManager {
     for (const task of this.tasks) {
       if (task.status === 'queued') task.status = 'canceled';
       else if (task.status === 'paused') {
-        this.clearSessionFor(task);
+        this.abortAndClearSession(task);
         task.status = 'canceled';
       } else if (task.status === 'uploading') task.controller?.abort();
     }
     this.emit();
   }
 
-  /** Drop a file's resumable session so a cancelled paused upload won't silently
-   * resume later. Server-side parts are reaped by the bucket's incomplete-upload
-   * lifecycle (same as a crash/reload), since the manager doesn't hold the uploadId. */
-  private clearSessionFor(task: InternalTask): void {
+  /** Abort a paused upload's still-live multipart upload server-side (best-effort)
+   * and drop its local session. Cancelling a paused LARGE upload otherwise orphans
+   * the already-uploaded parts on the bucket; we hold the uploadId in the session,
+   * so use it — mirroring the in-flight cancel path's server-side abort. Small
+   * uploads keep no session, so this is just a session-remove for them. */
+  private abortAndClearSession(task: InternalTask): void {
     const namespace = this.http.defaults?.baseURL ?? '';
-    this.sessionStore.remove(namespace, fingerprintFile(task.file));
+    const fingerprint = fingerprintFile(task.file);
+    const session = this.sessionStore.get(namespace, fingerprint);
+    if (session) {
+      // Fire-and-forget, like uploadOneLarge's abort-on-failure: don't block the
+      // UI or surface a network failure (the bucket's incomplete-upload lifecycle
+      // is the backstop). The client's default timeout bounds it.
+      void this.http
+        .post('/multipart/abort', { key: session.key, uploadId: session.uploadId })
+        .catch(() => undefined);
+    }
+    this.sessionStore.remove(namespace, fingerprint);
   }
 
   /** Re-queue a failed or cancelled task. */
