@@ -1,9 +1,13 @@
 import { eq } from 'drizzle-orm';
-import { getCachedS3Client, type S3Client } from '@garage/bucket-api-server';
+import { getCachedS3Client, readChecksumMode, type S3Client } from '@garage/bucket-api-server';
 
 import db from '../db/index.js';
 import { connections } from '../db/schema.js';
 import { decrypt } from '../encryption.js';
+
+// Operator-tunable S3 checksum behavior (default WHEN_REQUIRED). Validated at
+// startup; throws on a bad value.
+const checksumMode = readChecksumMode();
 
 export interface ResolvedConnection {
   id: string;
@@ -45,6 +49,7 @@ export function buildS3Client(conn: ResolvedConnection): S3Client {
       accessKeyId: conn.accessKeyId,
       secretAccessKey: conn.secretAccessKey,
     },
+    checksumMode,
   });
 }
 

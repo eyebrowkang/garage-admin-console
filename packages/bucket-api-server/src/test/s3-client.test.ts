@@ -6,6 +6,7 @@ import {
   _sweepS3ClientCacheForTests,
   createS3Client,
   getCachedS3Client,
+  readChecksumMode,
   type S3ClientOptions,
 } from '../s3-client.js';
 
@@ -51,6 +52,28 @@ describe('getCachedS3Client — identity caching', () => {
     expect(getCachedS3Client({ ...baseOptions, endpoint: 'http://other:3900' })).not.toBe(a);
     expect(getCachedS3Client({ ...baseOptions, region: 'us-east-1' })).not.toBe(a);
     expect(getCachedS3Client({ ...baseOptions, forcePathStyle: false })).not.toBe(a);
+  });
+
+  it('keys on the checksum mode so flipping S3_CHECKSUM_MODE yields a fresh client', () => {
+    const a = getCachedS3Client(baseOptions); // default → when_required
+    expect(getCachedS3Client({ ...baseOptions, checksumMode: 'when_required' })).toBe(a);
+    expect(getCachedS3Client({ ...baseOptions, checksumMode: 'when_supported' })).not.toBe(a);
+  });
+});
+
+describe('readChecksumMode', () => {
+  it('defaults to when_required when unset or empty', () => {
+    expect(readChecksumMode({})).toBe('when_required');
+    expect(readChecksumMode({ S3_CHECKSUM_MODE: '' })).toBe('when_required');
+  });
+
+  it('parses when_supported (trimmed, case-insensitive)', () => {
+    expect(readChecksumMode({ S3_CHECKSUM_MODE: 'when_supported' })).toBe('when_supported');
+    expect(readChecksumMode({ S3_CHECKSUM_MODE: '  WHEN_SUPPORTED ' })).toBe('when_supported');
+  });
+
+  it('throws on an unknown value', () => {
+    expect(() => readChecksumMode({ S3_CHECKSUM_MODE: 'always' })).toThrow(/S3_CHECKSUM_MODE/);
   });
 });
 

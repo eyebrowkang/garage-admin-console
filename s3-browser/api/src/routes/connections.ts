@@ -2,7 +2,7 @@ import { Router, type Router as ExpressRouter } from 'express';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { HeadBucketCommand, ListBucketsCommand } from '@aws-sdk/client-s3';
-import { createS3Client } from '@garage/bucket-api-server';
+import { createS3Client, readChecksumMode } from '@garage/bucket-api-server';
 
 import db from '../db/index.js';
 import { connections } from '../db/schema.js';
@@ -77,6 +77,7 @@ router.post('/test', async (req, res) => {
         accessKeyId: body.accessKeyId,
         secretAccessKey: body.secretAccessKey,
       },
+      checksumMode: readChecksumMode(),
     });
     if (bucket) {
       // Bucket-scoped probe — works for keys without ListBuckets permission.

@@ -10,11 +10,21 @@ export interface S3ClientCredentials {
   secretAccessKey: string;
 }
 
+/**
+ * S3 request/response checksum behavior. 'when_required' (default) is safe for
+ * every S3-compatible endpoint including Garage (which doesn't advertise
+ * x-amz-checksum, so the SDK's CRC32 default would break direct-to-Garage
+ * presigned PUTs); 'when_supported' opts CRC32 in on every op for fully
+ * checksum-capable endpoints. Operator-tunable via S3_CHECKSUM_MODE.
+ */
+export type ChecksumMode = 'when_required' | 'when_supported';
+
 export interface S3ClientOptions {
   region: string;
   endpoint: string;
   forcePathStyle: boolean;
   credentials: S3ClientCredentials;
+  checksumMode?: ChecksumMode;
 }
 
 export function createS3Client({
@@ -22,20 +32,37 @@ export function createS3Client({
   endpoint,
   forcePathStyle,
   credentials,
+  checksumMode = 'when_required',
 }: S3ClientOptions): S3Client {
+  // AWS SDK v3 defaults to adding a CRC32 checksum on uploads. WHEN_REQUIRED
+  // keeps it opt-in for S3-compatible endpoints (the upload route already sends a
+  // concrete ContentLength, so AWS S3 doesn't need chunked checksum mode); an
+  // operator on a fully checksum-capable endpoint can opt in via 'when_supported'.
+  const checksum = checksumMode === 'when_supported' ? 'WHEN_SUPPORTED' : 'WHEN_REQUIRED';
   const config: S3ClientConfig = {
     region,
     endpoint,
     forcePathStyle,
     credentials,
-    // AWS SDK v3 defaults to adding a CRC32 checksum on uploads. Keep this
-    // opt-in for S3-compatible endpoints; the upload route already provides
-    // a concrete ContentLength so AWS S3 doesn't need chunked checksum mode.
-    requestChecksumCalculation: 'WHEN_REQUIRED',
-    responseChecksumValidation: 'WHEN_REQUIRED',
+    requestChecksumCalculation: checksum,
+    responseChecksumValidation: checksum,
   };
 
   return new S3Client(config);
+}
+
+/**
+ * Parse the operator's S3_CHECKSUM_MODE (default 'when_required'). Throws on an
+ * unknown value so the BFF fails fast at startup. Shared so both BFFs read it the
+ * same way; feed the result into createS3Client / getCachedS3Client.
+ */
+export function readChecksumMode(
+  source: Record<string, string | undefined> = process.env,
+): ChecksumMode {
+  const raw = source.S3_CHECKSUM_MODE?.trim().toLowerCase();
+  if (!raw || raw === 'when_required') return 'when_required';
+  if (raw === 'when_supported') return 'when_supported';
+  throw new Error("S3_CHECKSUM_MODE must be 'when_required' (default) or 'when_supported'.");
 }
 
 // ---------------------------------------------------------------------------
@@ -87,6 +114,7 @@ function clientCacheKey(o: S3ClientOptions): string {
         String(o.forcePathStyle),
         o.credentials.accessKeyId,
         o.credentials.secretAccessKey,
+        o.checksumMode ?? 'when_required',
       ].join('\n'),
     )
     .digest('hex');
