@@ -222,14 +222,17 @@ function cacheKeyFor(ctx: BucketContext): string {
 }
 
 /**
- * Origins to allow for browser-direct upload/download CORS. Operator config wins;
- * otherwise default to the requesting app's Origin; fall back to `*` only when no
- * Origin is present (e.g. a non-browser caller) and nothing is configured.
+ * Concrete origins to allow for browser-direct upload/download CORS. Operator
+ * config wins; otherwise the requesting browser's `Origin`. Returns `null` when
+ * neither is available (e.g. a non-browser caller) — provisioning callers MUST
+ * skip writing a rule in that case rather than fall back to a blanket `*`, which
+ * would over-expose the bucket and fragment the CORS cache. The read-only
+ * diagnostic may treat `null` as "any origin".
  */
-function corsOriginsFor(req: Request, configured?: string[]): string[] {
+function corsOriginsFor(req: Request, configured?: string[]): string[] | null {
   if (configured && configured.length > 0) return configured;
   const origin = req.headers.origin;
-  return typeof origin === 'string' && origin ? [origin] : ['*'];
+  return typeof origin === 'string' && origin ? [origin] : null;
 }
 
 async function withContext(
@@ -471,14 +474,19 @@ export function createBucketRouter({
     if (!ctx) return;
     try {
       // Browser direct GET also needs CORS — ensure once per (endpoint, bucket).
+      // Skip when we can't resolve a concrete origin (non-browser caller): such a
+      // caller doesn't need CORS, and provisioning a `*` rule would over-expose.
       if (body.operation === 'getObject' && manageCors) {
-        await ensureBucketCors({
-          client: ctx.client,
-          bucket: ctx.bucketName,
-          cacheKey: cacheKeyFor(ctx),
-          allowedOrigins: corsOriginsFor(req, corsAllowedOrigins),
-          logger,
-        });
+        const allowedOrigins = corsOriginsFor(req, corsAllowedOrigins);
+        if (allowedOrigins) {
+          await ensureBucketCors({
+            client: ctx.client,
+            bucket: ctx.bucketName,
+            cacheKey: cacheKeyFor(ctx),
+            allowedOrigins,
+            logger,
+          });
+        }
       }
 
       const cmd =
@@ -625,14 +633,19 @@ export function createBucketRouter({
     const ctx = await withContext(req, res, resolveContext, logger);
     if (!ctx) return;
     try {
+      // Skip provisioning for non-browser callers (no concrete origin) so we never
+      // write a blanket `*` rule; they don't need CORS anyway.
       if (manageCors) {
-        await ensureBucketCors({
-          client: ctx.client,
-          bucket: ctx.bucketName,
-          cacheKey: cacheKeyFor(ctx),
-          allowedOrigins: corsOriginsFor(req, corsAllowedOrigins),
-          logger,
-        });
+        const allowedOrigins = corsOriginsFor(req, corsAllowedOrigins);
+        if (allowedOrigins) {
+          await ensureBucketCors({
+            client: ctx.client,
+            bucket: ctx.bucketName,
+            cacheKey: cacheKeyFor(ctx),
+            allowedOrigins,
+            logger,
+          });
+        }
       }
 
       const out = await ctx.client.send(
@@ -973,7 +986,9 @@ export function createBucketRouter({
   router.get('/cors-status', async (req, res) => {
     const ctx = await withContext(req, res, resolveContext, logger);
     if (!ctx) return;
-    const checkedOrigins = corsOriginsFor(req, corsAllowedOrigins);
+    // Read-only: with no concrete origin (non-browser caller) report against `*`
+    // ("does the bucket allow any origin?"). This endpoint never writes a rule.
+    const checkedOrigins = corsOriginsFor(req, corsAllowedOrigins) ?? ['*'];
     const recommendedRule = recommendedCorsRule(checkedOrigins);
     try {
       let rules: CORSRule[];

@@ -273,9 +273,12 @@ describe('Bucket Backend API — CORS cache identity', () => {
       throw new Error(`unexpected S3 command: ${commandName}`);
     });
 
+    // A browser caller always sends Origin; CORS is provisioned scoped to it.
+    const browserOrigin = 'https://app.example';
     const first = await request(app)
       .post(`/api/connections/${conn.id}/buckets/${bucket}/multipart/create`)
       .set(authHeader())
+      .set('Origin', browserOrigin)
       .send({ key: 'large.bin' });
     expect(first.status).toBe(200);
 
@@ -288,6 +291,7 @@ describe('Bucket Backend API — CORS cache identity', () => {
     const second = await request(app)
       .post(`/api/connections/${conn.id}/buckets/${bucket}/multipart/create`)
       .set(authHeader())
+      .set('Origin', browserOrigin)
       .send({ key: 'large-again.bin' });
     expect(second.status).toBe(200);
 
