@@ -138,6 +138,20 @@ describe.skipIf(config === null)('Bucket Backend API regression', () => {
     expect(disp).toContain('renamed.txt');
   });
 
+  it('GET /download streams the full object body through the BFF', async () => {
+    const res = await client.download(`${prefix}/small.txt`);
+    expect(res.status).toBe(200);
+    expect((res.contentDisposition ?? '').toLowerCase()).toContain('attachment');
+    expect(res.body.toString()).toBe('hello contract');
+  });
+
+  it('GET /download honours a Range request with 206 + Content-Range', async () => {
+    const res = await client.download(`${prefix}/small.txt`, 'bytes=0-4');
+    expect(res.status).toBe(206);
+    expect(res.contentRange ?? '').toMatch(/^bytes 0-4\//);
+    expect(res.body.toString()).toBe('hello');
+  });
+
   it('POST /multipart round-trip stitches presigned PUT parts into one object', async () => {
     // Build a body large enough to need two parts: 5MiB + 1KiB total.
     // S3 requires every part except the last to be >= 5 MiB.

@@ -165,4 +165,30 @@ export class BucketApiClient {
     const res = await this.bff.post(this.path('/copy'), { src, dst });
     return res.data as { etag: string };
   }
+
+  async download(
+    key: string,
+    range?: string,
+  ): Promise<{
+    status: number;
+    contentType?: string;
+    contentRange?: string;
+    contentDisposition?: string;
+    body: Buffer;
+  }> {
+    const res = await this.bff.get(this.path('/download'), {
+      params: { key },
+      responseType: 'arraybuffer',
+      headers: range ? { Range: range } : undefined,
+      // Let the caller assert on 4xx/2xx instead of throwing.
+      validateStatus: () => true,
+    });
+    return {
+      status: res.status,
+      contentType: res.headers['content-type'],
+      contentRange: res.headers['content-range'],
+      contentDisposition: res.headers['content-disposition'],
+      body: Buffer.from(res.data as ArrayBuffer),
+    };
+  }
 }
