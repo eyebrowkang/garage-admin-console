@@ -13,54 +13,46 @@ import {
 import { formatBytes } from '@garage/web-shared';
 import { UploadActionIcon } from '@/lib/action-icons';
 import { useBrowser } from '../../context';
-import { LARGE_FILE_THRESHOLD_BYTES, runUploadJob, UploadJobError } from '@/lib/multipart-upload';
+import { LARGE_FILE_THRESHOLD_BYTES } from '@/lib/multipart-upload';
 
 export function UploadDialog() {
-  const { dialogs, closeUpload, currentPrefix, refresh } = useBrowser();
+  const { dialogs, closeUpload, currentPrefix } = useBrowser();
   const { uploadOpen, uploadFiles } = dialogs;
   if (!uploadOpen) return null;
   return (
     <UploadDialogBody
-      open={uploadOpen}
+      open
       initialFiles={uploadFiles}
       prefix={currentPrefix}
       onClose={closeUpload}
-      onComplete={() => {
-        closeUpload();
-        refresh(currentPrefix);
-      }}
     />
   );
 }
 
+/**
+ * A file PICKER. Selecting "Upload" hands the files to the background upload
+ * manager and closes — progress, per-file retry/cancel and partial-failure
+ * reporting all happen in the non-blocking UploadPanel, so the dialog never
+ * blocks and the upload survives navigating away.
+ */
 function UploadDialogBody({
   open,
   initialFiles,
   prefix,
   onClose,
-  onComplete,
 }: {
   open: boolean;
   initialFiles: File[];
   prefix: string;
   onClose: () => void;
-  onComplete: () => void;
 }) {
-  const { http, refresh } = useBrowser();
+  const { uploadManager } = useBrowser();
   const [picked, setPicked] = useState<File[]>(initialFiles);
-  const [uploading, setUploading] = useState(false);
-  const [progress, setProgress] = useState<{ loaded: number; total: number }>({
-    loaded: 0,
-    total: 0,
-  });
-  const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
 
   const totalBytes = picked.reduce((s, f) => s + f.size, 0);
   const largeCount = picked.filter((f) => f.size >= LARGE_FILE_THRESHOLD_BYTES).length;
-  const pct = progress.total > 0 ? Math.round((progress.loaded / progress.total) * 100) : 0;
 
   const addFiles = (incoming: FileList | File[]) => {
     const arr = Array.from(incoming);
@@ -72,46 +64,14 @@ function UploadDialogBody({
     });
   };
 
-  const handleUpload = async () => {
+  const handleUpload = () => {
     if (!picked.length) return;
-    setUploading(true);
-    setError(null);
-    setProgress({ loaded: 0, total: totalBytes });
-    const controller = new AbortController();
-    abortRef.current = controller;
-    try {
-      await runUploadJob({
-        http,
-        files: picked,
-        prefix,
-        signal: controller.signal,
-        onProgress: setProgress,
-      });
-      onComplete();
-    } catch (err) {
-      if ((err as { name?: string }).name === 'AbortError') {
-        setError('Upload cancelled');
-      } else if (err instanceof UploadJobError && err.uploaded.length > 0) {
-        const n = err.uploaded.length;
-        setError(`${n} file${n !== 1 ? 's' : ''} uploaded; the rest failed — ${err.message}`);
-      } else {
-        setError((err as Error).message || 'Upload failed');
-      }
-      // Reflect any files that DID store before the failure/cancel so the
-      // listing isn't left stale (the success path refreshes via onComplete).
-      refresh(prefix);
-    } finally {
-      abortRef.current = null;
-      setUploading(false);
-    }
-  };
-
-  const handleCancel = () => {
-    abortRef.current?.abort();
+    uploadManager.enqueue(picked, prefix);
+    onClose();
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && !uploading && onClose()}>
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
           <DialogTitle>Upload files</DialogTitle>
@@ -130,7 +90,7 @@ function UploadDialogBody({
             className={`relative flex flex-col items-center justify-center gap-2 p-7 border-[1.5px] border-dashed rounded-xl text-center cursor-pointer transition-colors ${dragOver ? 'border-primary bg-primary/8 text-primary' : 'border-border bg-muted/35 text-muted-foreground hover:border-primary/60 hover:bg-primary/4'}`}
             onDragOver={(e) => {
               e.preventDefault();
-              if (!uploading) setDragOver(true);
+              setDragOver(true);
             }}
             onDragLeave={(e) => {
               if (e.currentTarget === e.target) setDragOver(false);
@@ -138,13 +98,13 @@ function UploadDialogBody({
             onDrop={(e) => {
               e.preventDefault();
               setDragOver(false);
-              if (!uploading && e.dataTransfer?.files?.length) addFiles(e.dataTransfer.files);
+              if (e.dataTransfer?.files?.length) addFiles(e.dataTransfer.files);
             }}
-            onClick={() => !uploading && inputRef.current?.click()}
+            onClick={() => inputRef.current?.click()}
             role="button"
             tabIndex={0}
             onKeyDown={(e) => {
-              if ((e.key === 'Enter' || e.key === ' ') && !uploading) {
+              if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
                 inputRef.current?.click();
               }
@@ -165,7 +125,6 @@ function UploadDialogBody({
                 if (e.target.files) addFiles(e.target.files);
                 if (inputRef.current) inputRef.current.value = '';
               }}
-              disabled={uploading}
               className="sr-only"
             />
           </div>
@@ -176,17 +135,14 @@ function UploadDialogBody({
               <div className="flex items-center justify-between px-3 py-2 border-b border-border/70 bg-muted/40 text-xs text-muted-foreground">
                 <span>
                   <strong className="text-foreground">{picked.length}</strong> file
-                  {picked.length !== 1 ? 's' : ''} ·{' '}
-                  {formatBytes(picked.reduce((s, f) => s + f.size, 0))}
+                  {picked.length !== 1 ? 's' : ''} · {formatBytes(totalBytes)}
                 </span>
-                {!uploading && (
-                  <button
-                    className="text-primary hover:underline text-xs font-medium"
-                    onClick={() => setPicked([])}
-                  >
-                    Clear all
-                  </button>
-                )}
+                <button
+                  className="text-primary hover:underline text-xs font-medium"
+                  onClick={() => setPicked([])}
+                >
+                  Clear all
+                </button>
               </div>
               <ul className="max-h-48 overflow-y-auto divide-y divide-border/40">
                 {picked.map((f, i) => {
@@ -210,14 +166,12 @@ function UploadDialogBody({
                       <span className="font-mono text-[11px] text-muted-foreground shrink-0">
                         {formatBytes(f.size)}
                       </span>
-                      {!uploading && (
-                        <button
-                          className="w-5 h-5 flex items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                          onClick={() => setPicked((prev) => prev.filter((_, j) => j !== i))}
-                        >
-                          <X size={12} />
-                        </button>
-                      )}
+                      <button
+                        className="w-5 h-5 flex items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => setPicked((prev) => prev.filter((_, j) => j !== i))}
+                      >
+                        <X size={12} />
+                      </button>
                     </li>
                   );
                 })}
@@ -225,44 +179,22 @@ function UploadDialogBody({
             </div>
           )}
 
-          {/* Progress */}
-          {uploading && (
-            <div className="space-y-1.5">
-              <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-primary rounded-full transition-all duration-100"
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
-              <p className="text-xs text-center text-muted-foreground">
-                {pct}% · {formatBytes(progress.loaded)} / {formatBytes(progress.total)}
-                {largeCount > 0 && (
-                  <>
-                    {' '}
-                    · {largeCount} file{largeCount !== 1 ? 's' : ''} direct-to-S3
-                  </>
-                )}
-              </p>
-            </div>
+          {largeCount > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {largeCount} file{largeCount !== 1 ? 's' : ''} will upload directly to S3 in parts.
+              Progress shows in the panel — you can keep browsing while it runs.
+            </p>
           )}
-
-          {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
 
         <DialogFooter>
-          {uploading ? (
-            <Button variant="outline" onClick={handleCancel}>
-              Cancel upload
-            </Button>
-          ) : (
-            <Button variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-          )}
-          <Button onClick={handleUpload} disabled={!picked.length || uploading}>
-            {uploading
-              ? 'Uploading…'
-              : `Upload ${picked.length > 0 ? picked.length + ' file' + (picked.length !== 1 ? 's' : '') : ''}`}
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={handleUpload} disabled={!picked.length}>
+            {picked.length > 0
+              ? `Upload ${picked.length} file${picked.length !== 1 ? 's' : ''}`
+              : 'Upload'}
           </Button>
         </DialogFooter>
       </DialogContent>
