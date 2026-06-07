@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import express from 'express';
 import { Readable } from 'node:stream';
 import type { AddressInfo } from 'node:net';
@@ -6,6 +6,7 @@ import type { Server } from 'node:http';
 import type { S3Client } from '@aws-sdk/client-s3';
 
 import { createBucketRouter } from '../router.js';
+import { _resetCorsCache } from '../cors.js';
 import type { Logger } from '../types.js';
 
 const silentLogger: Logger = { error: () => undefined };
@@ -39,7 +40,11 @@ afterEach(() => {
   for (const s of servers.splice(0)) s.close();
 });
 
-async function withServer(client: S3Client, fn: (base: string) => Promise<void>): Promise<void> {
+async function withServer(
+  client: S3Client,
+  fn: (base: string) => Promise<void>,
+  opts?: { manageCors?: boolean; corsAllowedOrigins?: string[] },
+): Promise<void> {
   const app = express();
   app.use(express.json());
   app.use(
@@ -47,7 +52,8 @@ async function withServer(client: S3Client, fn: (base: string) => Promise<void>)
     createBucketRouter({
       resolveContext: () => ({ client, bucketName: 'bucket' }),
       logger: silentLogger,
-      manageCors: false,
+      manageCors: opts?.manageCors ?? false,
+      corsAllowedOrigins: opts?.corsAllowedOrigins,
     }),
   );
   const server = app.listen(0);
@@ -392,5 +398,82 @@ describe('GET /cors-status — diagnostic', () => {
       const json = await (await fetch(`${base}/cors-status`)).json();
       expect(json.reason).toBe('unreadable');
     });
+  });
+});
+
+describe('CORS auto-provisioning — origin handling', () => {
+  beforeEach(() => _resetCorsCache());
+
+  type PutCorsInput = { CORSConfiguration?: { CORSRules?: { AllowedOrigins?: string[] }[] } };
+  const putRule = (calls: RecordedCall[]) => {
+    const put = calls.find((c) => c.name === 'PutBucketCorsCommand');
+    return (put?.input as PutCorsInput | undefined)?.CORSConfiguration?.CORSRules?.[0];
+  };
+
+  it('provisions a rule scoped to the browser Origin (never a wildcard)', async () => {
+    const { client, calls } = makeClient({
+      GetBucketCorsCommand: () => {
+        throw Object.assign(new Error('none'), { name: 'NoSuchCORSConfiguration' });
+      },
+      PutBucketCorsCommand: () => ({}),
+      CreateMultipartUploadCommand: () => ({ UploadId: 'u1' }),
+    });
+    await withServer(
+      client,
+      async (base) => {
+        const res = await fetch(`${base}/multipart/create`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', Origin: 'https://app.example' },
+          body: JSON.stringify({ key: 'big.bin' }),
+        });
+        expect(res.status).toBe(200);
+        expect(putRule(calls)?.AllowedOrigins).toEqual(['https://app.example']);
+      },
+      { manageCors: true },
+    );
+  });
+
+  it('skips CORS provisioning entirely for an origin-less (non-browser) caller', async () => {
+    const { client, calls } = makeClient({
+      CreateMultipartUploadCommand: () => ({ UploadId: 'u1' }),
+    });
+    await withServer(
+      client,
+      async (base) => {
+        const res = await fetch(`${base}/multipart/create`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' }, // no Origin header
+          body: JSON.stringify({ key: 'big.bin' }),
+        });
+        expect(res.status).toBe(200);
+        // No CORS reads or writes at all — and crucially no wildcard rule.
+        expect(calls.some((c) => c.name === 'GetBucketCorsCommand')).toBe(false);
+        expect(calls.some((c) => c.name === 'PutBucketCorsCommand')).toBe(false);
+      },
+      { manageCors: true },
+    );
+  });
+
+  it('provisions the operator-configured origins (not a wildcard) when no Origin header', async () => {
+    const { client, calls } = makeClient({
+      GetBucketCorsCommand: () => {
+        throw Object.assign(new Error('none'), { name: 'NoSuchCORSConfiguration' });
+      },
+      PutBucketCorsCommand: () => ({}),
+      CreateMultipartUploadCommand: () => ({ UploadId: 'u1' }),
+    });
+    await withServer(
+      client,
+      async (base) => {
+        const res = await fetch(`${base}/multipart/create`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' }, // no Origin → falls back to configured
+          body: JSON.stringify({ key: 'big.bin' }),
+        });
+        expect(res.status).toBe(200);
+        expect(putRule(calls)?.AllowedOrigins).toEqual(['https://configured.example']);
+      },
+      { manageCors: true, corsAllowedOrigins: ['https://configured.example'] },
+    );
   });
 });
