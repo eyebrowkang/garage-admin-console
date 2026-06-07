@@ -28,9 +28,12 @@ import {
   COPY_SINGLE_MAX_BYTES,
   LARGE_FILE_THRESHOLD_BYTES,
   MULTIPART_COPY_PART_SIZE_BYTES,
+  MULTIPART_DEFAULT_MAX_PART_SIZE_BYTES,
   MULTIPART_MAX_PARTS,
   MULTIPART_PART_SIZE_BYTES,
+  MULTIPART_TARGET_PARTS,
 } from './constants.js';
+import { computeMultipartPartSize } from './multipart-policy.js';
 import { ensureBucketCors } from './cors.js';
 
 interface ShapeInput {
@@ -255,10 +258,21 @@ export interface CreateBucketRouterOptions {
    */
   proxyUploadMaxBytes?: number;
   /**
-   * Recommended part size returned by POST /multipart/create. Default
-   * MULTIPART_PART_SIZE_BYTES (8 MiB). Must be >= 5 MiB per S3 rules.
+   * Ladder floor for POST /multipart/create — also the exact part size returned
+   * when the caller passes no `fileSize`. Default MULTIPART_PART_SIZE_BYTES
+   * (8 MiB). Must be >= 5 MiB per S3 rules.
    */
   multipartPartSize?: number;
+  /**
+   * Soft target part count the adaptive ladder climbs toward when a `fileSize`
+   * is supplied. Default MULTIPART_TARGET_PARTS (2000).
+   */
+  multipartTargetParts?: number;
+  /**
+   * Ladder top for the adaptive part size. Default
+   * MULTIPART_DEFAULT_MAX_PART_SIZE_BYTES (1 GiB).
+   */
+  multipartMaxPartSize?: number;
   /**
    * Auto-manage the bucket's CORS rules for browser-direct transfers. Default
    * true; set false to leave bucket CORS entirely to the operator.
@@ -276,6 +290,8 @@ export function createBucketRouter({
   logger = defaultLogger,
   proxyUploadMaxBytes = LARGE_FILE_THRESHOLD_BYTES,
   multipartPartSize = MULTIPART_PART_SIZE_BYTES,
+  multipartTargetParts = MULTIPART_TARGET_PARTS,
+  multipartMaxPartSize = MULTIPART_DEFAULT_MAX_PART_SIZE_BYTES,
   manageCors = true,
   corsAllowedOrigins,
 }: CreateBucketRouterOptions): ExpressRouter {
@@ -594,6 +610,10 @@ export function createBucketRouter({
   const MultipartCreateSchema = z.object({
     key: z.string().min(1),
     contentType: z.string().optional(),
+    // Optional hint: when present, the returned partSize scales with it so the
+    // part count stays bounded. Omitted → the static multipartPartSize default
+    // (backward compatible for an un-rebuilt Admin host).
+    fileSize: z.number().int().nonnegative().optional(),
   });
 
   router.post('/multipart/create', async (req, res) => {
@@ -623,10 +643,18 @@ export function createBucketRouter({
         res.status(502).json({ error: 'S3 did not return an upload id' });
         return;
       }
+      const partSize =
+        body.fileSize !== undefined
+          ? computeMultipartPartSize(body.fileSize, {
+              basePartSize: multipartPartSize,
+              targetParts: multipartTargetParts,
+              maxPartSize: multipartMaxPartSize,
+            })
+          : multipartPartSize;
       res.json({
         uploadId: out.UploadId,
         key: body.key,
-        partSize: multipartPartSize,
+        partSize,
         maxParts: MULTIPART_MAX_PARTS,
       });
     } catch (err) {

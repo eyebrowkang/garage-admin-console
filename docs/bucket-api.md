@@ -35,6 +35,15 @@ in two:
   requesting app's origin; set `S3_CORS_ALLOWED_ORIGINS` (comma-separated) to pin
   explicit origins, or `S3_MANAGE_CORS=false` to leave bucket CORS to the operator.
 
+**Adaptive part size.** When the client passes `fileSize` to `POST /multipart/create`,
+the server scales the returned `partSize` up a doubling ladder (8 MiB base →
+1 GiB) so the part count stays bounded (soft target ~2000, hard cap 10 000) and
+the full 5 TiB object range is reachable while each PUT stays independently
+retryable. Omitting `fileSize` returns the static 8 MiB default (backward
+compatible). The ladder is operator-tunable: `S3_MULTIPART_BASE_PART_SIZE`
+(bytes, ≥ 5 MiB), `S3_MULTIPART_TARGET_PARTS` (1–10 000),
+`S3_MULTIPART_MAX_PART_SIZE` (bytes, ≤ 5 GiB) — validated at startup.
+
 ## Routes (relative to the bucket scope)
 
 | Method + path              | Body / query                                                             | Response                                                                                                                                                                                                                                                                                                                     |
@@ -44,7 +53,7 @@ in two:
 | `GET /download`            | `?key=` (optional `Range` header)                                        | Binary stream — `Content-Disposition: attachment`. Honours `Range` (→ `206` + `Content-Range` + `Accept-Ranges`). Streamed via `stream.pipeline`, so a mid-stream upstream error destroys the response (truncated, never a short body read as complete) and a client disconnect tears the S3 read down instead of leaking it |
 | `POST /presign`            | `{ key, operation, expiresIn, responseContentDisposition? }`             | `{ url, expiresAt }`                                                                                                                                                                                                                                                                                                         |
 | `POST /upload`             | `multipart/form-data` (one+ files, optional `prefix`); per-file ≤ 10 MiB | `{ uploaded: { key, etag, size }[] }` · 413 `{ error, limit, uploaded }` if any file exceeds the limit (the files that fit are still stored + reported)                                                                                                                                                                      |
-| `POST /multipart/create`   | `{ key, contentType? }`                                                  | `{ uploadId, key, partSize, maxParts }`                                                                                                                                                                                                                                                                                      |
+| `POST /multipart/create`   | `{ key, contentType?, fileSize? }`                                       | `{ uploadId, key, partSize, maxParts }` — `partSize` adapts to the optional `fileSize` (see Adaptive part size above)                                                                                                                                                                                                        |
 | `POST /multipart/sign`     | `{ key, uploadId, partNumbers: number[], expiresIn? }`                   | `{ urls: { partNumber, url }[], expiresAt }`                                                                                                                                                                                                                                                                                 |
 | `POST /multipart/complete` | `{ key, uploadId, parts: { partNumber, etag }[] }`                       | `{ key, etag, location }`                                                                                                                                                                                                                                                                                                    |
 | `POST /multipart/abort`    | `{ key, uploadId }`                                                      | `{ ok: true }`                                                                                                                                                                                                                                                                                                               |

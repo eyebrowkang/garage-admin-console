@@ -10,4 +10,10 @@ export {
   LARGE_FILE_THRESHOLD_BYTES,
   MULTIPART_PART_SIZE_BYTES,
   MULTIPART_MAX_PARTS,
+  MULTIPART_MIN_PART_SIZE_BYTES,
+  MULTIPART_TARGET_PARTS,
+  MULTIPART_DEFAULT_MAX_PART_SIZE_BYTES,
+  MULTIPART_MAX_PART_SIZE_BYTES,
 } from './constants.js';
+export { computeMultipartPartSize, readMultipartPolicyEnv } from './multipart-policy.js';
+export type { MultipartPartSizeOptions, MultipartPolicyOptions } from './multipart-policy.js';
