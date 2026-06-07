@@ -200,11 +200,15 @@ export class BucketApiClient {
       // Let the caller assert on 4xx/2xx instead of throwing.
       validateStatus: () => true,
     });
+    // Axios types headers as AxiosHeaderValue | undefined (which includes null);
+    // coerce to the string | undefined the callers expect.
+    const h = (k: string): string | undefined =>
+      typeof res.headers[k] === 'string' ? (res.headers[k] as string) : undefined;
     return {
       status: res.status,
-      contentType: res.headers['content-type'],
-      contentRange: res.headers['content-range'],
-      contentDisposition: res.headers['content-disposition'],
+      contentType: h('content-type'),
+      contentRange: h('content-range'),
+      contentDisposition: h('content-disposition'),
       body: Buffer.from(res.data as ArrayBuffer),
     };
   }
