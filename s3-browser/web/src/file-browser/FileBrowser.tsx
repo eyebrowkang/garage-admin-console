@@ -16,6 +16,7 @@ import { Breadcrumb } from './components/breadcrumb/Breadcrumb';
 import { FolderView } from './components/list/FolderView';
 import { PreviewPane } from './components/preview/PreviewPane';
 import { UploadDialog } from './components/dialogs/UploadDialog';
+import { UploadPanel } from './components/upload/UploadPanel';
 import { DeleteDialog } from './components/dialogs/DeleteDialog';
 import { NewFolderDialog } from './components/dialogs/NewFolderDialog';
 import { RenameDialog } from './components/dialogs/RenameDialog';
@@ -156,6 +157,9 @@ function FileBrowserLayout() {
           {toast.message}
         </div>
       )}
+
+      {/* Background upload queue (non-blocking, reopenable) */}
+      <UploadPanel />
 
       {/* Dialogs */}
       <UploadDialog />

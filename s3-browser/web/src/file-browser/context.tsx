@@ -6,6 +6,7 @@ import {
   useMemo,
   useReducer,
   useRef,
+  useSyncExternalStore,
   type ReactNode,
 } from 'react';
 import axios, { type AxiosInstance } from 'axios';
@@ -14,6 +15,7 @@ import type { FileItem, FilterKind, ListItem, SortKey, SortState, ViewMode } fro
 import { useMediaQuery } from './hooks/useMediaQuery';
 import type { FileBrowserProps } from './FileBrowser';
 import { readPersistedBool, writePersistedBool } from '@/lib/persistence';
+import { UploadManager, type UploadTask } from '@/lib/upload-manager';
 import { EMPTY_DIALOGS, reducer, type DialogsState } from './state';
 
 const NARROW_QUERY = '(max-width: 767px)';
@@ -81,6 +83,9 @@ export interface BrowserContextValue {
 
   refresh: (prefix?: string) => void;
   currentPrefix: string;
+
+  /** Background upload queue — survives the upload dialog closing. */
+  uploadManager: UploadManager;
 }
 
 const BrowserContext = createContext<BrowserContextValue | null>(null);
@@ -198,6 +203,25 @@ export function BrowserProvider({
     [qc, backend.baseUrl],
   );
 
+  // One upload queue per backend instance, created here (not in the dialog) so
+  // it survives the dialog closing (stable per backend → in-flight uploads
+  // aren't orphaned by a re-render).
+  const uploadManager = useMemo(() => new UploadManager(http), [http]);
+  // Refresh a prefix's listing when one of its files finishes. Tracking seen
+  // done-ids keeps it to one refresh per completed file. The manager stays a
+  // pure store; the React layer reacts to it here.
+  useEffect(() => {
+    const refreshed = new Set<string>();
+    return uploadManager.subscribe(() => {
+      for (const task of uploadManager.getSnapshot()) {
+        if (task.status === 'done' && !refreshed.has(task.id)) {
+          refreshed.add(task.id);
+          refresh(task.prefix);
+        }
+      }
+    });
+  }, [uploadManager, refresh]);
+
   const openPresign = useCallback((item: ListItem) => {
     if (item.type !== 'file') return;
     dispatch({ type: 'OPEN_PRESIGN', item: item as ListItem & { type: 'file' } });
@@ -264,7 +288,21 @@ export function BrowserProvider({
     showToast: (kind, message) => dispatch({ type: 'SHOW_TOAST', kind, message }),
 
     refresh,
+    uploadManager,
   };
 
   return <BrowserContext.Provider value={value}>{children}</BrowserContext.Provider>;
+}
+
+/**
+ * Subscribe to the upload queue's tasks. Re-renders only when a task changes —
+ * the manager hands out an immutable snapshot per mutation.
+ */
+export function useUploadTasks(): UploadTask[] {
+  const { uploadManager } = useBrowser();
+  return useSyncExternalStore(
+    uploadManager.subscribe,
+    uploadManager.getSnapshot,
+    uploadManager.getSnapshot,
+  );
 }

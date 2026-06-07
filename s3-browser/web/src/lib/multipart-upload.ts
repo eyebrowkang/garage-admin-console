@@ -570,6 +570,68 @@ async function uploadSmallBatch(
   return res.data.uploaded;
 }
 
+function resolveReliability(reliability?: ReliabilityOptions): ResolvedReliability {
+  const stall = reliability?.stallTimeoutMs;
+  return {
+    maxAttempts: reliability?.maxAttempts ?? DEFAULT_MAX_ATTEMPTS,
+    baseDelayMs: reliability?.baseDelayMs ?? DEFAULT_BASE_DELAY_MS,
+    maxDelayMs: reliability?.maxDelayMs ?? DEFAULT_MAX_DELAY_MS,
+    // The stall watchdog can't be switched off (it's what frees a shared permit
+    // from a hung socket); a non-positive value falls back to the default.
+    stallTimeoutMs: stall !== undefined && stall > 0 ? stall : DEFAULT_STALL_TIMEOUT_MS,
+    signWindow: reliability?.signWindow ?? DEFAULT_SIGN_WINDOW,
+  };
+}
+
+export interface UploadOneFileOptions {
+  signal?: AbortSignal;
+  onProgress?: (p: UploadProgress) => void;
+  /** Files at or above this size go direct-to-S3 via multipart. */
+  threshold?: number;
+  partConcurrency?: number;
+  reliability?: ReliabilityOptions;
+}
+
+/**
+ * Upload a SINGLE file, choosing the path by size: below the threshold it goes
+ * through the BFF proxy (POST /upload), at/above it goes direct-to-S3 via
+ * multipart. Progress is reported as a cumulative {loaded,total} for the file.
+ * This is the per-file primitive the UploadManager schedules; runUploadJob stays
+ * the one-shot batch API.
+ */
+export async function uploadOneFile(
+  http: AxiosInstance,
+  file: File,
+  prefix: string,
+  opts: UploadOneFileOptions = {},
+): Promise<UploadedItem> {
+  const { signal, onProgress, threshold = LARGE_FILE_THRESHOLD_BYTES, partConcurrency = 4 } = opts;
+  const total = file.size;
+  let loaded = 0;
+  const tick = (delta: number) => {
+    loaded += delta;
+    if (loaded > total) loaded = total;
+    if (loaded < 0) loaded = 0;
+    onProgress?.({ loaded, total });
+  };
+  onProgress?.({ loaded: 0, total });
+
+  if (file.size >= threshold) {
+    return uploadOneLarge(
+      http,
+      file,
+      prefix,
+      partConcurrency,
+      signal,
+      tick,
+      resolveReliability(opts.reliability),
+    );
+  }
+  const [item] = await uploadSmallBatch(http, [file], prefix, signal, tick);
+  if (!item) throw new Error('Upload returned no result');
+  return item;
+}
+
 export async function runUploadJob(opts: UploadJobOptions): Promise<UploadedItem[]> {
   const {
     http,
@@ -582,16 +644,7 @@ export async function runUploadJob(opts: UploadJobOptions): Promise<UploadedItem
     reliability,
   } = opts;
 
-  const stall = reliability?.stallTimeoutMs;
-  const cfg: ResolvedReliability = {
-    maxAttempts: reliability?.maxAttempts ?? DEFAULT_MAX_ATTEMPTS,
-    baseDelayMs: reliability?.baseDelayMs ?? DEFAULT_BASE_DELAY_MS,
-    maxDelayMs: reliability?.maxDelayMs ?? DEFAULT_MAX_DELAY_MS,
-    // The stall watchdog can't be switched off (it's what frees a shared permit
-    // from a hung socket); a non-positive value falls back to the default.
-    stallTimeoutMs: stall !== undefined && stall > 0 ? stall : DEFAULT_STALL_TIMEOUT_MS,
-    signWindow: reliability?.signWindow ?? DEFAULT_SIGN_WINDOW,
-  };
+  const cfg = resolveReliability(reliability);
 
   const small = files.filter((f) => f.size < threshold);
   const large = files.filter((f) => f.size >= threshold);
