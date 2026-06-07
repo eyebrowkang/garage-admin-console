@@ -71,6 +71,21 @@ describe.skipIf(config === null)('Bucket Backend API regression', () => {
     expect(sizes).toEqual([1, 2, 3]);
   });
 
+  it('POST /upload rejects a file over the proxy size cap with 413', async () => {
+    // The proxy upload path (POST /upload, multipart/form-data) caps each file at
+    // proxyUploadMaxBytes — the documented 10 MiB default (LARGE_FILE_THRESHOLD_BYTES);
+    // neither BFF overrides it. A file past the cap must come back 413 — with the limit
+    // echoed and nothing stored — so the client falls back to the multipart upload flow.
+    const overLimit = 10 * 1024 * 1024 + 1024; // 10 MiB + 1 KiB
+    const body = Buffer.alloc(overLimit, 0x61);
+    await expect(client.upload([{ name: 'over-limit.bin', body }], prefix)).rejects.toMatchObject({
+      response: {
+        status: 413,
+        data: { limit: expect.any(Number), uploaded: [] },
+      },
+    });
+  });
+
   it('GET /list?prefix returns the just-uploaded objects', async () => {
     const res = await client.list({ prefix: `${prefix}/`, delimiter: '/' });
     const keys = res.objects.map((o) => o.key).sort();
@@ -294,6 +309,27 @@ describe.skipIf(config === null)('Bucket Backend API regression', () => {
     expect(new Set(res.deleted)).toEqual(
       new Set([`${prefix}/doomed-1.txt`, `${prefix}/doomed-2.txt`]),
     );
+  });
+
+  it('DELETE /objects surfaces partial failures in errors[] alongside deleted[]', async () => {
+    // Mixed batch: one real key (deletes cleanly) + one key that never existed.
+    // Garage reports a per-key error for the missing key in a batch DeleteObjects
+    // (unlike AWS S3, which treats a missing-key delete as an idempotent success),
+    // so this proves the partial-success contract: deleted[] and errors[] are both
+    // populated and partitioned by key. A 2-key payload also forces the batch
+    // DeleteObjects path — the single-key shortcut always returns errors: [].
+    await client.upload([{ name: 'partial-ok.txt', body: 'bye' }], prefix);
+    const okKey = `${prefix}/partial-ok.txt`;
+    const missingKey = `${prefix}/partial-missing.txt`; // never uploaded → absent
+
+    const res = await client.deleteObjects([okKey, missingKey]);
+    expect(res.deleted).toContain(okKey);
+    expect(res.deleted).not.toContain(missingKey);
+    expect(res.errors.length).toBeGreaterThanOrEqual(1);
+    const missErr = res.errors.find((e) => e.key === missingKey);
+    expect(missErr).toBeDefined();
+    expect(missErr!.message).toBeTypeOf('string');
+    expect(missErr!.message.length).toBeGreaterThan(0);
   });
 
   it('pagination: continuationToken round-trips when needed', async () => {
