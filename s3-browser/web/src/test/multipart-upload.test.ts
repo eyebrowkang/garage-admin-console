@@ -675,4 +675,35 @@ describe('uploadOneFile — resume', () => {
     expect(http.post.mock.calls.some(([u]) => u === '/multipart/create')).toBe(true);
     expect(FakeXHR.sent).toHaveLength(3); // all 3 parts uploaded fresh
   });
+
+  it('keeps the session and propagates a transient probe error (no fresh upload)', async () => {
+    const key = 'flaky.bin';
+    const file = makeFile(key, 12);
+    const store = memStore();
+    store.put('', fingerprintFile(file), {
+      key,
+      uploadId: 'up-keep',
+      partSize: 5,
+      createdAt: Date.now(),
+    });
+
+    const transient = Object.assign(new Error('Service Unavailable'), {
+      response: { status: 503 },
+    });
+    const http = mockHttp({
+      '/multipart/parts': transient, // transient, NOT a 404
+      '/multipart/create': {
+        data: { uploadId: 'must-not-be-used', key, partSize: 5, maxParts: 1000 },
+      },
+    });
+
+    await expect(
+      uploadOneFile(http, file, '', { threshold: 10, reliability: FAST, resume: { store } }),
+    ).rejects.toThrow();
+
+    // Parts are still valid → the session is preserved for a later resume, and no
+    // fresh multipart upload is created.
+    expect(store.get('', fingerprintFile(file))?.uploadId).toBe('up-keep');
+    expect(http.post.mock.calls.some(([u]) => u === '/multipart/create')).toBe(false);
+  });
 });

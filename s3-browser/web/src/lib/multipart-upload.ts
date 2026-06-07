@@ -504,8 +504,12 @@ async function uploadOneLarge(
       for (const p of partsRes.data.parts)
         completed.set(p.partNumber, { etag: p.etag, size: p.size });
       resumed = true;
-    } catch {
-      // Stale/unknown upload (e.g. 404 NoSuchUpload) → discard and start fresh.
+    } catch (err) {
+      // Only a 404 (NoSuchUpload) means the saved upload is truly gone — discard
+      // the session and start fresh. A transient failure (timeout / 5xx / network
+      // drop) or a user abort leaves the already-uploaded parts valid, so DON'T
+      // drop the session: propagate the error and let a retry resume from it.
+      if ((err as { response?: { status?: number } }).response?.status !== 404) throw err;
       clearSession();
     }
   }
