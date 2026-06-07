@@ -214,6 +214,36 @@ describe.skipIf(config === null)('Bucket Backend API regression', () => {
     expect(Math.ceil(fileSize / big.partSize)).toBeLessThanOrEqual(big.maxParts);
   });
 
+  it('POST /multipart/parts lists the parts already uploaded (resume)', async () => {
+    const partSize = 5 * 1024 * 1024; // S3 minimum for a non-last part
+    const key = `${prefix}/resume.bin`;
+    const created = await client.multipartCreate({ key });
+    const signed = await client.multipartSign({
+      key,
+      uploadId: created.uploadId,
+      partNumbers: [1],
+    });
+
+    const body = Buffer.alloc(partSize);
+    for (let i = 0; i < partSize; i += 4096) body[i] = (i * 7) & 0xff;
+    const put = await fetch(signed.urls[0]!.url, { method: 'PUT', body });
+    expect(put.status).toBe(200);
+
+    const listed = await client.multipartParts({ key, uploadId: created.uploadId });
+    const part1 = listed.parts.find((p) => p.partNumber === 1);
+    expect(part1).toBeDefined();
+    expect(part1!.size).toBe(partSize);
+    expect(part1!.etag).toMatch(/^[a-f0-9]{32}$/);
+
+    await client.multipartAbort({ key, uploadId: created.uploadId });
+  });
+
+  it('POST /multipart/parts 404s for an unknown upload', async () => {
+    await expect(
+      client.multipartParts({ key: `${prefix}/nope.bin`, uploadId: 'does-not-exist' }),
+    ).rejects.toMatchObject({ response: { status: 404 } });
+  });
+
   it('POST /multipart/abort cleans up an in-progress upload', async () => {
     const key = `${prefix}/multipart-abort.bin`;
     const created = await client.multipartCreate({ key });
@@ -232,6 +262,17 @@ describe.skipIf(config === null)('Bucket Backend API regression', () => {
 
     const meta = await client.object(`${prefix}/small-copy.txt`);
     expect(meta.size).toBe(14);
+  });
+
+  it('GET /cors-status returns a usable diagnostic shape', async () => {
+    const res = await client.corsStatus();
+    expect(typeof res.sufficient).toBe('boolean');
+    expect(['ok', 'no-config', 'insufficient', 'unreadable']).toContain(res.reason);
+    // The recommended rule is always actionable, whatever the current state.
+    expect(res.recommendedRule.ExposeHeaders).toContain('ETag');
+    expect(res.recommendedRule.AllowedMethods).toEqual(
+      expect.arrayContaining(['GET', 'PUT', 'HEAD', 'POST']),
+    );
   });
 
   it('DELETE /objects handles single-key payload', async () => {

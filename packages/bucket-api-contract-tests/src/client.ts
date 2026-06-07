@@ -136,6 +136,23 @@ export class BucketApiClient {
     return res.data as { ok: true };
   }
 
+  async multipartParts(body: { key: string; uploadId: string }) {
+    const res = await this.bff.post(this.path('/multipart/parts'), body);
+    return res.data as { parts: { partNumber: number; etag: string; size: number }[] };
+  }
+
+  async corsStatus() {
+    const res = await this.bff.get(this.path('/cors-status'));
+    return res.data as {
+      managed: boolean;
+      sufficient: boolean;
+      reason: string;
+      checkedOrigins: string[];
+      recommendedRule: { ExposeHeaders?: string[]; AllowedMethods?: string[] };
+      status: unknown;
+    };
+  }
+
   async upload(
     files: { name: string; body: string | Buffer; contentType?: string }[],
     prefix?: string,

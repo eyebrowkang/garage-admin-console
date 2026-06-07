@@ -87,6 +87,42 @@ function defaultRule(allowedOrigins: string[]): CORSRule {
   };
 }
 
+/** The CORS rule browser-direct upload/download needs — surfaced by the diagnostic. */
+export function recommendedCorsRule(allowedOrigins: string[]): CORSRule {
+  return defaultRule(allowedOrigins);
+}
+
+export interface BucketCorsStatus {
+  /** True when some single rule covers origins + methods + `*` headers + ETag. */
+  sufficient: boolean;
+  coversOrigins: boolean;
+  coversMethods: boolean;
+  exposesEtag: boolean;
+  allowsAnyHeader: boolean;
+  allowedOrigins: string[];
+  allowedMethods: string[];
+  exposeHeaders: string[];
+}
+
+/**
+ * Read-only assessment of a bucket's existing CORS rules against what
+ * browser-direct transfers need. Per-dimension flags are computed across ALL
+ * rules (so a diagnostic can point at the specific gap), while `sufficient`
+ * keeps the strict same-rule check used by the auto-config path.
+ */
+export function classifyBucketCors(rules: CORSRule[], origins: string[]): BucketCorsStatus {
+  return {
+    sufficient: isCoveredByExistingRule(rules, origins),
+    coversOrigins: rules.some((r) => ruleCoversOrigins(r, origins)),
+    coversMethods: rules.some((r) => ruleCoversMethods(r)),
+    exposesEtag: rules.some((r) => ruleExposesEtag(r)),
+    allowsAnyHeader: rules.some((r) => ruleAllowsAnyHeader(r)),
+    allowedOrigins: [...new Set(rules.flatMap((r) => r.AllowedOrigins ?? []))],
+    allowedMethods: [...new Set(rules.flatMap((r) => r.AllowedMethods ?? []))],
+    exposeHeaders: [...new Set(rules.flatMap((r) => r.ExposeHeaders ?? []))],
+  };
+}
+
 export interface EnsureCorsInput {
   client: S3Client;
   bucket: string;
