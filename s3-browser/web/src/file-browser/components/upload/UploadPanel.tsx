@@ -6,11 +6,21 @@
  * running and stay visible while the user browses or closes the upload dialog.
  *
  * Palette stays within the four allowed colors: orange (in progress), green
- * (done), red (error); queued/canceled use the neutral muted token.
+ * (done), red (error); queued/paused/canceled use the neutral muted token.
  */
 import { useState } from 'react';
 import { FileIcon } from '@primer/octicons-react';
-import { AlertCircle, Check, ChevronDown, ChevronUp, Loader2, RotateCcw, X } from 'lucide-react';
+import {
+  AlertCircle,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Loader2,
+  Pause,
+  Play,
+  RotateCcw,
+  X,
+} from 'lucide-react';
 import { cn } from '@garage/ui';
 import { formatBytes } from '@garage/web-shared';
 import { useBrowser, useUploadTasks } from '../../context';
@@ -18,6 +28,7 @@ import { CorsDiagnostic } from './CorsDiagnostic';
 import type { UploadTask } from '@/lib/upload-manager';
 
 const ACTIVE = new Set(['queued', 'uploading']);
+const FINISHED = new Set(['done', 'error', 'canceled']);
 
 export function UploadPanel() {
   const { uploadManager } = useBrowser();
@@ -27,9 +38,13 @@ export function UploadPanel() {
   if (tasks.length === 0) return null;
 
   const active = tasks.filter((t) => ACTIVE.has(t.status));
+  const pausedCount = tasks.filter((t) => t.status === 'paused').length;
   const errorCount = tasks.filter((t) => t.status === 'error').length;
-  const hasFinished = tasks.some((t) => !ACTIVE.has(t.status));
+  const finished = tasks.filter((t) => FINISHED.has(t.status));
+  const hasFinished = finished.length > 0;
   const hasError = errorCount > 0;
+  // Something is still in-flight or parked → offer Cancel all (not Clear).
+  const hasPending = active.length > 0 || pausedCount > 0;
 
   // Overall progress excludes cancelled tasks (their bytes aren't going anywhere).
   const tracked = tasks.filter((t) => t.status !== 'canceled');
@@ -39,9 +54,11 @@ export function UploadPanel() {
 
   const summary = active.length
     ? `Uploading ${active.length} file${active.length !== 1 ? 's' : ''}…`
-    : errorCount
-      ? `${errorCount} failed`
-      : 'Uploads complete';
+    : pausedCount
+      ? `${pausedCount} paused`
+      : errorCount
+        ? `${errorCount} failed`
+        : 'Uploads complete';
 
   return (
     <div className="fixed bottom-4 right-4 z-50 w-[min(360px,calc(100vw-2rem))]">
@@ -50,6 +67,8 @@ export function UploadPanel() {
         <div className="flex items-center gap-2 border-b border-border/70 bg-card px-3 py-2">
           {active.length ? (
             <Loader2 size={14} className="shrink-0 animate-spin text-primary" />
+          ) : pausedCount ? (
+            <Pause size={14} className="shrink-0 text-muted-foreground" />
           ) : errorCount ? (
             <AlertCircle size={14} className="shrink-0 text-destructive" />
           ) : (
@@ -61,7 +80,7 @@ export function UploadPanel() {
               <span className="ml-1 font-normal text-muted-foreground">{pct}%</span>
             )}
           </span>
-          {active.length > 0 && (
+          {hasPending && (
             <button
               className="text-[11px] font-medium text-muted-foreground hover:text-destructive"
               onClick={() => uploadManager.cancelAll()}
@@ -69,7 +88,7 @@ export function UploadPanel() {
               Cancel all
             </button>
           )}
-          {!active.length && hasFinished && (
+          {!hasPending && hasFinished && (
             <button
               className="text-[11px] font-medium text-muted-foreground hover:text-foreground"
               onClick={() => uploadManager.clearFinished()}
@@ -111,7 +130,9 @@ function UploadRow({
 }) {
   const pct =
     task.size > 0 ? Math.round((task.loaded / task.size) * 100) : task.status === 'done' ? 100 : 0;
-  const isActive = ACTIVE.has(task.status);
+  // uploading or paused — both show byte/part progress and the progress bar.
+  const inFlight = task.status === 'uploading' || task.status === 'paused';
+  const canPause = task.status === 'uploading' || task.status === 'queued';
 
   return (
     <li className="flex items-center gap-2.5 px-3 py-2 text-sm">
@@ -122,21 +143,33 @@ function UploadRow({
             {task.name}
           </span>
           <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
-            {task.status === 'uploading'
+            {inFlight
               ? `${formatBytes(task.loaded)} / ${formatBytes(task.size)}`
               : formatBytes(task.size)}
           </span>
         </div>
-        {task.status === 'uploading' && (
+        {inFlight && (
           <div className="mt-1 h-1 overflow-hidden rounded-full bg-muted">
             <div
-              className="h-full rounded-full bg-primary transition-all duration-150"
+              className={cn(
+                'h-full rounded-full transition-all duration-150',
+                task.status === 'paused' ? 'bg-muted-foreground/50' : 'bg-primary',
+              )}
               style={{ width: `${pct}%` }}
             />
           </div>
         )}
+        {task.parts && task.parts.total > 1 && inFlight && (
+          <p className="mt-0.5 text-[10px] text-muted-foreground">
+            Parts {task.parts.completed}/{task.parts.total}
+            {task.parts.active > 0 && ` · ${task.parts.active} uploading`}
+          </p>
+        )}
         {task.status === 'queued' && (
           <p className="mt-0.5 text-[10px] text-muted-foreground">Queued</p>
+        )}
+        {task.status === 'paused' && (
+          <p className="mt-0.5 text-[10px] text-muted-foreground">Paused</p>
         )}
         {task.status === 'error' && (
           <p className="mt-0.5 truncate text-[10px] text-destructive" title={task.error}>
@@ -148,26 +181,36 @@ function UploadRow({
         )}
       </div>
 
-      {/* Per-file action */}
-      {isActive ? (
-        <button
-          className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-          onClick={() => manager.cancel(task.id)}
-          aria-label={`Cancel ${task.name}`}
-        >
-          <X size={13} />
-        </button>
-      ) : (
-        <div className="flex shrink-0 items-center">
-          {(task.status === 'error' || task.status === 'canceled') && (
-            <button
-              className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-primary/10 hover:text-primary"
-              onClick={() => manager.retry(task.id)}
-              aria-label={`Retry ${task.name}`}
-            >
-              <RotateCcw size={13} />
-            </button>
-          )}
+      {/* Per-file actions */}
+      <div className="flex shrink-0 items-center">
+        {canPause && (
+          <button
+            className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+            onClick={() => manager.pause(task.id)}
+            aria-label={`Pause ${task.name}`}
+          >
+            <Pause size={13} />
+          </button>
+        )}
+        {task.status === 'paused' && (
+          <button
+            className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-primary/10 hover:text-primary"
+            onClick={() => manager.resume(task.id)}
+            aria-label={`Resume ${task.name}`}
+          >
+            <Play size={13} />
+          </button>
+        )}
+        {(task.status === 'error' || task.status === 'canceled') && (
+          <button
+            className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-primary/10 hover:text-primary"
+            onClick={() => manager.retry(task.id)}
+            aria-label={`Retry ${task.name}`}
+          >
+            <RotateCcw size={13} />
+          </button>
+        )}
+        {FINISHED.has(task.status) ? (
           <button
             className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
             onClick={() => manager.remove(task.id)}
@@ -175,8 +218,16 @@ function UploadRow({
           >
             <X size={13} />
           </button>
-        </div>
-      )}
+        ) : (
+          <button
+            className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+            onClick={() => manager.cancel(task.id)}
+            aria-label={`Cancel ${task.name}`}
+          >
+            <X size={13} />
+          </button>
+        )}
+      </div>
     </li>
   );
 }
@@ -188,5 +239,7 @@ function StatusIcon({ status }: { status: UploadTask['status'] }) {
     return <AlertCircle size={15} className={cn(className, 'text-destructive')} />;
   if (status === 'uploading')
     return <Loader2 size={15} className={cn(className, 'animate-spin text-primary')} />;
+  if (status === 'paused')
+    return <Pause size={15} className={cn(className, 'text-muted-foreground')} />;
   return <FileIcon size={14} className={cn(className, 'text-muted-foreground')} />;
 }

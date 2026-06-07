@@ -3,7 +3,13 @@ import type { AxiosInstance } from 'axios';
 
 // The manager schedules uploadOneFile per task; mock it so the queue/state
 // machine is exercised deterministically (no network, controllable timing).
-vi.mock('../lib/multipart-upload', () => ({ uploadOneFile: vi.fn() }));
+// UPLOAD_PAUSED is the real sentinel the manager passes to abort() on pause — the
+// manager distinguishes pause from cancel by the task's own status, not the
+// reason, so any value works here; we mirror the real export for fidelity.
+vi.mock('../lib/multipart-upload', () => ({
+  uploadOneFile: vi.fn(),
+  UPLOAD_PAUSED: Symbol('upload-paused'),
+}));
 
 import { uploadOneFile } from '../lib/multipart-upload';
 import { UploadManager } from '../lib/upload-manager';
@@ -107,6 +113,81 @@ describe('UploadManager', () => {
     deferreds[1]!.resolve({ key: 'p/a', etag: 'e', size: 1 });
     await flush();
     expect(byName(m.getSnapshot(), 'a')?.status).toBe('done');
+  });
+
+  it('pauses an in-flight upload and resumes it', async () => {
+    const m = new UploadManager(http, { fileConcurrency: 2 });
+    m.enqueue([file('a', 10)], 'p');
+    const aId = byName(m.getSnapshot(), 'a')!.id;
+    expect(byName(m.getSnapshot(), 'a')?.status).toBe('uploading');
+
+    m.pause(aId);
+    // Status flips to 'paused' synchronously (before the abort propagates) so
+    // run()'s catch keeps it paused instead of marking it canceled.
+    expect(byName(m.getSnapshot(), 'a')?.status).toBe('paused');
+    await flush();
+    expect(byName(m.getSnapshot(), 'a')?.status).toBe('paused');
+
+    m.resume(aId);
+    expect(byName(m.getSnapshot(), 'a')?.status).toBe('uploading'); // pump restarts it
+    deferreds.at(-1)!.resolve({ key: 'p/a', etag: 'e', size: 10 });
+    await flush();
+    expect(byName(m.getSnapshot(), 'a')?.status).toBe('done');
+  });
+
+  it('pauses a queued file without starting it', () => {
+    const m = new UploadManager(http, { fileConcurrency: 1 });
+    m.enqueue([file('a', 1), file('b', 1)], 'p');
+    const bId = byName(m.getSnapshot(), 'b')!.id; // queued behind a (cap 1)
+    m.pause(bId);
+    expect(byName(m.getSnapshot(), 'b')?.status).toBe('paused');
+    m.resume(bId);
+    // a still holds the only slot → b returns to queued, not started.
+    expect(byName(m.getSnapshot(), 'b')?.status).toBe('queued');
+    expect(mockUpload).toHaveBeenCalledTimes(1); // only 'a' ever started
+  });
+
+  it('cancelling a paused upload aborts it server-side, then clears its session', async () => {
+    const removed: Array<[string, string]> = [];
+    const session = { key: 'p/a', uploadId: 'up-9', partSize: 8, createdAt: 0 };
+    const sessionStore = {
+      get: () => session,
+      put: () => undefined,
+      remove: (ns: string, fp: string) => void removed.push([ns, fp]),
+    };
+    const post = vi.fn().mockResolvedValue({ data: {} });
+    const m = new UploadManager({ post } as unknown as AxiosInstance, {
+      fileConcurrency: 1,
+      sessionStore,
+    });
+    m.enqueue([file('a', 10)], 'p');
+    const aId = byName(m.getSnapshot(), 'a')!.id;
+    m.pause(aId);
+    await flush();
+    m.cancel(aId);
+    expect(byName(m.getSnapshot(), 'a')?.status).toBe('canceled');
+    // Abort the still-live multipart upload via the saved session, THEN drop it —
+    // no orphaned parts, no silent resume.
+    expect(post).toHaveBeenCalledWith('/multipart/abort', { key: 'p/a', uploadId: 'up-9' });
+    expect(removed).toHaveLength(1);
+  });
+
+  it('surfaces per-part status from the uploader into the snapshot', async () => {
+    mockUpload.mockImplementationOnce(
+      (
+        _http: unknown,
+        _file: File,
+        _prefix: string,
+        opts: { onPart?: (p: unknown) => void } = {},
+      ) => {
+        opts.onPart?.({ total: 4, completed: 2, active: 1 });
+        return new Promise(() => {}); // stay uploading
+      },
+    );
+    const m = new UploadManager(http, { fileConcurrency: 1 });
+    m.enqueue([file('big', 100)], 'p');
+    await flush();
+    expect(byName(m.getSnapshot(), 'big')?.parts).toEqual({ total: 4, completed: 2, active: 1 });
   });
 
   it('clearFinished drops finished tasks but keeps active ones', async () => {

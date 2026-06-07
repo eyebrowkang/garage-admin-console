@@ -14,10 +14,14 @@
  * React renders the panel/indicator off an immutable snapshot.
  */
 import type { AxiosInstance } from 'axios';
-import { uploadOneFile } from './multipart-upload';
-import { createUploadSessionStore, type UploadSessionStore } from './upload-sessions';
+import { uploadOneFile, UPLOAD_PAUSED, type PartSummary } from './multipart-upload';
+import {
+  createUploadSessionStore,
+  fingerprintFile,
+  type UploadSessionStore,
+} from './upload-sessions';
 
-export type UploadTaskStatus = 'queued' | 'uploading' | 'done' | 'error' | 'canceled';
+export type UploadTaskStatus = 'queued' | 'uploading' | 'paused' | 'done' | 'error' | 'canceled';
 
 export interface UploadTask {
   id: string;
@@ -30,6 +34,8 @@ export interface UploadTask {
   loaded: number;
   status: UploadTaskStatus;
   error?: string;
+  /** Aggregate per-part status (multipart files only; undefined for small ones). */
+  parts?: PartSummary;
 }
 
 interface InternalTask extends UploadTask {
@@ -37,7 +43,9 @@ interface InternalTask extends UploadTask {
   controller: AbortController | null;
 }
 
-const ACTIVE_STATUSES: ReadonlySet<UploadTaskStatus> = new Set(['queued', 'uploading']);
+// "Active" = not finished. Paused counts as active: it's parked, not done, so it
+// survives clearFinished and can't be dropped by remove() until cancelled.
+const ACTIVE_STATUSES: ReadonlySet<UploadTaskStatus> = new Set(['queued', 'uploading', 'paused']);
 
 let idCounter = 0;
 function nextId(): string {
@@ -60,6 +68,7 @@ function publicView(t: InternalTask): UploadTask {
     loaded: t.loaded,
     status: t.status,
     error: t.error,
+    parts: t.parts,
   };
 }
 
@@ -144,6 +153,7 @@ export class UploadManager {
     task.status = 'uploading';
     task.loaded = 0;
     task.error = undefined;
+    task.parts = undefined;
     task.controller = new AbortController();
     this.emit();
     try {
@@ -153,13 +163,20 @@ export class UploadManager {
           task.loaded = loaded;
           this.emit();
         },
+        onPart: (parts) => {
+          task.parts = parts;
+          this.emit();
+        },
         resume: { store: this.sessionStore },
       });
       task.status = 'done';
       task.loaded = task.size;
     } catch (err) {
       if (isAbortError(err)) {
-        task.status = 'canceled';
+        // pause() sets status to 'paused' BEFORE aborting; a plain cancel leaves
+        // it 'uploading' here. Keep a paused task parked (and resumable). The cast
+        // widens past TS's flow-narrowing — pause() mutates status out-of-band.
+        task.status = (task.status as UploadTaskStatus) === 'paused' ? 'paused' : 'canceled';
       } else {
         task.status = 'error';
         task.error = (err as Error)?.message || 'Upload failed';
@@ -172,11 +189,47 @@ export class UploadManager {
     }
   }
 
-  /** Cancel one task (a queued one is dropped; an in-flight one is aborted). */
+  /** Pause one task — parks a queued task, aborts an in-flight one WITHOUT tearing
+   * down its multipart upload/session so resume() can continue from where it left
+   * off (small files restart, since they keep no session). */
+  pause(id: string): void {
+    const task = this.tasks.find((t) => t.id === id);
+    if (!task) return;
+    if (task.status === 'queued') {
+      task.status = 'paused';
+      this.emit();
+    } else if (task.status === 'uploading') {
+      // Set status BEFORE aborting so run()'s catch keeps it 'paused' (not
+      // 'canceled'); the UPLOAD_PAUSED reason tells the uploader to preserve the
+      // server-side upload + session.
+      task.status = 'paused';
+      task.controller?.abort(UPLOAD_PAUSED);
+      this.emit();
+    }
+  }
+
+  /** Resume a paused task — re-queues it; a large file continues via ListParts. */
+  resume(id: string): void {
+    const task = this.tasks.find((t) => t.id === id);
+    if (!task || task.status !== 'paused') return;
+    task.status = 'queued';
+    task.error = undefined;
+    this.emit();
+    this.pump();
+  }
+
+  /** Cancel one task. Queued is dropped; an in-flight one is aborted (the uploader
+   * then tears down its multipart upload server-side); a paused one is aborted
+   * server-side via its saved session, then dropped — no orphaned parts, no silent
+   * resume. */
   cancel(id: string): void {
     const task = this.tasks.find((t) => t.id === id);
     if (!task) return;
     if (task.status === 'queued') {
+      task.status = 'canceled';
+      this.emit();
+    } else if (task.status === 'paused') {
+      this.abortAndClearSession(task);
       task.status = 'canceled';
       this.emit();
     } else if (task.status === 'uploading') {
@@ -187,9 +240,32 @@ export class UploadManager {
   cancelAll(): void {
     for (const task of this.tasks) {
       if (task.status === 'queued') task.status = 'canceled';
-      else if (task.status === 'uploading') task.controller?.abort();
+      else if (task.status === 'paused') {
+        this.abortAndClearSession(task);
+        task.status = 'canceled';
+      } else if (task.status === 'uploading') task.controller?.abort();
     }
     this.emit();
+  }
+
+  /** Abort a paused upload's still-live multipart upload server-side (best-effort)
+   * and drop its local session. Cancelling a paused LARGE upload otherwise orphans
+   * the already-uploaded parts on the bucket; we hold the uploadId in the session,
+   * so use it — mirroring the in-flight cancel path's server-side abort. Small
+   * uploads keep no session, so this is just a session-remove for them. */
+  private abortAndClearSession(task: InternalTask): void {
+    const namespace = this.http.defaults?.baseURL ?? '';
+    const fingerprint = fingerprintFile(task.file);
+    const session = this.sessionStore.get(namespace, fingerprint);
+    if (session) {
+      // Fire-and-forget, like uploadOneLarge's abort-on-failure: don't block the
+      // UI or surface a network failure (the bucket's incomplete-upload lifecycle
+      // is the backstop). The client's default timeout bounds it.
+      void this.http
+        .post('/multipart/abort', { key: session.key, uploadId: session.uploadId })
+        .catch(() => undefined);
+    }
+    this.sessionStore.remove(namespace, fingerprint);
   }
 
   /** Re-queue a failed or cancelled task. */
