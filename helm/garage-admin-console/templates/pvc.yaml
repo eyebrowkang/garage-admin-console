@@ -1,0 +1,21 @@
+{{- if .Values.pvc.name }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Values.pvc.name }}
+  labels:
+    {{- include "garage-admin-console.labels" . | nindent 4 }}
+  {{- with .Values.serviceAccount.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.pvc.storageRequest | default "100Mi" }}
+  {{- with .Values.pvc.storageClassName }}
+  storageClassName: {{ . }}
+  {{- end }}
+{{- end }}
