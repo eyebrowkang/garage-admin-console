@@ -7,7 +7,7 @@ integration."_ Coverage is deliberately concentrated on logic and real user
 flows rather than on every presentational component.
 
 ```
-        ▲  E2E (Playwright)            4 specs · live Garage backend
+        ▲  E2E (Playwright)            5 specs · live Garage backend
        ███  Integration               BFF supertest · RTL component/flow
       █████ Unit                       crypto · formatters · reducer · cors …
 ```
@@ -41,7 +41,7 @@ collide on a shared `data.db` even when CI sets one `DATA_DIR`.
 |                 | `packages/ui`                        | RTL — `LoginForm` (error mapping/disabled), `useToast` reducer, `useViewMode`, `cn`                                                                                                                                                                                                                                         |
 |                 | `s3-browser/web` (flow)              | `FileBrowser` smoke — mounts against a mocked `/list`, renders, navigates, opens a dialog                                                                                                                                                                                                                                   |
 | **Contract**    | `packages/bucket-api-contract-tests` | the shared Bucket Backend API against **either** BFF — list/object/presign, upload (incl. 413), download (full + ranged 206), multipart round-trip + adaptive `partSize`, `/multipart/parts` (resume; 404 on unknown), copy, delete, `/cors-status`. Env-gated, skips offline                                               |
-| **E2E**         | `e2e/`                               | login, cluster navigation, create bucket, create access key — Playwright against a live stack                                                                                                                                                                                                                               |
+| **E2E**         | `e2e/`                               | login, cluster navigation, create bucket, create access key, axe WCAG 2.1 AA scan of each page (`a11y.spec.ts`; known violations tracked in #52) — Playwright against a live stack                                                                                                                                          |
 
 ## Conventions
 
