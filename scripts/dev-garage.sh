@@ -29,7 +29,7 @@ die() {
 
 require_env_file() {
   [[ -f "$env_file" ]] || die "no $env_file; run '$0 up' first"
-  docker inspect "$GARAGE_CONTAINER_NAME" >/dev/null 2>&1 ||
+  [[ "$(docker inspect -f '{{.State.Running}}' "$GARAGE_CONTAINER_NAME" 2>/dev/null)" == true ]] ||
     die "container $GARAGE_CONTAINER_NAME is not running; run '$0 up' first"
   set -a
   # shellcheck disable=SC1090
@@ -50,6 +50,9 @@ require_free_ports() {
 
 cmd_up() {
   command -v docker >/dev/null || die "docker is required"
+  # The old credentials die with the old container; never leave them behind
+  # if re-provisioning fails halfway.
+  rm -f "$env_file"
 
   export RPC_SECRET ADMIN_TOKEN
   RPC_SECRET="$(openssl rand -hex 32)"
