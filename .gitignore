@@ -22,3 +22,5 @@ memory/
 .idea/
 .impeccable/
 !.impeccable/design.json
+# Playwright CLI output (may contain credentials)
+.playwright-cli/

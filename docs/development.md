@@ -8,6 +8,11 @@ commits, versioning) see [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 - **Node.js** 24.x or later
 - **pnpm** 11.x (the repo pins `pnpm@11.3.0` via `packageManager`)
+- **Docker** — only for the disposable Garage used by live tests (see
+  [testing.md](./testing.md#local-disposable-garage))
+- **direnv** (optional) — the root [`.envrc`](../.envrc) switches to the `.nvmrc`
+  Node version via nvm and puts `node_modules/.bin` on `PATH`; run `direnv allow`
+  once. Personal overrides go in the gitignored `.envrc.local`.
 
 ## Initial setup
 
