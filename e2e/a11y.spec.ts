@@ -8,10 +8,12 @@ import { openClusterConsole, openClusterModule, ensureClusterExists } from './he
 // but the ones it catches are deterministic, so they gate here.
 const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
 
-// Pre-existing violations, tracked in #52 — baselined per page and per node, so
-// the same rules still gate any *new* offending element. A node is keyed by
-// "<rule> <tag.classes>" taken from its own opening tag (not axe's positional
-// selector), so the baseline survives extra table rows from earlier runs.
+// Pre-existing violations, tracked in #52 — baselined per page and per
+// offending *component*: a node is keyed by "<rule> <tag.classes>" from its own
+// opening tag (not axe's positional selector). More instances of a listed
+// component (e.g. extra table rows / copy buttons from earlier runs) are the
+// same root cause with the same fix, so they are tolerated by design; a
+// violation on any other element, or of any other rule, fails.
 // Delete entries as they get fixed (a stale entry is reported as an
 // `a11y-baseline-stale` annotation); never add entries just to get green.
 const KNOWN_VIOLATIONS: Record<string, string[]> = {
