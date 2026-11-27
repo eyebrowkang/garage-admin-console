@@ -52,6 +52,7 @@ pnpm lint  ·  pnpm format[:check]  ·  pnpm typecheck
 pnpm test                                       # full offline suite across every workspace
 pnpm test:coverage                              # aggregated v8 coverage (informational)
 pnpm e2e                                         # Playwright (Admin Console; needs a live backend)
+scripts/dev-garage.sh up|e2e|contract|down       # disposable local Garage (Docker) for E2E + contract suite
 pnpm -C packages/bucket-api-contract-tests test:run   # contract suite (env-gated)
 ```
 

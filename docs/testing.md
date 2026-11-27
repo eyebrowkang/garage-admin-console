@@ -7,7 +7,7 @@ integration."_ Coverage is deliberately concentrated on logic and real user
 flows rather than on every presentational component.
 
 ```
-        ▲  E2E (Playwright)            4 specs · live Garage backend
+        ▲  E2E (Playwright)            5 specs · live Garage backend
        ███  Integration               BFF supertest · RTL component/flow
       █████ Unit                       crypto · formatters · reducer · cors …
 ```
@@ -19,6 +19,7 @@ pnpm test                 # full offline suite — every workspace, runs in CI
 pnpm test:coverage        # aggregated v8 coverage for the pure/shared/frontend layers
 pnpm -C <workspace> test  # one workspace in watch mode (e.g. pnpm -C packages/crypto test)
 pnpm e2e                  # Playwright E2E (needs a running stack + a Garage cluster)
+scripts/dev-garage.sh up   # disposable local Garage for E2E + contract suite (Docker)
 ```
 
 `pnpm test` runs `pnpm -r --if-present test:run`, so each workspace runs its own
@@ -40,7 +41,7 @@ collide on a shared `data.db` even when CI sets one `DATA_DIR`.
 |                 | `packages/ui`                        | RTL — `LoginForm` (error mapping/disabled), `useToast` reducer, `useViewMode`, `cn`                                                                                                                                                                                                                                         |
 |                 | `s3-browser/web` (flow)              | `FileBrowser` smoke — mounts against a mocked `/list`, renders, navigates, opens a dialog                                                                                                                                                                                                                                   |
 | **Contract**    | `packages/bucket-api-contract-tests` | the shared Bucket Backend API against **either** BFF — list/object/presign, upload (incl. 413), download (full + ranged 206), multipart round-trip + adaptive `partSize`, `/multipart/parts` (resume; 404 on unknown), copy, delete, `/cors-status`. Env-gated, skips offline                                               |
-| **E2E**         | `e2e/`                               | login, cluster navigation, create bucket, create access key — Playwright against a live stack                                                                                                                                                                                                                               |
+| **E2E**         | `e2e/`                               | login, cluster navigation, create bucket, create access key, axe WCAG 2.1 AA scan of every route incl. detail pages (`a11y.spec.ts`; known violations baselined, tracked in #52) — Playwright against a live stack                                                                                                          |
 
 ## Conventions
 
@@ -83,6 +84,31 @@ gate** — the headline percentage is low by design because the suite targets
 logic and key flows, not exhaustive component coverage. The BFFs are excluded
 from the aggregate (each migrates its own file DB) and are covered by their
 supertest suites under `pnpm test`.
+
+## Local disposable Garage
+
+The quickest way to run the live suites locally needs only Docker:
+[`scripts/dev-garage.sh`](../scripts/dev-garage.sh) wraps the same
+`scripts/live-tests/*` provisioning CI uses, with a `garage-dev` container on
+the host network (S3 `:3900`, admin `:3903`) and freshly generated secrets.
+
+```bash
+scripts/dev-garage.sh up          # (re)create + provision; writes .env.garage-dev.local
+scripts/dev-garage.sh e2e         # pnpm build:packages + pnpm e2e, fresh DATA_DIR; extra args go to Playwright
+scripts/dev-garage.sh contract    # build + start the S3 Browser BFF, run the contract suite
+scripts/dev-garage.sh down        # remove the container and the env file
+```
+
+`e2e` and `contract` refuse to start if their dev ports (`3001`/`5173`, `3002`)
+are already taken — otherwise Playwright would silently reuse a dev server with
+a different `ADMIN_PASSWORD`/`DATA_DIR`. The generated `.env.garage-dev.local` is
+gitignored; `scripts/dev-garage.sh env` prints it for ad-hoc
+`set -a; . ./.env.garage-dev.local; set +a`. Every `up` starts from an empty
+cluster, so the E2E resources the specs leave behind never accumulate. Pin a
+different Garage version with `GARAGE_IMAGE=dxflrs/garage:<tag>`.
+
+To test against a real (non-disposable) cluster instead, use the manual setup
+below.
 
 ## Live testing against a real cluster
 
